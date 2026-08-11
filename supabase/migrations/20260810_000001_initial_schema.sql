@@ -27,6 +27,33 @@ as $$
   );
 $$;
 
+create or replace function public.valid_campaign_images(p_images jsonb)
+returns boolean
+language plpgsql
+immutable
+set search_path = public, pg_temp
+as $$
+begin
+  if p_images is null or jsonb_typeof(p_images) <> 'array' then
+    return false;
+  end if;
+  if jsonb_array_length(p_images) > 10 then
+    return false;
+  end if;
+  return not exists (
+    select 1
+    from jsonb_array_elements(p_images) image
+    where jsonb_typeof(image) <> 'object'
+      or not (image ? 'src')
+      or not (image ? 'alt')
+      or jsonb_typeof(image -> 'src') <> 'string'
+      or jsonb_typeof(image -> 'alt') <> 'string'
+      or length(btrim(image ->> 'src')) not between 1 and 2000
+      or length(btrim(image ->> 'alt')) not between 1 and 300
+  );
+end;
+$$;
+
 create table if not exists public.campaign (
   id uuid primary key default gen_random_uuid(),
   slug text not null default encode(extensions.gen_random_bytes(18), 'hex'),
@@ -36,12 +63,25 @@ create table if not exists public.campaign (
   status text not null default 'open' check (status in ('open', 'closed', 'arrived')),
   deadline timestamptz not null,
   announcement text not null default '' check (length(announcement) <= 20000),
-  image_paths text[] not null default '{}'::text[]
-    check (cardinality(image_paths) <= 10),
+  images jsonb not null default '[]'::jsonb
+    check (public.valid_campaign_images(images)),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint campaign_slug_key unique (slug),
   constraint campaign_slug_random_format check (slug ~ '^[0-9a-f]{36}$')
+);
+
+create table if not exists public.campaign_draft (
+  campaign_id uuid primary key references public.campaign(id) on delete cascade,
+  title text not null check (length(btrim(title)) between 1 and 200),
+  unit_price numeric(12,2) not null check (unit_price >= 0),
+  threshold integer not null check (threshold > 0),
+  announcement text not null default '' check (length(announcement) <= 20000),
+  images jsonb not null default '[]'::jsonb
+    check (public.valid_campaign_images(images)),
+  updated_by uuid default auth.uid() references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists public.campaign_item (
@@ -170,6 +210,11 @@ create trigger campaign_set_updated_at
 before update on public.campaign
 for each row execute function public.set_updated_at();
 
+drop trigger if exists campaign_draft_set_updated_at on public.campaign_draft;
+create trigger campaign_draft_set_updated_at
+before update on public.campaign_draft
+for each row execute function public.set_updated_at();
+
 drop trigger if exists campaign_item_set_updated_at on public.campaign_item;
 create trigger campaign_item_set_updated_at
 before update on public.campaign_item
@@ -211,7 +256,7 @@ returns table (
   status text,
   deadline timestamptz,
   announcement text,
-  image_paths text[],
+  images jsonb,
   created_at timestamptz,
   updated_at timestamptz
 )
@@ -232,7 +277,7 @@ begin
 
   return query
   select c.id, c.slug, c.title, c.unit_price, c.threshold,
-         c.status, c.deadline, c.announcement, c.image_paths,
+         c.status, c.deadline, c.announcement, c.images,
          c.created_at, c.updated_at
   from public.campaign c
   where c.slug = p_slug;
@@ -402,8 +447,41 @@ begin
 end;
 $$;
 
+create or replace function public.publish_campaign_draft(p_campaign_id uuid)
+returns public.campaign
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_campaign public.campaign;
+begin
+  if auth.uid() is null or not public.is_admin() then
+    raise exception 'admin permission required' using errcode = '42501';
+  end if;
+
+  update public.campaign c
+  set title = d.title,
+      unit_price = d.unit_price,
+      threshold = d.threshold,
+      announcement = d.announcement,
+      images = d.images
+  from public.campaign_draft d
+  where c.id = p_campaign_id
+    and d.campaign_id = c.id
+  returning c.* into v_campaign;
+
+  if v_campaign.id is null then
+    raise exception 'campaign draft not found' using errcode = 'P0002';
+  end if;
+
+  return v_campaign;
+end;
+$$;
+
 alter table public.admin_users enable row level security;
 alter table public.campaign enable row level security;
+alter table public.campaign_draft enable row level security;
 alter table public.campaign_item enable row level security;
 alter table public.product_template enable row level security;
 alter table public.customer enable row level security;
@@ -421,6 +499,12 @@ using (user_id = auth.uid() and public.is_admin());
 
 drop policy if exists campaign_admin_all on public.campaign;
 create policy campaign_admin_all on public.campaign
+for all to authenticated
+using (public.is_admin())
+with check (public.is_admin());
+
+drop policy if exists campaign_draft_admin_all on public.campaign_draft;
+create policy campaign_draft_admin_all on public.campaign_draft
 for all to authenticated
 using (public.is_admin())
 with check (public.is_admin());
@@ -546,7 +630,7 @@ create or replace view public.campaign_public
 with (security_invoker = true)
 as
 select id, slug, title, unit_price, threshold, status, deadline,
-       announcement, image_paths, created_at, updated_at
+       announcement, images, created_at, updated_at
 from public.campaign;
 
 create or replace view public.order_wall
@@ -578,6 +662,7 @@ left join public.campaign_item ci on ci.id = oi.campaign_item_id;
 -- their PostgreSQL ownership/superuser capabilities.
 revoke all on table public.admin_users from anon, authenticated;
 revoke all on table public.campaign from anon, authenticated;
+revoke all on table public.campaign_draft from anon, authenticated;
 revoke all on table public.campaign_item from anon, authenticated;
 revoke all on table public.product_template from anon, authenticated;
 revoke all on table public.customer from anon, authenticated;
@@ -588,10 +673,17 @@ revoke all on table public.campaign_access from anon, authenticated;
 revoke all on table public.campaign_public from anon, authenticated;
 revoke all on table public.order_wall from anon, authenticated;
 
+-- Trusted Edge Functions and provisioning paths use service_role. PostgreSQL
+-- privileges are still required even though this role bypasses RLS.
+grant usage on schema public to service_role;
+grant all on all tables in schema public to service_role;
+grant execute on all functions in schema public to service_role;
+
 -- Admin actions are still governed by RLS. Customer column grants intentionally
 -- omit line_user_id from SELECT and prevent clients changing identity/metrics.
 grant select on table public.admin_users to authenticated;
 grant select, insert, update, delete on table public.campaign to authenticated;
+grant select, insert, update, delete on table public.campaign_draft to authenticated;
 grant select, insert, update, delete on table public.campaign_item to authenticated;
 grant select, insert, update, delete on table public.product_template to authenticated;
 grant select (id, period, unit, name, total_spent, order_count, vip_level,
@@ -607,6 +699,7 @@ grant select on table public.campaign_access to authenticated;
 grant select on table public.campaign_public, public.order_wall to authenticated;
 
 revoke all on function public.is_admin() from public, anon;
+revoke all on function public.valid_campaign_images(jsonb) from public, anon;
 revoke all on function public.join_campaign_by_slug(text) from public, anon;
 revoke all on function public.has_campaign_access(uuid) from public, anon;
 revoke all on function public.owns_customer(uuid) from public, anon;
@@ -615,8 +708,10 @@ revoke all on function public.campaign_is_editable(uuid) from public, anon;
 revoke all on function public.can_edit_order(uuid) from public, anon;
 revoke all on function public.customer_is_wall_visible(uuid) from public, anon;
 revoke all on function public.submit_customer_order(uuid, jsonb) from public, anon;
+revoke all on function public.publish_campaign_draft(uuid) from public, anon;
 revoke all on function public.set_updated_at() from public, anon, authenticated;
 grant execute on function public.is_admin() to authenticated;
+grant execute on function public.valid_campaign_images(jsonb) to authenticated;
 grant execute on function public.join_campaign_by_slug(text) to authenticated;
 grant execute on function public.has_campaign_access(uuid) to authenticated;
 grant execute on function public.owns_customer(uuid) to authenticated;
@@ -625,6 +720,7 @@ grant execute on function public.campaign_is_editable(uuid) to authenticated;
 grant execute on function public.can_edit_order(uuid) to authenticated;
 grant execute on function public.customer_is_wall_visible(uuid) to authenticated;
 grant execute on function public.submit_customer_order(uuid, jsonb) to authenticated;
+grant execute on function public.publish_campaign_draft(uuid) to authenticated;
 
 -- Realtime Postgres Changes: only wall-related, non-sensitive tables are added.
 -- customer is intentionally excluded so line_user_id can never enter the stream.

@@ -55,7 +55,7 @@ export type Database = {
           created_at: string
           deadline: string
           id: string
-          image_paths: string[]
+          images: Json
           slug: string
           status: string
           threshold: number
@@ -68,7 +68,7 @@ export type Database = {
           created_at?: string
           deadline: string
           id?: string
-          image_paths?: string[]
+          images?: Json
           slug?: string
           status?: string
           threshold: number
@@ -81,7 +81,7 @@ export type Database = {
           created_at?: string
           deadline?: string
           id?: string
-          image_paths?: string[]
+          images?: Json
           slug?: string
           status?: string
           threshold?: number
@@ -119,6 +119,57 @@ export type Database = {
             foreignKeyName: "campaign_access_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "campaign_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_draft: {
+        Row: {
+          announcement: string
+          campaign_id: string
+          created_at: string
+          images: Json
+          threshold: number
+          title: string
+          unit_price: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          announcement?: string
+          campaign_id: string
+          created_at?: string
+          images?: Json
+          threshold: number
+          title: string
+          unit_price: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          announcement?: string
+          campaign_id?: string
+          created_at?: string
+          images?: Json
+          threshold?: number
+          title?: string
+          unit_price?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_draft_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: true
+            referencedRelation: "campaign"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_draft_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: true
             referencedRelation: "campaign_public"
             referencedColumns: ["id"]
           },
@@ -404,7 +455,7 @@ export type Database = {
           created_at: string | null
           deadline: string | null
           id: string | null
-          image_paths: string[] | null
+          images: Json | null
           slug: string | null
           status: string | null
           threshold: number | null
@@ -417,7 +468,7 @@ export type Database = {
           created_at?: string | null
           deadline?: string | null
           id?: string | null
-          image_paths?: string[] | null
+          images?: Json | null
           slug?: string | null
           status?: string | null
           threshold?: number | null
@@ -430,7 +481,7 @@ export type Database = {
           created_at?: string | null
           deadline?: string | null
           id?: string | null
-          image_paths?: string[] | null
+          images?: Json | null
           slug?: string | null
           status?: string | null
           threshold?: number | null
@@ -495,7 +546,7 @@ export type Database = {
           created_at: string
           deadline: string
           id: string
-          image_paths: string[]
+          images: Json
           slug: string
           status: string
           threshold: number
@@ -506,10 +557,33 @@ export type Database = {
       }
       owns_customer: { Args: { p_customer_id: string }; Returns: boolean }
       owns_order: { Args: { p_order_id: string }; Returns: boolean }
+      publish_campaign_draft: {
+        Args: { p_campaign_id: string }
+        Returns: {
+          announcement: string
+          created_at: string
+          deadline: string
+          id: string
+          images: Json
+          slug: string
+          status: string
+          threshold: number
+          title: string
+          unit_price: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "campaign"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       submit_customer_order: {
         Args: { p_campaign_id: string; p_items: Json }
         Returns: Json
       }
+      valid_campaign_images: { Args: { p_images: Json }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never

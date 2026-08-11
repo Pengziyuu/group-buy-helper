@@ -1,6 +1,6 @@
 -- Local development data only. No phone numbers, addresses, or LINE identifiers.
 insert into public.campaign (
-  id, slug, title, unit_price, threshold, status, deadline, announcement, image_paths
+  id, slug, title, unit_price, threshold, status, deadline, announcement, images
 )
 values (
   '10000000-0000-4000-8000-000000000001',
@@ -22,7 +22,7 @@ values (
 
 結單：100個成團
 到貨：貨到通知$announcement$,
-  '{}'::text[]
+  '[{"src":"campaigns/demo/ice-cream-sandwich-demo.svg","alt":"超厚三明治冰餅口味示意圖"}]'::jsonb
 );
 
 insert into public.campaign_item (id, campaign_id, code, name, sort_order)

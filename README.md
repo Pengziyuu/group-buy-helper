@@ -16,7 +16,9 @@
 - LIFF 身分載入與 ID token 邊界
 - demo/live 環境設定防呆
 - Supabase schema、RLS 與 Realtime migration
-- 32 個前端／領域自動測試
+- Supabase `campaign_draft`、團主專用 RLS、原子發布 RPC 與前端 gateway
+- 商品圖片以 `{src, alt}` JSON 保存，資料庫驗證替代文字及最多 10 張限制
+- 34 個前端／領域自動測試
 - 可重建的本機 Supabase migration、seed 與產生型別
 
 ## 本機執行
@@ -75,6 +77,17 @@ npx supabase functions serve
 
 `db reset` 會從零套用 migration，並載入 `supabase/seed.sql` 的非敏感示範資料。
 
+本機草稿／發布 RLS 整合驗證（Git Bash）：
+
+```bash
+set -a
+eval "$(npx supabase status -o env)"
+set +a
+python scripts/verify_supabase_draft.py
+```
+
+此腳本會使用臨時 Anonymous Auth 使用者，驗證團主可儲存與發布、住戶看不到草稿、發布前公開內容不變，以及不完整圖片資料會被資料庫拒絕；不會輸出或寫入 API key。
+
 ## LINE / LIFF
 
 1. 建立 LINE Login channel。
@@ -91,6 +104,7 @@ npx supabase functions serve
 - 結單後禁止修改。
 - 單品數量限制 0–20。
 - 團主操作使用 Supabase Auth；敏感寫入不使用公開匿名權限。
+- 草稿僅 `admin_users` 可讀寫；住戶只能讀取已發布的 `campaign_public`。
 
 ## 下一個外部依賴
 
