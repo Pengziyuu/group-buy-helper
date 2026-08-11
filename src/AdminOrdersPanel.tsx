@@ -123,7 +123,7 @@ function AdminOrdersPanel({
         <section aria-labelledby="item-summary-heading">
           <div className="admin-subheading">
             <h3 id="item-summary-heading">品項彙總</h3>
-            <span>A–I 口味</span>
+            <span>{summary.itemRows.length} 個品項</span>
           </div>
           <div className="admin-table-scroll">
             <table>

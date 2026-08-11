@@ -25,6 +25,8 @@ const published: CampaignContent = {
   threshold: 80,
   announcement: '資料庫公告',
   images: [{ src: '/remote.svg', alt: '資料庫商品圖' }],
+  items: items.map((item) => ({ ...item, active: true })),
+  openedAt: '2026-08-12T00:00:00Z',
 }
 
 const orderSummary = buildOrganizerOrderSummary({ orders: initialOrders, items, unitPrice: 50, threshold: 80 })
@@ -1032,17 +1034,38 @@ describe('local Supabase visual demo apps', () => {
         threshold: published.threshold,
         announcement: published.announcement,
         images: published.images,
+        items: published.items,
+        opened_at: published.openedAt,
         status: 'closed',
       },
       error: null,
     })
     const eq = vi.fn().mockReturnValue({ single })
-    const select = vi.fn().mockReturnValue({ eq })
+    const campaignSelect = vi.fn().mockReturnValue({ eq })
+    const wallEq = vi.fn().mockResolvedValue({
+      data: [{
+        order_id: 'order-live-1', customer_id: 'customer-live-1', customer_name: '資料庫住戶',
+        period: 2, unit: '9Z9', item_code: published.items[0].code, qty: 3,
+        ordered_at: '2026-08-14T01:00:00Z', order_updated_at: '2026-08-14T01:05:00Z',
+      }],
+      error: null,
+    })
+    const customerSelect = vi.fn().mockResolvedValue({
+      data: [{ id: 'customer-live-1', name: '資料庫住戶', period: 2, unit: '9Z9' }],
+      error: null,
+    })
+    const from = vi.fn((table: string) => {
+      if (table === 'campaign_public') return { select: campaignSelect }
+      if (table === 'order_wall') return { select: vi.fn().mockReturnValue({ eq: wallEq }) }
+      return { select: customerSelect }
+    })
     const on = vi.fn().mockReturnThis()
     const subscribe = vi.fn().mockReturnThis()
     Object.assign(client, {
-      rpc: vi.fn().mockResolvedValue({ data: {}, error: null }),
-      from: vi.fn().mockReturnValue({ select }),
+      rpc: vi.fn((name: string) => Promise.resolve(name === 'get_customer_self'
+        ? { data: [{ id: 'customer-live-1', name: '資料庫住戶', period: 2, unit: '9Z9' }], error: null }
+        : { data: {}, error: null })),
+      from,
       channel: vi.fn().mockReturnValue({ on, subscribe }),
       removeChannel: vi.fn().mockResolvedValue(undefined),
     })
@@ -1058,5 +1081,9 @@ describe('local Supabase visual demo apps', () => {
     expect(await screen.findByRole('heading', { name: 'Supabase 已發布冰餅團' })).toBeInTheDocument()
     expect(screen.getByText(/Supabase Live Demo/)).toBeInTheDocument()
     expect(screen.getByText('已結單')).toBeInTheDocument()
+    expect(screen.getAllByText('資料庫住戶').length).toBeGreaterThan(0)
+    expect(screen.getByText('下單時間 2026/08/14 09:00')).toBeInTheDocument()
+    expect(screen.getByText('已修改・最後修改 2026/08/14 09:05')).toBeInTheDocument()
+    expect(screen.queryByText('斯祈')).not.toBeInTheDocument()
   })
 })

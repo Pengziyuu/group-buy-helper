@@ -19,6 +19,8 @@ const defaultContent: CampaignContent = {
   threshold: campaign.threshold,
   announcement: campaign.announcement,
   images: campaign.images,
+  items,
+  openedAt: campaign.openedAt,
 }
 
 const demoOrderSummary = buildOrganizerOrderSummary({
@@ -34,7 +36,7 @@ type AdminAppProps = {
   initialContent?: CampaignContent
   initialPublicationState?: PublicationState
   onSaveDraft?: (content: CampaignContent) => Promise<void>
-  onPublish?: (content: CampaignContent) => Promise<void>
+  onPublish?: (content: CampaignContent) => Promise<CampaignContent | void>
   onSignOut?: () => Promise<void>
   orderSummary?: OrganizerOrderSummary | null
   campaignStatus?: CampaignStatus
@@ -66,6 +68,7 @@ function AdminApp({
   const [threshold, setThreshold] = useState(initialDraft.threshold)
   const [announcement, setAnnouncement] = useState(initialDraft.announcement)
   const [images, setImages] = useState(() => [...initialDraft.images])
+  const [campaignItems, setCampaignItems] = useState(() => initialDraft.items.map((item) => ({ ...item })))
   const [imageUrl, setImageUrl] = useState('')
   const [imageAlt, setImageAlt] = useState('')
   const [imageFile, setImageFile] = useState<File | null>(null)
@@ -83,7 +86,15 @@ function AdminApp({
   const editorBusy = busyAction !== null || uploadingImage
   const resolvedOrderSummary = orderSummary === undefined ? demoOrderSummary : orderSummary
 
-  const currentContent = (): CampaignContent => ({ title, unitPrice, threshold, announcement, images })
+  const currentContent = (): CampaignContent => ({
+    title,
+    unitPrice,
+    threshold,
+    announcement,
+    images,
+    items: campaignItems,
+    openedAt: initialDraft.openedAt,
+  })
   const markDraft = () => {
     setPublicationState('draft')
     setNotice('')
@@ -95,6 +106,9 @@ function AdminApp({
     setBusyAction('save')
     setNotice('')
     try {
+      if (!campaignItems.some((item) => item.active && item.name.trim())) {
+        throw new Error('至少需要一個啟用且有名稱的品項')
+      }
       const content = currentContent()
       if (onSaveDraft) await onSaveDraft(content)
       else saveDraftCampaign(content)
@@ -114,9 +128,20 @@ function AdminApp({
     setBusyAction('publish')
     setNotice('')
     try {
+      if (!campaignItems.some((item) => item.active && item.name.trim())) {
+        throw new Error('至少需要一個啟用且有名稱的品項')
+      }
       const content = currentContent()
-      if (onPublish) await onPublish(content)
-      else publishCampaign(content)
+      const canonical = onPublish ? await onPublish(content) : undefined
+      if (!onPublish) publishCampaign(content)
+      if (canonical) {
+        setTitle(canonical.title)
+        setUnitPrice(canonical.unitPrice)
+        setThreshold(canonical.threshold)
+        setAnnouncement(canonical.announcement)
+        setImages([...canonical.images])
+        setCampaignItems(canonical.items.map((item) => ({ ...item })))
+      }
       setPublicationState('published')
       setNotice('已發布到住戶端')
     } catch (error) {
@@ -180,6 +205,38 @@ function AdminApp({
     window.setTimeout(() => imageAltInputRef.current?.focus(), 0)
   }
 
+  const nextItemCode = () => {
+    let suffix = 1
+    while (campaignItems.some((item) => item.code === `ITEM${suffix}`)) suffix += 1
+    return `ITEM${suffix}`
+  }
+
+  const moveItem = (index: number, delta: number) => {
+    setCampaignItems((current) => {
+      const target = index + delta
+      if (target < 0 || target >= current.length) return current
+      const next = [...current]
+      ;[next[index], next[target]] = [next[target], next[index]]
+      return next
+    })
+    markDraft()
+  }
+
+  const removeItem = (index: number) => {
+    const item = campaignItems[index]
+    if (!item) return
+    const orderedQuantity = resolvedOrderSummary?.itemRows.find((row) => row.code === item.code)?.quantity ?? 0
+    if (orderedQuantity > 0) {
+      setCampaignItems((current) => current.map((currentItem, currentIndex) =>
+        currentIndex === index ? { ...currentItem, active: false } : currentItem))
+      setNotice(`已有 ${orderedQuantity} 個訂單，已停用並保留歷史紀錄`)
+    } else {
+      setCampaignItems((current) => current.filter((_, currentIndex) => currentIndex !== index))
+      setNotice('品項已移除')
+    }
+    setPublicationState('draft')
+  }
+
   return (
     <main className="admin-shell">
       <header className="admin-header">
@@ -229,6 +286,47 @@ function AdminApp({
               />
               <small id="announcement-count">{announcement.length} / 20,000 字</small>
             </div>
+            <section className="item-editor full-field" aria-labelledby="item-editor-heading">
+              <div className="image-editor-heading">
+                <h3 id="item-editor-heading">團購品項</h3>
+                <button
+                  type="button"
+                  disabled={editorBusy || campaignItems.length >= 100}
+                  onClick={() => {
+                    setCampaignItems((current) => [...current, { code: nextItemCode(), name: '新商品', active: true }])
+                    markDraft()
+                  }}
+                >新增品項</button>
+              </div>
+              <ol className="campaign-item-list">
+                {campaignItems.map((item, index) => (
+                  <li key={item.code} className={!item.active ? 'inactive' : ''}>
+                    <strong>{item.code}</strong>
+                    <label className="field">
+                      <span>品項 {item.code} 名稱</span>
+                      <input
+                        aria-label={`品項 ${item.code} 名稱`}
+                        disabled={editorBusy || !item.active}
+                        value={item.name}
+                        onChange={(event) => {
+                          const name = event.target.value
+                          setCampaignItems((current) => current.map((currentItem, currentIndex) =>
+                            currentIndex === index ? { ...currentItem, name } : currentItem))
+                          markDraft()
+                        }}
+                      />
+                    </label>
+                    {!item.active && <span>已停用・保留歷史訂單</span>}
+                    <button type="button" disabled={editorBusy || index === 0} aria-label={`上移 ${item.name}`} onClick={() => moveItem(index, -1)}>↑</button>
+                    <button type="button" disabled={editorBusy || index === campaignItems.length - 1} aria-label={`下移 ${item.name}`} onClick={() => moveItem(index, 1)}>↓</button>
+                    <button type="button" disabled={editorBusy || !item.active} aria-label={`移除 ${item.name}`} onClick={() => removeItem(index)}>移除</button>
+                  </li>
+                ))}
+              </ol>
+              {!campaignItems.some((item) => item.active && item.name.trim()) && (
+                <p className="field-error" role="alert">至少需要一個啟用且有名稱的品項</p>
+              )}
+            </section>
             <section className="image-editor full-field" aria-labelledby="image-editor-heading">
               <div className="image-editor-heading">
                 <h3 id="image-editor-heading">商品圖片</h3>

@@ -3,12 +3,20 @@ export type CampaignImage = {
   alt: string
 }
 
+export type CampaignItem = {
+  code: string
+  name: string
+  active: boolean
+}
+
 export type CampaignContent = {
   title: string
   unitPrice: number
   threshold: number
   announcement: string
   images: CampaignImage[]
+  items: CampaignItem[]
+  openedAt: string | null
 }
 
 const DRAFT_KEY = 'group-buy-helper:campaign:draft'
@@ -36,6 +44,21 @@ function isCampaignContent(value: unknown): value is CampaignContent {
       && typeof image === 'object'
       && typeof image.src === 'string'
       && typeof image.alt === 'string')
+    && Array.isArray(candidate.items)
+    && candidate.items.length > 0
+    && candidate.items.length <= 100
+    && candidate.items.every((item) => Boolean(item)
+      && typeof item === 'object'
+      && typeof item.code === 'string'
+      && /^[A-Z0-9]{1,64}$/.test(item.code)
+      && typeof item.name === 'string'
+      && item.name.trim().length > 0
+      && item.name.length <= 200
+      && typeof item.active === 'boolean')
+    && new Set(candidate.items.map((item) => item.code)).size === candidate.items.length
+    && candidate.items.some((item) => item.active && item.name.trim().length > 0)
+    && (candidate.openedAt === null
+      || (typeof candidate.openedAt === 'string' && Number.isFinite(Date.parse(candidate.openedAt))))
 }
 
 function loadCampaign(key: string, fallback: CampaignContent, storage = browserStorage()): CampaignContent {
@@ -63,6 +86,10 @@ export function campaignContentEquals(left: CampaignContent, right: CampaignCont
     && left.announcement === right.announcement
     && left.images.length === right.images.length
     && left.images.every((image, index) => image.src === right.images[index]?.src && image.alt === right.images[index]?.alt)
+    && left.items.length === right.items.length
+    && left.items.every((item, index) => item.code === right.items[index]?.code
+      && item.name === right.items[index]?.name
+      && item.active === right.items[index]?.active)
 }
 
 export function loadDraftCampaign(fallback: CampaignContent, storage?: Storage | null): CampaignContent {

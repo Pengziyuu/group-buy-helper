@@ -80,18 +80,25 @@ def main() -> None:
 
     status, before = call(
         "GET",
-        f"/rest/v1/campaign_public?id=eq.{CAMPAIGN_ID}&select=title,unit_price,threshold,announcement,images",
+        f"/rest/v1/campaign_public?id=eq.{CAMPAIGN_ID}&select=title,unit_price,threshold,announcement,images,items,opened_at",
         ANON_KEY,
         token=resident_token,
     )
     assert status == 200 and len(before) == 1, (status, before)
 
     def cleanup() -> None:
-        call(
+        cleanup_status, cleanup_payload = call(
             "PATCH",
             f"/rest/v1/campaign?id=eq.{CAMPAIGN_ID}",
             SECRET_KEY,
             body=before[0],
+            prefer="return=minimal",
+        )
+        assert cleanup_status in (200, 204), (cleanup_status, cleanup_payload)
+        call(
+            "DELETE",
+            f"/rest/v1/campaign_item?campaign_id=eq.{CAMPAIGN_ID}&code=eq.J",
+            SECRET_KEY,
             prefer="return=minimal",
         )
         call(
@@ -120,6 +127,10 @@ def main() -> None:
         "announcement": "只有團主可見的草稿內容",
         "images": [
             {"src": "campaigns/test/front.jpg", "alt": "冰餅包裝正面"}
+        ],
+        "items": [
+            *before[0]["items"],
+            {"code": "J", "name": "期間限定", "active": True},
         ],
     }
     status, saved = call(
@@ -176,7 +187,7 @@ def main() -> None:
 
     status, after = call(
         "GET",
-        f"/rest/v1/campaign_public?id=eq.{CAMPAIGN_ID}&select=title,images",
+        f"/rest/v1/campaign_public?id=eq.{CAMPAIGN_ID}&select=title,images,items,opened_at",
         ANON_KEY,
         token=resident_token,
     )
@@ -184,6 +195,8 @@ def main() -> None:
         status == 200
         and after[0]["title"] == title
         and after[0]["images"][0]["alt"] == "冰餅包裝正面"
+        and after[0]["items"][-1]["code"] == "J"
+        and after[0]["opened_at"] == before[0]["opened_at"]
     ), (status, after)
 
     invalid = {**draft, "images": [{"src": "campaigns/test/front.jpg"}]}
@@ -202,7 +215,7 @@ def main() -> None:
 
     status, restored = call(
         "GET",
-        f"/rest/v1/campaign?id=eq.{CAMPAIGN_ID}&select=title,unit_price,threshold,announcement,images",
+        f"/rest/v1/campaign?id=eq.{CAMPAIGN_ID}&select=title,unit_price,threshold,announcement,images,items,opened_at",
         SECRET_KEY,
     )
     assert status == 200 and restored == before, (status, restored)

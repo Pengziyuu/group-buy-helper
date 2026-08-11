@@ -8,6 +8,11 @@ const content: CampaignContent = {
   threshold: 80,
   announcement: '團主公告',
   images: [{ src: 'campaigns/demo/front.jpg', alt: '冰餅包裝正面' }],
+  items: [
+    { code: 'MILK', name: '牛奶', active: true },
+    { code: 'OLD', name: '停售口味', active: false },
+  ],
+  openedAt: '2026-08-14T00:05:09.000Z',
 }
 
 function mockClient() {
@@ -18,6 +23,8 @@ function mockClient() {
     threshold: content.threshold,
     announcement: content.announcement,
     images: content.images,
+    items: content.items,
+    opened_at: content.openedAt,
   }, error: null })
   const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null })
   const eq = vi.fn().mockReturnValue({ single, maybeSingle })
@@ -25,7 +32,16 @@ function mockClient() {
   const select = vi.fn().mockReturnValue({ eq })
   const upsert = vi.fn().mockReturnValue({ select: selectAfterUpsert })
   const from = vi.fn().mockReturnValue({ select, upsert })
-  const rpc = vi.fn().mockResolvedValue({ data: { id: 'campaign-1' }, error: null })
+  const rpc = vi.fn().mockResolvedValue({ data: {
+    id: 'campaign-1',
+    title: content.title,
+    unit_price: content.unitPrice,
+    threshold: content.threshold,
+    announcement: content.announcement,
+    images: content.images,
+    items: content.items,
+    opened_at: content.openedAt,
+  }, error: null })
   const client = { from, rpc } as unknown as AdminCampaignSupabaseClient
   return { client, from, select, eq, upsert, rpc, maybeSingle }
 }
@@ -37,7 +53,7 @@ describe('Supabase admin campaign gateway', () => {
 
     await expect(gateway.loadDraft('campaign-1')).resolves.toEqual(content)
     expect(from).toHaveBeenCalledWith('campaign_draft')
-    expect(select).toHaveBeenCalledWith('title,unit_price,threshold,announcement,images')
+    expect(select).toHaveBeenCalledWith('title,unit_price,threshold,announcement,images,items')
     expect(eq).toHaveBeenCalledWith('campaign_id', 'campaign-1')
   })
 
@@ -53,10 +69,11 @@ describe('Supabase admin campaign gateway', () => {
       threshold: 80,
       announcement: '團主公告',
       images: [{ src: 'campaigns/demo/front.jpg', alt: '冰餅包裝正面' }],
+      items: content.items,
     })
     expect(rpc).not.toHaveBeenCalled()
 
-    await gateway.publish('campaign-1')
+    await expect(gateway.publish('campaign-1')).resolves.toEqual(content)
     expect(rpc).toHaveBeenCalledWith('publish_campaign_draft', { p_campaign_id: 'campaign-1' })
   })
 
@@ -65,7 +82,7 @@ describe('Supabase admin campaign gateway', () => {
     const gateway = createAdminCampaignGateway(client)
 
     await expect(gateway.loadPublished('campaign-1')).resolves.toEqual(content)
-    expect(from).toHaveBeenCalledWith('campaign')
+    expect(from).toHaveBeenCalledWith('campaign_public')
     await expect(gateway.loadOptionalDraft('campaign-1')).resolves.toBeNull()
   })
 })

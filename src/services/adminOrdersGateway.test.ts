@@ -11,13 +11,13 @@ function queryResult(data: unknown) {
 describe('Supabase admin orders gateway', () => {
   it('rebuilds resident orders and merges organizer-only fulfillment state', async () => {
     const itemQuery = queryResult([
-      { code: 'A', name: '牛奶', sort_order: 1 },
-      { code: 'B', name: '花生', sort_order: 2 },
+      { code: 'A', name: '牛奶', active: true, sort_order: 1 },
+      { code: 'B', name: '歷史花生', active: false, sort_order: 2 },
     ])
     const wallQuery = queryResult([
-      { order_id: 'order-1', customer_name: '斯祈', period: 2, unit: '2K13', item_code: 'A', qty: 2 },
-      { order_id: 'order-1', customer_name: '斯祈', period: 2, unit: '2K13', item_code: 'B', qty: 1 },
-      { order_id: 'order-2', customer_name: '佩怡', period: 1, unit: 'H11', item_code: 'B', qty: 2 },
+      { order_id: 'order-1', customer_name: '斯祈', period: 2, unit: '2K13', item_code: 'A', qty: 2, ordered_at: '2026-08-14T00:10:00Z', order_updated_at: '2026-08-14T00:12:00Z' },
+      { order_id: 'order-1', customer_name: '斯祈', period: 2, unit: '2K13', item_code: 'B', qty: 1, ordered_at: '2026-08-14T00:10:00Z', order_updated_at: '2026-08-14T00:12:00Z' },
+      { order_id: 'order-2', customer_name: '佩怡', period: 1, unit: 'H11', item_code: 'B', qty: 2, ordered_at: '2026-08-14T00:15:00Z', order_updated_at: '2026-08-14T00:15:00Z' },
     ])
     const statusQuery = queryResult([
       { order_id: 'order-1', paid: true, pickup_status: 'ready' },
@@ -49,7 +49,9 @@ describe('Supabase admin orders gateway', () => {
     ])
     expect(summary.orderRows.find((order) => order.unit === '2K13')).toMatchObject({
       orderId: 'order-1',
-      itemSummary: '牛奶×2、花生×1',
+      itemSummary: '牛奶×2、歷史花生×1',
+      orderedAt: '2026-08-14T00:10:00Z',
+      updatedAt: '2026-08-14T00:12:00Z',
       paid: true,
       pickupStatus: 'ready',
     })

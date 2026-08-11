@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database'
-import type { CampaignContent, CampaignImage } from './demoCampaignStore'
+import type { CampaignContent, CampaignImage, CampaignItem } from './demoCampaignStore'
 
 export type AdminCampaignSupabaseClient = SupabaseClient<Database>
 
@@ -10,6 +10,8 @@ type DraftRow = {
   threshold: number
   announcement: string
   images: CampaignImage[]
+  items: CampaignItem[]
+  opened_at?: string | null
 }
 
 function errorMessage(error: unknown): string {
@@ -24,7 +26,12 @@ function toContent(data: unknown): CampaignContent {
     || typeof row.unit_price !== 'number'
     || typeof row.threshold !== 'number'
     || typeof row.announcement !== 'string'
-    || !Array.isArray(row.images)) {
+    || !Array.isArray(row.images)
+    || !Array.isArray(row.items)
+    || row.items.some((item) => !item
+      || typeof item.code !== 'string'
+      || typeof item.name !== 'string'
+      || typeof item.active !== 'boolean')) {
     throw new Error('Supabase 回傳的團購草稿格式錯誤')
   }
   return {
@@ -33,17 +40,20 @@ function toContent(data: unknown): CampaignContent {
     threshold: row.threshold,
     announcement: row.announcement,
     images: row.images,
+    items: row.items,
+    openedAt: typeof row.opened_at === 'string' ? row.opened_at : null,
   }
 }
 
-const draftColumns = 'title,unit_price,threshold,announcement,images'
+const draftColumns = 'title,unit_price,threshold,announcement,images,items'
+const publishedColumns = `${draftColumns},opened_at`
 
 export function createAdminCampaignGateway(client: AdminCampaignSupabaseClient) {
   return {
     async loadPublished(campaignId: string): Promise<CampaignContent> {
       const { data, error } = await client
-        .from('campaign')
-        .select(draftColumns)
+        .from('campaign_public')
+        .select(publishedColumns)
         .eq('id', campaignId)
         .single()
       if (error) throw new Error(`讀取已發布團購失敗：${errorMessage(error)}`)
@@ -80,6 +90,7 @@ export function createAdminCampaignGateway(client: AdminCampaignSupabaseClient) 
           threshold: content.threshold,
           announcement: content.announcement,
           images: content.images,
+          items: content.items,
         })
         .select(draftColumns)
         .single()
@@ -87,12 +98,12 @@ export function createAdminCampaignGateway(client: AdminCampaignSupabaseClient) 
       return toContent(data)
     },
 
-    async publish(campaignId: string): Promise<unknown> {
+    async publish(campaignId: string): Promise<CampaignContent> {
       const { data, error } = await client.rpc('publish_campaign_draft', {
         p_campaign_id: campaignId,
       })
       if (error) throw new Error(`發布團購失敗：${errorMessage(error)}`)
-      return data
+      return toContent(data)
     },
   }
 }

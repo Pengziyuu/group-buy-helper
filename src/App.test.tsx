@@ -2,6 +2,8 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import App from './App'
+import { initialOrders } from './data/demo'
+import type { CampaignContent } from './services/demoCampaignStore'
 
 describe('customer campaign app', () => {
   it('shows the verified campaign progress and visible order wall', () => {
@@ -43,5 +45,58 @@ describe('customer campaign app', () => {
     expect(screen.getByRole('button', { name: '送出訂單' })).toBeDisabled()
     expect(screen.getByRole('button', { name: '增加 牛奶' })).toBeDisabled()
     expect(screen.getByText('本團已結單，暫停修改訂單。')).toBeInTheDocument()
+  })
+
+  it('renders only dynamic active items while retaining inactive historical names', () => {
+    const content: CampaignContent = {
+      title: '自訂品項團',
+      unitPrice: 45,
+      threshold: 100,
+      announcement: '自訂公告',
+      images: [],
+      items: [
+        { code: 'B', name: '停售花生', active: false },
+        { code: 'CUSTOM', name: '住戶可選新品', active: true },
+      ],
+      openedAt: '2026-08-14T00:05:09.000Z',
+    }
+
+    render(<App publishedContent={content} />)
+
+    expect(screen.getByRole('button', { name: '增加 住戶可選新品' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '增加 牛奶' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '增加 停售花生' })).not.toBeInTheDocument()
+    expect(screen.getAllByText(/停售花生×/).length).toBeGreaterThan(0)
+  })
+
+  it('shows campaign and order timestamps with meaningful edit markers', () => {
+    render(<App />)
+
+    expect(screen.getByText('開團時間 2026/08/14 08:05')).toBeInTheDocument()
+    expect(screen.getByText('下單時間 2026/08/14 08:10')).toBeInTheDocument()
+    expect(screen.getByText('已修改・最後修改 2026/08/14 08:12')).toBeInTheDocument()
+  })
+
+  it('preserves an unsent draft when another household updates through Realtime', async () => {
+    const user = userEvent.setup()
+    const resident = initialOrders[0]
+    const onSubmitOrder = async () => undefined
+    const view = render(
+      <App visibleOrders={initialOrders} residentCustomer={resident} onSubmitOrder={onSubmitOrder} />,
+    )
+
+    await user.click(screen.getByRole('button', { name: '增加 牛奶' }))
+    expect(screen.getByText('我的訂單 7 個')).toBeInTheDocument()
+
+    view.rerender(
+      <App
+        visibleOrders={initialOrders.map((order, index) => index === 1
+          ? { ...order, updatedAt: '2026-08-14T01:30:00Z' }
+          : order)}
+        residentCustomer={resident}
+        onSubmitOrder={onSubmitOrder}
+      />,
+    )
+    expect(screen.getByText('我的訂單 7 個')).toBeInTheDocument()
   })
 })

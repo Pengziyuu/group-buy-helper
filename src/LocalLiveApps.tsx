@@ -16,6 +16,7 @@ import {
 import type { Database } from './types/database'
 import type { OrganizerOrderSummary } from './domain/adminOrders'
 import type { CampaignStatus } from './domain/orderWorkflow'
+import type { VisibleOrder } from './data/demo'
 import { createAdminOrdersGateway } from './services/adminOrdersGateway'
 import { createCampaignImageGateway } from './services/campaignImageGateway'
 import {
@@ -30,7 +31,7 @@ export type LiveAdminRepository = {
   loadPublished(campaignId: string): Promise<CampaignContent>
   loadOptionalDraft(campaignId: string): Promise<CampaignContent | null>
   saveDraft(campaignId: string, content: CampaignContent): Promise<CampaignContent>
-  publish(campaignId: string): Promise<unknown>
+  publish(campaignId: string): Promise<CampaignContent>
 }
 
 export type LiveAdminOrdersRepository = {
@@ -55,7 +56,35 @@ type CampaignRow = {
   threshold: unknown
   announcement: unknown
   images: unknown
+  items: unknown
+  opened_at: unknown
   status: unknown
+}
+
+type ResidentCustomer = Pick<VisibleOrder, 'customerId' | 'name' | 'period' | 'unit'>
+type OrderWallRow = Pick<
+  Database['public']['Views']['order_wall']['Row'],
+  'order_id' | 'customer_id' | 'customer_name' | 'period' | 'unit' | 'item_code' | 'qty' | 'ordered_at' | 'order_updated_at'
+>
+
+function visibleOrdersFromRows(rows: OrderWallRow[]): VisibleOrder[] {
+  const orders = new Map<string, VisibleOrder>()
+  for (const row of rows) {
+    if (!row.order_id || !row.customer_id || !row.customer_name || row.period === null || !row.unit
+      || !row.ordered_at || !row.order_updated_at) continue
+    const order = orders.get(row.order_id) ?? {
+      customerId: row.customer_id,
+      name: row.customer_name,
+      period: row.period,
+      unit: row.unit,
+      items: {},
+      orderedAt: row.ordered_at,
+      updatedAt: row.order_updated_at,
+    }
+    if (row.item_code && row.qty && row.qty > 0) order.items[row.item_code] = row.qty
+    orders.set(row.order_id, order)
+  }
+  return [...orders.values()]
 }
 
 function errorMessage(error: unknown): string {
@@ -184,7 +213,8 @@ function campaignContentFromRow(row: CampaignRow | null): CampaignContent {
     || typeof row.threshold !== 'number'
     || typeof row.announcement !== 'string'
     || !Array.isArray(row.images)
-    || !row.images.every(isCampaignImage)) {
+    || !row.images.every(isCampaignImage)
+    || !Array.isArray(row.items)) {
     throw new Error('Supabase 回傳的團購資料格式錯誤')
   }
   return {
@@ -193,6 +223,8 @@ function campaignContentFromRow(row: CampaignRow | null): CampaignContent {
     threshold: row.threshold,
     announcement: row.announcement,
     images: row.images,
+    items: row.items as CampaignContent['items'],
+    openedAt: typeof row.opened_at === 'string' ? row.opened_at : null,
   }
 }
 
@@ -550,8 +582,9 @@ export function LocalLiveAdminApp({
       }}
       onPublish={async (nextContent) => {
         await gateway.saveDraft(campaignId, nextContent)
-        await gateway.publish(campaignId)
+        const published = await gateway.publish(campaignId)
         setOrderSummary(await ordersGateway.loadSummary(campaignId, nextContent.unitPrice, nextContent.threshold))
+        return published
       }}
       onSignOut={async () => {
         authValidationGeneration.current += 1
@@ -580,6 +613,8 @@ async function ensureResidentSession(client: SupabaseClient<Database>): Promise<
 export function LocalLiveResidentApp({ client, campaignId, campaignSlug }: LocalLiveResidentAppProps) {
   const [content, setContent] = useState<CampaignContent | null>(null)
   const [campaignStatus, setCampaignStatus] = useState<CampaignStatus | null>(null)
+  const [orders, setOrders] = useState<VisibleOrder[]>([])
+  const [residentCustomer, setResidentCustomer] = useState<ResidentCustomer | null | undefined>(undefined)
   const [error, setError] = useState('')
   const sessionPromise = useRef<Promise<Session> | null>(null)
 
@@ -590,13 +625,31 @@ export function LocalLiveResidentApp({ client, campaignId, campaignSlug }: Local
     const loadPublished = async () => {
       const { data, error: queryError } = await client
         .from('campaign_public')
-        .select('title,unit_price,threshold,announcement,images,status')
+        .select('title,unit_price,threshold,announcement,images,items,opened_at,status')
         .eq('id', campaignId)
         .single()
       if (queryError) throw queryError
       if (active) {
         setContent(campaignContentFromRow(data))
         setCampaignStatus(campaignStatusFromRow(data))
+      }
+    }
+
+    const loadResidentData = async () => {
+      const [wallResult, customerResult] = await Promise.all([
+        client.from('order_wall')
+          .select('order_id,customer_id,customer_name,period,unit,item_code,qty,ordered_at,order_updated_at')
+          .eq('campaign_id', campaignId),
+        client.rpc('get_customer_self'),
+      ])
+      if (wallResult.error) throw wallResult.error
+      if (customerResult.error) throw customerResult.error
+      if (active) {
+        setOrders(visibleOrdersFromRows(wallResult.data ?? []))
+        const customer = customerResult.data?.[0]
+        setResidentCustomer(customer?.id && customer.name && customer.period !== null && customer.unit
+          ? { customerId: customer.id, name: customer.name, period: customer.period, unit: customer.unit }
+          : null)
       }
     }
 
@@ -607,7 +660,7 @@ export function LocalLiveResidentApp({ client, campaignId, campaignSlug }: Local
         p_slug: campaignSlug,
       })
       if (joinError) throw joinError
-      await loadPublished()
+      await Promise.all([loadPublished(), loadResidentData()])
       if (!active) return
       channel = client
         .channel(`campaign-live-${campaignId}`)
@@ -615,6 +668,16 @@ export function LocalLiveResidentApp({ client, campaignId, campaignSlug }: Local
           'postgres_changes',
           { event: 'UPDATE', schema: 'public', table: 'campaign', filter: `id=eq.${campaignId}` },
           () => { void loadPublished().catch((realtimeError: unknown) => setError(errorMessage(realtimeError))) },
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'orders', filter: `campaign_id=eq.${campaignId}` },
+          () => { void loadResidentData().catch((realtimeError: unknown) => setError(errorMessage(realtimeError))) },
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'order_item', filter: `campaign_id=eq.${campaignId}` },
+          () => { void loadResidentData().catch((realtimeError: unknown) => setError(errorMessage(realtimeError))) },
         )
         .subscribe()
     }
@@ -630,6 +693,26 @@ export function LocalLiveResidentApp({ client, campaignId, campaignSlug }: Local
   }, [campaignId, campaignSlug, client])
 
   if (error) return <LiveError message={error} />
-  if (!content || !campaignStatus) return <LiveLoading label="連線住戶端即時資料…" />
-  return <App publishedContent={content} campaignStatus={campaignStatus} liveDemo />
+  if (!content || !campaignStatus || residentCustomer === undefined) return <LiveLoading label="連線住戶端即時資料…" />
+  return (
+    <App
+      publishedContent={content}
+      campaignStatus={campaignStatus}
+      liveDemo
+      visibleOrders={orders}
+      residentCustomer={residentCustomer}
+      onSubmitOrder={async (items) => {
+        const { error: submitError } = await client.rpc('submit_customer_order', {
+          p_campaign_id: campaignId,
+          p_items: items,
+        })
+        if (submitError) throw submitError
+        const { data, error: wallError } = await client.from('order_wall')
+          .select('order_id,customer_id,customer_name,period,unit,item_code,qty,ordered_at,order_updated_at')
+          .eq('campaign_id', campaignId)
+        if (wallError) throw wallError
+        setOrders(visibleOrdersFromRows(data ?? []))
+      }}
+    />
+  )
 }

@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 import { summarizeCampaign } from './domain/campaign'
+import { formatZhTwTimestamp, wasMeaningfullyUpdated } from './domain/timestamp'
 import { campaignStatusLabel, type CampaignStatus } from './domain/orderWorkflow'
 import {
   campaign,
@@ -17,9 +18,10 @@ const defaultContent: CampaignContent = {
   threshold: campaign.threshold,
   announcement: campaign.announcement,
   images: campaign.images,
+  items,
+  openedAt: campaign.openedAt,
 }
 
-const itemName = (code: string) => items.find((item) => item.code === code)?.name ?? code
 const orderQuantity = (orderItems: Record<string, number>) =>
   Object.values(orderItems).reduce((sum, quantity) => sum + quantity, 0)
 
@@ -27,15 +29,32 @@ type AppProps = {
   publishedContent?: CampaignContent
   liveDemo?: boolean
   campaignStatus?: CampaignStatus
+  visibleOrders?: VisibleOrder[]
+  residentCustomer?: Pick<VisibleOrder, 'customerId' | 'name' | 'period' | 'unit'> | null
+  onSubmitOrder?: (items: Record<string, number>) => Promise<void>
 }
 
-function App({ publishedContent, liveDemo = false, campaignStatus = 'open' }: AppProps = {}) {
+function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visibleOrders, residentCustomer, onSubmitOrder }: AppProps = {}) {
   const [localPublishedCampaign] = useState(() => loadPublishedCampaign(defaultContent))
   const publishedCampaign = publishedContent ?? localPublishedCampaign
-  const [orders, setOrders] = useState<VisibleOrder[]>(initialOrders)
-  const ownOrder = orders.find((order) => order.customerId === currentCustomerId)!
-  const [draft, setDraft] = useState<Record<string, number>>({ ...ownOrder.items })
+  const itemName = (code: string) => publishedCampaign.items.find((item) => item.code === code)?.name ?? code
+  const activeItems = publishedCampaign.items.filter((item) => item.active)
+  const [localOrders, setLocalOrders] = useState<VisibleOrder[]>(initialOrders)
+  const orders = visibleOrders ?? localOrders
+  const effectiveCustomer = residentCustomer === undefined
+    ? initialOrders.find((order) => order.customerId === currentCustomerId)!
+    : residentCustomer
+  const ownOrder = effectiveCustomer
+    ? orders.find((order) => order.customerId === effectiveCustomer.customerId)
+    : undefined
+  const [draft, setDraft] = useState<Record<string, number>>({ ...(ownOrder?.items ?? {}) })
   const [notice, setNotice] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [draftDirty, setDraftDirty] = useState(false)
+
+  useEffect(() => {
+    if (visibleOrders && !draftDirty) setDraft({ ...(ownOrder?.items ?? {}) })
+  }, [draftDirty, ownOrder, visibleOrders])
 
   const summary = useMemo(
     () => summarizeCampaign(orders, publishedCampaign.unitPrice, publishedCampaign.threshold),
@@ -47,6 +66,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open' }: Ap
   const adjust = (code: string, delta: number) => {
     if (!editable) return
     setNotice('')
+    setDraftDirty(true)
     setDraft((current) => {
       const next = Math.max(0, Math.min(20, (current[code] ?? 0) + delta))
       if (next === 0) {
@@ -57,12 +77,29 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open' }: Ap
     })
   }
 
-  const submit = () => {
-    setOrders((current) =>
+  const submit = async () => {
+    if (onSubmitOrder) {
+      setSubmitting(true)
+      setNotice('')
+      try {
+        await onSubmitOrder(draft)
+        setDraftDirty(false)
+        setNotice('訂單已更新')
+      } catch (error) {
+        setNotice(error instanceof Error ? error.message : '訂單更新失敗')
+      } finally {
+        setSubmitting(false)
+      }
+      return
+    }
+    setLocalOrders((current) =>
       current.map((order) =>
-        order.customerId === currentCustomerId ? { ...order, items: { ...draft } } : order,
+        order.customerId === currentCustomerId
+          ? { ...order, items: { ...draft }, updatedAt: new Date().toISOString() }
+          : order,
       ),
     )
+    setDraftDirty(false)
     setNotice('訂單已更新')
   }
 
@@ -76,6 +113,9 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open' }: Ap
         </div>
         <h1>{publishedCampaign.title}</h1>
         <p className="arrival">🧊 {campaign.arrival}</p>
+        {publishedCampaign.openedAt && (
+          <p className="campaign-time">開團時間 {formatZhTwTimestamp(publishedCampaign.openedAt)}</p>
+        )}
 
         <div className="progress-copy">
           <strong>{summary.quantity} / {summary.threshold}</strong>
@@ -111,11 +151,11 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open' }: Ap
         <p className="campaign-copy">{publishedCampaign.announcement}</p>
       </article>
 
-      <section className="panel order-panel" aria-labelledby="order-heading">
+      {effectiveCustomer ? <section className="panel order-panel" aria-labelledby="order-heading">
         <div className="section-heading">
           <div>
             <p className="section-kicker">我的訂單</p>
-            <h2 id="order-heading">二期 {ownOrder.unit}・{ownOrder.name}</h2>
+            <h2 id="order-heading">{effectiveCustomer.period === 1 ? '一期' : '二期'} {effectiveCustomer.unit}・{effectiveCustomer.name}</h2>
           </div>
           <div className="my-total">
             <strong>我的訂單 {draftQuantity} 個</strong>
@@ -124,7 +164,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open' }: Ap
         </div>
 
         <div className="product-list">
-          {items.map((item) => {
+          {activeItems.map((item) => {
             const quantity = draft[item.code] ?? 0
             return (
               <div className="product-row" key={item.code}>
@@ -153,7 +193,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open' }: Ap
           })}
         </div>
 
-        <button className="submit-button" type="button" onClick={submit} disabled={!editable || draftQuantity === 0}>
+        <button className="submit-button" type="button" onClick={() => { void submit() }} disabled={!editable || submitting || draftQuantity === 0}>
           送出訂單
         </button>
         {notice && <p className="success" role="status">{notice}</p>}
@@ -164,7 +204,11 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open' }: Ap
               ? '商品已到貨，訂單已鎖定。'
               : '本團已結單，暫停修改訂單。'}
         </p>
-      </section>
+      </section> : (
+        <section className="panel order-panel" aria-label="我的訂單">
+          <p className="privacy-note">戶號尚未綁定，目前可先查看公開訂單與成團進度。</p>
+        </section>
+      )}
 
       <section className="panel wall-panel" aria-labelledby="wall-heading">
         <div className="section-heading compact">
@@ -177,9 +221,10 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open' }: Ap
 
         <div className="order-wall">
           {[...orders]
-            .sort((a, b) => a.period - b.period || a.unit.localeCompare(b.unit))
+            .sort((a, b) => Date.parse(a.orderedAt) - Date.parse(b.orderedAt)
+              || a.customerId.localeCompare(b.customerId))
             .map((order) => (
-              <article className={`wall-order ${order.customerId === currentCustomerId ? 'own' : ''}`} key={order.customerId}>
+              <article className={`wall-order ${order.customerId === effectiveCustomer?.customerId ? 'own' : ''}`} key={order.customerId}>
                 <div className="avatar" aria-hidden="true">{order.name.slice(0, 1).toUpperCase()}</div>
                 <div className="wall-main">
                   <div className="wall-name">
@@ -190,6 +235,12 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open' }: Ap
                     .filter(([, quantity]) => quantity > 0)
                     .map(([code, quantity]) => `${itemName(code)}×${quantity}`)
                     .join('、')}</p>
+                  <p className="wall-time">
+                    下單時間 {formatZhTwTimestamp(order.orderedAt)}
+                    {wasMeaningfullyUpdated(order.orderedAt, order.updatedAt) && (
+                      <span>已修改・最後修改 {formatZhTwTimestamp(order.updatedAt)}</span>
+                    )}
+                  </p>
                 </div>
                 <strong className="wall-count">{orderQuantity(order.items)}個</strong>
               </article>

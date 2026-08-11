@@ -4,6 +4,7 @@ import { summarizeFulfillment, type PickupStatus } from './orderWorkflow'
 export type OrganizerCampaignItem = {
   code: string
   name: string
+  active?: boolean
 }
 
 export type OrganizerVisibleOrder = {
@@ -15,6 +16,8 @@ export type OrganizerVisibleOrder = {
   items: Record<string, number>
   paid?: boolean
   pickupStatus?: PickupStatus
+  orderedAt?: string
+  updatedAt?: string
 }
 
 export type OrganizerItemRow = OrganizerCampaignItem & {

@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import AdminApp from './AdminApp'
+import { buildOrganizerOrderSummary } from './domain/adminOrders'
 import type { CampaignContent } from './services/demoCampaignStore'
 
 beforeEach(() => localStorage.clear())
@@ -80,6 +81,8 @@ describe('organizer campaign editor', () => {
       threshold: 80,
       announcement: '資料庫公告',
       images: [{ src: '/remote.svg', alt: '資料庫商品圖' }],
+      items: [{ code: 'A', name: '牛奶', active: true }],
+      openedAt: '2026-08-12T00:00:00Z',
     }
     const onSaveDraft = vi.fn().mockResolvedValue(undefined)
     const onPublish = vi.fn().mockResolvedValue(undefined)
@@ -197,5 +200,98 @@ describe('organizer campaign editor', () => {
     finishSave?.()
     expect(await screen.findByText('開團資料已儲存')).toBeInTheDocument()
     expect(screen.getByLabelText('商品圖片檔案')).toBeEnabled()
+  })
+
+  it('deactivates an ordered item but truly removes a zero-order item', async () => {
+    const user = userEvent.setup()
+    const content: CampaignContent = {
+      title: '動態品項團',
+      unitPrice: 50,
+      threshold: 10,
+      announcement: '',
+      images: [],
+      items: [
+        { code: 'OLD', name: '已下單口味', active: true },
+        { code: 'ZERO', name: '零訂單口味', active: true },
+        { code: 'KEEP', name: '保留口味', active: true },
+      ],
+      openedAt: '2026-08-14T00:05:09.000Z',
+    }
+    const summary = buildOrganizerOrderSummary({
+      orders: [{ customerId: 'resident', name: '住戶', period: 1, unit: 'A1', items: { OLD: 2 } }],
+      items: content.items,
+      unitPrice: content.unitPrice,
+      threshold: content.threshold,
+    })
+    const onSaveDraft = vi.fn().mockResolvedValue(undefined)
+    render(<AdminApp initialContent={content} orderSummary={summary} onSaveDraft={onSaveDraft} />)
+
+    await user.click(screen.getByRole('button', { name: '移除 已下單口味' }))
+    expect(screen.getByText('已有 2 個訂單，已停用並保留歷史紀錄')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '移除 零訂單口味' }))
+    expect(screen.queryByRole('textbox', { name: '品項 ZERO 名稱' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '儲存草稿' }))
+    expect(onSaveDraft).toHaveBeenCalledWith(expect.objectContaining({
+      items: [
+        { code: 'OLD', name: '已下單口味', active: false },
+        { code: 'KEEP', name: '保留口味', active: true },
+      ],
+    }))
+  })
+
+  it('adds, renames, and reorders campaign items', async () => {
+    const user = userEvent.setup()
+    const content: CampaignContent = {
+      title: '動態品項團',
+      unitPrice: 50,
+      threshold: 10,
+      announcement: '',
+      images: [],
+      items: [
+        { code: 'FIRST', name: '第一項', active: true },
+        { code: 'SECOND', name: '第二項', active: true },
+      ],
+      openedAt: null,
+    }
+    const onSaveDraft = vi.fn().mockResolvedValue(undefined)
+    render(<AdminApp initialContent={content} orderSummary={null} onSaveDraft={onSaveDraft} />)
+
+    await user.clear(screen.getByRole('textbox', { name: '品項 FIRST 名稱' }))
+    await user.type(screen.getByRole('textbox', { name: '品項 FIRST 名稱' }), '重新命名')
+    await user.click(screen.getByRole('button', { name: '下移 重新命名' }))
+    await user.click(screen.getByRole('button', { name: '新增品項' }))
+    await user.click(screen.getByRole('button', { name: '儲存草稿' }))
+
+    expect(onSaveDraft).toHaveBeenCalledWith(expect.objectContaining({
+      items: [
+        { code: 'SECOND', name: '第二項', active: true },
+        { code: 'FIRST', name: '重新命名', active: true },
+        { code: 'ITEM1', name: '新商品', active: true },
+      ],
+    }))
+  })
+
+  it('applies the canonical campaign returned by publication immediately', async () => {
+    const user = userEvent.setup()
+    const content: CampaignContent = {
+      title: 'Canonical團', unitPrice: 50, threshold: 10, announcement: '', images: [],
+      items: [{ code: 'KEEP', name: '保留口味', active: true }], openedAt: null,
+    }
+    const onPublish = vi.fn().mockResolvedValue({
+      ...content,
+      items: [
+        { code: 'KEEP', name: '保留口味', active: true },
+        { code: 'OLD', name: '歷史口味', active: false },
+      ],
+      openedAt: '2026-08-14T00:05:00Z',
+    })
+    render(<AdminApp initialContent={content} orderSummary={null} onPublish={onPublish} />)
+
+    await user.click(screen.getByRole('button', { name: '發布到住戶端' }))
+
+    expect(await screen.findByRole('textbox', { name: '品項 OLD 名稱' })).toHaveValue('歷史口味')
+    expect(screen.getByText('已停用・保留歷史訂單')).toBeInTheDocument()
+    expect(screen.getByText('已發布')).toBeInTheDocument()
   })
 })

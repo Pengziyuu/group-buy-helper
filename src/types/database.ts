@@ -56,6 +56,8 @@ export type Database = {
           deadline: string
           id: string
           images: Json
+          items: Json
+          opened_at: string | null
           slug: string
           status: string
           threshold: number
@@ -69,6 +71,8 @@ export type Database = {
           deadline: string
           id?: string
           images?: Json
+          items?: Json
+          opened_at?: string | null
           slug?: string
           status?: string
           threshold: number
@@ -82,6 +86,8 @@ export type Database = {
           deadline?: string
           id?: string
           images?: Json
+          items?: Json
+          opened_at?: string | null
           slug?: string
           status?: string
           threshold?: number
@@ -130,6 +136,7 @@ export type Database = {
           campaign_id: string
           created_at: string
           images: Json
+          items: Json
           threshold: number
           title: string
           unit_price: number
@@ -141,6 +148,7 @@ export type Database = {
           campaign_id: string
           created_at?: string
           images?: Json
+          items?: Json
           threshold: number
           title: string
           unit_price: number
@@ -152,6 +160,7 @@ export type Database = {
           campaign_id?: string
           created_at?: string
           images?: Json
+          items?: Json
           threshold?: number
           title?: string
           unit_price?: number
@@ -177,6 +186,7 @@ export type Database = {
       }
       campaign_item: {
         Row: {
+          active: boolean
           campaign_id: string
           code: string
           created_at: string
@@ -186,6 +196,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          active?: boolean
           campaign_id: string
           code: string
           created_at?: string
@@ -195,6 +206,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          active?: boolean
           campaign_id?: string
           code?: string
           created_at?: string
@@ -470,6 +482,8 @@ export type Database = {
           deadline: string | null
           id: string | null
           images: Json | null
+          items: Json | null
+          opened_at: string | null
           slug: string | null
           status: string | null
           threshold: number | null
@@ -483,6 +497,8 @@ export type Database = {
           deadline?: string | null
           id?: string | null
           images?: Json | null
+          items?: Json | null
+          opened_at?: string | null
           slug?: string | null
           status?: string | null
           threshold?: number | null
@@ -496,6 +512,8 @@ export type Database = {
           deadline?: string | null
           id?: string | null
           images?: Json | null
+          items?: Json | null
+          opened_at?: string | null
           slug?: string | null
           status?: string | null
           threshold?: number | null
@@ -510,7 +528,9 @@ export type Database = {
           campaign_id: string | null
           campaign_item_id: string | null
           campaign_slug: string | null
+          customer_id: string | null
           customer_name: string | null
+          item_active: boolean | null
           item_code: string | null
           item_name: string | null
           item_updated_at: string | null
@@ -536,6 +556,13 @@ export type Database = {
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "campaign_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer"
             referencedColumns: ["id"]
           },
         ]
@@ -577,6 +604,15 @@ export type Database = {
         Args: { p_customer_id: string }
         Returns: boolean
       }
+      get_customer_self: {
+        Args: never
+        Returns: {
+          id: string
+          name: string
+          period: number
+          unit: string
+        }[]
+      }
       has_campaign_access: { Args: { p_campaign_id: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       join_campaign_by_slug: {
@@ -587,6 +623,8 @@ export type Database = {
           deadline: string
           id: string
           images: Json
+          items: Json
+          opened_at: string
           slug: string
           status: string
           threshold: number
@@ -605,6 +643,8 @@ export type Database = {
           deadline: string
           id: string
           images: Json
+          items: Json
+          opened_at: string | null
           slug: string
           status: string
           threshold: number
@@ -627,6 +667,8 @@ export type Database = {
           deadline: string
           id: string
           images: Json
+          items: Json
+          opened_at: string | null
           slug: string
           status: string
           threshold: number
@@ -650,6 +692,7 @@ export type Database = {
         Returns: Json
       }
       valid_campaign_images: { Args: { p_images: Json }; Returns: boolean }
+      valid_campaign_items: { Args: { p_items: Json }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never

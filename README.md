@@ -13,16 +13,18 @@
 - 團主公告長文、Emoji 與多張商品圖片展示
 - `/admin` 團主開團編輯器與住戶端即時預覽
 - 草稿與已發布版本隔離；發布後住戶端才更新
+- 團主可自訂新增、改名、排序與移除商品品項；有歷史訂單的品項改為停用並保留統計
+- 住戶頁顯示資料庫開團時間，公開訂單牆顯示下單時間與最後修改時間
 - LIFF 身分載入與 ID token 邊界
 - demo/live 環境設定防呆
 - Supabase schema、RLS 與 Realtime migration
 - Supabase `campaign_draft`、團主專用 RLS、原子發布 RPC 與前端 gateway
 - 本機 Supabase Auth 團主登入與住戶 Realtime 可視化 Demo
-- 團主訂單統計：戶數、總量、總額、成團差額、A–I 品項彙總與逐戶明細
+- 團主訂單統計：戶數、總量、總額、成團差額、動態品項彙總與逐戶明細
 - 團主工作流：結單、重新開放、標記到貨、逐戶已付款／未付款與領取狀態；不記錄付款方式
 - 商品圖片以 `{src, alt}` JSON 保存，資料庫驗證替代文字及最多 10 張限制
 - 團主可上傳 JPG、PNG、WebP 到 Supabase Storage；單檔最多 5 MB，住戶只能公開讀取
-- 77 個前端／領域自動測試
+- 88 個前端／領域自動測試
 - 可重建的本機 Supabase migration、seed 與產生型別
 
 ## 本機執行
@@ -111,11 +113,12 @@ set -a
 eval "$(npx supabase status -o env)"
 set +a
 python scripts/verify_supabase_draft.py
+python scripts/verify_dynamic_items.py
 python scripts/verify_order_workflow.py
 python scripts/verify_storage.py
 ```
 
-三支腳本會使用臨時 Auth 使用者：第一支驗證草稿、發布與圖片限制；第二支驗證住戶不能結單或修改履約狀態、團主可更新、結單後住戶不能修改訂單，以及團主狀態 view 不對住戶公開；第三支驗證 Storage 的團主上傳／刪除、住戶禁止寫入及公開讀取。腳本不會輸出或寫入 API key，並會自動清理測試資料。
+四支腳本會使用臨時 Auth 使用者：草稿腳本驗證發布隔離、圖片與開團時間；動態品項腳本驗證安全刪除／停用、歷史數量與訂單時間；工作流腳本驗證團主權限、結單與履約狀態；Storage 腳本驗證團主上傳／刪除、住戶禁止寫入及公開讀取。腳本不會輸出或寫入 API key。動態品項腳本會修改本機 seed 資料，執行後請跑一次 `npx supabase db reset` 還原。
 
 ## LINE / LIFF
 

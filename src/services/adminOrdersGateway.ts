@@ -6,7 +6,7 @@ import type { Database } from '../types/database'
 
 export type AdminOrdersSupabaseClient = SupabaseClient<Database>
 
-type ItemRow = { code: string; name: string; sort_order: number }
+type ItemRow = { code: string; name: string; active: boolean; sort_order: number }
 type WallRow = {
   order_id: string | null
   customer_name: string | null
@@ -14,6 +14,8 @@ type WallRow = {
   unit: string | null
   item_code: string | null
   qty: number | null
+  ordered_at: string | null
+  order_updated_at: string | null
 }
 type StatusRow = {
   order_id: string | null
@@ -30,6 +32,7 @@ function validateItems(data: unknown): ItemRow[] {
   if (!Array.isArray(data) || data.some((row) => !row
     || typeof row.code !== 'string'
     || typeof row.name !== 'string'
+    || typeof row.active !== 'boolean'
     || typeof row.sort_order !== 'number')) {
     throw new Error('Supabase 回傳的團購品項格式錯誤')
   }
@@ -69,12 +72,12 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
       const [itemResult, wallResult, statusResult] = await Promise.all([
         client
           .from('campaign_item')
-          .select('code,name,sort_order')
+          .select('code,name,active,sort_order')
           .eq('campaign_id', campaignId)
           .order('sort_order'),
         client
           .from('order_wall')
-          .select('order_id,customer_name,period,unit,item_code,qty')
+          .select('order_id,customer_name,period,unit,item_code,qty,ordered_at,order_updated_at')
           .eq('campaign_id', campaignId)
           .order('period'),
         client
@@ -112,6 +115,8 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
           items: {},
           paid: status?.paid ?? false,
           pickupStatus: (status?.pickup_status ?? 'pending') as PickupStatus,
+          orderedAt: row.ordered_at ?? undefined,
+          updatedAt: row.order_updated_at ?? undefined,
         }
         if (row.item_code && typeof row.qty === 'number' && row.qty > 0) {
           order.items[row.item_code] = row.qty
