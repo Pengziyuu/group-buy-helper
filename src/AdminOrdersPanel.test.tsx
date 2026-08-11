@@ -35,7 +35,6 @@ describe('organizer orders panel', () => {
         ...order,
         orderId: `order-${index + 1}`,
         paid: false,
-        paymentMethod: null,
         pickupStatus: 'pending' as const,
       })),
     }
@@ -56,14 +55,12 @@ describe('organizer orders panel', () => {
     await user.click(screen.getByRole('button', { name: '標記 H11 已付款' }))
     expect(onSetOrderFulfillment).toHaveBeenCalledWith('order-1', {
       paid: true,
-      paymentMethod: 'cash',
       pickupStatus: 'pending',
     })
 
     await user.selectOptions(screen.getByRole('combobox', { name: 'H11 領取狀態' }), 'ready')
     expect(onSetOrderFulfillment).toHaveBeenCalledWith('order-1', {
       paid: false,
-      paymentMethod: null,
       pickupStatus: 'ready',
     })
   })

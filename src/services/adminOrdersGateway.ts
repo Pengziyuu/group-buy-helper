@@ -18,7 +18,6 @@ type WallRow = {
 type StatusRow = {
   order_id: string | null
   paid: boolean | null
-  payment_method: string | null
   pickup_status: string | null
 }
 
@@ -80,7 +79,7 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
           .order('period'),
         client
           .from('organizer_order_status')
-          .select('order_id,paid,payment_method,pickup_status')
+          .select('order_id,paid,pickup_status')
           .eq('campaign_id', campaignId)
           .order('order_id'),
       ])
@@ -112,7 +111,6 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
           unit: row.unit,
           items: {},
           paid: status?.paid ?? false,
-          paymentMethod: status?.payment_method ?? null,
           pickupStatus: (status?.pickup_status ?? 'pending') as PickupStatus,
         }
         if (row.item_code && typeof row.qty === 'number' && row.qty > 0) {
@@ -141,9 +139,6 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
       const { error } = await client.rpc('set_order_fulfillment', {
         p_order_id: orderId,
         p_paid: update.paid,
-        // Generated Supabase RPC types do not express nullable SQL arguments;
-        // the database function deliberately accepts NULL for unpaid orders.
-        p_payment_method: update.paymentMethod as string,
         p_pickup_status: update.pickupStatus,
       })
       if (error) throw new Error(`更新付款領取狀態失敗：${errorMessage(error)}`)

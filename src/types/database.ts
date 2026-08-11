@@ -378,7 +378,6 @@ export type Database = {
           amount: number
           created_at: string
           id: string
-          method: string | null
           order_id: string
           paid: boolean
           paid_at: string | null
@@ -388,7 +387,6 @@ export type Database = {
           amount: number
           created_at?: string
           id?: string
-          method?: string | null
           order_id: string
           paid?: boolean
           paid_at?: string | null
@@ -398,7 +396,6 @@ export type Database = {
           amount?: number
           created_at?: string
           id?: string
-          method?: string | null
           order_id?: string
           paid?: boolean
           paid_at?: string | null
@@ -550,7 +547,6 @@ export type Database = {
           order_id: string | null
           paid: boolean | null
           paid_at: string | null
-          payment_method: string | null
           pickup_status: string | null
         }
         Relationships: [
@@ -646,12 +642,7 @@ export type Database = {
         }
       }
       set_order_fulfillment: {
-        Args: {
-          p_order_id: string
-          p_paid: boolean
-          p_payment_method: string
-          p_pickup_status: string
-        }
+        Args: { p_order_id: string; p_paid: boolean; p_pickup_status: string }
         Returns: Json
       }
       submit_customer_order: {

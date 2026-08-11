@@ -110,4 +110,70 @@ describe('organizer campaign editor', () => {
     expect(screen.getByLabelText('住戶端預覽')).toHaveTextContent('已到貨')
     expect(screen.getByLabelText('住戶端預覽')).not.toHaveTextContent('● 收單中')
   })
+
+  it('uploads a product image file and adds only its public URL to the preview', async () => {
+    const user = userEvent.setup()
+    const onUploadImage = vi.fn().mockResolvedValue('http://storage.test/campaign/image.png')
+    render(<AdminApp onUploadImage={onUploadImage} />)
+    const file = new File(['image'], '商品照.png', { type: 'image/png' })
+
+    await user.upload(screen.getByLabelText('商品圖片檔案'), file)
+    await user.type(screen.getByRole('textbox', { name: '圖片說明' }), '冰餅包裝正面')
+    await user.click(screen.getByRole('button', { name: '上傳圖片' }))
+
+    expect(onUploadImage).toHaveBeenCalledWith(file)
+    expect(await screen.findByRole('img', { name: '冰餅包裝正面' })).toHaveAttribute(
+      'src',
+      'http://storage.test/campaign/image.png',
+    )
+    expect(screen.getByText('草稿')).toBeInTheDocument()
+    expect(screen.getByLabelText<HTMLInputElement>('商品圖片檔案').files).toHaveLength(0)
+  })
+
+  it('blocks saving and publishing while an image upload is pending', async () => {
+    const user = userEvent.setup()
+    let finishUpload: ((url: string) => void) | undefined
+    const onUploadImage = vi.fn().mockImplementation(() => new Promise<string>((resolve) => {
+      finishUpload = resolve
+    }))
+    render(<AdminApp onUploadImage={onUploadImage} />)
+
+    await user.upload(
+      screen.getByLabelText('商品圖片檔案'),
+      new File(['image'], '商品照.png', { type: 'image/png' }),
+    )
+    await user.type(screen.getByRole('textbox', { name: '圖片說明' }), '等待上傳的圖片')
+    await user.click(screen.getByRole('button', { name: '上傳圖片' }))
+
+    expect(screen.getByRole('button', { name: '儲存草稿' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '發布到住戶端' })).toBeDisabled()
+    expect(screen.getByLabelText('商品圖片檔案')).toBeDisabled()
+
+    finishUpload?.('http://storage.test/campaign/pending.png')
+    expect(await screen.findByRole('img', { name: '等待上傳的圖片' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '儲存草稿' })).toBeEnabled()
+  })
+
+  it('blocks image selection while a draft save is pending', async () => {
+    const user = userEvent.setup()
+    let finishSave: (() => void) | undefined
+    const onSaveDraft = vi.fn().mockImplementation(() => new Promise<void>((resolve) => {
+      finishSave = resolve
+    }))
+    render(
+      <AdminApp
+        onSaveDraft={onSaveDraft}
+        onUploadImage={vi.fn().mockResolvedValue('http://storage.test/unreachable.png')}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: '儲存草稿' }))
+    expect(screen.getByLabelText('商品圖片檔案')).toBeDisabled()
+    expect(screen.getByRole('textbox', { name: '團購標題' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '發布到住戶端' })).toBeDisabled()
+
+    finishSave?.()
+    expect(await screen.findByText('開團資料已儲存')).toBeInTheDocument()
+    expect(screen.getByLabelText('商品圖片檔案')).toBeEnabled()
+  })
 })

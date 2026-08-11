@@ -92,14 +92,14 @@ def main() -> None:
     status, _ = call("POST", "/rest/v1/rpc/set_order_fulfillment", ANON_KEY,
                      token=resident_token,
                      body={"p_order_id": ORDER_ID, "p_paid": True,
-                           "p_payment_method": "cash", "p_pickup_status": "ready"})
+                           "p_pickup_status": "ready"})
     resident_cannot_update_fulfillment = status in (401, 403)
     assert resident_cannot_update_fulfillment, status
 
     status, fulfillment = call("POST", "/rest/v1/rpc/set_order_fulfillment", ANON_KEY,
                                token=admin_token,
                                body={"p_order_id": ORDER_ID, "p_paid": True,
-                                     "p_payment_method": "cash", "p_pickup_status": "ready"})
+                                     "p_pickup_status": "ready"})
     admin_can_update_fulfillment = (
         status == 200 and fulfillment["paid"] is True
         and fulfillment["pickup_status"] == "ready"
@@ -110,7 +110,7 @@ def main() -> None:
         "GET", f"/rest/v1/organizer_order_status?order_id=eq.{ORDER_ID}",
         ANON_KEY, token=admin_token,
     )
-    admin_can_read_status = status == 200 and admin_rows[0]["payment_method"] == "cash"
+    admin_can_read_status = status == 200 and admin_rows[0]["paid"] is True
     assert admin_can_read_status, (status, admin_rows)
 
     status, resident_rows = call(

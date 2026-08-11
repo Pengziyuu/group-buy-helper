@@ -13,7 +13,6 @@ const periodLabel = (period: number) => `${period === 1 ? '一期' : period === 
 
 export type FulfillmentUpdate = {
   paid: boolean
-  paymentMethod: string | null
   pickupStatus: PickupStatus
 }
 
@@ -49,7 +48,6 @@ function AdminOrdersPanel({
     if (!onSetOrderFulfillment) return
     const next = {
       paid: order.paid,
-      paymentMethod: order.paymentMethod,
       pickupStatus: order.pickupStatus,
       ...update,
     }
@@ -176,7 +174,6 @@ function AdminOrdersPanel({
                             disabled={!onSetOrderFulfillment || Boolean(busy)}
                             onClick={() => updateOrder(order, {
                               paid: !order.paid,
-                              paymentMethod: order.paid ? null : 'cash',
                             })}
                           >
                             {order.paid ? '已付款' : '未付款'}

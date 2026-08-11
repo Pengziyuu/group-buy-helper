@@ -20,8 +20,8 @@ describe('Supabase admin orders gateway', () => {
       { order_id: 'order-2', customer_name: '佩怡', period: 1, unit: 'H11', item_code: 'B', qty: 2 },
     ])
     const statusQuery = queryResult([
-      { order_id: 'order-1', paid: true, payment_method: 'cash', pickup_status: 'ready' },
-      { order_id: 'order-2', paid: false, payment_method: null, pickup_status: 'pending' },
+      { order_id: 'order-1', paid: true, pickup_status: 'ready' },
+      { order_id: 'order-2', paid: false, pickup_status: 'pending' },
     ])
     const single = vi.fn().mockResolvedValue({ data: { status: 'open' }, error: null })
     const campaignQuery = { select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single }) }) }
@@ -51,7 +51,6 @@ describe('Supabase admin orders gateway', () => {
       orderId: 'order-1',
       itemSummary: '牛奶×2、花生×1',
       paid: true,
-      paymentMethod: 'cash',
       pickupStatus: 'ready',
     })
 
@@ -61,12 +60,11 @@ describe('Supabase admin orders gateway', () => {
     })
 
     await gateway.setOrderFulfillment('order-1', {
-      paid: true, paymentMethod: 'cash', pickupStatus: 'picked_up',
+      paid: true, pickupStatus: 'picked_up',
     })
     expect(rpc).toHaveBeenCalledWith('set_order_fulfillment', {
       p_order_id: 'order-1',
       p_paid: true,
-      p_payment_method: 'cash',
       p_pickup_status: 'picked_up',
     })
   })

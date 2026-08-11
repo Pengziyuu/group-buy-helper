@@ -19,9 +19,10 @@
 - Supabase `campaign_draft`、團主專用 RLS、原子發布 RPC 與前端 gateway
 - 本機 Supabase Auth 團主登入與住戶 Realtime 可視化 Demo
 - 團主訂單統計：戶數、總量、總額、成團差額、A–I 品項彙總與逐戶明細
-- 團主工作流：結單、重新開放、標記到貨、逐戶付款與領取狀態
+- 團主工作流：結單、重新開放、標記到貨、逐戶已付款／未付款與領取狀態；不記錄付款方式
 - 商品圖片以 `{src, alt}` JSON 保存，資料庫驗證替代文字及最多 10 張限制
-- 48 個前端／領域自動測試
+- 團主可上傳 JPG、PNG、WebP 到 Supabase Storage；單檔最多 5 MB，住戶只能公開讀取
+- 54 個前端／領域自動測試
 - 可重建的本機 Supabase migration、seed 與產生型別
 
 ## 本機執行
@@ -60,7 +61,7 @@ python scripts/start_local_live_demo.py
 
 啟動器會自動偵測主要區網 IP；若電腦有多張網卡而選錯，可先設定 `LOCAL_LIVE_DEMO_HOST=192.168.x.x` 再啟動。
 
-Live Demo 驗收方式：團主登入後修改並儲存草稿，住戶端應維持舊內容；團主發布後，已開啟的住戶端會透過 Realtime 自動更新。團主也可在訂單統計區結單／重新開放／標記到貨，以及更新逐戶付款與領取狀態；結單後住戶端會即時鎖定訂單控制。
+Live Demo 驗收方式：團主登入後可上傳商品圖片、修改內容並儲存草稿，住戶端應維持舊內容；團主發布後，已開啟的住戶端會透過 Realtime 自動更新。團主也可在訂單統計區結單／重新開放／標記到貨，以及更新逐戶已付款／未付款與領取狀態；結單後住戶端會即時鎖定訂單控制。
 
 ## 測試與建置
 
@@ -111,9 +112,10 @@ eval "$(npx supabase status -o env)"
 set +a
 python scripts/verify_supabase_draft.py
 python scripts/verify_order_workflow.py
+python scripts/verify_storage.py
 ```
 
-兩支腳本會使用臨時 Anonymous Auth 使用者：第一支驗證草稿、發布與圖片限制；第二支驗證住戶不能結單或修改履約狀態、團主可更新、結單後住戶不能修改訂單，以及團主狀態 view 不對住戶公開。腳本不會輸出或寫入 API key，並會自動清理測試資料。
+三支腳本會使用臨時 Auth 使用者：第一支驗證草稿、發布與圖片限制；第二支驗證住戶不能結單或修改履約狀態、團主可更新、結單後住戶不能修改訂單，以及團主狀態 view 不對住戶公開；第三支驗證 Storage 的團主上傳／刪除、住戶禁止寫入及公開讀取。腳本不會輸出或寫入 API key，並會自動清理測試資料。
 
 ## LINE / LIFF
 
@@ -132,6 +134,8 @@ python scripts/verify_order_workflow.py
 - 單品數量限制 0–20。
 - 團主操作使用 Supabase Auth；敏感寫入不使用公開匿名權限。
 - 草稿僅 `admin_users` 可讀寫；住戶只能讀取已發布的 `campaign_public`。
+- 付款只保存完成狀態，不保存現金、轉帳等付款方式。
+- `campaign-images` bucket 公開讀取，但新增、更新與刪除均由團主 RLS 限制。
 
 ## 下一個外部依賴
 

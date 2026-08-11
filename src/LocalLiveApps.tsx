@@ -17,6 +17,7 @@ import type { Database } from './types/database'
 import type { OrganizerOrderSummary } from './domain/adminOrders'
 import type { CampaignStatus } from './domain/orderWorkflow'
 import { createAdminOrdersGateway } from './services/adminOrdersGateway'
+import { createCampaignImageGateway } from './services/campaignImageGateway'
 
 export type LiveAdminRepository = {
   loadPublished(campaignId: string): Promise<CampaignContent>
@@ -136,6 +137,7 @@ export function LocalLiveAdminApp({
     () => ordersRepository ?? createAdminOrdersGateway(client),
     [client, ordersRepository],
   )
+  const imageGateway = useMemo(() => createCampaignImageGateway(client), [client])
   const [session, setSession] = useState<Session | null | undefined>(undefined)
   const [content, setContent] = useState<CampaignContent | null>(null)
   const [orderSummary, setOrderSummary] = useState<OrganizerOrderSummary | null>(null)
@@ -242,6 +244,7 @@ export function LocalLiveAdminApp({
       initialPublicationState={publicationState}
       orderSummary={orderSummary}
       campaignStatus={campaignStatus}
+      onUploadImage={(file) => imageGateway.upload(campaignId, file)}
       onSetCampaignStatus={async (status) => {
         await ordersGateway.setCampaignStatus(campaignId, status)
         setCampaignStatus(await ordersGateway.loadCampaignStatus(campaignId))

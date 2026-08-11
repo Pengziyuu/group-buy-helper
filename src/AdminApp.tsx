@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import './AdminApp.css'
 import AdminOrdersPanel, { type FulfillmentUpdate } from './AdminOrdersPanel'
 import { campaign, initialOrders, items } from './data/demo'
@@ -40,6 +40,7 @@ type AdminAppProps = {
   campaignStatus?: CampaignStatus
   onSetCampaignStatus?: (status: CampaignStatus) => Promise<void>
   onSetOrderFulfillment?: (orderId: string, update: FulfillmentUpdate) => Promise<void>
+  onUploadImage?: (file: File) => Promise<string>
 }
 
 function messageFromError(error: unknown): string {
@@ -56,6 +57,7 @@ function AdminApp({
   campaignStatus,
   onSetCampaignStatus,
   onSetOrderFulfillment,
+  onUploadImage,
 }: AdminAppProps = {}) {
   const [initialDraft] = useState(() => initialContent ?? loadDraftCampaign(defaultContent))
   const [initialPublished] = useState(() => initialContent ?? loadPublishedCampaign(defaultContent))
@@ -66,12 +68,17 @@ function AdminApp({
   const [images, setImages] = useState(() => [...initialDraft.images])
   const [imageUrl, setImageUrl] = useState('')
   const [imageAlt, setImageAlt] = useState('')
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
+  const operationLock = useRef(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
   const [notice, setNotice] = useState('')
   const [busyAction, setBusyAction] = useState<'save' | 'publish' | 'signout' | null>(null)
   const [publicationState, setPublicationState] = useState<PublicationState>(() =>
     initialPublicationState
       ?? (campaignContentEquals(initialDraft, initialPublished) ? 'published' : 'draft'),
   )
+  const editorBusy = busyAction !== null || uploadingImage
   const resolvedOrderSummary = orderSummary === undefined ? demoOrderSummary : orderSummary
 
   const currentContent = (): CampaignContent => ({ title, unitPrice, threshold, announcement, images })
@@ -81,6 +88,8 @@ function AdminApp({
   }
 
   const saveDraft = async () => {
+    if (operationLock.current) return
+    operationLock.current = true
     setBusyAction('save')
     setNotice('')
     try {
@@ -92,11 +101,14 @@ function AdminApp({
     } catch (error) {
       setNotice(`儲存失敗：${messageFromError(error)}`)
     } finally {
+      operationLock.current = false
       setBusyAction(null)
     }
   }
 
   const publish = async () => {
+    if (operationLock.current) return
+    operationLock.current = true
     setBusyAction('publish')
     setNotice('')
     try {
@@ -108,29 +120,49 @@ function AdminApp({
     } catch (error) {
       setNotice(`發布失敗：${messageFromError(error)}`)
     } finally {
+      operationLock.current = false
       setBusyAction(null)
     }
   }
 
   const signOut = async () => {
-    if (!onSignOut) return
+    if (!onSignOut || operationLock.current) return
+    operationLock.current = true
     setBusyAction('signout')
     try {
       await onSignOut()
+      operationLock.current = false
     } catch (error) {
+      operationLock.current = false
       setNotice(`登出失敗：${messageFromError(error)}`)
       setBusyAction(null)
     }
   }
 
-  const addImage = () => {
-    const src = imageUrl.trim()
+  const addImage = async () => {
     const alt = imageAlt.trim()
-    if (!src || !alt || images.length >= 10) return
-    setImages((current) => [...current, { src, alt }])
-    markDraft()
-    setImageUrl('')
-    setImageAlt('')
+    if (!alt || images.length >= 10 || operationLock.current) return
+    operationLock.current = true
+    setNotice('')
+    try {
+      setUploadingImage(true)
+      const src = onUploadImage
+        ? imageFile && await onUploadImage(imageFile)
+        : imageUrl.trim()
+      if (!src) return
+      setImages((current) => [...current, { src, alt }])
+      markDraft()
+      setImageUrl('')
+      setImageFile(null)
+      if (imageInputRef.current) imageInputRef.current.value = ''
+      setImageAlt('')
+      if (onUploadImage) setNotice('圖片已上傳，請儲存草稿')
+    } catch (error) {
+      setNotice(`上傳失敗：${messageFromError(error)}`)
+    } finally {
+      operationLock.current = false
+      setUploadingImage(false)
+    }
   }
 
   return (
@@ -143,7 +175,7 @@ function AdminApp({
         </div>
         <div className="admin-header-actions">
           <a href="/" className="resident-link">查看住戶端 ↗</a>
-          {onSignOut && <button type="button" onClick={signOut} disabled={busyAction !== null}>登出</button>}
+          {onSignOut && <button type="button" onClick={signOut} disabled={editorBusy}>登出</button>}
         </div>
       </header>
 
@@ -160,21 +192,22 @@ function AdminApp({
           <div className="field-grid">
             <label className="field full-field">
               <span>團購標題</span>
-              <input value={title} onChange={(event) => { setTitle(event.target.value); markDraft() }} />
+              <input disabled={editorBusy} value={title} onChange={(event) => { setTitle(event.target.value); markDraft() }} />
             </label>
             <label className="field">
               <span>單價</span>
-              <input type="number" min="0" value={unitPrice} onChange={(event) => { setUnitPrice(Number(event.target.value)); markDraft() }} />
+              <input disabled={editorBusy} type="number" min="0" value={unitPrice} onChange={(event) => { setUnitPrice(Number(event.target.value)); markDraft() }} />
             </label>
             <label className="field">
               <span>成團門檻</span>
-              <input type="number" min="1" value={threshold} onChange={(event) => { setThreshold(Number(event.target.value)); markDraft() }} />
+              <input disabled={editorBusy} type="number" min="1" value={threshold} onChange={(event) => { setThreshold(Number(event.target.value)); markDraft() }} />
             </label>
             <div className="field full-field">
               <label htmlFor="campaign-announcement">開團資訊</label>
               <textarea
                 id="campaign-announcement"
                 rows={18}
+                disabled={editorBusy}
                 value={announcement}
                 aria-describedby="announcement-count"
                 onChange={(event) => { setAnnouncement(event.target.value); markDraft() }}
@@ -187,22 +220,46 @@ function AdminApp({
                 <span>{images.length} / 10 張</span>
               </div>
               <div className="image-inputs">
-                <label className="field">
-                  <span>圖片網址</span>
-                  <input value={imageUrl} placeholder="https://…" onChange={(event) => setImageUrl(event.target.value)} />
-                </label>
+                {onUploadImage ? (
+                  <label className="field">
+                    <span>商品圖片檔案</span>
+                    <input
+                      ref={imageInputRef}
+                      type="file"
+                      disabled={editorBusy}
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={(event) => setImageFile(event.target.files?.[0] ?? null)}
+                    />
+                  </label>
+                ) : (
+                  <label className="field">
+                    <span>圖片網址</span>
+                    <input disabled={editorBusy} value={imageUrl} placeholder="https://…" onChange={(event) => setImageUrl(event.target.value)} />
+                  </label>
+                )}
                 <label className="field">
                   <span>圖片說明</span>
-                  <input value={imageAlt} placeholder="例如：商品包裝正面" onChange={(event) => setImageAlt(event.target.value)} />
+                  <input disabled={editorBusy} value={imageAlt} placeholder="例如：商品包裝正面" onChange={(event) => setImageAlt(event.target.value)} />
                 </label>
-                <button type="button" onClick={addImage} disabled={!imageUrl.trim() || !imageAlt.trim() || images.length >= 10}>新增圖片</button>
+                <button
+                  type="button"
+                  onClick={addImage}
+                  disabled={
+                    editorBusy
+                    || !(onUploadImage ? imageFile : imageUrl.trim())
+                    || !imageAlt.trim()
+                    || images.length >= 10
+                  }
+                >
+                  {uploadingImage ? '上傳中…' : onUploadImage ? '上傳圖片' : '新增圖片'}
+                </button>
               </div>
               <ul className="image-list">
                 {images.map((image, index) => (
                   <li key={`${image.src}-${index}`}>
                     <span>{index + 1}</span>
                     <div><strong>{image.alt}</strong><small>{image.src}</small></div>
-                    <button type="button" aria-label={`移除 ${image.alt}`} onClick={() => { setImages((current) => current.filter((_, currentIndex) => currentIndex !== index)); markDraft() }}>移除</button>
+                    <button disabled={editorBusy} type="button" aria-label={`移除 ${image.alt}`} onClick={() => { setImages((current) => current.filter((_, currentIndex) => currentIndex !== index)); markDraft() }}>移除</button>
                   </li>
                 ))}
               </ul>
@@ -210,10 +267,10 @@ function AdminApp({
           </div>
           <div className="editor-actions">
             <p role="status">{notice}</p>
-            <button className="secondary-action" type="button" onClick={saveDraft} disabled={busyAction !== null}>
+            <button className="secondary-action" type="button" onClick={saveDraft} disabled={editorBusy}>
               {busyAction === 'save' ? '儲存中…' : '儲存草稿'}
             </button>
-            <button type="button" onClick={publish} disabled={busyAction !== null}>
+            <button type="button" onClick={publish} disabled={editorBusy}>
               {busyAction === 'publish' ? '發布中…' : '發布到住戶端'}
             </button>
           </div>

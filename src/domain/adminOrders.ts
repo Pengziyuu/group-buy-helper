@@ -14,7 +14,6 @@ export type OrganizerVisibleOrder = {
   unit: string
   items: Record<string, number>
   paid?: boolean
-  paymentMethod?: string | null
   pickupStatus?: PickupStatus
 }
 
@@ -29,7 +28,6 @@ export type OrganizerOrderRow = OrganizerVisibleOrder & {
   amount: number
   itemSummary: string
   paid: boolean
-  paymentMethod: string | null
   pickupStatus: PickupStatus
 }
 
@@ -89,7 +87,6 @@ export function buildOrganizerOrderSummary({
         amount: quantity * unitPrice,
         itemSummary,
         paid: order.paid ?? false,
-        paymentMethod: order.paymentMethod ?? null,
         pickupStatus: order.pickupStatus ?? 'pending',
       }
     })
