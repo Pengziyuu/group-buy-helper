@@ -71,6 +71,7 @@ function AdminApp({
   const [imageFile, setImageFile] = useState<File | null>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const imageAltInputRef = useRef<HTMLInputElement>(null)
+  const handledImageFileRef = useRef<File | null>(null)
   const operationLock = useRef(false)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [notice, setNotice] = useState('')
@@ -155,6 +156,7 @@ function AdminApp({
       markDraft()
       setImageUrl('')
       setImageFile(null)
+      handledImageFileRef.current = null
       if (imageInputRef.current) imageInputRef.current.value = ''
       setImageAlt('')
       if (onUploadImage) setNotice('圖片已上傳，請儲存草稿')
@@ -167,6 +169,8 @@ function AdminApp({
   }
 
   const selectImageFile = (file: File | null) => {
+    if (file && handledImageFileRef.current === file) return
+    handledImageFileRef.current = file
     setImageFile(file)
     if (!file) {
       setNotice('')
@@ -239,6 +243,7 @@ function AdminApp({
                       type="file"
                       disabled={editorBusy}
                       accept="image/jpeg,image/png,image/webp"
+                      onInput={(event) => selectImageFile(event.currentTarget.files?.[0] ?? null)}
                       onChange={(event) => selectImageFile(event.target.files?.[0] ?? null)}
                     />
                   </label>

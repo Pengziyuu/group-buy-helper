@@ -15,9 +15,24 @@ function errorMessage(error: unknown): string {
   return String(error)
 }
 
+function createCompatibleUuid(): string {
+  if (typeof globalThis.crypto?.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID()
+  }
+  if (typeof globalThis.crypto?.getRandomValues !== 'function') {
+    throw new Error('此瀏覽器不支援安全的圖片識別碼')
+  }
+
+  const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16))
+  bytes[6] = (bytes[6] & 0x0f) | 0x40
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
 export function createCampaignImageGateway(
   client: CampaignImageStorageClient,
-  createId: () => string = () => crypto.randomUUID(),
+  createId: () => string = createCompatibleUuid,
 ) {
   return {
     async upload(campaignId: string, file: File): Promise<string> {

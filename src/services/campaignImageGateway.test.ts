@@ -23,6 +23,34 @@ describe('campaign image storage gateway', () => {
     })
   })
 
+  it('uploads on insecure mobile origins where crypto.randomUUID is unavailable', async () => {
+    vi.stubGlobal('crypto', {
+      getRandomValues: (bytes: Uint8Array) => {
+        bytes.set(Array.from({ length: 16 }, (_, index) => index))
+        return bytes
+      },
+    })
+    const upload = vi.fn().mockResolvedValue({ data: {}, error: null })
+    const getPublicUrl = vi.fn().mockReturnValue({ data: { publicUrl: 'http://storage.test/mobile.png' } })
+    const client = {
+      storage: { from: vi.fn().mockReturnValue({ upload, getPublicUrl }) },
+    } as unknown as CampaignImageStorageClient
+
+    try {
+      const gateway = createCampaignImageGateway(client)
+      const file = new File(['image'], '手機照片.png', { type: 'image/png' })
+
+      await expect(gateway.upload('campaign-1', file)).resolves.toBe('http://storage.test/mobile.png')
+      expect(upload).toHaveBeenCalledWith(
+        'campaign-1/00010203-0405-4607-8809-0a0b0c0d0e0f.png',
+        file,
+        expect.any(Object),
+      )
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('rejects unsupported files before contacting Storage', async () => {
     const from = vi.fn()
     const client = { storage: { from } } as unknown as CampaignImageStorageClient

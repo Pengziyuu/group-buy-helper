@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
@@ -121,6 +121,16 @@ describe('organizer campaign editor', () => {
     expect(screen.getByRole('status')).toHaveTextContent('已選擇「冰餅商品照.png」')
     expect(screen.getByRole('status')).toHaveTextContent('請填寫圖片說明後按「上傳圖片」')
     await waitFor(() => expect(screen.getByRole('textbox', { name: '圖片說明' })).toHaveFocus())
+  })
+
+  it('accepts a mobile file picker that emits input without change', () => {
+    render(<AdminApp onUploadImage={vi.fn().mockResolvedValue('http://storage.test/campaign/image.png')} />)
+    const input = screen.getByLabelText<HTMLInputElement>('商品圖片檔案')
+    const file = new File(['image'], 'Samsung照片.png', { type: 'image/png' })
+
+    fireEvent.input(input, { target: { files: [file] } })
+
+    expect(screen.getByRole('status')).toHaveTextContent('已選擇「Samsung照片.png」')
   })
 
   it('uploads a product image file and adds only its public URL to the preview', async () => {
