@@ -42,6 +42,14 @@
 .progress-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--ice), #49a8b9); transition: width .25s ease; }
 .social-proof { color: var(--muted); margin: 9px 0 0; font-size: 13px; }
 
+.campaign-post { overflow: hidden; }
+.post-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.post-heading h2 { margin: 0; font-size: 22px; letter-spacing: -.025em; }
+.organizer-badge { flex: none; padding: 5px 10px; border-radius: 999px; background: #f2f9ff; color: #0974cc; font-size: 12px; font-weight: 800; }
+.campaign-gallery { display: grid; gap: 10px; margin: 0 -4px 18px; }
+.campaign-gallery img { display: block; width: 100%; height: auto; aspect-ratio: 5 / 3; object-fit: cover; border: 1px solid rgba(0, 0, 0, .1); border-radius: 14px; background: var(--frost); }
+.campaign-copy { margin: 0; color: #31302e; font-size: 15px; line-height: 1.72; white-space: pre-wrap; overflow-wrap: anywhere; }
+
 .panel { margin-top: 14px; padding: 18px; }
 .section-heading { display: flex; justify-content: space-between; align-items: end; gap: 12px; margin-bottom: 15px; }
 .section-heading.compact { align-items: center; }

@@ -35,6 +35,9 @@ create table if not exists public.campaign (
   threshold integer not null check (threshold > 0),
   status text not null default 'open' check (status in ('open', 'closed', 'arrived')),
   deadline timestamptz not null,
+  announcement text not null default '' check (length(announcement) <= 20000),
+  image_paths text[] not null default '{}'::text[]
+    check (cardinality(image_paths) <= 10),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint campaign_slug_key unique (slug),
@@ -207,6 +210,8 @@ returns table (
   threshold integer,
   status text,
   deadline timestamptz,
+  announcement text,
+  image_paths text[],
   created_at timestamptz,
   updated_at timestamptz
 )
@@ -227,7 +232,8 @@ begin
 
   return query
   select c.id, c.slug, c.title, c.unit_price, c.threshold,
-         c.status, c.deadline, c.created_at, c.updated_at
+         c.status, c.deadline, c.announcement, c.image_paths,
+         c.created_at, c.updated_at
   from public.campaign c
   where c.slug = p_slug;
 end;
@@ -539,7 +545,8 @@ using (user_id = auth.uid());
 create or replace view public.campaign_public
 with (security_invoker = true)
 as
-select id, slug, title, unit_price, threshold, status, deadline, created_at, updated_at
+select id, slug, title, unit_price, threshold, status, deadline,
+       announcement, image_paths, created_at, updated_at
 from public.campaign;
 
 create or replace view public.order_wall

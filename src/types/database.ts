@@ -51,9 +51,11 @@ export type Database = {
       }
       campaign: {
         Row: {
+          announcement: string
           created_at: string
           deadline: string
           id: string
+          image_paths: string[]
           slug: string
           status: string
           threshold: number
@@ -62,9 +64,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          announcement?: string
           created_at?: string
           deadline: string
           id?: string
+          image_paths?: string[]
           slug?: string
           status?: string
           threshold: number
@@ -73,9 +77,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          announcement?: string
           created_at?: string
           deadline?: string
           id?: string
+          image_paths?: string[]
           slug?: string
           status?: string
           threshold?: number
@@ -394,9 +400,11 @@ export type Database = {
     Views: {
       campaign_public: {
         Row: {
+          announcement: string | null
           created_at: string | null
           deadline: string | null
           id: string | null
+          image_paths: string[] | null
           slug: string | null
           status: string | null
           threshold: number | null
@@ -405,9 +413,11 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          announcement?: string | null
           created_at?: string | null
           deadline?: string | null
           id?: string | null
+          image_paths?: string[] | null
           slug?: string | null
           status?: string | null
           threshold?: number | null
@@ -416,9 +426,11 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          announcement?: string | null
           created_at?: string | null
           deadline?: string | null
           id?: string | null
+          image_paths?: string[] | null
           slug?: string | null
           status?: string | null
           threshold?: number | null
@@ -479,9 +491,11 @@ export type Database = {
       join_campaign_by_slug: {
         Args: { p_slug: string }
         Returns: {
+          announcement: string
           created_at: string
           deadline: string
           id: string
+          image_paths: string[]
           slug: string
           status: string
           threshold: number

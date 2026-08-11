@@ -10,10 +10,11 @@
 - 客人只能編輯自己的訂單之互動流程
 - 真實六筆資料示範：62/100、總金額 2,790 元
 - 戶號解析規則：整串英數字為戶號、明寫期別才覆蓋、預設二期
+- 團主公告長文、Emoji 與多張商品圖片展示
 - LIFF 身分載入與 ID token 邊界
 - demo/live 環境設定防呆
 - Supabase schema、RLS 與 Realtime migration
-- 24 個前端／領域自動測試
+- 25 個前端／領域自動測試
 - 可重建的本機 Supabase migration、seed 與產生型別
 
 ## 本機執行

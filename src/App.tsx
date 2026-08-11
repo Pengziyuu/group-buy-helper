@@ -74,6 +74,23 @@ function App() {
         <p className="social-proof">已有 {orders.length} 戶參加，大家的訂單都看得到</p>
       </section>
 
+      <article className="panel campaign-post" aria-labelledby="campaign-post-heading">
+        <div className="post-heading">
+          <div>
+            <p className="section-kicker">團主公告</p>
+            <h2 id="campaign-post-heading">開團資訊</h2>
+          </div>
+          <span className="organizer-badge">團主提供</span>
+        </div>
+
+        <div className="campaign-gallery" aria-label="團購圖片">
+          {campaign.images.map((image) => (
+            <img key={image.src} src={image.src} alt={image.alt} loading="eager" />
+          ))}
+        </div>
+        <p className="campaign-copy">{campaign.announcement}</p>
+      </article>
+
       <section className="panel order-panel" aria-labelledby="order-heading">
         <div className="section-heading">
           <div>

@@ -14,6 +14,15 @@ describe('customer campaign app', () => {
     expect(screen.getByText('佩怡')).toBeInTheDocument()
   })
 
+  it('shows the organizer announcement and campaign image above ordering', () => {
+    render(<App />)
+
+    expect(screen.getByText(/🌞炎炎夏日 #冰品最佳首選🧊🍦/)).toBeInTheDocument()
+    expect(screen.getByText(/🉐🉐美味代購價一個\$４５元🉐🉐/)).toBeInTheDocument()
+    expect(screen.getByText(/保存期限:冷凍約三個月/)).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: '超厚三明治冰餅口味示意圖' })).toBeInTheDocument()
+  })
+
   it('lets the signed-in customer update only their own order', async () => {
     const user = userEvent.setup()
     render(<App />)
