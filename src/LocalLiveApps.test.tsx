@@ -4,8 +4,11 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   LocalLiveAdminApp,
   LocalLiveResidentApp,
+  type LiveAdminOrdersRepository,
   type LiveAdminRepository,
 } from './LocalLiveApps'
+import { initialOrders, items } from './data/demo'
+import { buildOrganizerOrderSummary } from './domain/adminOrders'
 import type { AdminCampaignSupabaseClient } from './services/adminCampaignGateway'
 import type { CampaignContent } from './services/demoCampaignStore'
 
@@ -16,6 +19,11 @@ const published: CampaignContent = {
   announcement: '資料庫公告',
   images: [{ src: '/remote.svg', alt: '資料庫商品圖' }],
 }
+
+const orderSummary = buildOrganizerOrderSummary({ orders: initialOrders, items, unitPrice: 50, threshold: 80 })
+const ordersRepository = (): LiveAdminOrdersRepository => ({
+  loadSummary: vi.fn().mockResolvedValue(orderSummary),
+})
 
 function authClient(session: unknown = null) {
   const signInWithPassword = vi.fn().mockResolvedValue({
@@ -45,7 +53,14 @@ describe('local Supabase visual demo apps', () => {
       publish: vi.fn().mockResolvedValue(undefined),
     }
 
-    render(<LocalLiveAdminApp client={client} campaignId="campaign-1" repository={repository} />)
+    render(
+      <LocalLiveAdminApp
+        client={client}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={ordersRepository()}
+      />,
+    )
     expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
 
     await user.type(screen.getByRole('textbox', { name: 'Email' }), 'admin@example.test')
@@ -66,7 +81,14 @@ describe('local Supabase visual demo apps', () => {
       publish: vi.fn(),
     }
 
-    render(<LocalLiveAdminApp client={client} campaignId="campaign-1" repository={repository} />)
+    render(
+      <LocalLiveAdminApp
+        client={client}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={ordersRepository()}
+      />,
+    )
 
     expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
     expect(client.auth.signOut).toHaveBeenCalled()

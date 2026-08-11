@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import './AdminApp.css'
-import { campaign } from './data/demo'
+import AdminOrdersPanel from './AdminOrdersPanel'
+import { campaign, initialOrders, items } from './data/demo'
+import { buildOrganizerOrderSummary, type OrganizerOrderSummary } from './domain/adminOrders'
 import {
   campaignContentEquals,
   loadDraftCampaign,
@@ -18,6 +20,13 @@ const defaultContent: CampaignContent = {
   images: campaign.images,
 }
 
+const demoOrderSummary = buildOrganizerOrderSummary({
+  orders: initialOrders,
+  items,
+  unitPrice: campaign.unitPrice,
+  threshold: campaign.threshold,
+})
+
 type PublicationState = 'draft' | 'published'
 
 type AdminAppProps = {
@@ -26,6 +35,7 @@ type AdminAppProps = {
   onSaveDraft?: (content: CampaignContent) => Promise<void>
   onPublish?: (content: CampaignContent) => Promise<void>
   onSignOut?: () => Promise<void>
+  orderSummary?: OrganizerOrderSummary | null
 }
 
 function messageFromError(error: unknown): string {
@@ -38,6 +48,7 @@ function AdminApp({
   onSaveDraft,
   onPublish,
   onSignOut,
+  orderSummary,
 }: AdminAppProps = {}) {
   const [initialDraft] = useState(() => initialContent ?? loadDraftCampaign(defaultContent))
   const [initialPublished] = useState(() => initialContent ?? loadPublishedCampaign(defaultContent))
@@ -54,6 +65,7 @@ function AdminApp({
     initialPublicationState
       ?? (campaignContentEquals(initialDraft, initialPublished) ? 'published' : 'draft'),
   )
+  const resolvedOrderSummary = orderSummary === undefined ? demoOrderSummary : orderSummary
 
   const currentContent = (): CampaignContent => ({ title, unitPrice, threshold, announcement, images })
   const markDraft = () => {
@@ -221,6 +233,7 @@ function AdminApp({
           </article>
         </section>
       </div>
+      {resolvedOrderSummary && <AdminOrdersPanel summary={resolvedOrderSummary} />}
     </main>
   )
 }

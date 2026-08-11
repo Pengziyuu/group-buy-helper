@@ -13,12 +13,18 @@ import {
   type CampaignImage,
 } from './services/demoCampaignStore'
 import type { Database } from './types/database'
+import type { OrganizerOrderSummary } from './domain/adminOrders'
+import { createAdminOrdersGateway } from './services/adminOrdersGateway'
 
 export type LiveAdminRepository = {
   loadPublished(campaignId: string): Promise<CampaignContent>
   loadOptionalDraft(campaignId: string): Promise<CampaignContent | null>
   saveDraft(campaignId: string, content: CampaignContent): Promise<CampaignContent>
   publish(campaignId: string): Promise<unknown>
+}
+
+export type LiveAdminOrdersRepository = {
+  loadSummary(campaignId: string, unitPrice: number, threshold: number): Promise<OrganizerOrderSummary>
 }
 
 type LocalLiveAppProps = {
@@ -104,13 +110,22 @@ export function LocalLiveAdminApp({
   client,
   campaignId,
   repository,
-}: LocalLiveAppProps & { repository?: LiveAdminRepository }) {
+  ordersRepository,
+}: LocalLiveAppProps & {
+  repository?: LiveAdminRepository
+  ordersRepository?: LiveAdminOrdersRepository
+}) {
   const gateway = useMemo(
     () => repository ?? createAdminCampaignGateway(client as AdminCampaignSupabaseClient),
     [client, repository],
   )
+  const ordersGateway = useMemo(
+    () => ordersRepository ?? createAdminOrdersGateway(client),
+    [client, ordersRepository],
+  )
   const [session, setSession] = useState<Session | null | undefined>(undefined)
   const [content, setContent] = useState<CampaignContent | null>(null)
+  const [orderSummary, setOrderSummary] = useState<OrganizerOrderSummary | null>(null)
   const [publicationState, setPublicationState] = useState<'draft' | 'published'>('published')
   const [error, setError] = useState('')
   const [email, setEmail] = useState('')
@@ -147,12 +162,14 @@ export function LocalLiveAdminApp({
     }
     let active = true
     setError('')
-    void Promise.all([
-      gateway.loadPublished(campaignId),
-      gateway.loadOptionalDraft(campaignId),
-    ]).then(([published, draft]) => {
+    void gateway.loadPublished(campaignId).then(async (published) => {
+      const [draft, summary] = await Promise.all([
+        gateway.loadOptionalDraft(campaignId),
+        ordersGateway.loadSummary(campaignId, published.unitPrice, published.threshold),
+      ])
       if (!active) return
       setContent(draft ?? published)
+      setOrderSummary(summary)
       setPublicationState(draft && !campaignContentEquals(draft, published) ? 'draft' : 'published')
     }).catch((loadError: unknown) => {
       if (active) setError(errorMessage(loadError))
@@ -160,7 +177,7 @@ export function LocalLiveAdminApp({
     return () => {
       active = false
     }
-  }, [campaignId, gateway, session])
+  }, [campaignId, gateway, ordersGateway, session])
 
   const signIn = async (event: FormEvent) => {
     event.preventDefault()
@@ -199,18 +216,20 @@ export function LocalLiveAdminApp({
     )
   }
   if (error) return <LiveError message={error} />
-  if (!content) return <LiveLoading label="載入團購草稿…" />
+  if (!content || !orderSummary) return <LiveLoading label="載入團購草稿與訂單…" />
 
   return (
     <AdminApp
       initialContent={content}
       initialPublicationState={publicationState}
+      orderSummary={orderSummary}
       onSaveDraft={async (nextContent) => {
         await gateway.saveDraft(campaignId, nextContent)
       }}
       onPublish={async (nextContent) => {
         await gateway.saveDraft(campaignId, nextContent)
         await gateway.publish(campaignId)
+        setOrderSummary(await ordersGateway.loadSummary(campaignId, nextContent.unitPrice, nextContent.threshold))
       }}
       onSignOut={async () => {
         const { error: signOutError } = await client.auth.signOut()

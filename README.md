@@ -18,8 +18,9 @@
 - Supabase schema、RLS 與 Realtime migration
 - Supabase `campaign_draft`、團主專用 RLS、原子發布 RPC 與前端 gateway
 - 本機 Supabase Auth 團主登入與住戶 Realtime 可視化 Demo
+- 團主訂單統計：戶數、總量、總額、成團差額、A–I 品項彙總與逐戶明細
 - 商品圖片以 `{src, alt}` JSON 保存，資料庫驗證替代文字及最多 10 張限制
-- 40 個前端／領域自動測試
+- 43 個前端／領域自動測試
 - 可重建的本機 Supabase migration、seed 與產生型別
 
 ## 本機執行
