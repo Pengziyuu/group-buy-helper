@@ -57,8 +57,11 @@ function errorMessage(error: unknown): string {
   return String(error)
 }
 
-function isAnonymousSession(session: Session | null): boolean {
-  return session?.user?.is_anonymous === true
+function authErrorCode(error: unknown): string {
+  if (!error || typeof error !== 'object') return ''
+  if ('code' in error && typeof error.code === 'string') return error.code
+  if ('error_code' in error && typeof error.error_code === 'string') return error.error_code
+  return ''
 }
 
 function isCampaignImage(image: unknown): image is CampaignImage {
@@ -138,6 +141,7 @@ export function LocalLiveAdminApp({
     [client, ordersRepository],
   )
   const imageGateway = useMemo(() => createCampaignImageGateway(client), [client])
+  const authValidationGeneration = useRef(0)
   const [session, setSession] = useState<Session | null | undefined>(undefined)
   const [content, setContent] = useState<CampaignContent | null>(null)
   const [orderSummary, setOrderSummary] = useState<OrganizerOrderSummary | null>(null)
@@ -150,24 +154,63 @@ export function LocalLiveAdminApp({
 
   useEffect(() => {
     let active = true
-    void client.auth.getSession().then(async ({ data, error: sessionError }) => {
+    let authEventSeen = false
+
+    const validateRestoredSession = async (nextSession: Session | null) => {
       if (!active) return
-      if (sessionError) setError(sessionError.message)
-      else if (isAnonymousSession(data.session)) {
-        await client.auth.signOut()
-        if (active) setSession(null)
-      } else setSession(data.session)
-    })
-    const { data } = client.auth.onAuthStateChange((_event, nextSession) => {
-      if (!active) return
-      if (isAnonymousSession(nextSession)) {
+      const validationId = ++authValidationGeneration.current
+      if (!nextSession) {
+        setError('')
         setSession(null)
-        void client.auth.signOut()
-      } else setSession(nextSession)
+        return
+      }
+
+      setSession(undefined)
+      const { data, error: userError } = await client.auth.getUser(nextSession.access_token)
+      if (!active || validationId !== authValidationGeneration.current) return
+
+      if (userError) {
+        if (authErrorCode(userError) !== 'user_not_found') {
+          setError(`驗證登入狀態失敗：${errorMessage(userError)}，請重新整理後再試。`)
+          setSession(null)
+          return
+        }
+        await client.auth.signOut()
+        if (active && validationId === authValidationGeneration.current) setSession(null)
+        return
+      }
+
+      const authoritativeUser = data.user
+      if (!authoritativeUser
+        || authoritativeUser.id !== nextSession.user.id
+        || authoritativeUser.is_anonymous === true) {
+        await client.auth.signOut()
+        if (active && validationId === authValidationGeneration.current) setSession(null)
+        return
+      }
+
+      setError('')
+      setSession({ ...nextSession, user: authoritativeUser })
+    }
+
+    const { data: authSubscription } = client.auth.onAuthStateChange((_event, nextSession) => {
+      authEventSeen = true
+      void validateRestoredSession(nextSession)
+    })
+
+    void client.auth.getSession().then(({ data, error: sessionError }) => {
+      if (!active || authEventSeen) return
+      if (sessionError) {
+        setError(sessionError.message)
+        setSession(null)
+      } else {
+        void validateRestoredSession(data.session)
+      }
     })
     return () => {
       active = false
-      data.subscription.unsubscribe()
+      authValidationGeneration.current += 1
+      authSubscription.subscription.unsubscribe()
     }
   }, [client])
 
@@ -208,7 +251,10 @@ export function LocalLiveAdminApp({
       password,
     })
     if (signInError) setError(signInError.message)
-    else setSession(data.session)
+    else {
+      authValidationGeneration.current += 1
+      setSession(data.session)
+    }
     setSigningIn(false)
   }
 

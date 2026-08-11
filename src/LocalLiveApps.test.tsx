@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import {
@@ -28,7 +28,7 @@ const ordersRepository = (): LiveAdminOrdersRepository => ({
   setOrderFulfillment: vi.fn().mockResolvedValue(undefined),
 })
 
-function authClient(session: unknown = null) {
+function authClient(session: unknown = null, getUserError: unknown = null) {
   const signInWithPassword = vi.fn().mockResolvedValue({
     data: { session: { access_token: 'session-token' } },
     error: null,
@@ -36,6 +36,10 @@ function authClient(session: unknown = null) {
   const client = {
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session }, error: null }),
+      getUser: vi.fn().mockResolvedValue({
+        data: { user: getUserError ? null : (session as { user?: unknown } | null)?.user ?? null },
+        error: getUserError,
+      }),
       signInWithPassword,
       signInAnonymously: vi.fn().mockResolvedValue({ data: { session: { access_token: 'resident-token' } }, error: null }),
       signOut: vi.fn().mockResolvedValue({ error: null }),
@@ -99,6 +103,281 @@ describe('local Supabase visual demo apps', () => {
     expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
     expect(client.auth.signOut).toHaveBeenCalled()
     expect(repository.loadPublished).not.toHaveBeenCalled()
+  })
+
+  it('signs out a stale organizer session left behind by a database reset', async () => {
+    const staleSession = { access_token: 'stale-token', user: { id: 'deleted-user', is_anonymous: false } }
+    const { client } = authClient(staleSession, {
+      code: 'user_not_found',
+      message: 'User from sub claim in JWT does not exist',
+    })
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      saveDraft: vi.fn().mockResolvedValue(published),
+      publish: vi.fn().mockResolvedValue(undefined),
+    }
+    const workflowRepository = ordersRepository()
+
+    render(
+      <LocalLiveAdminApp
+        client={client}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={workflowRepository}
+      />,
+    )
+
+    expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
+    expect(client.auth.getUser).toHaveBeenCalled()
+    expect(client.auth.signOut).toHaveBeenCalled()
+    expect(repository.loadPublished).not.toHaveBeenCalled()
+    expect(workflowRepository.loadCampaignStatus).not.toHaveBeenCalled()
+    expect(workflowRepository.loadSummary).not.toHaveBeenCalled()
+  })
+
+  it('does not resurrect an older validated session after SIGNED_OUT', async () => {
+    const staleSession = { access_token: 'old-token', user: { id: 'old-user', is_anonymous: false } }
+    let authStateCallback: ((event: string, session: unknown) => void) | undefined
+    let finishValidation: ((result: unknown) => void) | undefined
+    const getUser = vi.fn().mockImplementation(() => new Promise((resolve) => {
+      finishValidation = resolve
+    }))
+    const client = {
+      auth: {
+        getSession: vi.fn().mockResolvedValue({ data: { session: staleSession }, error: null }),
+        getUser,
+        signInWithPassword: vi.fn(),
+        signOut: vi.fn().mockResolvedValue({ error: null }),
+        onAuthStateChange: vi.fn().mockImplementation((callback) => {
+          authStateCallback = callback
+          return { data: { subscription: { unsubscribe: vi.fn() } } }
+        }),
+      },
+    } as unknown as AdminCampaignSupabaseClient
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      saveDraft: vi.fn(),
+      publish: vi.fn(),
+    }
+    const workflowRepository = ordersRepository()
+
+    render(
+      <LocalLiveAdminApp
+        client={client}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={workflowRepository}
+      />,
+    )
+    await waitFor(() => expect(getUser).toHaveBeenCalled())
+
+    act(() => authStateCallback?.('SIGNED_OUT', null))
+    await act(async () => {
+      finishValidation?.({ data: { user: staleSession.user }, error: null })
+    })
+
+    expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
+    expect(repository.loadPublished).not.toHaveBeenCalled()
+    expect(workflowRepository.loadCampaignStatus).not.toHaveBeenCalled()
+    expect(workflowRepository.loadSummary).not.toHaveBeenCalled()
+  })
+
+  it('does not let an older invalid session sign out a newer valid session', async () => {
+    const oldSession = { access_token: 'old-token', user: { id: 'old-user', is_anonymous: false } }
+    const newSession = { access_token: 'new-token', user: { id: 'new-user', is_anonymous: false } }
+    let authStateCallback: ((event: string, session: unknown) => void) | undefined
+    let finishOldValidation: ((result: unknown) => void) | undefined
+    const getUser = vi.fn().mockImplementation((token: string) => {
+      if (token === 'new-token') {
+        return Promise.resolve({ data: { user: newSession.user }, error: null })
+      }
+      return new Promise((resolve) => {
+        finishOldValidation = resolve
+      })
+    })
+    const signOut = vi.fn().mockResolvedValue({ error: null })
+    const client = {
+      auth: {
+        getSession: vi.fn().mockResolvedValue({ data: { session: oldSession }, error: null }),
+        getUser,
+        signInWithPassword: vi.fn(),
+        signOut,
+        onAuthStateChange: vi.fn().mockImplementation((callback) => {
+          authStateCallback = callback
+          return { data: { subscription: { unsubscribe: vi.fn() } } }
+        }),
+      },
+    } as unknown as AdminCampaignSupabaseClient
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      saveDraft: vi.fn(),
+      publish: vi.fn(),
+    }
+
+    render(
+      <LocalLiveAdminApp
+        client={client}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={ordersRepository()}
+      />,
+    )
+    await waitFor(() => expect(getUser).toHaveBeenCalledWith('old-token'))
+
+    act(() => authStateCallback?.('SIGNED_IN', newSession))
+    expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+
+    await act(async () => {
+      finishOldValidation?.({
+        data: { user: null },
+        error: { code: 'user_not_found', message: 'deleted old user' },
+      })
+    })
+
+    expect(signOut).not.toHaveBeenCalled()
+    expect(screen.getByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+  })
+
+  it('rejects a restored session whose authoritative user identity does not match', async () => {
+    const cachedSession = { access_token: 'cached-token', user: { id: 'cached-user', is_anonymous: false } }
+    const { client } = authClient(cachedSession)
+    vi.mocked(client.auth.getUser).mockResolvedValue({
+      data: { user: { id: 'different-user', is_anonymous: false } },
+      error: null,
+    } as never)
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      saveDraft: vi.fn(),
+      publish: vi.fn(),
+    }
+
+    render(
+      <LocalLiveAdminApp
+        client={client}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={ordersRepository()}
+      />,
+    )
+
+    expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
+    expect(client.auth.signOut).toHaveBeenCalled()
+    expect(repository.loadPublished).not.toHaveBeenCalled()
+  })
+
+  it('does not destroy a restored session when validation fails transiently', async () => {
+    const session = { access_token: 'valid-token', user: { id: 'valid-user', is_anonymous: false } }
+    const { client } = authClient(session, { code: 'request_timeout', message: 'temporary timeout' })
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      saveDraft: vi.fn(),
+      publish: vi.fn(),
+    }
+    const workflowRepository = ordersRepository()
+
+    render(
+      <LocalLiveAdminApp
+        client={client}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={workflowRepository}
+      />,
+    )
+
+    expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
+    expect(client.auth.signOut).not.toHaveBeenCalled()
+    expect(repository.loadPublished).not.toHaveBeenCalled()
+    expect(workflowRepository.loadCampaignStatus).not.toHaveBeenCalled()
+    expect(workflowRepository.loadSummary).not.toHaveBeenCalled()
+  })
+
+  it('handles the SIGNED_OUT callback from stale-session cleanup without recursion', async () => {
+    const staleSession = { access_token: 'stale-token', user: { id: 'deleted-user', is_anonymous: false } }
+    let authStateCallback: ((event: string, session: unknown) => void) | undefined
+    const signOut = vi.fn().mockImplementation(async () => {
+      authStateCallback?.('SIGNED_OUT', null)
+      return { error: null }
+    })
+    const client = {
+      auth: {
+        getSession: vi.fn().mockResolvedValue({ data: { session: staleSession }, error: null }),
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: null },
+          error: { code: 'user_not_found', message: 'deleted user' },
+        }),
+        signInWithPassword: vi.fn(),
+        signOut,
+        onAuthStateChange: vi.fn().mockImplementation((callback) => {
+          authStateCallback = callback
+          return { data: { subscription: { unsubscribe: vi.fn() } } }
+        }),
+      },
+    } as unknown as AdminCampaignSupabaseClient
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      saveDraft: vi.fn(),
+      publish: vi.fn(),
+    }
+
+    render(
+      <LocalLiveAdminApp
+        client={client}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={ordersRepository()}
+      />,
+    )
+
+    expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
+    expect(signOut).toHaveBeenCalledTimes(1)
+    expect(repository.loadPublished).not.toHaveBeenCalled()
+  })
+
+  it('ignores a pending session validation after unmount', async () => {
+    const session = { access_token: 'pending-token', user: { id: 'pending-user', is_anonymous: false } }
+    let finishValidation: ((result: unknown) => void) | undefined
+    const getUser = vi.fn().mockImplementation(() => new Promise((resolve) => {
+      finishValidation = resolve
+    }))
+    const client = {
+      auth: {
+        getSession: vi.fn().mockResolvedValue({ data: { session }, error: null }),
+        getUser,
+        signInWithPassword: vi.fn(),
+        signOut: vi.fn().mockResolvedValue({ error: null }),
+        onAuthStateChange: vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } }),
+      },
+    } as unknown as AdminCampaignSupabaseClient
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      saveDraft: vi.fn(),
+      publish: vi.fn(),
+    }
+
+    const view = render(
+      <LocalLiveAdminApp
+        client={client}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={ordersRepository()}
+      />,
+    )
+    await waitFor(() => expect(getUser).toHaveBeenCalled())
+    view.unmount()
+
+    await act(async () => {
+      finishValidation?.({ data: { user: session.user }, error: null })
+    })
+
+    expect(repository.loadPublished).not.toHaveBeenCalled()
+    expect(client.auth.signOut).not.toHaveBeenCalled()
   })
 
   it('loads published campaign content for an anonymous resident session', async () => {
