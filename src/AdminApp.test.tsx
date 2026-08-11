@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
@@ -109,6 +109,18 @@ describe('organizer campaign editor', () => {
 
     expect(screen.getByLabelText('住戶端預覽')).toHaveTextContent('已到貨')
     expect(screen.getByLabelText('住戶端預覽')).not.toHaveTextContent('● 收單中')
+  })
+
+  it('confirms the selected image and guides the organizer to enter alt text', async () => {
+    const user = userEvent.setup()
+    render(<AdminApp onUploadImage={vi.fn().mockResolvedValue('http://storage.test/campaign/image.png')} />)
+    const file = new File(['image'], '冰餅商品照.png', { type: 'image/png' })
+
+    await user.upload(screen.getByLabelText('商品圖片檔案'), file)
+
+    expect(screen.getByRole('status')).toHaveTextContent('已選擇「冰餅商品照.png」')
+    expect(screen.getByRole('status')).toHaveTextContent('請填寫圖片說明後按「上傳圖片」')
+    await waitFor(() => expect(screen.getByRole('textbox', { name: '圖片說明' })).toHaveFocus())
   })
 
   it('uploads a product image file and adds only its public URL to the preview', async () => {

@@ -70,6 +70,7 @@ function AdminApp({
   const [imageAlt, setImageAlt] = useState('')
   const [imageFile, setImageFile] = useState<File | null>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
+  const imageAltInputRef = useRef<HTMLInputElement>(null)
   const operationLock = useRef(false)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [notice, setNotice] = useState('')
@@ -165,6 +166,16 @@ function AdminApp({
     }
   }
 
+  const selectImageFile = (file: File | null) => {
+    setImageFile(file)
+    if (!file) {
+      setNotice('')
+      return
+    }
+    setNotice(`已選擇「${file.name}」，請填寫圖片說明後按「上傳圖片」。`)
+    window.setTimeout(() => imageAltInputRef.current?.focus(), 0)
+  }
+
   return (
     <main className="admin-shell">
       <header className="admin-header">
@@ -228,7 +239,7 @@ function AdminApp({
                       type="file"
                       disabled={editorBusy}
                       accept="image/jpeg,image/png,image/webp"
-                      onChange={(event) => setImageFile(event.target.files?.[0] ?? null)}
+                      onChange={(event) => selectImageFile(event.target.files?.[0] ?? null)}
                     />
                   </label>
                 ) : (
@@ -239,7 +250,7 @@ function AdminApp({
                 )}
                 <label className="field">
                   <span>圖片說明</span>
-                  <input disabled={editorBusy} value={imageAlt} placeholder="例如：商品包裝正面" onChange={(event) => setImageAlt(event.target.value)} />
+                  <input ref={imageAltInputRef} disabled={editorBusy} value={imageAlt} placeholder="例如：商品包裝正面" onChange={(event) => setImageAlt(event.target.value)} />
                 </label>
                 <button
                   type="button"
