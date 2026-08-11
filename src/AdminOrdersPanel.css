@@ -44,6 +44,45 @@
   color: #17633f;
 }
 
+.admin-workflow-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 1px solid #cfe0ef;
+  border-radius: 12px;
+  background: #f3f8fc;
+}
+
+.admin-workflow-bar > div:first-child { display: grid; gap: 3px; }
+.admin-workflow-bar span { color: var(--admin-muted); font-size: 11px; font-weight: 750; }
+.admin-workflow-bar strong { font-size: 18px; }
+.admin-workflow-actions { display: flex; gap: 8px; }
+.admin-workflow-actions button { min-height: 38px; padding: 0 14px; }
+
+.admin-fulfillment-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.admin-fulfillment-metrics span {
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: #f1f3f6;
+  color: var(--admin-muted);
+  font-size: 12px;
+}
+
+.admin-fulfillment-metrics strong { color: var(--admin-ink); }
+.admin-workflow-error { margin: 0 0 10px; color: #9f2c2c; font-size: 12px; }
+.status-button { min-width: 70px; padding: 6px 9px; border: 1px solid #e0c4c4; background: #fff5f5; color: #8f3434; font-size: 11px; }
+.status-button.paid { border-color: #a9d6bf; background: #eaf8f0; color: #17633f; }
+.resident-order-table select { min-width: 92px; padding: 7px; border: 1px solid var(--admin-line); border-radius: 8px; background: white; font: inherit; }
+
 .admin-order-metrics {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -126,6 +165,8 @@
 @media (max-width: 720px) {
   .admin-orders-panel { padding: 16px; }
   .admin-order-metrics { grid-template-columns: repeat(2, 1fr); }
+  .admin-workflow-bar { align-items: stretch; flex-direction: column; }
+  .admin-workflow-actions button { flex: 1; }
 }
 
 @media (max-width: 420px) {

@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import './AdminApp.css'
-import AdminOrdersPanel from './AdminOrdersPanel'
+import AdminOrdersPanel, { type FulfillmentUpdate } from './AdminOrdersPanel'
 import { campaign, initialOrders, items } from './data/demo'
 import { buildOrganizerOrderSummary, type OrganizerOrderSummary } from './domain/adminOrders'
+import { campaignStatusLabel, type CampaignStatus } from './domain/orderWorkflow'
 import {
   campaignContentEquals,
   loadDraftCampaign,
@@ -36,6 +37,9 @@ type AdminAppProps = {
   onPublish?: (content: CampaignContent) => Promise<void>
   onSignOut?: () => Promise<void>
   orderSummary?: OrganizerOrderSummary | null
+  campaignStatus?: CampaignStatus
+  onSetCampaignStatus?: (status: CampaignStatus) => Promise<void>
+  onSetOrderFulfillment?: (orderId: string, update: FulfillmentUpdate) => Promise<void>
 }
 
 function messageFromError(error: unknown): string {
@@ -49,6 +53,9 @@ function AdminApp({
   onPublish,
   onSignOut,
   orderSummary,
+  campaignStatus,
+  onSetCampaignStatus,
+  onSetOrderFulfillment,
 }: AdminAppProps = {}) {
   const [initialDraft] = useState(() => initialContent ?? loadDraftCampaign(defaultContent))
   const [initialPublished] = useState(() => initialContent ?? loadPublishedCampaign(defaultContent))
@@ -219,7 +226,7 @@ function AdminApp({
           </div>
           <article className="preview-phone">
             <div className="preview-status">
-              <span>● 收單中</span>
+              <span>● {campaignStatus ? campaignStatusLabel(campaignStatus) : '收單中'}</span>
               <strong>每個 ${unitPrice}</strong>
             </div>
             <h2>{title || '未命名團購'}</h2>
@@ -233,7 +240,14 @@ function AdminApp({
           </article>
         </section>
       </div>
-      {resolvedOrderSummary && <AdminOrdersPanel summary={resolvedOrderSummary} />}
+      {resolvedOrderSummary && (
+        <AdminOrdersPanel
+          summary={resolvedOrderSummary}
+          campaignStatus={campaignStatus}
+          onSetCampaignStatus={onSetCampaignStatus}
+          onSetOrderFulfillment={onSetOrderFulfillment}
+        />
+      )}
     </main>
   )
 }

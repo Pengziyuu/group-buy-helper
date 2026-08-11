@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import './App.css'
 import { summarizeCampaign } from './domain/campaign'
+import { campaignStatusLabel, type CampaignStatus } from './domain/orderWorkflow'
 import {
   campaign,
   currentCustomerId,
@@ -25,9 +26,10 @@ const orderQuantity = (orderItems: Record<string, number>) =>
 type AppProps = {
   publishedContent?: CampaignContent
   liveDemo?: boolean
+  campaignStatus?: CampaignStatus
 }
 
-function App({ publishedContent, liveDemo = false }: AppProps = {}) {
+function App({ publishedContent, liveDemo = false, campaignStatus = 'open' }: AppProps = {}) {
   const [localPublishedCampaign] = useState(() => loadPublishedCampaign(defaultContent))
   const publishedCampaign = publishedContent ?? localPublishedCampaign
   const [orders, setOrders] = useState<VisibleOrder[]>(initialOrders)
@@ -40,8 +42,10 @@ function App({ publishedContent, liveDemo = false }: AppProps = {}) {
     [orders, publishedCampaign],
   )
   const draftQuantity = orderQuantity(draft)
+  const editable = campaignStatus === 'open'
 
   const adjust = (code: string, delta: number) => {
+    if (!editable) return
     setNotice('')
     setDraft((current) => {
       const next = Math.max(0, Math.min(20, (current[code] ?? 0) + delta))
@@ -67,7 +71,7 @@ function App({ publishedContent, liveDemo = false }: AppProps = {}) {
       <section className="hero-card">
         <div className="eyebrow-row">
           <span className="status-dot" aria-hidden="true" />
-          <span>{campaign.status}</span>
+          <span>{campaignStatusLabel(campaignStatus)}</span>
           <span className="price">每個 ${publishedCampaign.unitPrice}</span>
         </div>
         <h1>{publishedCampaign.title}</h1>
@@ -134,13 +138,14 @@ function App({ publishedContent, liveDemo = false }: AppProps = {}) {
                     type="button"
                     aria-label={`減少 ${item.name.replace(/（.*）/, '')}`}
                     onClick={() => adjust(item.code, -1)}
-                    disabled={quantity === 0}
+                    disabled={!editable || quantity === 0}
                   >−</button>
                   <output aria-label={`${item.name}數量`}>{quantity}</output>
                   <button
                     type="button"
                     aria-label={`增加 ${item.name.replace(/（.*）/, '')}`}
                     onClick={() => adjust(item.code, 1)}
+                    disabled={!editable}
                   >＋</button>
                 </div>
               </div>
@@ -148,11 +153,17 @@ function App({ publishedContent, liveDemo = false }: AppProps = {}) {
           })}
         </div>
 
-        <button className="submit-button" type="button" onClick={submit} disabled={draftQuantity === 0}>
+        <button className="submit-button" type="button" onClick={submit} disabled={!editable || draftQuantity === 0}>
           送出訂單
         </button>
         {notice && <p className="success" role="status">{notice}</p>}
-        <p className="privacy-note">送出後仍可在結單前修改。你只能修改自己的訂單。</p>
+        <p className="privacy-note">
+          {editable
+            ? '送出後仍可在結單前修改。你只能修改自己的訂單。'
+            : campaignStatus === 'arrived'
+              ? '商品已到貨，訂單已鎖定。'
+              : '本團已結單，暫停修改訂單。'}
+        </p>
       </section>
 
       <section className="panel wall-panel" aria-labelledby="wall-heading">

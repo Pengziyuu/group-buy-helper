@@ -35,4 +35,13 @@ describe('customer campaign app', () => {
     expect(screen.getByText('63 / 100')).toBeInTheDocument()
     expect(screen.getByText('訂單已更新')).toBeInTheDocument()
   })
+
+  it('shows a closed campaign and disables every order control', () => {
+    render(<App campaignStatus="closed" />)
+
+    expect(screen.getByText('已結單')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '送出訂單' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '增加 牛奶' })).toBeDisabled()
+    expect(screen.getByText('本團已結單，暫停修改訂單。')).toBeInTheDocument()
+  })
 })

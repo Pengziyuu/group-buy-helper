@@ -1,5 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { FulfillmentUpdate } from '../AdminOrdersPanel'
 import { buildOrganizerOrderSummary, type OrganizerOrderSummary, type OrganizerVisibleOrder } from '../domain/adminOrders'
+import type { CampaignStatus, PickupStatus } from '../domain/orderWorkflow'
 import type { Database } from '../types/database'
 
 export type AdminOrdersSupabaseClient = SupabaseClient<Database>
@@ -12,6 +14,12 @@ type WallRow = {
   unit: string | null
   item_code: string | null
   qty: number | null
+}
+type StatusRow = {
+  order_id: string | null
+  paid: boolean | null
+  payment_method: string | null
+  pickup_status: string | null
 }
 
 function errorMessage(error: unknown): string {
@@ -34,14 +42,32 @@ function validateWall(data: unknown): WallRow[] {
   return data as WallRow[]
 }
 
+function validateStatuses(data: unknown): StatusRow[] {
+  if (!Array.isArray(data)) throw new Error('Supabase 回傳的付款領取狀態格式錯誤')
+  return data as StatusRow[]
+}
+
 export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
   return {
+    async loadCampaignStatus(campaignId: string): Promise<CampaignStatus> {
+      const { data, error } = await client
+        .from('campaign_public')
+        .select('status')
+        .eq('id', campaignId)
+        .single()
+      if (error) throw new Error(`讀取活動狀態失敗：${errorMessage(error)}`)
+      if (!data || typeof data.status !== 'string' || !['open', 'closed', 'arrived'].includes(data.status)) {
+        throw new Error('Supabase 回傳的活動狀態格式錯誤')
+      }
+      return data.status as CampaignStatus
+    },
+
     async loadSummary(
       campaignId: string,
       unitPrice: number,
       threshold: number,
     ): Promise<OrganizerOrderSummary> {
-      const [itemResult, wallResult] = await Promise.all([
+      const [itemResult, wallResult, statusResult] = await Promise.all([
         client
           .from('campaign_item')
           .select('code,name,sort_order')
@@ -52,13 +78,24 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
           .select('order_id,customer_name,period,unit,item_code,qty')
           .eq('campaign_id', campaignId)
           .order('period'),
+        client
+          .from('organizer_order_status')
+          .select('order_id,paid,payment_method,pickup_status')
+          .eq('campaign_id', campaignId)
+          .order('order_id'),
       ])
 
       if (itemResult.error) throw new Error(`讀取團購品項失敗：${errorMessage(itemResult.error)}`)
       if (wallResult.error) throw new Error(`讀取住戶訂單失敗：${errorMessage(wallResult.error)}`)
+      if (statusResult.error) throw new Error(`讀取付款領取狀態失敗：${errorMessage(statusResult.error)}`)
 
       const items = validateItems(itemResult.data)
       const wallRows = validateWall(wallResult.data)
+      const statuses = new Map(
+        validateStatuses(statusResult.data)
+          .filter((row) => row.order_id)
+          .map((row) => [row.order_id as string, row]),
+      )
       const ordersById = new Map<string, OrganizerVisibleOrder>()
 
       for (const row of wallRows) {
@@ -66,12 +103,17 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
           || !row.customer_name
           || typeof row.period !== 'number'
           || !row.unit) continue
+        const status = statuses.get(row.order_id)
         const order = ordersById.get(row.order_id) ?? {
+          orderId: row.order_id,
           customerId: row.order_id,
           name: row.customer_name,
           period: row.period,
           unit: row.unit,
           items: {},
+          paid: status?.paid ?? false,
+          paymentMethod: status?.payment_method ?? null,
+          pickupStatus: (status?.pickup_status ?? 'pending') as PickupStatus,
         }
         if (row.item_code && typeof row.qty === 'number' && row.qty > 0) {
           order.items[row.item_code] = row.qty
@@ -85,6 +127,26 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
         unitPrice,
         threshold,
       })
+    },
+
+    async setCampaignStatus(campaignId: string, status: CampaignStatus): Promise<void> {
+      const { error } = await client.rpc('set_campaign_status', {
+        p_campaign_id: campaignId,
+        p_status: status,
+      })
+      if (error) throw new Error(`更新活動狀態失敗：${errorMessage(error)}`)
+    },
+
+    async setOrderFulfillment(orderId: string, update: FulfillmentUpdate): Promise<void> {
+      const { error } = await client.rpc('set_order_fulfillment', {
+        p_order_id: orderId,
+        p_paid: update.paid,
+        // Generated Supabase RPC types do not express nullable SQL arguments;
+        // the database function deliberately accepts NULL for unpaid orders.
+        p_payment_method: update.paymentMethod as string,
+        p_pickup_status: update.pickupStatus,
+      })
+      if (error) throw new Error(`更新付款領取狀態失敗：${errorMessage(error)}`)
     },
   }
 }

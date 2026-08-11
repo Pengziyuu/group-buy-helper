@@ -103,4 +103,11 @@ describe('organizer campaign editor', () => {
     expect(onPublish).toHaveBeenCalledWith(expect.objectContaining({ title: 'Supabase 草稿新版' }))
     expect(screen.getByRole('status')).toHaveTextContent('已發布到住戶端')
   })
+
+  it('shows the actual campaign workflow state in the resident preview', () => {
+    render(<AdminApp campaignStatus="arrived" />)
+
+    expect(screen.getByLabelText('住戶端預覽')).toHaveTextContent('已到貨')
+    expect(screen.getByLabelText('住戶端預覽')).not.toHaveTextContent('● 收單中')
+  })
 })

@@ -312,6 +312,13 @@ export type Database = {
             referencedRelation: "orders"
             referencedColumns: ["id", "campaign_id"]
           },
+          {
+            foreignKeyName: "order_item_order_id_campaign_id_fkey"
+            columns: ["order_id", "campaign_id"]
+            isOneToOne: false
+            referencedRelation: "organizer_order_status"
+            referencedColumns: ["order_id", "campaign_id"]
+          },
         ]
       }
       orders: {
@@ -321,6 +328,7 @@ export type Database = {
           customer_id: string
           id: string
           note: string | null
+          pickup_status: string
           updated_at: string
         }
         Insert: {
@@ -329,6 +337,7 @@ export type Database = {
           customer_id: string
           id?: string
           note?: string | null
+          pickup_status?: string
           updated_at?: string
         }
         Update: {
@@ -337,6 +346,7 @@ export type Database = {
           customer_id?: string
           id?: string
           note?: string | null
+          pickup_status?: string
           updated_at?: string
         }
         Relationships: [
@@ -408,6 +418,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "orders"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "organizer_order_status"
+            referencedColumns: ["order_id"]
           },
         ]
       }
@@ -526,6 +543,33 @@ export type Database = {
           },
         ]
       }
+      organizer_order_status: {
+        Row: {
+          amount: number | null
+          campaign_id: string | null
+          order_id: string | null
+          paid: boolean | null
+          paid_at: string | null
+          payment_method: string | null
+          pickup_status: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       campaign_is_editable: {
@@ -578,6 +622,37 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      set_campaign_status: {
+        Args: { p_campaign_id: string; p_status: string }
+        Returns: {
+          announcement: string
+          created_at: string
+          deadline: string
+          id: string
+          images: Json
+          slug: string
+          status: string
+          threshold: number
+          title: string
+          unit_price: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "campaign"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      set_order_fulfillment: {
+        Args: {
+          p_order_id: string
+          p_paid: boolean
+          p_payment_method: string
+          p_pickup_status: string
+        }
+        Returns: Json
       }
       submit_customer_order: {
         Args: { p_campaign_id: string; p_items: Json }

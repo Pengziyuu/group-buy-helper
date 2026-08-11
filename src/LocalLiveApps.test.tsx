@@ -22,7 +22,10 @@ const published: CampaignContent = {
 
 const orderSummary = buildOrganizerOrderSummary({ orders: initialOrders, items, unitPrice: 50, threshold: 80 })
 const ordersRepository = (): LiveAdminOrdersRepository => ({
+  loadCampaignStatus: vi.fn().mockResolvedValue('open'),
   loadSummary: vi.fn().mockResolvedValue(orderSummary),
+  setCampaignStatus: vi.fn().mockResolvedValue(undefined),
+  setOrderFulfillment: vi.fn().mockResolvedValue(undefined),
 })
 
 function authClient(session: unknown = null) {
@@ -52,13 +55,14 @@ describe('local Supabase visual demo apps', () => {
       saveDraft: vi.fn().mockResolvedValue(published),
       publish: vi.fn().mockResolvedValue(undefined),
     }
+    const workflowRepository = ordersRepository()
 
     render(
       <LocalLiveAdminApp
         client={client}
         campaignId="campaign-1"
         repository={repository}
-        ordersRepository={ordersRepository()}
+        ordersRepository={workflowRepository}
       />,
     )
     expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
@@ -70,6 +74,8 @@ describe('local Supabase visual demo apps', () => {
     expect(signInWithPassword).toHaveBeenCalledWith({ email: 'admin@example.test', password: 'password' })
     expect(await screen.findByRole('textbox', { name: '團購標題' })).toHaveValue('Supabase 已發布冰餅團')
     expect(screen.getByText('已發布')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '結單' }))
+    expect(workflowRepository.setCampaignStatus).toHaveBeenCalledWith('campaign-1', 'closed')
   })
 
   it('does not treat an anonymous resident session as an organizer login', async () => {
@@ -104,6 +110,7 @@ describe('local Supabase visual demo apps', () => {
         threshold: published.threshold,
         announcement: published.announcement,
         images: published.images,
+        status: 'closed',
       },
       error: null,
     })
@@ -128,5 +135,6 @@ describe('local Supabase visual demo apps', () => {
 
     expect(await screen.findByRole('heading', { name: 'Supabase 已發布冰餅團' })).toBeInTheDocument()
     expect(screen.getByText(/Supabase Live Demo/)).toBeInTheDocument()
+    expect(screen.getByText('已結單')).toBeInTheDocument()
   })
 })

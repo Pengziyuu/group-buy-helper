@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import type { Session, SupabaseClient } from '@supabase/supabase-js'
 import AdminApp from './AdminApp'
+import type { FulfillmentUpdate } from './AdminOrdersPanel'
 import App from './App'
 import './LocalLiveApps.css'
 import {
@@ -14,6 +15,7 @@ import {
 } from './services/demoCampaignStore'
 import type { Database } from './types/database'
 import type { OrganizerOrderSummary } from './domain/adminOrders'
+import type { CampaignStatus } from './domain/orderWorkflow'
 import { createAdminOrdersGateway } from './services/adminOrdersGateway'
 
 export type LiveAdminRepository = {
@@ -24,7 +26,10 @@ export type LiveAdminRepository = {
 }
 
 export type LiveAdminOrdersRepository = {
+  loadCampaignStatus(campaignId: string): Promise<CampaignStatus>
   loadSummary(campaignId: string, unitPrice: number, threshold: number): Promise<OrganizerOrderSummary>
+  setCampaignStatus(campaignId: string, status: CampaignStatus): Promise<void>
+  setOrderFulfillment(orderId: string, update: FulfillmentUpdate): Promise<void>
 }
 
 type LocalLiveAppProps = {
@@ -42,6 +47,7 @@ type CampaignRow = {
   threshold: unknown
   announcement: unknown
   images: unknown
+  status: unknown
 }
 
 function errorMessage(error: unknown): string {
@@ -82,6 +88,13 @@ function campaignContentFromRow(row: CampaignRow | null): CampaignContent {
     announcement: row.announcement,
     images: row.images,
   }
+}
+
+function campaignStatusFromRow(row: CampaignRow | null): CampaignStatus {
+  if (!row || typeof row.status !== 'string' || !['open', 'closed', 'arrived'].includes(row.status)) {
+    throw new Error('Supabase 回傳的活動狀態格式錯誤')
+  }
+  return row.status as CampaignStatus
 }
 
 function LiveLoading({ label }: { label: string }) {
@@ -126,6 +139,7 @@ export function LocalLiveAdminApp({
   const [session, setSession] = useState<Session | null | undefined>(undefined)
   const [content, setContent] = useState<CampaignContent | null>(null)
   const [orderSummary, setOrderSummary] = useState<OrganizerOrderSummary | null>(null)
+  const [campaignStatus, setCampaignStatus] = useState<CampaignStatus | null>(null)
   const [publicationState, setPublicationState] = useState<'draft' | 'published'>('published')
   const [error, setError] = useState('')
   const [email, setEmail] = useState('')
@@ -158,18 +172,22 @@ export function LocalLiveAdminApp({
   useEffect(() => {
     if (!session) {
       setContent(null)
+      setOrderSummary(null)
+      setCampaignStatus(null)
       return
     }
     let active = true
     setError('')
     void gateway.loadPublished(campaignId).then(async (published) => {
-      const [draft, summary] = await Promise.all([
+      const [draft, summary, status] = await Promise.all([
         gateway.loadOptionalDraft(campaignId),
         ordersGateway.loadSummary(campaignId, published.unitPrice, published.threshold),
+        ordersGateway.loadCampaignStatus(campaignId),
       ])
       if (!active) return
       setContent(draft ?? published)
       setOrderSummary(summary)
+      setCampaignStatus(status)
       setPublicationState(draft && !campaignContentEquals(draft, published) ? 'draft' : 'published')
     }).catch((loadError: unknown) => {
       if (active) setError(errorMessage(loadError))
@@ -216,13 +234,22 @@ export function LocalLiveAdminApp({
     )
   }
   if (error) return <LiveError message={error} />
-  if (!content || !orderSummary) return <LiveLoading label="載入團購草稿與訂單…" />
+  if (!content || !orderSummary || !campaignStatus) return <LiveLoading label="載入團購草稿與訂單…" />
 
   return (
     <AdminApp
       initialContent={content}
       initialPublicationState={publicationState}
       orderSummary={orderSummary}
+      campaignStatus={campaignStatus}
+      onSetCampaignStatus={async (status) => {
+        await ordersGateway.setCampaignStatus(campaignId, status)
+        setCampaignStatus(await ordersGateway.loadCampaignStatus(campaignId))
+      }}
+      onSetOrderFulfillment={async (orderId, update) => {
+        await ordersGateway.setOrderFulfillment(orderId, update)
+        setOrderSummary(await ordersGateway.loadSummary(campaignId, content.unitPrice, content.threshold))
+      }}
       onSaveDraft={async (nextContent) => {
         await gateway.saveDraft(campaignId, nextContent)
       }}
@@ -253,6 +280,7 @@ async function ensureResidentSession(client: SupabaseClient<Database>): Promise<
 
 export function LocalLiveResidentApp({ client, campaignId, campaignSlug }: LocalLiveResidentAppProps) {
   const [content, setContent] = useState<CampaignContent | null>(null)
+  const [campaignStatus, setCampaignStatus] = useState<CampaignStatus | null>(null)
   const [error, setError] = useState('')
   const sessionPromise = useRef<Promise<Session> | null>(null)
 
@@ -263,11 +291,14 @@ export function LocalLiveResidentApp({ client, campaignId, campaignSlug }: Local
     const loadPublished = async () => {
       const { data, error: queryError } = await client
         .from('campaign_public')
-        .select('title,unit_price,threshold,announcement,images')
+        .select('title,unit_price,threshold,announcement,images,status')
         .eq('id', campaignId)
         .single()
       if (queryError) throw queryError
-      if (active) setContent(campaignContentFromRow(data))
+      if (active) {
+        setContent(campaignContentFromRow(data))
+        setCampaignStatus(campaignStatusFromRow(data))
+      }
     }
 
     const initialize = async () => {
@@ -300,6 +331,6 @@ export function LocalLiveResidentApp({ client, campaignId, campaignSlug }: Local
   }, [campaignId, campaignSlug, client])
 
   if (error) return <LiveError message={error} />
-  if (!content) return <LiveLoading label="連線住戶端即時資料…" />
-  return <App publishedContent={content} liveDemo />
+  if (!content || !campaignStatus) return <LiveLoading label="連線住戶端即時資料…" />
+  return <App publishedContent={content} campaignStatus={campaignStatus} liveDemo />
 }
