@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import type { Session, SupabaseClient } from '@supabase/supabase-js'
 import AdminApp from './AdminApp'
 import type { FulfillmentUpdate } from './AdminOrdersPanel'
@@ -18,6 +18,13 @@ import type { OrganizerOrderSummary } from './domain/adminOrders'
 import type { CampaignStatus } from './domain/orderWorkflow'
 import { createAdminOrdersGateway } from './services/adminOrdersGateway'
 import { createCampaignImageGateway } from './services/campaignImageGateway'
+import {
+  LOGOUT_TOMBSTONE_KEY,
+  SUPABASE_AUTH_CODE_VERIFIER_KEY,
+  SUPABASE_AUTH_FLOWS_CODE_VERIFIER_KEY,
+  SUPABASE_AUTH_STORAGE_KEY,
+  type AuthSessionStorage,
+} from './services/authStorage'
 
 export type LiveAdminRepository = {
   loadPublished(campaignId: string): Promise<CampaignContent>
@@ -62,6 +69,101 @@ function authErrorCode(error: unknown): string {
   if ('code' in error && typeof error.code === 'string') return error.code
   if ('error_code' in error && typeof error.error_code === 'string') return error.error_code
   return ''
+}
+
+function isRetryableAuthError(error: unknown): boolean {
+  if (error instanceof TypeError) return true
+  if (!error || typeof error !== 'object') return false
+  if (['request_timeout', 'network_error', 'fetch_error', 'network_request_failed']
+    .includes(authErrorCode(error))) return true
+  const status = 'status' in error && typeof error.status === 'number' ? error.status : null
+  return status === 0 || status === 408 || status === 429 || (status !== null && status >= 500)
+}
+
+function storedAuthKeys(storage: AuthSessionStorage): string[] {
+  const keys = new Set([
+    SUPABASE_AUTH_STORAGE_KEY,
+    SUPABASE_AUTH_CODE_VERIFIER_KEY,
+    SUPABASE_AUTH_FLOWS_CODE_VERIFIER_KEY,
+  ])
+  const validFlowId = /^[a-zA-Z0-9_-]{8,64}$/
+
+  try {
+    const rawFlowIndex = storage.getItem(SUPABASE_AUTH_FLOWS_CODE_VERIFIER_KEY)
+    if (rawFlowIndex) {
+      const flowIndex: unknown = JSON.parse(rawFlowIndex)
+      if (Array.isArray(flowIndex)) {
+        for (const flowId of flowIndex) {
+          if (typeof flowId === 'string' && validFlowId.test(flowId)) {
+            keys.add(`${SUPABASE_AUTH_STORAGE_KEY}-flow-${flowId}-code-verifier`)
+          }
+        }
+      }
+    }
+  } catch {
+    // Fixed keys and any enumerable per-flow keys are still cleaned below.
+  }
+
+  let length = 0
+  try {
+    length = typeof storage.length === 'number' ? storage.length : 0
+  } catch {
+    length = 0
+  }
+  let keyAt: AuthSessionStorage['key']
+  try {
+    keyAt = storage.key
+  } catch {
+    keyAt = undefined
+  }
+  if (keyAt) {
+    for (let index = 0; index < length; index += 1) {
+      try {
+        const key = keyAt.call(storage, index)
+        if (key?.startsWith(`${SUPABASE_AUTH_STORAGE_KEY}-flow-`)
+          && key.endsWith('-code-verifier')) keys.add(key)
+      } catch {
+        // One inaccessible slot must not prevent cleanup of every discovered key.
+      }
+    }
+  }
+  return [...keys]
+}
+
+function clearStoredAuth(storage: AuthSessionStorage | null): unknown[] {
+  if (!storage) return []
+  const failures: unknown[] = []
+  let keys = [
+    SUPABASE_AUTH_STORAGE_KEY,
+    SUPABASE_AUTH_CODE_VERIFIER_KEY,
+    SUPABASE_AUTH_FLOWS_CODE_VERIFIER_KEY,
+  ]
+  try {
+    keys = storedAuthKeys(storage)
+  } catch (error) {
+    failures.push(error)
+  }
+  for (const key of keys) {
+    try {
+      storage.removeItem(key)
+    } catch (error) {
+      failures.push(error)
+    }
+  }
+  return failures
+}
+
+function clearLogoutMarkers(storages: Array<AuthSessionStorage | null>): unknown[] {
+  const failures: unknown[] = []
+  for (const storage of storages) {
+    if (!storage) continue
+    try {
+      storage.removeItem(LOGOUT_TOMBSTONE_KEY)
+    } catch (error) {
+      failures.push(error)
+    }
+  }
+  return failures
 }
 
 function isCampaignImage(image: unknown): image is CampaignImage {
@@ -128,9 +230,13 @@ export function LocalLiveAdminApp({
   campaignId,
   repository,
   ordersRepository,
+  authStorage = null,
+  logoutFallbackStorage = null,
 }: LocalLiveAppProps & {
   repository?: LiveAdminRepository
   ordersRepository?: LiveAdminOrdersRepository
+  authStorage?: AuthSessionStorage | null
+  logoutFallbackStorage?: AuthSessionStorage | null
 }) {
   const gateway = useMemo(
     () => repository ?? createAdminCampaignGateway(client as AdminCampaignSupabaseClient),
@@ -142,6 +248,12 @@ export function LocalLiveAdminApp({
   )
   const imageGateway = useMemo(() => createCampaignImageGateway(client), [client])
   const authValidationGeneration = useRef(0)
+  const signInGeneration = useRef(0)
+  const signOutGeneration = useRef(0)
+  const authEventsBlocked = useRef(false)
+  const logoutBarrier = useRef(false)
+  const activeSignOut = useRef(false)
+  const validatedOrganizerId = useRef<string | null>(null)
   const [session, setSession] = useState<Session | null | undefined>(undefined)
   const [content, setContent] = useState<CampaignContent | null>(null)
   const [orderSummary, setOrderSummary] = useState<OrganizerOrderSummary | null>(null)
@@ -151,32 +263,141 @@ export function LocalLiveAdminApp({
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [signingIn, setSigningIn] = useState(false)
+  const [signOutPending, setSignOutPending] = useState(false)
+  const [logoutNotice, setLogoutNotice] = useState('')
+  const [fatalAuthError, setFatalAuthError] = useState('')
+  const organizerUserId = session?.user?.id ?? null
+
+  const signOutRemotely = useCallback(async (): Promise<unknown> => {
+    const signOutId = ++signOutGeneration.current
+    const markerStorages = [authStorage, logoutFallbackStorage]
+    logoutBarrier.current = true
+    authEventsBlocked.current = true
+    activeSignOut.current = true
+    setSignOutPending(true)
+    setLogoutNotice('')
+    setFatalAuthError('')
+
+    let markerWritten = markerStorages.every((storage) => !storage)
+    const markerFailures: unknown[] = []
+    for (const storage of markerStorages) {
+      if (!storage) continue
+      try {
+        storage.setItem(LOGOUT_TOMBSTONE_KEY, '1')
+        if (storage.getItem(LOGOUT_TOMBSTONE_KEY) === '1') markerWritten = true
+        else markerFailures.push(new Error('瀏覽器未保存登出標記'))
+      } catch (error) {
+        markerFailures.push(error)
+      }
+    }
+    if (!markerWritten) clearStoredAuth(authStorage)
+
+    let remoteFailure: unknown = null
+    try {
+      const { error: signOutError } = await client.auth.signOut()
+      remoteFailure = signOutError
+    } catch (signOutError) {
+      remoteFailure = signOutError
+    } finally {
+      const credentialFailures = clearStoredAuth(authStorage)
+      const tombstoneFailures = credentialFailures.length === 0
+        ? clearLogoutMarkers(markerStorages)
+        : []
+      activeSignOut.current = false
+      if (signOutId === signOutGeneration.current) {
+        setSignOutPending(false)
+        if (credentialFailures.length > 0 || tombstoneFailures.length > 0) {
+          const failure = credentialFailures[0] ?? tombstoneFailures[0]
+          setFatalAuthError(`無法清除本機登入資料：${errorMessage(failure)}。請清除網站資料後再試。`)
+        } else if (remoteFailure) {
+          setLogoutNotice('本機已登出，但無法撤銷遠端工作階段；其他裝置可能仍保持登入。')
+        } else if (markerFailures.length > 0) {
+          setLogoutNotice('本機已登出；部分登出保護標記無法保存，已直接清除本機登入資料。')
+        }
+      }
+    }
+    return remoteFailure ?? markerFailures[0] ?? null
+  }, [authStorage, client, logoutFallbackStorage])
 
   useEffect(() => {
     let active = true
     let authEventSeen = false
+    signInGeneration.current += 1
+    validatedOrganizerId.current = null
+    setError('')
+    setFatalAuthError('')
+    setSession(undefined)
+    setSigningIn(false)
+    setSignOutPending(activeSignOut.current)
+
+    let hasLogoutTombstone = logoutBarrier.current || activeSignOut.current
+    for (const storage of [authStorage, logoutFallbackStorage]) {
+      if (!storage) continue
+      try {
+        hasLogoutTombstone ||= storage.getItem(LOGOUT_TOMBSTONE_KEY) === '1'
+      } catch (storageError) {
+        hasLogoutTombstone = true
+        setFatalAuthError(`無法讀取本機登入資料：${errorMessage(storageError)}。請清除網站資料後再試。`)
+      }
+    }
+
+    if (hasLogoutTombstone) {
+      logoutBarrier.current = true
+      authEventsBlocked.current = true
+      if (!activeSignOut.current) {
+        const credentialFailures = clearStoredAuth(authStorage)
+        const markerFailures = credentialFailures.length === 0
+          ? clearLogoutMarkers([authStorage, logoutFallbackStorage])
+          : []
+        if (credentialFailures.length > 0 || markerFailures.length > 0) {
+          const failure = credentialFailures[0] ?? markerFailures[0]
+          setFatalAuthError(`無法清除本機登入資料：${errorMessage(failure)}。請清除網站資料後再試。`)
+        } else {
+          setLogoutNotice('先前的登出已在本機完成；如需使用團主功能，請重新登入。')
+        }
+      }
+      setSession(null)
+    } else {
+      authEventsBlocked.current = false
+    }
+
+    const invalidateOrganizer = () => {
+      authEventsBlocked.current = true
+      signInGeneration.current += 1
+      validatedOrganizerId.current = null
+      setError('')
+      setSession(null)
+      setSigningIn(false)
+      void signOutRemotely()
+    }
 
     const validateRestoredSession = async (nextSession: Session | null) => {
       if (!active) return
       const validationId = ++authValidationGeneration.current
       if (!nextSession) {
+        authEventsBlocked.current = true
+        logoutBarrier.current = true
+        signInGeneration.current += 1
+        validatedOrganizerId.current = null
         setError('')
         setSession(null)
+        setSigningIn(false)
         return
       }
 
-      setSession(undefined)
+      const preserveVerifiedEditor = validatedOrganizerId.current === nextSession.user.id
+      if (!preserveVerifiedEditor) setSession(undefined)
       const { data, error: userError } = await client.auth.getUser(nextSession.access_token)
       if (!active || validationId !== authValidationGeneration.current) return
 
       if (userError) {
-        if (authErrorCode(userError) !== 'user_not_found') {
+        if (isRetryableAuthError(userError)) {
+          if (preserveVerifiedEditor) return
           setError(`驗證登入狀態失敗：${errorMessage(userError)}，請重新整理後再試。`)
           setSession(null)
           return
         }
-        await client.auth.signOut()
-        if (active && validationId === authValidationGeneration.current) setSession(null)
+        invalidateOrganizer()
         return
       }
 
@@ -184,38 +405,43 @@ export function LocalLiveAdminApp({
       if (!authoritativeUser
         || authoritativeUser.id !== nextSession.user.id
         || authoritativeUser.is_anonymous === true) {
-        await client.auth.signOut()
-        if (active && validationId === authValidationGeneration.current) setSession(null)
+        invalidateOrganizer()
         return
       }
 
+      validatedOrganizerId.current = authoritativeUser.id
+      authEventsBlocked.current = false
       setError('')
       setSession({ ...nextSession, user: authoritativeUser })
     }
 
     const { data: authSubscription } = client.auth.onAuthStateChange((_event, nextSession) => {
       authEventSeen = true
+      if (authEventsBlocked.current) return
       void validateRestoredSession(nextSession)
     })
 
-    void client.auth.getSession().then(({ data, error: sessionError }) => {
-      if (!active || authEventSeen) return
-      if (sessionError) {
-        setError(sessionError.message)
-        setSession(null)
-      } else {
-        void validateRestoredSession(data.session)
-      }
-    })
+    if (!hasLogoutTombstone) {
+      void client.auth.getSession().then(({ data, error: sessionError }) => {
+        if (!active || authEventSeen) return
+        if (sessionError) {
+          setError(sessionError.message)
+          setSession(null)
+        } else {
+          void validateRestoredSession(data.session)
+        }
+      })
+    }
     return () => {
       active = false
       authValidationGeneration.current += 1
+      signInGeneration.current += 1
       authSubscription.subscription.unsubscribe()
     }
-  }, [client])
+  }, [authStorage, client, logoutFallbackStorage, signOutRemotely])
 
   useEffect(() => {
-    if (!session) {
+    if (!organizerUserId) {
       setContent(null)
       setOrderSummary(null)
       setCampaignStatus(null)
@@ -240,24 +466,43 @@ export function LocalLiveAdminApp({
     return () => {
       active = false
     }
-  }, [campaignId, gateway, ordersGateway, session])
+  }, [campaignId, gateway, ordersGateway, organizerUserId])
 
   const signIn = async (event: FormEvent) => {
     event.preventDefault()
+    if (signOutPending || fatalAuthError) return
+    const signInId = ++signInGeneration.current
     setSigningIn(true)
     setError('')
     const { data, error: signInError } = await client.auth.signInWithPassword({
       email: email.trim(),
       password,
     })
+    if (signInId !== signInGeneration.current) return
     if (signInError) setError(signInError.message)
     else {
       authValidationGeneration.current += 1
+      authEventsBlocked.current = false
+      logoutBarrier.current = false
+      const markerFailures = clearLogoutMarkers([authStorage, logoutFallbackStorage])
+      if (markerFailures.length > 0) {
+        clearStoredAuth(authStorage)
+        authEventsBlocked.current = true
+        logoutBarrier.current = true
+        setFatalAuthError(`無法清除登出保護標記：${errorMessage(markerFailures[0])}。請清除網站資料後再試。`)
+        setSession(null)
+        setSigningIn(false)
+        return
+      }
+      setLogoutNotice('')
+      validatedOrganizerId.current = data.session?.user?.id ?? null
       setSession(data.session)
     }
     setSigningIn(false)
   }
 
+  if (signOutPending) return <LiveLoading label="登出中…" />
+  if (fatalAuthError) return <LiveError message={fatalAuthError} />
   if (session === undefined) return <LiveLoading label="確認團主登入狀態…" />
   if (!session) {
     return (
@@ -266,6 +511,7 @@ export function LocalLiveAdminApp({
           <p className="admin-eyebrow">SUPABASE LIVE DEMO</p>
           <h1>團主登入</h1>
           <p>登入後，草稿與發布內容會儲存在本機 Supabase。</p>
+          {logoutNotice && <p className="live-form-error" role="alert">{logoutNotice}</p>}
           <label>
             <span>Email</span>
             <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="username" required />
@@ -308,9 +554,13 @@ export function LocalLiveAdminApp({
         setOrderSummary(await ordersGateway.loadSummary(campaignId, nextContent.unitPrice, nextContent.threshold))
       }}
       onSignOut={async () => {
-        const { error: signOutError } = await client.auth.signOut()
-        if (signOutError) throw signOutError
+        authValidationGeneration.current += 1
+        signInGeneration.current += 1
+        authEventsBlocked.current = true
+        validatedOrganizerId.current = null
+        setError('')
         setSession(null)
+        await signOutRemotely()
       }}
     />
   )

@@ -8,6 +8,11 @@ import { LocalLiveAdminApp, LocalLiveResidentApp } from './LocalLiveApps.tsx'
 import { selectAppMode } from './routing.ts'
 import { runtimeConfig } from './services/runtime.ts'
 import type { Database } from './types/database.ts'
+import {
+  getBrowserAuthStorage,
+  getBrowserSessionStorage,
+  SUPABASE_AUTH_STORAGE_KEY,
+} from './services/authStorage.ts'
 
 const appMode = selectAppMode(window.location.pathname)
 
@@ -16,9 +21,17 @@ function rootApplication() {
     const client = createClient<Database>(
       runtimeConfig.supabaseUrl,
       runtimeConfig.supabaseAnonKey,
+      { auth: { storageKey: SUPABASE_AUTH_STORAGE_KEY } },
     )
     return appMode === 'admin'
-      ? <LocalLiveAdminApp client={client} campaignId={runtimeConfig.campaignId} />
+      ? (
+          <LocalLiveAdminApp
+            client={client}
+            campaignId={runtimeConfig.campaignId}
+            authStorage={getBrowserAuthStorage()}
+            logoutFallbackStorage={getBrowserSessionStorage()}
+          />
+        )
       : (
           <LocalLiveResidentApp
             client={client}

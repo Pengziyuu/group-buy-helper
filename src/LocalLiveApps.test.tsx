@@ -11,6 +11,13 @@ import { initialOrders, items } from './data/demo'
 import { buildOrganizerOrderSummary } from './domain/adminOrders'
 import type { AdminCampaignSupabaseClient } from './services/adminCampaignGateway'
 import type { CampaignContent } from './services/demoCampaignStore'
+import {
+  LOGOUT_TOMBSTONE_KEY,
+  SUPABASE_AUTH_CODE_VERIFIER_KEY,
+  SUPABASE_AUTH_FLOWS_CODE_VERIFIER_KEY,
+  SUPABASE_AUTH_STORAGE_KEY,
+  type AuthSessionStorage,
+} from './services/authStorage'
 
 const published: CampaignContent = {
   title: 'Supabase 已發布冰餅團',
@@ -28,9 +35,26 @@ const ordersRepository = (): LiveAdminOrdersRepository => ({
   setOrderFulfillment: vi.fn().mockResolvedValue(undefined),
 })
 
+function memoryAuthStorage(initial: Record<string, string> = {}) {
+  const values = new Map(Object.entries(initial))
+  const storage: AuthSessionStorage = {
+    get length() { return values.size },
+    getItem: vi.fn((key) => values.get(key) ?? null),
+    key: vi.fn((index) => [...values.keys()][index] ?? null),
+    setItem: vi.fn((key, value) => { values.set(key, value) }),
+    removeItem: vi.fn((key) => { values.delete(key) }),
+  }
+  return { storage, values }
+}
+
 function authClient(session: unknown = null, getUserError: unknown = null) {
   const signInWithPassword = vi.fn().mockResolvedValue({
-    data: { session: { access_token: 'session-token' } },
+    data: {
+      session: {
+        access_token: 'session-token',
+        user: { id: 'signed-in-admin', is_anonymous: false },
+      },
+    },
     error: null,
   })
   const client = {
@@ -103,6 +127,625 @@ describe('local Supabase visual demo apps', () => {
     expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
     expect(client.auth.signOut).toHaveBeenCalled()
     expect(repository.loadPublished).not.toHaveBeenCalled()
+  })
+
+  it('keeps the editor mounted while revalidating the same organizer after returning from a picker', async () => {
+    const user = userEvent.setup()
+    const initialSession = {
+      access_token: 'initial-token',
+      user: { id: 'admin-user', is_anonymous: false },
+    }
+    const refreshedSession = { ...initialSession, access_token: 'refocused-token' }
+    let authStateCallback: ((event: string, session: unknown) => void) | undefined
+    let finishRevalidation: ((result: unknown) => void) | undefined
+    const getUser = vi.fn()
+      .mockResolvedValueOnce({ data: { user: initialSession.user }, error: null })
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        finishRevalidation = resolve
+      }))
+    const client = {
+      auth: {
+        getSession: vi.fn().mockResolvedValue({ data: { session: initialSession }, error: null }),
+        getUser,
+        signInWithPassword: vi.fn(),
+        signOut: vi.fn().mockResolvedValue({ error: null }),
+        onAuthStateChange: vi.fn().mockImplementation((callback) => {
+          authStateCallback = callback
+          return { data: { subscription: { unsubscribe: vi.fn() } } }
+        }),
+      },
+    } as unknown as AdminCampaignSupabaseClient
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      saveDraft: vi.fn(),
+      publish: vi.fn(),
+    }
+    const workflowRepository = ordersRepository()
+
+    render(
+      <LocalLiveAdminApp
+        client={client}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={workflowRepository}
+      />,
+    )
+    expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+    expect(repository.loadPublished).toHaveBeenCalledTimes(1)
+    const fileInput = screen.getByLabelText<HTMLInputElement>('商品圖片檔案')
+    const selectedFile = new File(['image'], 'picker-return.png', { type: 'image/png' })
+    await user.upload(fileInput, selectedFile)
+
+    act(() => authStateCallback?.('SIGNED_IN', refreshedSession))
+    await waitFor(() => expect(getUser).toHaveBeenCalledWith('refocused-token'))
+
+    expect(screen.getByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+    expect(screen.getByLabelText('商品圖片檔案')).toBe(fileInput)
+    expect(fileInput.files?.[0]).toBe(selectedFile)
+    expect(screen.queryByText('載入團購草稿與訂單…')).not.toBeInTheDocument()
+    expect(repository.loadPublished).toHaveBeenCalledTimes(1)
+    expect(workflowRepository.loadSummary).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      finishRevalidation?.({ data: { user: initialSession.user }, error: null })
+    })
+    await waitFor(() => expect(getUser).toHaveBeenCalledTimes(2))
+    expect(repository.loadPublished).toHaveBeenCalledTimes(1)
+    expect(workflowRepository.loadSummary).toHaveBeenCalledTimes(1)
+  })
+
+  it('preserves a verified editor for Supabase AuthRetryableFetchError with status zero', async () => {
+    const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
+    let authStateCallback: ((event: string, session: unknown) => void) | undefined
+    const client = {
+      auth: {
+        getSession: vi.fn().mockResolvedValue({ data: { session }, error: null }),
+        getUser: vi.fn()
+          .mockResolvedValueOnce({ data: { user: session.user }, error: null })
+          .mockResolvedValueOnce({
+            data: { user: null },
+            error: { status: 0, name: 'AuthRetryableFetchError', message: 'fetch failed' },
+          }),
+        signInWithPassword: vi.fn(),
+        signOut: vi.fn().mockResolvedValue({ error: null }),
+        onAuthStateChange: vi.fn().mockImplementation((callback) => {
+          authStateCallback = callback
+          return { data: { subscription: { unsubscribe: vi.fn() } } }
+        }),
+      },
+    } as unknown as AdminCampaignSupabaseClient
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      saveDraft: vi.fn(),
+      publish: vi.fn(),
+    }
+
+    render(
+      <LocalLiveAdminApp
+        client={client}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={ordersRepository()}
+      />,
+    )
+    const editor = await screen.findByRole('textbox', { name: '團購標題' })
+
+    act(() => authStateCallback?.('TOKEN_REFRESHED', session))
+
+    await waitFor(() => expect(client.auth.getUser).toHaveBeenCalledTimes(2))
+    expect(screen.getByRole('textbox', { name: '團購標題' })).toBe(editor)
+    expect(client.auth.signOut).not.toHaveBeenCalled()
+  })
+
+  it('fails closed immediately when same-user revalidation returns a terminal auth error', async () => {
+    const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
+    let authStateCallback: ((event: string, session: unknown) => void) | undefined
+    const signOut = vi.fn().mockImplementation(() => new Promise(() => undefined))
+    const client = {
+      auth: {
+        getSession: vi.fn().mockResolvedValue({ data: { session }, error: null }),
+        getUser: vi.fn()
+          .mockResolvedValueOnce({ data: { user: session.user }, error: null })
+          .mockResolvedValueOnce({
+            data: { user: null },
+            error: { status: 401, code: 'bad_jwt', message: 'JWT is no longer valid' },
+          }),
+        signInWithPassword: vi.fn(),
+        signOut,
+        onAuthStateChange: vi.fn().mockImplementation((callback) => {
+          authStateCallback = callback
+          return { data: { subscription: { unsubscribe: vi.fn() } } }
+        }),
+      },
+    } as unknown as AdminCampaignSupabaseClient
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      saveDraft: vi.fn(),
+      publish: vi.fn(),
+    }
+
+    render(
+      <LocalLiveAdminApp
+        client={client}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={ordersRepository()}
+      />,
+    )
+    expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+
+    act(() => authStateCallback?.('TOKEN_REFRESHED', session))
+
+    expect(await screen.findByText('登出中…')).toBeInTheDocument()
+    expect(signOut).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('textbox', { name: '團購標題' })).not.toBeInTheDocument()
+  })
+
+  it('clears the organizer UI before a direct sign-out request finishes', async () => {
+    const user = userEvent.setup()
+    const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
+    const { client } = authClient(session)
+    let finishSignOut: (() => void) | undefined
+    vi.mocked(client.auth.signOut).mockImplementation(() => new Promise((resolve) => {
+      finishSignOut = () => resolve({ error: null })
+    }))
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      saveDraft: vi.fn(),
+      publish: vi.fn(),
+    }
+
+    render(
+      <LocalLiveAdminApp
+        client={client}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={ordersRepository()}
+      />,
+    )
+    expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+    const authStateCallback = vi.mocked(client.auth.onAuthStateChange).mock.calls[0][0] as (
+      event: string,
+      nextSession: unknown,
+    ) => void
+
+    await user.click(screen.getByRole('button', { name: '登出' }))
+
+    expect(await screen.findByText('登出中…')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '登入' })).not.toBeInTheDocument()
+    await act(async () => {
+      authStateCallback('SIGNED_IN', session)
+      authStateCallback('SIGNED_OUT', null)
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    expect(client.auth.getUser).toHaveBeenCalledTimes(1)
+    expect(screen.getByText('登出中…')).toBeInTheDocument()
+    expect(repository.loadPublished).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      finishSignOut?.()
+    })
+    expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
+  })
+
+  it('keeps a replacement client blocked until the previous client sign-out settles', async () => {
+    const user = userEvent.setup()
+    const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
+    let finishSignOut: (() => void) | undefined
+    const first = authClient(session).client
+    vi.mocked(first.auth.signOut).mockImplementation(() => new Promise((resolve) => {
+      finishSignOut = () => resolve({ error: null })
+    }))
+    const second = authClient(session).client
+    const primary = memoryAuthStorage({ [SUPABASE_AUTH_STORAGE_KEY]: 'persisted-session' })
+    const fallback = memoryAuthStorage()
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      saveDraft: vi.fn(),
+      publish: vi.fn(),
+    }
+    const view = render(
+      <LocalLiveAdminApp
+        client={first}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={ordersRepository()}
+        authStorage={primary.storage}
+        logoutFallbackStorage={fallback.storage}
+      />,
+    )
+    expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '登出' }))
+    expect(await screen.findByText('登出中…')).toBeInTheDocument()
+
+    view.rerender(
+      <LocalLiveAdminApp
+        client={second}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={ordersRepository()}
+        authStorage={primary.storage}
+        logoutFallbackStorage={fallback.storage}
+      />,
+    )
+    expect(screen.getByText('登出中…')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '登入' })).not.toBeInTheDocument()
+    expect(second.auth.getSession).not.toHaveBeenCalled()
+
+    await act(async () => {
+      finishSignOut?.()
+    })
+    expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
+    expect(primary.values.has(SUPABASE_AUTH_STORAGE_KEY)).toBe(false)
+    expect(fallback.values.has(LOGOUT_TOMBSTONE_KEY)).toBe(false)
+  })
+
+  it('clears persisted auth and reports when remote sign-out rejects', async () => {
+    const user = userEvent.setup()
+    const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
+    const { client } = authClient(session)
+    vi.mocked(client.auth.signOut).mockRejectedValue(new TypeError('offline'))
+    const { storage, values } = memoryAuthStorage({ [SUPABASE_AUTH_STORAGE_KEY]: 'persisted-session' })
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      saveDraft: vi.fn(),
+      publish: vi.fn(),
+    }
+
+    render(
+      <LocalLiveAdminApp
+        client={client}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={ordersRepository()}
+        authStorage={storage}
+      />,
+    )
+    expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '登出' }))
+
+    expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
+    expect(values.has(SUPABASE_AUTH_STORAGE_KEY)).toBe(false)
+    expect(values.has(LOGOUT_TOMBSTONE_KEY)).toBe(false)
+    expect(screen.getByRole('alert')).toHaveTextContent('本機已登出，但無法撤銷遠端工作階段')
+  })
+
+  it('clears persisted auth when remote sign-out returns an error result', async () => {
+    const user = userEvent.setup()
+    const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
+    const { client } = authClient(session)
+    vi.mocked(client.auth.signOut).mockResolvedValue({
+      error: { message: 'remote revoke failed' },
+    } as Awaited<ReturnType<typeof client.auth.signOut>>)
+    const { storage, values } = memoryAuthStorage({ [SUPABASE_AUTH_STORAGE_KEY]: 'persisted-session' })
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      saveDraft: vi.fn(),
+      publish: vi.fn(),
+    }
+
+    render(
+      <LocalLiveAdminApp
+        client={client}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={ordersRepository()}
+        authStorage={storage}
+      />,
+    )
+    expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '登出' }))
+
+    expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
+    expect(values.has(SUPABASE_AUTH_STORAGE_KEY)).toBe(false)
+    expect(values.has(LOGOUT_TOMBSTONE_KEY)).toBe(false)
+    expect(screen.getByRole('alert')).toHaveTextContent('本機已登出，但無法撤銷遠端工作階段')
+  })
+
+  it('removes fixed, flows, and per-flow PKCE verifier keys during logout', async () => {
+    const user = userEvent.setup()
+    const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
+    const { client } = authClient(session)
+    const perFlowKey = `${SUPABASE_AUTH_STORAGE_KEY}-flow-flow-id-code-verifier`
+    const { storage, values } = memoryAuthStorage({
+      [SUPABASE_AUTH_STORAGE_KEY]: 'persisted-session',
+      [SUPABASE_AUTH_CODE_VERIFIER_KEY]: 'legacy-verifier',
+      [SUPABASE_AUTH_FLOWS_CODE_VERIFIER_KEY]: 'flows-verifier',
+      [perFlowKey]: 'per-flow-verifier',
+    })
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      saveDraft: vi.fn(),
+      publish: vi.fn(),
+    }
+
+    render(
+      <LocalLiveAdminApp
+        client={client}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={ordersRepository()}
+        authStorage={storage}
+      />,
+    )
+    expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '登出' }))
+    expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
+
+    for (const key of [
+      SUPABASE_AUTH_STORAGE_KEY,
+      SUPABASE_AUTH_CODE_VERIFIER_KEY,
+      SUPABASE_AUTH_FLOWS_CODE_VERIFIER_KEY,
+      perFlowKey,
+    ]) expect(values.has(key)).toBe(false)
+  })
+
+  it('cleans fixed and indexed auth keys when storage enumeration and both tombstones fail', async () => {
+    const user = userEvent.setup()
+    const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
+    const { client } = authClient(session)
+    const flowId = 'flow-id-1234'
+    const perFlowKey = `${SUPABASE_AUTH_STORAGE_KEY}-flow-${flowId}-code-verifier`
+    const values = new Map<string, string>([
+      [SUPABASE_AUTH_STORAGE_KEY, 'persisted-session'],
+      [SUPABASE_AUTH_CODE_VERIFIER_KEY, 'legacy-verifier'],
+      [SUPABASE_AUTH_FLOWS_CODE_VERIFIER_KEY, JSON.stringify([flowId])],
+      [perFlowKey, 'per-flow-verifier'],
+    ])
+    let lengthReads = 0
+    const storage: AuthSessionStorage = {
+      get length() {
+        lengthReads += 1
+        if (lengthReads === 1) throw new Error('length unavailable')
+        return 2
+      },
+      getItem: vi.fn((keyName) => values.get(keyName) ?? null),
+      get key(): ((index: number) => string | null) | undefined {
+        throw new Error('key property unavailable')
+      },
+      setItem: vi.fn(() => { throw new Error('primary tombstone unavailable') }),
+      removeItem: vi.fn((keyName) => { values.delete(keyName) }),
+    }
+    const fallback = memoryAuthStorage()
+    fallback.storage.setItem = vi.fn(() => { throw new Error('fallback tombstone unavailable') })
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      saveDraft: vi.fn(),
+      publish: vi.fn(),
+    }
+
+    render(
+      <LocalLiveAdminApp
+        client={client}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={ordersRepository()}
+        authStorage={storage}
+        logoutFallbackStorage={fallback.storage}
+      />,
+    )
+    expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '登出' }))
+
+    expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
+    expect(screen.queryByText('登出中…')).not.toBeInTheDocument()
+    for (const keyName of [
+      SUPABASE_AUTH_STORAGE_KEY,
+      SUPABASE_AUTH_CODE_VERIFIER_KEY,
+      SUPABASE_AUTH_FLOWS_CODE_VERIFIER_KEY,
+      perFlowKey,
+    ]) expect(values.has(keyName)).toBe(false)
+  })
+
+  it('keeps a fallback tombstone and blocks login when credential cleanup fails', async () => {
+    const user = userEvent.setup()
+    const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
+    const first = authClient(session).client
+    const primary = memoryAuthStorage({ [SUPABASE_AUTH_STORAGE_KEY]: 'persisted-session' })
+    primary.storage.setItem = vi.fn(() => { throw new Error('primary storage is read-only') })
+    primary.storage.removeItem = vi.fn((key) => {
+      if (key === SUPABASE_AUTH_STORAGE_KEY) throw new Error('session removal failed')
+      primary.values.delete(key)
+    })
+    const fallback = memoryAuthStorage()
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      saveDraft: vi.fn(),
+      publish: vi.fn(),
+    }
+    const firstView = render(
+      <LocalLiveAdminApp
+        client={first}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={ordersRepository()}
+        authStorage={primary.storage}
+        logoutFallbackStorage={fallback.storage}
+      />,
+    )
+    expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '登出' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('無法清除本機登入資料')
+    expect(screen.queryByRole('button', { name: '登入' })).not.toBeInTheDocument()
+    expect(primary.values.has(SUPABASE_AUTH_STORAGE_KEY)).toBe(true)
+    expect(fallback.values.get(LOGOUT_TOMBSTONE_KEY)).toBe('1')
+    firstView.unmount()
+
+    const second = authClient(session).client
+    render(
+      <LocalLiveAdminApp
+        client={second}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={ordersRepository()}
+        authStorage={primary.storage}
+        logoutFallbackStorage={fallback.storage}
+      />,
+    )
+    expect(await screen.findByRole('alert')).toHaveTextContent('無法清除本機登入資料')
+    expect(second.auth.getSession).not.toHaveBeenCalled()
+    expect(repository.loadPublished).toHaveBeenCalledTimes(1)
+    expect(fallback.values.get(LOGOUT_TOMBSTONE_KEY)).toBe('1')
+  })
+
+  it('uses a durable tombstone to prevent session restoration after reloading during sign-out', async () => {
+    const user = userEvent.setup()
+    const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
+    const first = authClient(session).client
+    vi.mocked(first.auth.signOut).mockImplementation(() => new Promise(() => undefined))
+    const { storage, values } = memoryAuthStorage({ [SUPABASE_AUTH_STORAGE_KEY]: 'persisted-session' })
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      saveDraft: vi.fn(),
+      publish: vi.fn(),
+    }
+    const firstView = render(
+      <LocalLiveAdminApp
+        client={first}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={ordersRepository()}
+        authStorage={storage}
+      />,
+    )
+    expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '登出' }))
+    expect(await screen.findByText('登出中…')).toBeInTheDocument()
+    expect(values.get(LOGOUT_TOMBSTONE_KEY)).toBe('1')
+    firstView.unmount()
+
+    const second = authClient(session).client
+    render(
+      <LocalLiveAdminApp
+        client={second}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={ordersRepository()}
+        authStorage={storage}
+      />,
+    )
+
+    expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
+    expect(second.auth.getSession).not.toHaveBeenCalled()
+    expect(repository.loadPublished).toHaveBeenCalledTimes(1)
+    expect(values.has(SUPABASE_AUTH_STORAGE_KEY)).toBe(false)
+    expect(values.has(LOGOUT_TOMBSTONE_KEY)).toBe(false)
+    expect(screen.getByRole('alert')).toHaveTextContent('先前的登出已在本機完成')
+
+    await user.type(screen.getByRole('textbox', { name: 'Email' }), 'admin@example.test')
+    await user.type(screen.getByLabelText('密碼'), 'password')
+    await user.click(screen.getByRole('button', { name: '登入' }))
+    expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+    const recoveredAuthCallback = vi.mocked(second.auth.onAuthStateChange).mock.calls[0][0] as (
+      event: string,
+      nextSession: unknown,
+    ) => void
+    act(() => recoveredAuthCallback('SIGNED_OUT', null))
+    expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
+  })
+
+  it('ignores an old client sign-in that resolves after the Supabase client changes', async () => {
+    const user = userEvent.setup()
+    const first = authClient().client
+    const oldSignInResult = {
+      data: {
+        session: {
+          access_token: 'old-client-token',
+          user: { id: 'old-client-admin', is_anonymous: false },
+        },
+      },
+      error: null,
+    } as Awaited<ReturnType<typeof first.auth.signInWithPassword>>
+    let finishOldSignIn: (() => void) | undefined
+    vi.mocked(first.auth.signInWithPassword).mockImplementation(() => new Promise((resolve) => {
+      finishOldSignIn = () => resolve(oldSignInResult)
+    }))
+    const second = authClient().client
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      saveDraft: vi.fn(),
+      publish: vi.fn(),
+    }
+    const view = render(
+      <LocalLiveAdminApp
+        client={first}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={ordersRepository()}
+      />,
+    )
+    expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
+    await user.type(screen.getByRole('textbox', { name: 'Email' }), 'admin@example.test')
+    await user.type(screen.getByLabelText('密碼'), 'password')
+    await user.click(screen.getByRole('button', { name: '登入' }))
+
+    view.rerender(
+      <LocalLiveAdminApp
+        client={second}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={ordersRepository()}
+      />,
+    )
+    expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
+
+    await act(async () => {
+      finishOldSignIn?.()
+    })
+
+    expect(screen.getByRole('heading', { name: '團主登入' })).toBeInTheDocument()
+    expect(repository.loadPublished).not.toHaveBeenCalled()
+  })
+
+  it('does not reuse a verified organizer marker after the Supabase client changes', async () => {
+    const session = { access_token: 'first-token', user: { id: 'admin-user', is_anonymous: false } }
+    const first = authClient(session).client
+    const secondSession = { ...session, access_token: 'second-token' }
+    const second = authClient(secondSession).client
+    vi.mocked(second.auth.getUser).mockImplementation(() => new Promise(() => undefined))
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      saveDraft: vi.fn(),
+      publish: vi.fn(),
+    }
+    const workflowRepository = ordersRepository()
+    const view = render(
+      <LocalLiveAdminApp
+        client={first}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={workflowRepository}
+      />,
+    )
+    expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+
+    view.rerender(
+      <LocalLiveAdminApp
+        client={second}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={workflowRepository}
+      />,
+    )
+
+    expect(await screen.findByText('確認團主登入狀態…')).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: '團購標題' })).not.toBeInTheDocument()
+    expect(repository.loadPublished).toHaveBeenCalledTimes(1)
   })
 
   it('signs out a stale organizer session left behind by a database reset', async () => {
