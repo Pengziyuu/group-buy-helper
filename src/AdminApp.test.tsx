@@ -1,7 +1,10 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
+import App from './App'
 import AdminApp from './AdminApp'
+
+beforeEach(() => localStorage.clear())
 
 describe('organizer campaign editor', () => {
   it('loads the current campaign into the editor and resident preview', () => {
@@ -39,5 +42,32 @@ describe('organizer campaign editor', () => {
     expect(screen.getByRole('img', { name: '冰餅包裝與尺寸示意' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '移除 冰餅包裝與尺寸示意' }))
     expect(screen.queryByRole('img', { name: '冰餅包裝與尺寸示意' })).not.toBeInTheDocument()
+  })
+
+  it('keeps saved drafts private until the organizer publishes them', async () => {
+    const user = userEvent.setup()
+    const admin = render(<AdminApp />)
+    const title = screen.getByRole('textbox', { name: '團購標題' })
+    await user.clear(title)
+    await user.type(title, '週末限定冰餅團')
+    await user.click(screen.getByRole('button', { name: '儲存草稿' }))
+    admin.unmount()
+
+    const residentBeforePublish = render(<App />)
+    expect(screen.getByRole('heading', { name: '一涼製冰所 超厚三明治冰餅' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '週末限定冰餅團' })).not.toBeInTheDocument()
+    residentBeforePublish.unmount()
+
+    const reopenedAdmin = render(<AdminApp />)
+    expect(screen.getByRole('textbox', { name: '團購標題' })).toHaveValue('週末限定冰餅團')
+    await user.click(screen.getByRole('button', { name: '發布到住戶端' }))
+    reopenedAdmin.unmount()
+
+    const publishedAdmin = render(<AdminApp />)
+    expect(screen.getByText('已發布')).toBeInTheDocument()
+    publishedAdmin.unmount()
+
+    render(<App />)
+    expect(screen.getByRole('heading', { name: '週末限定冰餅團' })).toBeInTheDocument()
   })
 })

@@ -12,10 +12,11 @@
 - 戶號解析規則：整串英數字為戶號、明寫期別才覆蓋、預設二期
 - 團主公告長文、Emoji 與多張商品圖片展示
 - `/admin` 團主開團編輯器與住戶端即時預覽
+- 草稿與已發布版本隔離；發布後住戶端才更新
 - LIFF 身分載入與 ID token 邊界
 - demo/live 環境設定防呆
 - Supabase schema、RLS 與 Realtime migration
-- 29 個前端／領域自動測試
+- 32 個前端／領域自動測試
 - 可重建的本機 Supabase migration、seed 與產生型別
 
 ## 本機執行
@@ -31,6 +32,7 @@ npm run dev
 - 團主後台 Demo：`http://localhost:5173/admin`
 
 沒有 `.env` 時自動使用 demo 模式，不會連外或修改真實資料。
+Demo 模式以瀏覽器 localStorage 保存草稿與已發布內容；正式 live 模式會改用 Supabase。
 
 ## 測試與建置
 

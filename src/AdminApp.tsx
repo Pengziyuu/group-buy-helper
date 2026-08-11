@@ -1,22 +1,62 @@
 import { useState } from 'react'
 import './AdminApp.css'
 import { campaign } from './data/demo'
+import {
+  campaignContentEquals,
+  loadDraftCampaign,
+  loadPublishedCampaign,
+  publishCampaign,
+  saveDraftCampaign,
+  type CampaignContent,
+} from './services/demoCampaignStore'
+
+const defaultContent: CampaignContent = {
+  title: campaign.title,
+  unitPrice: campaign.unitPrice,
+  threshold: campaign.threshold,
+  announcement: campaign.announcement,
+  images: campaign.images,
+}
 
 function AdminApp() {
-  const [title, setTitle] = useState(campaign.title)
-  const [unitPrice, setUnitPrice] = useState(campaign.unitPrice)
-  const [threshold, setThreshold] = useState(campaign.threshold)
-  const [announcement, setAnnouncement] = useState(campaign.announcement)
-  const [images, setImages] = useState(() => [...campaign.images])
+  const [initialDraft] = useState(() => loadDraftCampaign(defaultContent))
+  const [initialPublished] = useState(() => loadPublishedCampaign(defaultContent))
+  const [title, setTitle] = useState(initialDraft.title)
+  const [unitPrice, setUnitPrice] = useState(initialDraft.unitPrice)
+  const [threshold, setThreshold] = useState(initialDraft.threshold)
+  const [announcement, setAnnouncement] = useState(initialDraft.announcement)
+  const [images, setImages] = useState(() => [...initialDraft.images])
   const [imageUrl, setImageUrl] = useState('')
   const [imageAlt, setImageAlt] = useState('')
   const [notice, setNotice] = useState('')
+  const [publicationState, setPublicationState] = useState<'draft' | 'published'>(() =>
+    campaignContentEquals(initialDraft, initialPublished) ? 'published' : 'draft',
+  )
+
+  const currentContent = (): CampaignContent => ({ title, unitPrice, threshold, announcement, images })
+  const markDraft = () => {
+    setPublicationState('draft')
+    setNotice('')
+  }
+
+  const saveDraft = () => {
+    saveDraftCampaign(currentContent())
+    setPublicationState('draft')
+    setNotice('開團資料已儲存')
+  }
+
+  const publish = () => {
+    publishCampaign(currentContent())
+    setPublicationState('published')
+    setNotice('已發布到住戶端')
+  }
 
   const addImage = () => {
     const src = imageUrl.trim()
     const alt = imageAlt.trim()
     if (!src || !alt || images.length >= 10) return
     setImages((current) => [...current, { src, alt }])
+    markDraft()
     setImageUrl('')
     setImageAlt('')
   }
@@ -39,21 +79,21 @@ function AdminApp() {
               <p>開團設定</p>
               <h2 id="editor-heading">基本資訊</h2>
             </div>
-            <span>草稿</span>
+            <span>{publicationState === 'published' ? '已發布' : '草稿'}</span>
           </div>
 
           <div className="field-grid">
             <label className="field full-field">
               <span>團購標題</span>
-              <input value={title} onChange={(event) => setTitle(event.target.value)} />
+              <input value={title} onChange={(event) => { setTitle(event.target.value); markDraft() }} />
             </label>
             <label className="field">
               <span>單價</span>
-              <input type="number" min="0" value={unitPrice} onChange={(event) => setUnitPrice(Number(event.target.value))} />
+              <input type="number" min="0" value={unitPrice} onChange={(event) => { setUnitPrice(Number(event.target.value)); markDraft() }} />
             </label>
             <label className="field">
               <span>成團門檻</span>
-              <input type="number" min="1" value={threshold} onChange={(event) => setThreshold(Number(event.target.value))} />
+              <input type="number" min="1" value={threshold} onChange={(event) => { setThreshold(Number(event.target.value)); markDraft() }} />
             </label>
             <div className="field full-field">
               <label htmlFor="campaign-announcement">開團資訊</label>
@@ -62,7 +102,7 @@ function AdminApp() {
                 rows={18}
                 value={announcement}
                 aria-describedby="announcement-count"
-                onChange={(event) => setAnnouncement(event.target.value)}
+                onChange={(event) => { setAnnouncement(event.target.value); markDraft() }}
               />
               <small id="announcement-count">{announcement.length} / 20,000 字</small>
             </div>
@@ -87,7 +127,7 @@ function AdminApp() {
                   <li key={`${image.src}-${index}`}>
                     <span>{index + 1}</span>
                     <div><strong>{image.alt}</strong><small>{image.src}</small></div>
-                    <button type="button" aria-label={`移除 ${image.alt}`} onClick={() => setImages((current) => current.filter((_, currentIndex) => currentIndex !== index))}>移除</button>
+                    <button type="button" aria-label={`移除 ${image.alt}`} onClick={() => { setImages((current) => current.filter((_, currentIndex) => currentIndex !== index)); markDraft() }}>移除</button>
                   </li>
                 ))}
               </ul>
@@ -95,7 +135,8 @@ function AdminApp() {
           </div>
           <div className="editor-actions">
             <p role="status">{notice}</p>
-            <button type="button" onClick={() => setNotice('開團資料已儲存')}>儲存草稿</button>
+            <button className="secondary-action" type="button" onClick={saveDraft}>儲存草稿</button>
+            <button type="button" onClick={publish}>發布到住戶端</button>
           </div>
         </section>
 

@@ -8,20 +8,30 @@ import {
   items,
   type VisibleOrder,
 } from './data/demo'
+import { loadPublishedCampaign, type CampaignContent } from './services/demoCampaignStore'
+
+const defaultContent: CampaignContent = {
+  title: campaign.title,
+  unitPrice: campaign.unitPrice,
+  threshold: campaign.threshold,
+  announcement: campaign.announcement,
+  images: campaign.images,
+}
 
 const itemName = (code: string) => items.find((item) => item.code === code)?.name ?? code
 const orderQuantity = (orderItems: Record<string, number>) =>
   Object.values(orderItems).reduce((sum, quantity) => sum + quantity, 0)
 
 function App() {
+  const [publishedCampaign] = useState(() => loadPublishedCampaign(defaultContent))
   const [orders, setOrders] = useState<VisibleOrder[]>(initialOrders)
   const ownOrder = orders.find((order) => order.customerId === currentCustomerId)!
   const [draft, setDraft] = useState<Record<string, number>>({ ...ownOrder.items })
   const [notice, setNotice] = useState('')
 
   const summary = useMemo(
-    () => summarizeCampaign(orders, campaign.unitPrice, campaign.threshold),
-    [orders],
+    () => summarizeCampaign(orders, publishedCampaign.unitPrice, publishedCampaign.threshold),
+    [orders, publishedCampaign],
   )
   const draftQuantity = orderQuantity(draft)
 
@@ -52,9 +62,9 @@ function App() {
         <div className="eyebrow-row">
           <span className="status-dot" aria-hidden="true" />
           <span>{campaign.status}</span>
-          <span className="price">每個 ${campaign.unitPrice}</span>
+          <span className="price">每個 ${publishedCampaign.unitPrice}</span>
         </div>
-        <h1>{campaign.title}</h1>
+        <h1>{publishedCampaign.title}</h1>
         <p className="arrival">🧊 {campaign.arrival}</p>
 
         <div className="progress-copy">
@@ -67,7 +77,7 @@ function App() {
           aria-label="成團進度"
           aria-valuenow={summary.quantity}
           aria-valuemin={0}
-          aria-valuemax={summary.threshold}
+          aria-valuemax={publishedCampaign.threshold}
         >
           <span style={{ width: `${summary.progressPercent}%` }} />
         </div>
@@ -84,11 +94,11 @@ function App() {
         </div>
 
         <div className="campaign-gallery" aria-label="團購圖片">
-          {campaign.images.map((image) => (
+          {publishedCampaign.images.map((image) => (
             <img key={image.src} src={image.src} alt={image.alt} loading="eager" />
           ))}
         </div>
-        <p className="campaign-copy">{campaign.announcement}</p>
+        <p className="campaign-copy">{publishedCampaign.announcement}</p>
       </article>
 
       <section className="panel order-panel" aria-labelledby="order-heading">
@@ -99,7 +109,7 @@ function App() {
           </div>
           <div className="my-total">
             <strong>我的訂單 {draftQuantity} 個</strong>
-            <span>${draftQuantity * campaign.unitPrice}</span>
+            <span>${draftQuantity * publishedCampaign.unitPrice}</span>
           </div>
         </div>
 
@@ -111,7 +121,7 @@ function App() {
                 <span className="product-code">{item.code}</span>
                 <div className="product-name">
                   <strong>{item.name}</strong>
-                  <span>${campaign.unitPrice}</span>
+                  <span>${publishedCampaign.unitPrice}</span>
                 </div>
                 <div className="stepper">
                   <button

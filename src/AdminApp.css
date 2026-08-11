@@ -45,7 +45,9 @@
 .editor-actions { display: flex; justify-content: flex-end; align-items: center; gap: 14px; margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--admin-line); }
 .editor-actions p { margin: 0 auto 0 0; color: #24765e; font-size: 13px; font-weight: 750; }
 .editor-actions button { border: 0; border-radius: 9px; padding: 11px 18px; background: var(--admin-blue); color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
+.editor-actions button.secondary-action { border: 1px solid var(--admin-line); background: #fff; color: var(--admin-ink); }
 .editor-actions button:hover { background: #0e65aa; }
+.editor-actions button.secondary-action:hover { background: var(--admin-warm); }
 .editor-actions button:focus-visible { outline: 3px solid rgba(22, 119, 200, .25); outline-offset: 2px; }
 
 .resident-preview { position: sticky; top: 18px; padding: 14px; background: var(--admin-warm); }
