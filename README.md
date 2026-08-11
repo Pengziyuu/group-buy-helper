@@ -11,10 +11,11 @@
 - 真實六筆資料示範：62/100、總金額 2,790 元
 - 戶號解析規則：整串英數字為戶號、明寫期別才覆蓋、預設二期
 - 團主公告長文、Emoji 與多張商品圖片展示
+- `/admin` 團主開團編輯器與住戶端即時預覽
 - LIFF 身分載入與 ID token 邊界
 - demo/live 環境設定防呆
 - Supabase schema、RLS 與 Realtime migration
-- 25 個前端／領域自動測試
+- 29 個前端／領域自動測試
 - 可重建的本機 Supabase migration、seed 與產生型別
 
 ## 本機執行
@@ -25,6 +26,9 @@
 npm install
 npm run dev
 ```
+
+- 住戶端：`http://localhost:5173/`
+- 團主後台 Demo：`http://localhost:5173/admin`
 
 沒有 `.env` 時自動使用 demo 模式，不會連外或修改真實資料。
 
