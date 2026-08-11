@@ -13,9 +13,12 @@
 - LIFF 身分載入與 ID token 邊界
 - demo/live 環境設定防呆
 - Supabase schema、RLS 與 Realtime migration
-- 13 個自動測試
+- 24 個前端／領域自動測試
+- 可重建的本機 Supabase migration、seed 與產生型別
 
 ## 本機執行
+
+需要 Node.js 22.12.0 以上版本。
 
 ```bash
 npm install
@@ -53,6 +56,17 @@ Migration 位於 `supabase/migrations/`。正式上線前：
 4. 建立團主的 Supabase Auth 帳號並加入 `admin_users`。
 5. 匯入住戶白名單；只含姓名、期別、戶號，不含電話。
 6. 設定 Edge Function secrets：LINE Channel ID、Supabase service role key。
+
+本機 Supabase（需要 Docker Desktop）：
+
+```bash
+npx supabase start
+npx supabase db reset
+npx supabase gen types typescript --local > src/types/database.ts
+npx supabase functions serve
+```
+
+`db reset` 會從零套用 migration，並載入 `supabase/seed.sql` 的非敏感示範資料。
 
 ## LINE / LIFF
 
