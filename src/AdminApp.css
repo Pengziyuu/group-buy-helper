@@ -11,7 +11,9 @@
 .admin-eyebrow { margin: 0 0 5px; color: var(--admin-blue); font-size: 11px; font-weight: 850; letter-spacing: .16em; }
 .admin-header h1 { margin: 0; font-size: clamp(30px, 5vw, 46px); letter-spacing: -.045em; }
 .admin-header p:not(.admin-eyebrow) { margin: 6px 0 0; color: var(--admin-muted); }
+.admin-header-actions { display: flex; gap: 8px; align-items: center; }
 .resident-link { flex: none; padding: 10px 14px; border: 1px solid var(--admin-line); border-radius: 9px; background: #fff; color: var(--admin-ink); font-size: 14px; font-weight: 750; text-decoration: none; }
+.admin-header-actions button { padding: 10px 14px; border: 1px solid var(--admin-line); border-radius: 9px; background: var(--admin-warm); color: var(--admin-ink); font: inherit; font-size: 14px; font-weight: 750; cursor: pointer; }
 
 .admin-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(360px, .82fr); gap: 20px; align-items: start; }
 .editor-card, .resident-preview { border: 1px solid var(--admin-line); border-radius: 16px; background: #fff; box-shadow: 0 4px 18px rgba(0, 0, 0, .035); }
@@ -48,6 +50,7 @@
 .editor-actions button.secondary-action { border: 1px solid var(--admin-line); background: #fff; color: var(--admin-ink); }
 .editor-actions button:hover { background: #0e65aa; }
 .editor-actions button.secondary-action:hover { background: var(--admin-warm); }
+.editor-actions button:disabled, .admin-header-actions button:disabled { opacity: .55; cursor: wait; }
 .editor-actions button:focus-visible { outline: 3px solid rgba(22, 119, 200, .25); outline-offset: 2px; }
 
 .resident-preview { position: sticky; top: 18px; padding: 14px; background: var(--admin-warm); }
@@ -73,7 +76,7 @@
 
 @media (max-width: 520px) {
   .admin-header { display: grid; }
-  .resident-link { justify-self: start; }
+  .admin-header-actions { justify-self: start; }
   .editor-card { padding: 16px; }
   .field-grid { grid-template-columns: 1fr; }
   .field { grid-column: 1; }

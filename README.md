@@ -17,8 +17,9 @@
 - demo/live 環境設定防呆
 - Supabase schema、RLS 與 Realtime migration
 - Supabase `campaign_draft`、團主專用 RLS、原子發布 RPC 與前端 gateway
+- 本機 Supabase Auth 團主登入與住戶 Realtime 可視化 Demo
 - 商品圖片以 `{src, alt}` JSON 保存，資料庫驗證替代文字及最多 10 張限制
-- 34 個前端／領域自動測試
+- 40 個前端／領域自動測試
 - 可重建的本機 Supabase migration、seed 與產生型別
 
 ## 本機執行
@@ -35,6 +36,29 @@ npm run dev
 
 沒有 `.env` 時自動使用 demo 模式，不會連外或修改真實資料。
 Demo 模式以瀏覽器 localStorage 保存草稿與已發布內容；正式 live 模式會改用 Supabase。
+
+## 本機 Supabase 可視化 Demo
+
+先啟動本機 Supabase，再執行一鍵啟動器：
+
+```bash
+npx supabase start
+python scripts/start_local_live_demo.py
+```
+
+啟動器不會把 Supabase key 寫入檔案，會建立／更新本機專用團主帳號，並在 `5174` 啟動 Live Demo：
+
+- 住戶端：`http://localhost:5174/`
+- 團主後台：`http://localhost:5174/admin`
+- 同網路手機網址：啟動器會列出 `http://<區網 IP>:5174/`
+- Email：`admin@group-buy.local`
+- 密碼：`LocalDemo-Only-2026!`
+
+此帳號與密碼只供本機可丟棄的 Supabase 開發資料庫使用，禁止用於正式環境。原本 `5173` 仍是互不影響的 localStorage Demo。
+
+啟動器會自動偵測主要區網 IP；若電腦有多張網卡而選錯，可先設定 `LOCAL_LIVE_DEMO_HOST=192.168.x.x` 再啟動。
+
+Live Demo 驗收方式：團主登入後修改並儲存草稿，住戶端應維持舊內容；團主發布後，已開啟的住戶端會透過 Realtime 自動更新。
 
 ## 測試與建置
 

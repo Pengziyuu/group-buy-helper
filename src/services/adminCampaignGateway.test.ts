@@ -19,14 +19,15 @@ function mockClient() {
     announcement: content.announcement,
     images: content.images,
   }, error: null })
-  const eq = vi.fn().mockReturnValue({ single })
+  const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null })
+  const eq = vi.fn().mockReturnValue({ single, maybeSingle })
   const selectAfterUpsert = vi.fn().mockReturnValue({ single })
   const select = vi.fn().mockReturnValue({ eq })
   const upsert = vi.fn().mockReturnValue({ select: selectAfterUpsert })
   const from = vi.fn().mockReturnValue({ select, upsert })
   const rpc = vi.fn().mockResolvedValue({ data: { id: 'campaign-1' }, error: null })
   const client = { from, rpc } as unknown as AdminCampaignSupabaseClient
-  return { client, from, select, eq, upsert, rpc }
+  return { client, from, select, eq, upsert, rpc, maybeSingle }
 }
 
 describe('Supabase admin campaign gateway', () => {
@@ -57,5 +58,14 @@ describe('Supabase admin campaign gateway', () => {
 
     await gateway.publish('campaign-1')
     expect(rpc).toHaveBeenCalledWith('publish_campaign_draft', { p_campaign_id: 'campaign-1' })
+  })
+
+  it('loads the published campaign and treats a missing draft as empty', async () => {
+    const { client, from } = mockClient()
+    const gateway = createAdminCampaignGateway(client)
+
+    await expect(gateway.loadPublished('campaign-1')).resolves.toEqual(content)
+    expect(from).toHaveBeenCalledWith('campaign')
+    await expect(gateway.loadOptionalDraft('campaign-1')).resolves.toBeNull()
   })
 })

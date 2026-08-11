@@ -22,7 +22,7 @@ values (
 
 結單：100個成團
 到貨：貨到通知$announcement$,
-  '[{"src":"campaigns/demo/ice-cream-sandwich-demo.svg","alt":"超厚三明治冰餅口味示意圖"}]'::jsonb
+  '[{"src":"/ice-cream-sandwich-demo.svg","alt":"超厚三明治冰餅口味示意圖"}]'::jsonb
 );
 
 insert into public.campaign_item (id, campaign_id, code, name, sort_order)

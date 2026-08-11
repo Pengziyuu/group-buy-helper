@@ -40,6 +40,26 @@ const draftColumns = 'title,unit_price,threshold,announcement,images'
 
 export function createAdminCampaignGateway(client: AdminCampaignSupabaseClient) {
   return {
+    async loadPublished(campaignId: string): Promise<CampaignContent> {
+      const { data, error } = await client
+        .from('campaign')
+        .select(draftColumns)
+        .eq('id', campaignId)
+        .single()
+      if (error) throw new Error(`讀取已發布團購失敗：${errorMessage(error)}`)
+      return toContent(data)
+    },
+
+    async loadOptionalDraft(campaignId: string): Promise<CampaignContent | null> {
+      const { data, error } = await client
+        .from('campaign_draft')
+        .select(draftColumns)
+        .eq('campaign_id', campaignId)
+        .maybeSingle()
+      if (error) throw new Error(`讀取團購草稿失敗：${errorMessage(error)}`)
+      return data ? toContent(data) : null
+    },
+
     async loadDraft(campaignId: string): Promise<CampaignContent> {
       const { data, error } = await client
         .from('campaign_draft')

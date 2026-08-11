@@ -22,8 +22,14 @@ const itemName = (code: string) => items.find((item) => item.code === code)?.nam
 const orderQuantity = (orderItems: Record<string, number>) =>
   Object.values(orderItems).reduce((sum, quantity) => sum + quantity, 0)
 
-function App() {
-  const [publishedCampaign] = useState(() => loadPublishedCampaign(defaultContent))
+type AppProps = {
+  publishedContent?: CampaignContent
+  liveDemo?: boolean
+}
+
+function App({ publishedContent, liveDemo = false }: AppProps = {}) {
+  const [localPublishedCampaign] = useState(() => loadPublishedCampaign(defaultContent))
+  const publishedCampaign = publishedContent ?? localPublishedCampaign
   const [orders, setOrders] = useState<VisibleOrder[]>(initialOrders)
   const ownOrder = orders.find((order) => order.customerId === currentCustomerId)!
   const [draft, setDraft] = useState<Record<string, number>>({ ...ownOrder.items })
@@ -180,7 +186,11 @@ function App() {
         </div>
       </section>
 
-      <footer>這是本機示範模式；接上 LIFF 與 Supabase 後會自動辨識身分並即時同步。</footer>
+      <footer>
+        {liveDemo
+          ? 'Supabase Live Demo・發布內容由資料庫即時同步'
+          : '這是本機示範模式；接上 LIFF 與 Supabase 後會自動辨識身分並即時同步。'}
+      </footer>
     </main>
   )
 }

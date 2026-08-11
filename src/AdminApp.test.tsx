@@ -1,8 +1,9 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import AdminApp from './AdminApp'
+import type { CampaignContent } from './services/demoCampaignStore'
 
 beforeEach(() => localStorage.clear())
 
@@ -69,5 +70,37 @@ describe('organizer campaign editor', () => {
 
     render(<App />)
     expect(screen.getByRole('heading', { name: '週末限定冰餅團' })).toBeInTheDocument()
+  })
+
+  it('uses an async repository when running with Supabase content', async () => {
+    const user = userEvent.setup()
+    const content: CampaignContent = {
+      title: 'Supabase 冰餅團',
+      unitPrice: 50,
+      threshold: 80,
+      announcement: '資料庫公告',
+      images: [{ src: '/remote.svg', alt: '資料庫商品圖' }],
+    }
+    const onSaveDraft = vi.fn().mockResolvedValue(undefined)
+    const onPublish = vi.fn().mockResolvedValue(undefined)
+    render(
+      <AdminApp
+        initialContent={content}
+        initialPublicationState="published"
+        onSaveDraft={onSaveDraft}
+        onPublish={onPublish}
+      />,
+    )
+
+    const title = screen.getByRole('textbox', { name: '團購標題' })
+    await user.clear(title)
+    await user.type(title, 'Supabase 草稿新版')
+    await user.click(screen.getByRole('button', { name: '儲存草稿' }))
+    expect(onSaveDraft).toHaveBeenCalledWith(expect.objectContaining({ title: 'Supabase 草稿新版' }))
+    expect(screen.getByRole('status')).toHaveTextContent('開團資料已儲存')
+
+    await user.click(screen.getByRole('button', { name: '發布到住戶端' }))
+    expect(onPublish).toHaveBeenCalledWith(expect.objectContaining({ title: 'Supabase 草稿新版' }))
+    expect(screen.getByRole('status')).toHaveTextContent('已發布到住戶端')
   })
 })

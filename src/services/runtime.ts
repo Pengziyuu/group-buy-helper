@@ -1,10 +1,22 @@
 export type RuntimeEnvironment = Partial<Record<
-  'VITE_SUPABASE_URL' | 'VITE_SUPABASE_ANON_KEY' | 'VITE_LIFF_ID',
+  | 'VITE_SUPABASE_URL'
+  | 'VITE_SUPABASE_ANON_KEY'
+  | 'VITE_LIFF_ID'
+  | 'VITE_LOCAL_SUPABASE_DEMO'
+  | 'VITE_DEMO_CAMPAIGN_ID'
+  | 'VITE_DEMO_CAMPAIGN_SLUG',
   string
 >>
 
 export type RuntimeConfig =
   | { mode: 'demo' }
+  | {
+      mode: 'local-live-demo'
+      supabaseUrl: string
+      supabaseAnonKey: string
+      campaignId: string
+      campaignSlug: string
+    }
   | {
       mode: 'live'
       supabaseUrl: string
@@ -15,7 +27,23 @@ export type RuntimeConfig =
 export function resolveRuntimeConfig(environment: RuntimeEnvironment): RuntimeConfig {
   const supabaseUrl = environment.VITE_SUPABASE_URL?.trim()
   const supabaseAnonKey = environment.VITE_SUPABASE_ANON_KEY?.trim()
+  const localDemo = environment.VITE_LOCAL_SUPABASE_DEMO?.trim() === 'true'
+  const campaignId = environment.VITE_DEMO_CAMPAIGN_ID?.trim()
+  const campaignSlug = environment.VITE_DEMO_CAMPAIGN_SLUG?.trim()
   const liffId = environment.VITE_LIFF_ID?.trim()
+
+  if (localDemo) {
+    if (!supabaseUrl || !supabaseAnonKey || !campaignId || !campaignSlug) {
+      throw new Error('本機 Supabase Demo 設定不完整')
+    }
+    return {
+      mode: 'local-live-demo',
+      supabaseUrl,
+      supabaseAnonKey,
+      campaignId,
+      campaignSlug,
+    }
+  }
   const supplied = [supabaseUrl, supabaseAnonKey, liffId].filter(Boolean).length
 
   if (supplied === 0) return { mode: 'demo' }
@@ -33,4 +61,7 @@ export const runtimeConfig = resolveRuntimeConfig({
   VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
   VITE_SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY,
   VITE_LIFF_ID: import.meta.env.VITE_LIFF_ID,
+  VITE_LOCAL_SUPABASE_DEMO: import.meta.env.VITE_LOCAL_SUPABASE_DEMO,
+  VITE_DEMO_CAMPAIGN_ID: import.meta.env.VITE_DEMO_CAMPAIGN_ID,
+  VITE_DEMO_CAMPAIGN_SLUG: import.meta.env.VITE_DEMO_CAMPAIGN_SLUG,
 })

@@ -18,9 +18,29 @@ const defaultContent: CampaignContent = {
   images: campaign.images,
 }
 
-function AdminApp() {
-  const [initialDraft] = useState(() => loadDraftCampaign(defaultContent))
-  const [initialPublished] = useState(() => loadPublishedCampaign(defaultContent))
+type PublicationState = 'draft' | 'published'
+
+type AdminAppProps = {
+  initialContent?: CampaignContent
+  initialPublicationState?: PublicationState
+  onSaveDraft?: (content: CampaignContent) => Promise<void>
+  onPublish?: (content: CampaignContent) => Promise<void>
+  onSignOut?: () => Promise<void>
+}
+
+function messageFromError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function AdminApp({
+  initialContent,
+  initialPublicationState,
+  onSaveDraft,
+  onPublish,
+  onSignOut,
+}: AdminAppProps = {}) {
+  const [initialDraft] = useState(() => initialContent ?? loadDraftCampaign(defaultContent))
+  const [initialPublished] = useState(() => initialContent ?? loadPublishedCampaign(defaultContent))
   const [title, setTitle] = useState(initialDraft.title)
   const [unitPrice, setUnitPrice] = useState(initialDraft.unitPrice)
   const [threshold, setThreshold] = useState(initialDraft.threshold)
@@ -29,8 +49,10 @@ function AdminApp() {
   const [imageUrl, setImageUrl] = useState('')
   const [imageAlt, setImageAlt] = useState('')
   const [notice, setNotice] = useState('')
-  const [publicationState, setPublicationState] = useState<'draft' | 'published'>(() =>
-    campaignContentEquals(initialDraft, initialPublished) ? 'published' : 'draft',
+  const [busyAction, setBusyAction] = useState<'save' | 'publish' | 'signout' | null>(null)
+  const [publicationState, setPublicationState] = useState<PublicationState>(() =>
+    initialPublicationState
+      ?? (campaignContentEquals(initialDraft, initialPublished) ? 'published' : 'draft'),
   )
 
   const currentContent = (): CampaignContent => ({ title, unitPrice, threshold, announcement, images })
@@ -39,16 +61,47 @@ function AdminApp() {
     setNotice('')
   }
 
-  const saveDraft = () => {
-    saveDraftCampaign(currentContent())
-    setPublicationState('draft')
-    setNotice('開團資料已儲存')
+  const saveDraft = async () => {
+    setBusyAction('save')
+    setNotice('')
+    try {
+      const content = currentContent()
+      if (onSaveDraft) await onSaveDraft(content)
+      else saveDraftCampaign(content)
+      setPublicationState('draft')
+      setNotice('開團資料已儲存')
+    } catch (error) {
+      setNotice(`儲存失敗：${messageFromError(error)}`)
+    } finally {
+      setBusyAction(null)
+    }
   }
 
-  const publish = () => {
-    publishCampaign(currentContent())
-    setPublicationState('published')
-    setNotice('已發布到住戶端')
+  const publish = async () => {
+    setBusyAction('publish')
+    setNotice('')
+    try {
+      const content = currentContent()
+      if (onPublish) await onPublish(content)
+      else publishCampaign(content)
+      setPublicationState('published')
+      setNotice('已發布到住戶端')
+    } catch (error) {
+      setNotice(`發布失敗：${messageFromError(error)}`)
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
+  const signOut = async () => {
+    if (!onSignOut) return
+    setBusyAction('signout')
+    try {
+      await onSignOut()
+    } catch (error) {
+      setNotice(`登出失敗：${messageFromError(error)}`)
+      setBusyAction(null)
+    }
   }
 
   const addImage = () => {
@@ -69,7 +122,10 @@ function AdminApp() {
           <h1>團主後台</h1>
           <p>編輯開團內容，右側即時確認住戶看到的畫面。</p>
         </div>
-        <a href="/" className="resident-link">查看住戶端 ↗</a>
+        <div className="admin-header-actions">
+          <a href="/" className="resident-link">查看住戶端 ↗</a>
+          {onSignOut && <button type="button" onClick={signOut} disabled={busyAction !== null}>登出</button>}
+        </div>
       </header>
 
       <div className="admin-workspace">
@@ -135,8 +191,12 @@ function AdminApp() {
           </div>
           <div className="editor-actions">
             <p role="status">{notice}</p>
-            <button className="secondary-action" type="button" onClick={saveDraft}>儲存草稿</button>
-            <button type="button" onClick={publish}>發布到住戶端</button>
+            <button className="secondary-action" type="button" onClick={saveDraft} disabled={busyAction !== null}>
+              {busyAction === 'save' ? '儲存中…' : '儲存草稿'}
+            </button>
+            <button type="button" onClick={publish} disabled={busyAction !== null}>
+              {busyAction === 'publish' ? '發布中…' : '發布到住戶端'}
+            </button>
           </div>
         </section>
 
