@@ -71,6 +71,17 @@ export function createAdminCampaignGateway(client: AdminCampaignSupabaseClient) 
       return data ? toContent(data) : null
     },
 
+    async loadResidentSlug(campaignId: string): Promise<string | null> {
+      const { data, error } = await client
+        .from('campaign_public')
+        .select('slug,opened_at')
+        .eq('id', campaignId)
+        .not('opened_at', 'is', null)
+        .maybeSingle()
+      if (error) throw new Error(`讀取住戶分享連結失敗：${errorMessage(error)}`)
+      return data?.slug ?? null
+    },
+
     async loadOptionalDraft(campaignId: string): Promise<CampaignContent | null> {
       const { data, error } = await client
         .from('campaign_draft')

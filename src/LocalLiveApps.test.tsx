@@ -139,6 +139,7 @@ describe('local Supabase visual demo apps', () => {
     const repository: LiveAdminRepository = {
       loadPublished: vi.fn().mockResolvedValue(published),
       loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      loadResidentSlug: vi.fn().mockResolvedValue('82be35197b9a8c709a939627ce4c411d8de3'),
       saveDraft: vi.fn().mockResolvedValue(published),
       publish: vi.fn().mockResolvedValue(undefined),
     }
@@ -161,6 +162,10 @@ describe('local Supabase visual demo apps', () => {
     expect(signInWithPassword).toHaveBeenCalledWith({ email: 'admin@example.test', password: 'password' })
     expect(await screen.findByRole('textbox', { name: '團購標題' })).toHaveValue('Supabase 已發布冰餅團')
     expect(screen.getByText('已發布')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '查看住戶端 ↗' })).toHaveAttribute(
+      'href',
+      '/campaign/82be35197b9a8c709a939627ce4c411d8de3',
+    )
     await user.click(screen.getByRole('button', { name: '結單' }))
     expect(workflowRepository.setCampaignStatus).toHaveBeenCalledWith('campaign-1', 'closed')
   })

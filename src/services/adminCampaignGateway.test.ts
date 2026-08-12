@@ -86,6 +86,26 @@ describe('Supabase admin campaign gateway', () => {
     await expect(gateway.loadOptionalDraft('campaign-1')).resolves.toBeNull()
   })
 
+  it('returns a resident slug only after the campaign has opened', async () => {
+    const publishedMaybeSingle = vi.fn().mockResolvedValue({
+      data: { slug: '82be35197b9a8c709a939627ce4c411d8de3', opened_at: content.openedAt },
+      error: null,
+    })
+    const unpublishedMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null })
+    const not = vi.fn()
+      .mockReturnValueOnce({ maybeSingle: publishedMaybeSingle })
+      .mockReturnValueOnce({ maybeSingle: unpublishedMaybeSingle })
+    const eq = vi.fn().mockReturnValue({ not })
+    const select = vi.fn().mockReturnValue({ eq })
+    const client = { from: vi.fn().mockReturnValue({ select }) }
+    const gateway = createAdminCampaignGateway(client as never)
+
+    await expect(gateway.loadResidentSlug('campaign-open')).resolves.toBe('82be35197b9a8c709a939627ce4c411d8de3')
+    await expect(gateway.loadResidentSlug('campaign-draft')).resolves.toBeNull()
+    expect(select).toHaveBeenCalledWith('slug,opened_at')
+    expect(not).toHaveBeenCalledWith('opened_at', 'is', null)
+  })
+
   it('treats a campaign without opened_at as not yet published', async () => {
     const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null })
     const not = vi.fn().mockReturnValue({ maybeSingle })

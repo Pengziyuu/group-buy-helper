@@ -35,6 +35,7 @@ import {
 export type LiveAdminRepository = {
   loadPublished(campaignId: string): Promise<CampaignContent>
   loadOptionalPublished?(campaignId: string): Promise<CampaignContent | null>
+  loadResidentSlug?(campaignId: string): Promise<string | null>
   loadOptionalDraft(campaignId: string): Promise<CampaignContent | null>
   saveDraft(campaignId: string, content: CampaignContent): Promise<CampaignContent>
   publish(campaignId: string): Promise<CampaignContent>
@@ -311,6 +312,7 @@ export function LocalLiveAdminApp({
   const [orderSummary, setOrderSummary] = useState<OrganizerOrderSummary | null>(null)
   const [campaignStatus, setCampaignStatus] = useState<CampaignStatus | null>(null)
   const [campaigns, setCampaigns] = useState<CampaignListItem[] | null>(null)
+  const [residentSlug, setResidentSlug] = useState<string | null>(null)
   const [publicationState, setPublicationState] = useState<'draft' | 'published'>('published')
   const [error, setError] = useState('')
   const [email, setEmail] = useState('')
@@ -499,6 +501,7 @@ export function LocalLiveAdminApp({
       setOrderSummary(null)
       setCampaignStatus(null)
       setCampaigns(null)
+      setResidentSlug(null)
       return
     }
     let active = true
@@ -507,6 +510,7 @@ export function LocalLiveAdminApp({
       setContent(null)
       setOrderSummary(null)
       setCampaignStatus(null)
+      setResidentSlug(null)
       if (!activeCampaignManagementGateway) return
       void activeCampaignManagementGateway.list().then((items) => {
         if (active) setCampaigns(items)
@@ -523,7 +527,8 @@ export function LocalLiveAdminApp({
       publishedPromise,
       gateway.loadOptionalDraft(campaignId),
       ordersGateway.loadCampaignStatus(campaignId),
-    ]).then(async ([published, draft, status]) => {
+      gateway.loadResidentSlug?.(campaignId) ?? Promise.resolve(null),
+    ]).then(async ([published, draft, status, loadedResidentSlug]) => {
       if (!active) return
       const baseContent = draft ?? published
       if (!baseContent) throw new Error('找不到團購草稿')
@@ -535,6 +540,7 @@ export function LocalLiveAdminApp({
       setContent(editableContent)
       setOrderSummary(summary)
       setCampaignStatus(status)
+      setResidentSlug(loadedResidentSlug)
       setPublicationState(!published || (draft && !campaignContentEquals(editableContent, published)) ? 'draft' : 'published')
     }).catch((loadError: unknown) => {
       if (active) setError(errorMessage(loadError))
@@ -630,7 +636,7 @@ export function LocalLiveAdminApp({
       initialPublicationState={publicationState}
       orderSummary={orderSummary}
       campaignStatus={campaignStatus}
-      residentHref={null}
+      residentHref={residentSlug ? `/campaign/${residentSlug}` : null}
       onUploadImage={(file) => imageGateway.upload(campaignId, file)}
       onSetCampaignStatus={async (status) => {
         await ordersGateway.setCampaignStatus(campaignId, status)
@@ -647,6 +653,7 @@ export function LocalLiveAdminApp({
         await gateway.saveDraft(campaignId, nextContent)
         const published = await gateway.publish(campaignId)
         setContent(published)
+        setResidentSlug(await gateway.loadResidentSlug?.(campaignId) ?? null)
         setOrderSummary(await ordersGateway.loadSummary(campaignId, published.unitPrice, published.threshold))
         return published
       }}
