@@ -21,7 +21,7 @@ export type RuntimeConfig =
       mode: 'live'
       supabaseUrl: string
       supabaseAnonKey: string
-      liffId: string
+      liffId?: string
     }
 
 export function resolveRuntimeConfig(environment: RuntimeEnvironment): RuntimeConfig {
@@ -31,6 +31,10 @@ export function resolveRuntimeConfig(environment: RuntimeEnvironment): RuntimeCo
   const campaignId = environment.VITE_DEMO_CAMPAIGN_ID?.trim()
   const campaignSlug = environment.VITE_DEMO_CAMPAIGN_SLUG?.trim()
   const liffId = environment.VITE_LIFF_ID?.trim()
+
+  if (supabaseAnonKey?.startsWith('sb_secret_')) {
+    throw new Error('VITE_SUPABASE_ANON_KEY只能使用publishable或anon公開金鑰')
+  }
 
   if (localDemo) {
     if (!supabaseUrl || !supabaseAnonKey || !campaignId || !campaignSlug) {
@@ -44,17 +48,20 @@ export function resolveRuntimeConfig(environment: RuntimeEnvironment): RuntimeCo
       campaignSlug,
     }
   }
-  const supplied = [supabaseUrl, supabaseAnonKey, liffId].filter(Boolean).length
+  const suppliedSupabase = [supabaseUrl, supabaseAnonKey].filter(Boolean).length
 
-  if (supplied === 0) return { mode: 'demo' }
-  if (supplied !== 3) throw new Error('LIFF 與 Supabase 設定必須一起提供')
-
+  if (suppliedSupabase === 0 && !liffId) return { mode: 'demo' }
+  if (suppliedSupabase !== 2) throw new Error('Supabase URL 與公開金鑰必須一起提供')
   return {
     mode: 'live',
     supabaseUrl: supabaseUrl!,
     supabaseAnonKey: supabaseAnonKey!,
-    liffId: liffId!,
+    ...(liffId ? { liffId } : {}),
   }
+}
+
+export function usesSupabaseBackend(config: RuntimeConfig): boolean {
+  return config.mode === 'local-live-demo' || config.mode === 'live'
 }
 
 export const runtimeConfig = resolveRuntimeConfig({

@@ -27,7 +27,7 @@
 - 團主工作流：結單、重新開放、標記到貨、逐戶已付款／未付款與領取狀態；不記錄付款方式
 - 商品圖片以 `{src, alt}` JSON 保存，資料庫驗證替代文字及最多 10 張限制
 - 團主可上傳 JPG、PNG、WebP 到 Supabase Storage；單檔最多 5 MB，住戶只能公開讀取
-- 103 個前端／領域自動測試
+- 110 個前端／領域自動測試
 - 可重建的本機 Supabase migration、seed 與產生型別
 
 ## 本機執行
@@ -83,10 +83,13 @@ npm run build
 ```bash
 VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 VITE_SUPABASE_ANON_KEY=YOUR_PUBLISHABLE_OR_ANON_KEY
+# 公開 HTTPS 部署測試可先留空；接 LINE LIFF 時再設定
 VITE_LIFF_ID=YOUR_LIFF_ID
 ```
 
-三個值必須同時存在，否則應用程式會明確報錯，不會半套進入 live 模式。
+Supabase URL 與 publishable/anon key 必須同時存在，否則應用程式會明確報錯，不會半套進入 live 模式。LIFF ID 可在公開 HTTPS 測試通過後再加入。正式 live 模式的 `/admin`、`/admin/campaign/<uuid>` 與 `/campaign/<slug>` 全部使用 Supabase；根網址不會顯示本機示範團。
+
+Vercel 部署設定已放在 `vercel.json`，所有深層網址都 rewrite 到 `index.html`，因此直接開啟或重新整理團主管理／住戶分享連結不會由主機回傳 404。
 
 ## Supabase
 
@@ -147,10 +150,13 @@ python scripts/verify_storage.py
 
 ## 下一個外部依賴
 
-要切換到真實 live 模式，需要：
+公開 HTTPS 測試階段需要：
 
 - Supabase Project URL
 - Supabase publishable/anon key
+
+接 LINE LIFF 時另外需要：
+
 - LINE LIFF ID
 - LINE Login Channel ID（僅放 Edge Function secret）
 - 約 30 戶白名單
