@@ -69,6 +69,8 @@ function AdminApp({
   const [title, setTitle] = useState(initialDraft.title)
   const [unitPrice, setUnitPrice] = useState(initialDraft.unitPrice)
   const [threshold, setThreshold] = useState(initialDraft.threshold)
+  const [unitPriceInput, setUnitPriceInput] = useState(String(initialDraft.unitPrice))
+  const [thresholdInput, setThresholdInput] = useState(String(initialDraft.threshold))
   const [announcement, setAnnouncement] = useState(initialDraft.announcement)
   const [images, setImages] = useState(() => [...initialDraft.images])
   const [campaignItems, setCampaignItems] = useState(() => initialDraft.items.map((item) => ({ ...item })))
@@ -95,6 +97,9 @@ function AdminApp({
       ?? (campaignContentEquals(initialDraft, initialPublished) ? 'published' : 'draft'),
   )
   const editorBusy = busyAction !== null || uploadingImage
+  const unitPriceInputValid = /^\d+(?:\.\d{0,2})?$/.test(unitPriceInput) && Number(unitPriceInput) >= 0
+  const thresholdInputValid = /^\d+$/.test(thresholdInput) && Number(thresholdInput) >= 1
+  const numericInputsValid = unitPriceInputValid && thresholdInputValid
   const resolvedOrderSummary = orderSummary === undefined ? demoOrderSummary : orderSummary
 
   const currentContent = (): CampaignContent => ({
@@ -171,6 +176,8 @@ function AdminApp({
         setTitle(canonical.title)
         setUnitPrice(canonical.unitPrice)
         setThreshold(canonical.threshold)
+        setUnitPriceInput(String(canonical.unitPrice))
+        setThresholdInput(String(canonical.threshold))
         setAnnouncement(canonical.announcement)
         setImages([...canonical.images])
         setCampaignItems(canonical.items.map((item) => ({ ...item })))
@@ -282,11 +289,45 @@ function AdminApp({
             </label>
             <label className="field">
               <span>單價</span>
-              <input disabled={editorBusy || itemsLocked} type="number" min="0" value={unitPrice} onChange={(event) => { setUnitPrice(Number(event.target.value)); markDraft() }} />
+              <input
+                disabled={editorBusy || itemsLocked}
+                type="number"
+                min="0"
+                inputMode="numeric"
+                value={unitPriceInput}
+                onChange={(event) => {
+                  const value = event.target.value
+                  setUnitPriceInput(value)
+                  if (/^\d+(?:\.\d{0,2})?$/.test(value)) {
+                    setUnitPrice(Number(value))
+                    markDraft()
+                  }
+                }}
+                onBlur={() => {
+                  if (!unitPriceInputValid) setUnitPriceInput(String(unitPrice))
+                }}
+              />
             </label>
             <label className="field">
               <span>成團門檻</span>
-              <input disabled={editorBusy} type="number" min="1" value={threshold} onChange={(event) => { setThreshold(Number(event.target.value)); markDraft() }} />
+              <input
+                disabled={editorBusy}
+                type="number"
+                min="1"
+                inputMode="numeric"
+                value={thresholdInput}
+                onChange={(event) => {
+                  const value = event.target.value
+                  setThresholdInput(value)
+                  if (value !== '' && /^\d+$/.test(value) && Number(value) >= 1) {
+                    setThreshold(Number(value))
+                    markDraft()
+                  }
+                }}
+                onBlur={() => {
+                  if (!thresholdInputValid) setThresholdInput(String(threshold))
+                }}
+              />
             </label>
             <div className="field full-field">
               <label htmlFor="campaign-announcement">開團資訊</label>
@@ -392,7 +433,7 @@ function AdminApp({
           </div>
           <div className="editor-actions">
             <p role="status">{notice}</p>
-            <button type="button" onClick={publish} disabled={editorBusy || autoSaving}>
+            <button type="button" onClick={publish} disabled={editorBusy || autoSaving || !numericInputsValid}>
               {busyAction === 'publish' ? '發布中…' : itemsLocked ? '更新住戶公告' : '發布並開團'}
             </button>
           </div>

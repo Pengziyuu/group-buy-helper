@@ -31,6 +31,26 @@ describe('organizer campaign editor', () => {
     expect(await screen.findByText('已自動暫存')).toBeInTheDocument()
   })
 
+  it('lets mobile users clear and replace numeric fields without a leading zero', async () => {
+    const user = userEvent.setup()
+    render(<AdminApp initialContent={{
+      title: '新團', unitPrice: 0, threshold: 1, announcement: '', images: [],
+      items: [{ code: 'ITEM1', name: 'A號', active: true }], openedAt: null,
+    }} initialPublicationState="draft" />)
+    const price = screen.getByRole<HTMLInputElement>('spinbutton', { name: '單價' })
+    const threshold = screen.getByRole<HTMLInputElement>('spinbutton', { name: '成團門檻' })
+
+    await user.clear(price)
+    expect(price.value).toBe('')
+    await user.type(price, '700')
+    expect(price.value).toBe('700')
+
+    await user.clear(threshold)
+    expect(threshold.value).toBe('')
+    await user.type(threshold, '70')
+    expect(threshold.value).toBe('70')
+  })
+
   it('adds and removes campaign images with accessible descriptions', async () => {
     const user = userEvent.setup()
     render(<AdminApp />)
