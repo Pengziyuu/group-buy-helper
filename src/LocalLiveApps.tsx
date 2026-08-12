@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import type { Session, SupabaseClient } from '@supabase/supabase-js'
 import AdminApp from './AdminApp'
+import CampaignListApp from './CampaignListApp'
 import type { FulfillmentUpdate } from './AdminOrdersPanel'
 import App from './App'
 import './LocalLiveApps.css'
@@ -20,6 +21,10 @@ import type { VisibleOrder } from './data/demo'
 import { createAdminOrdersGateway } from './services/adminOrdersGateway'
 import { createCampaignImageGateway } from './services/campaignImageGateway'
 import {
+  createCampaignManagementGateway,
+  type CampaignListItem,
+} from './services/campaignManagementGateway'
+import {
   LOGOUT_TOMBSTONE_KEY,
   SUPABASE_AUTH_CODE_VERIFIER_KEY,
   SUPABASE_AUTH_FLOWS_CODE_VERIFIER_KEY,
@@ -29,6 +34,7 @@ import {
 
 export type LiveAdminRepository = {
   loadPublished(campaignId: string): Promise<CampaignContent>
+  loadOptionalPublished?(campaignId: string): Promise<CampaignContent | null>
   loadOptionalDraft(campaignId: string): Promise<CampaignContent | null>
   saveDraft(campaignId: string, content: CampaignContent): Promise<CampaignContent>
   publish(campaignId: string): Promise<CampaignContent>
@@ -41,12 +47,19 @@ export type LiveAdminOrdersRepository = {
   setOrderFulfillment(orderId: string, update: FulfillmentUpdate): Promise<void>
 }
 
-type LocalLiveAppProps = {
-  client: SupabaseClient<Database>
-  campaignId: string
+export type LiveCampaignManagementRepository = {
+  list(): Promise<CampaignListItem[]>
+  create(title: string): Promise<CampaignListItem>
 }
 
-type LocalLiveResidentAppProps = LocalLiveAppProps & {
+type LocalLiveAppProps = {
+  client: SupabaseClient<Database>
+  campaignId?: string
+}
+
+type LocalLiveResidentAppProps = {
+  client: SupabaseClient<Database>
+  campaignId?: string
   campaignSlug: string
 }
 
@@ -262,11 +275,13 @@ export function LocalLiveAdminApp({
   campaignId,
   repository,
   ordersRepository,
+  managementRepository,
   authStorage = null,
   logoutFallbackStorage = null,
 }: LocalLiveAppProps & {
   repository?: LiveAdminRepository
   ordersRepository?: LiveAdminOrdersRepository
+  managementRepository?: LiveCampaignManagementRepository
   authStorage?: AuthSessionStorage | null
   logoutFallbackStorage?: AuthSessionStorage | null
 }) {
@@ -279,6 +294,11 @@ export function LocalLiveAdminApp({
     [client, ordersRepository],
   )
   const imageGateway = useMemo(() => createCampaignImageGateway(client), [client])
+  const campaignManagementGateway = useMemo(
+    () => managementRepository ?? createCampaignManagementGateway(client),
+    [client, managementRepository],
+  )
+  const activeCampaignManagementGateway = campaignId ? null : campaignManagementGateway
   const authValidationGeneration = useRef(0)
   const signInGeneration = useRef(0)
   const signOutGeneration = useRef(0)
@@ -290,6 +310,7 @@ export function LocalLiveAdminApp({
   const [content, setContent] = useState<CampaignContent | null>(null)
   const [orderSummary, setOrderSummary] = useState<OrganizerOrderSummary | null>(null)
   const [campaignStatus, setCampaignStatus] = useState<CampaignStatus | null>(null)
+  const [campaigns, setCampaigns] = useState<CampaignListItem[] | null>(null)
   const [publicationState, setPublicationState] = useState<'draft' | 'published'>('published')
   const [error, setError] = useState('')
   const [email, setEmail] = useState('')
@@ -477,29 +498,51 @@ export function LocalLiveAdminApp({
       setContent(null)
       setOrderSummary(null)
       setCampaignStatus(null)
+      setCampaigns(null)
       return
     }
     let active = true
     setError('')
-    void gateway.loadPublished(campaignId).then(async (published) => {
-      const [draft, summary, status] = await Promise.all([
-        gateway.loadOptionalDraft(campaignId),
-        ordersGateway.loadSummary(campaignId, published.unitPrice, published.threshold),
-        ordersGateway.loadCampaignStatus(campaignId),
-      ])
+    if (!campaignId) {
+      setContent(null)
+      setOrderSummary(null)
+      setCampaignStatus(null)
+      if (!activeCampaignManagementGateway) return
+      void activeCampaignManagementGateway.list().then((items) => {
+        if (active) setCampaigns(items)
+      }).catch((loadError: unknown) => {
+        if (active) setError(errorMessage(loadError))
+      })
+      return () => { active = false }
+    }
+    setCampaigns(null)
+    const publishedPromise = gateway.loadOptionalPublished
+      ? gateway.loadOptionalPublished(campaignId)
+      : gateway.loadPublished(campaignId)
+    void Promise.all([
+      publishedPromise,
+      gateway.loadOptionalDraft(campaignId),
+      ordersGateway.loadCampaignStatus(campaignId),
+    ]).then(async ([published, draft, status]) => {
       if (!active) return
-      const editableContent = draft ? { ...draft, openedAt: published.openedAt } : published
+      const baseContent = draft ?? published
+      if (!baseContent) throw new Error('找不到團購草稿')
+      const editableContent = draft ? { ...draft, openedAt: published?.openedAt ?? null } : baseContent
+      const summary = published
+        ? await ordersGateway.loadSummary(campaignId, editableContent.unitPrice, editableContent.threshold)
+        : null
+      if (!active) return
       setContent(editableContent)
       setOrderSummary(summary)
       setCampaignStatus(status)
-      setPublicationState(draft && !campaignContentEquals(editableContent, published) ? 'draft' : 'published')
+      setPublicationState(!published || (draft && !campaignContentEquals(editableContent, published)) ? 'draft' : 'published')
     }).catch((loadError: unknown) => {
       if (active) setError(errorMessage(loadError))
     })
     return () => {
       active = false
     }
-  }, [campaignId, gateway, ordersGateway, organizerUserId])
+  }, [activeCampaignManagementGateway, campaignId, gateway, ordersGateway, organizerUserId])
 
   const signIn = async (event: FormEvent) => {
     event.preventDefault()
@@ -561,7 +604,25 @@ export function LocalLiveAdminApp({
     )
   }
   if (error) return <LiveError message={error} />
-  if (!content || !orderSummary || !campaignStatus) return <LiveLoading label="載入團購草稿與訂單…" />
+  if (!campaignId) {
+    if (!campaigns) return <LiveLoading label="載入團購列表…" />
+    return (
+      <CampaignListApp
+        campaigns={campaigns}
+        onCreate={(title) => campaignManagementGateway.create(title)}
+        onSignOut={async () => {
+          authValidationGeneration.current += 1
+          signInGeneration.current += 1
+          authEventsBlocked.current = true
+          validatedOrganizerId.current = null
+          setError('')
+          setSession(null)
+          await signOutRemotely()
+        }}
+      />
+    )
+  }
+  if (!content || !campaignStatus) return <LiveLoading label="載入團購草稿與訂單…" />
 
   return (
     <AdminApp
@@ -569,6 +630,7 @@ export function LocalLiveAdminApp({
       initialPublicationState={publicationState}
       orderSummary={orderSummary}
       campaignStatus={campaignStatus}
+      residentHref={null}
       onUploadImage={(file) => imageGateway.upload(campaignId, file)}
       onSetCampaignStatus={async (status) => {
         await ordersGateway.setCampaignStatus(campaignId, status)
@@ -584,7 +646,8 @@ export function LocalLiveAdminApp({
       onPublish={async (nextContent) => {
         await gateway.saveDraft(campaignId, nextContent)
         const published = await gateway.publish(campaignId)
-        setOrderSummary(await ordersGateway.loadSummary(campaignId, nextContent.unitPrice, nextContent.threshold))
+        setContent(published)
+        setOrderSummary(await ordersGateway.loadSummary(campaignId, published.unitPrice, published.threshold))
         return published
       }}
       onSignOut={async () => {
@@ -616,18 +679,21 @@ export function LocalLiveResidentApp({ client, campaignId, campaignSlug }: Local
   const [campaignStatus, setCampaignStatus] = useState<CampaignStatus | null>(null)
   const [orders, setOrders] = useState<VisibleOrder[]>([])
   const [residentCustomer, setResidentCustomer] = useState<ResidentCustomer | null | undefined>(undefined)
+  const [joinedCampaignId, setJoinedCampaignId] = useState<string | null>(campaignId ?? null)
   const [error, setError] = useState('')
   const sessionPromise = useRef<Promise<Session> | null>(null)
 
   useEffect(() => {
     let active = true
     let channel: ReturnType<typeof client.channel> | null = null
+    let resolvedCampaignId = campaignId
 
     const loadPublished = async () => {
+      if (!resolvedCampaignId) throw new Error('找不到團購活動')
       const { data, error: queryError } = await client
         .from('campaign_public')
         .select('title,unit_price,threshold,announcement,images,items,opened_at,status')
-        .eq('id', campaignId)
+        .eq('id', resolvedCampaignId)
         .single()
       if (queryError) throw queryError
       if (active) {
@@ -637,10 +703,11 @@ export function LocalLiveResidentApp({ client, campaignId, campaignSlug }: Local
     }
 
     const loadResidentData = async () => {
+      if (!resolvedCampaignId) throw new Error('找不到團購活動')
       const [wallResult, customerResult] = await Promise.all([
         client.from('order_wall')
           .select('order_id,customer_id,customer_name,period,unit,item_code,qty,ordered_at,order_updated_at')
-          .eq('campaign_id', campaignId),
+          .eq('campaign_id', resolvedCampaignId),
         client.rpc('get_customer_self'),
       ])
       if (wallResult.error) throw wallResult.error
@@ -657,27 +724,36 @@ export function LocalLiveResidentApp({ client, campaignId, campaignSlug }: Local
     const initialize = async () => {
       sessionPromise.current ??= ensureResidentSession(client)
       await sessionPromise.current
-      const { error: joinError } = await client.rpc('join_campaign_by_slug', {
+      const { data: joinedRows, error: joinError } = await client.rpc('join_campaign_by_slug', {
         p_slug: campaignSlug,
       })
       if (joinError) throw joinError
+      const resolvedId = Array.isArray(joinedRows) && joinedRows[0]
+        && typeof joinedRows[0] === 'object' && 'id' in joinedRows[0]
+        && typeof joinedRows[0].id === 'string'
+        ? joinedRows[0].id
+        : null
+      if (!resolvedId) throw new Error('找不到已發布的團購活動')
+      if (campaignId && campaignId !== resolvedId) throw new Error('團購連結與活動不一致')
+      resolvedCampaignId = resolvedId
+      if (active) setJoinedCampaignId(resolvedId)
       await Promise.all([loadPublished(), loadResidentData()])
       if (!active) return
       channel = client
-        .channel(`campaign-live-${campaignId}`)
+        .channel(`campaign-live-${resolvedCampaignId}`)
         .on(
           'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'campaign', filter: `id=eq.${campaignId}` },
+          { event: 'UPDATE', schema: 'public', table: 'campaign', filter: `id=eq.${resolvedCampaignId}` },
           () => { void loadPublished().catch((realtimeError: unknown) => setError(errorMessage(realtimeError))) },
         )
         .on(
           'postgres_changes',
-          { event: '*', schema: 'public', table: 'orders', filter: `campaign_id=eq.${campaignId}` },
+          { event: '*', schema: 'public', table: 'orders', filter: `campaign_id=eq.${resolvedCampaignId}` },
           () => { void loadResidentData().catch((realtimeError: unknown) => setError(errorMessage(realtimeError))) },
         )
         .on(
           'postgres_changes',
-          { event: '*', schema: 'public', table: 'order_item', filter: `campaign_id=eq.${campaignId}` },
+          { event: '*', schema: 'public', table: 'order_item', filter: `campaign_id=eq.${resolvedCampaignId}` },
           () => { void loadResidentData().catch((realtimeError: unknown) => setError(errorMessage(realtimeError))) },
         )
         .subscribe()
@@ -694,7 +770,7 @@ export function LocalLiveResidentApp({ client, campaignId, campaignSlug }: Local
   }, [campaignId, campaignSlug, client])
 
   if (error) return <LiveError message={error} />
-  if (!content || !campaignStatus || residentCustomer === undefined) return <LiveLoading label="連線住戶端即時資料…" />
+  if (!joinedCampaignId || !content || !campaignStatus || residentCustomer === undefined) return <LiveLoading label="連線住戶端即時資料…" />
   return (
     <App
       publishedContent={content}
@@ -704,13 +780,13 @@ export function LocalLiveResidentApp({ client, campaignId, campaignSlug }: Local
       residentCustomer={residentCustomer}
       onSubmitOrder={async (items) => {
         const { error: submitError } = await client.rpc('submit_customer_order', {
-          p_campaign_id: campaignId,
+          p_campaign_id: joinedCampaignId,
           p_items: items,
         })
         if (submitError) throw submitError
         const { data, error: wallError } = await client.from('order_wall')
           .select('order_id,customer_id,customer_name,period,unit,item_code,qty,ordered_at,order_updated_at')
-          .eq('campaign_id', campaignId)
+          .eq('campaign_id', joinedCampaignId)
         if (wallError) throw wallError
         setOrders(visibleOrdersFromRows(data ?? []))
       }}

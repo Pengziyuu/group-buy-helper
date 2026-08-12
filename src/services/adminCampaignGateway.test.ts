@@ -85,4 +85,16 @@ describe('Supabase admin campaign gateway', () => {
     expect(from).toHaveBeenCalledWith('campaign_public')
     await expect(gateway.loadOptionalDraft('campaign-1')).resolves.toBeNull()
   })
+
+  it('treats a campaign without opened_at as not yet published', async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null })
+    const not = vi.fn().mockReturnValue({ maybeSingle })
+    const eq = vi.fn().mockReturnValue({ not })
+    const select = vi.fn().mockReturnValue({ eq })
+    const client = { from: vi.fn().mockReturnValue({ select }) }
+
+    const gateway = createAdminCampaignGateway(client as never)
+    await expect(gateway.loadOptionalPublished('campaign-new')).resolves.toBeNull()
+    expect(not).toHaveBeenCalledWith('opened_at', 'is', null)
+  })
 })

@@ -118,6 +118,13 @@ export type Database = {
             foreignKeyName: "campaign_access_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "admin_campaign_list"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_access_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
             referencedRelation: "campaign"
             referencedColumns: ["id"]
           },
@@ -172,6 +179,13 @@ export type Database = {
             foreignKeyName: "campaign_draft_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: true
+            referencedRelation: "admin_campaign_list"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_draft_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: true
             referencedRelation: "campaign"
             referencedColumns: ["id"]
           },
@@ -216,6 +230,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "campaign_item_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "admin_campaign_list"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "campaign_item_campaign_id_fkey"
             columns: ["campaign_id"]
@@ -366,6 +387,13 @@ export type Database = {
             foreignKeyName: "orders_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "admin_campaign_list"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
             referencedRelation: "campaign"
             referencedColumns: ["id"]
           },
@@ -475,6 +503,18 @@ export type Database = {
       }
     }
     Views: {
+      admin_campaign_list: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          opened_at: string | null
+          slug: string | null
+          status: string | null
+          title: string | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
       campaign_public: {
         Row: {
           announcement: string | null
@@ -548,6 +588,13 @@ export type Database = {
             foreignKeyName: "orders_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "admin_campaign_list"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
             referencedRelation: "campaign"
             referencedColumns: ["id"]
           },
@@ -581,6 +628,13 @@ export type Database = {
             foreignKeyName: "orders_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "admin_campaign_list"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
             referencedRelation: "campaign"
             referencedColumns: ["id"]
           },
@@ -600,6 +654,30 @@ export type Database = {
         Returns: boolean
       }
       can_edit_order: { Args: { p_order_id: string }; Returns: boolean }
+      create_campaign_draft: {
+        Args: { p_title?: string }
+        Returns: {
+          announcement: string
+          created_at: string
+          deadline: string
+          id: string
+          images: Json
+          items: Json
+          opened_at: string | null
+          slug: string
+          status: string
+          threshold: number
+          title: string
+          unit_price: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "campaign"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       customer_is_wall_visible: {
         Args: { p_customer_id: string }
         Returns: boolean

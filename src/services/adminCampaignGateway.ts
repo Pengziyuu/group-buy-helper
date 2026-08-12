@@ -60,6 +60,17 @@ export function createAdminCampaignGateway(client: AdminCampaignSupabaseClient) 
       return toContent(data)
     },
 
+    async loadOptionalPublished(campaignId: string): Promise<CampaignContent | null> {
+      const { data, error } = await client
+        .from('campaign_public')
+        .select(publishedColumns)
+        .eq('id', campaignId)
+        .not('opened_at', 'is', null)
+        .maybeSingle()
+      if (error) throw new Error(`讀取已發布團購失敗：${errorMessage(error)}`)
+      return data ? toContent(data) : null
+    },
+
     async loadOptionalDraft(campaignId: string): Promise<CampaignContent | null> {
       const { data, error } = await client
         .from('campaign_draft')

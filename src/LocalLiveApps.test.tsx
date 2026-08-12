@@ -6,6 +6,7 @@ import {
   LocalLiveResidentApp,
   type LiveAdminOrdersRepository,
   type LiveAdminRepository,
+  type LiveCampaignManagementRepository,
 } from './LocalLiveApps'
 import { initialOrders, items } from './data/demo'
 import { buildOrganizerOrderSummary } from './domain/adminOrders'
@@ -76,6 +77,62 @@ function authClient(session: unknown = null, getUserError: unknown = null) {
 }
 
 describe('local Supabase visual demo apps', () => {
+  it('shows the campaign list after organizer authentication when no campaign is selected', async () => {
+    const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
+    const { client } = authClient(session)
+    const managementRepository: LiveCampaignManagementRepository = {
+      list: vi.fn().mockResolvedValue([{
+        id: 'campaign-1', slug: 'share-slug', title: '歷史冰餅團', status: 'closed',
+        openedAt: '2026-08-12T00:00:00Z', createdAt: '2026-08-12T00:00:00Z', updatedAt: '2026-08-12T01:00:00Z',
+      }]),
+      create: vi.fn(),
+    }
+
+    render(
+      <LocalLiveAdminApp
+        client={client}
+        managementRepository={managementRepository}
+        authStorage={null}
+      />,
+    )
+
+    expect(await screen.findByRole('heading', { name: '我的團購' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '歷史冰餅團' })).toBeInTheDocument()
+    expect(managementRepository.list).toHaveBeenCalledTimes(1)
+  })
+
+  it('opens a newly created draft before it has a published snapshot', async () => {
+    const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
+    const { client } = authClient(session)
+    const newDraft: CampaignContent = {
+      title: '週末麵包團', unitPrice: 0, threshold: 1, announcement: '', images: [],
+      items: [{ code: 'ITEM1', name: 'A號', active: true }], openedAt: null,
+    }
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn().mockRejectedValue(new Error('尚未發布')),
+      loadOptionalPublished: vi.fn().mockResolvedValue(null),
+      loadOptionalDraft: vi.fn().mockResolvedValue(newDraft),
+      saveDraft: vi.fn().mockResolvedValue(newDraft),
+      publish: vi.fn().mockResolvedValue({ ...newDraft, openedAt: '2026-08-12T00:00:00Z' }),
+    }
+
+    render(
+      <LocalLiveAdminApp
+        client={client}
+        campaignId="new-campaign"
+        repository={repository}
+        ordersRepository={ordersRepository()}
+      />,
+    )
+
+    expect(await screen.findByRole('textbox', { name: '團購標題' })).toHaveValue('週末麵包團')
+    expect(screen.getAllByText('A號')).not.toHaveLength(0)
+    expect(screen.getByRole('button', { name: '發布並開團' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '結單' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '查看住戶端 ↗' })).not.toBeInTheDocument()
+    expect(repository.loadOptionalPublished).toHaveBeenCalledWith('new-campaign')
+  })
+
   it('requires organizer login before loading the remote editor', async () => {
     const user = userEvent.setup()
     const { client, signInWithPassword } = authClient()
@@ -1064,7 +1121,7 @@ describe('local Supabase visual demo apps', () => {
     Object.assign(client, {
       rpc: vi.fn((name: string) => Promise.resolve(name === 'get_customer_self'
         ? { data: [{ id: 'customer-live-1', name: '資料庫住戶', period: 2, unit: '9Z9' }], error: null }
-        : { data: {}, error: null })),
+        : { data: [{ id: 'campaign-1' }], error: null })),
       from,
       channel: vi.fn().mockReturnValue({ on, subscribe }),
       removeChannel: vi.fn().mockResolvedValue(undefined),
@@ -1085,5 +1142,38 @@ describe('local Supabase visual demo apps', () => {
     expect(screen.getByText('下單時間 2026/08/14 09:00')).toBeInTheDocument()
     expect(screen.getByText('已修改・最後修改 2026/08/14 09:05')).toBeInTheDocument()
     expect(screen.queryByText('斯祈')).not.toBeInTheDocument()
+  })
+
+  it('resolves a resident share slug to its campaign id before loading data', async () => {
+    const { client } = authClient()
+    const rpc = vi.fn()
+      .mockResolvedValueOnce({ data: [{ id: 'resolved-campaign' }], error: null })
+      .mockResolvedValueOnce({ data: [], error: null })
+    const single = vi.fn().mockResolvedValue({
+      data: {
+        title: '分享團', unit_price: 50, threshold: 10, announcement: '', images: [],
+        items: [{ code: 'ITEM1', name: 'A號', active: true }],
+        opened_at: '2026-08-12T00:00:00Z', status: 'open',
+      },
+      error: null,
+    })
+    const campaignEq = vi.fn().mockReturnValue({ single })
+    const wallEq = vi.fn().mockResolvedValue({ data: [], error: null })
+    const from = vi.fn((table: string) => table === 'campaign_public'
+      ? { select: vi.fn().mockReturnValue({ eq: campaignEq }) }
+      : { select: vi.fn().mockReturnValue({ eq: wallEq }) })
+    const on = vi.fn().mockReturnThis()
+    const subscribe = vi.fn().mockReturnThis()
+    Object.assign(client, {
+      rpc,
+      from,
+      channel: vi.fn().mockReturnValue({ on, subscribe }),
+      removeChannel: vi.fn(),
+    })
+
+    render(<LocalLiveResidentApp client={client} campaignSlug="share-slug" />)
+
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith('join_campaign_by_slug', { p_slug: 'share-slug' }))
+    await waitFor(() => expect(campaignEq).toHaveBeenCalledWith('id', 'resolved-campaign'))
   })
 })

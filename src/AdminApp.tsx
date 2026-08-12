@@ -44,6 +44,7 @@ type AdminAppProps = {
   onSetCampaignStatus?: (status: CampaignStatus) => Promise<void>
   onSetOrderFulfillment?: (orderId: string, update: FulfillmentUpdate) => Promise<void>
   onUploadImage?: (file: File) => Promise<string>
+  residentHref?: string | null
 }
 
 function messageFromError(error: unknown): string {
@@ -61,6 +62,7 @@ function AdminApp({
   onSetCampaignStatus,
   onSetOrderFulfillment,
   onUploadImage,
+  residentHref = '/',
 }: AdminAppProps = {}) {
   const [initialDraft] = useState(() => initialContent ?? loadDraftCampaign(defaultContent))
   const [initialPublished] = useState(() => initialContent ?? loadPublishedCampaign(defaultContent))
@@ -257,7 +259,8 @@ function AdminApp({
           <p>編輯開團內容，右側即時確認住戶看到的畫面。</p>
         </div>
         <div className="admin-header-actions">
-          <a href="/" className="resident-link">查看住戶端 ↗</a>
+          <a href="/admin" className="resident-link">團購列表</a>
+          {residentHref && <a href={residentHref} className="resident-link">查看住戶端 ↗</a>}
           {onSignOut && <button type="button" onClick={signOut} disabled={editorBusy}>登出</button>}
         </div>
       </header>

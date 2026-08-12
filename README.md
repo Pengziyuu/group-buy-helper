@@ -12,6 +12,8 @@
 - 戶號解析規則：整串英數字為戶號、明寫期別才覆蓋、預設二期
 - 團主公告長文、Emoji 與多張商品圖片展示
 - `/admin` 團主開團編輯器與住戶端即時預覽
+- `/admin` 團購列表可保留舊團、建立新團，並依草稿／收單中／已結單／已到貨顯示狀態
+- 新團預設只有 A 號；發布後取得不暴露資料庫 UUID 的 `/campaign/<slug>` 住戶分享連結
 - 草稿會自動暫存並與已發布版本隔離；只有「發布並開團／更新住戶公告」會更新住戶端
 - 商品名稱與口味對照集中寫在開團資訊；下單選項只顯示 A 號、B 號等字母
 - 第一次開團前可增加或減少最後字母；正式開團後單價與品項字母鎖定
@@ -25,7 +27,7 @@
 - 團主工作流：結單、重新開放、標記到貨、逐戶已付款／未付款與領取狀態；不記錄付款方式
 - 商品圖片以 `{src, alt}` JSON 保存，資料庫驗證替代文字及最多 10 張限制
 - 團主可上傳 JPG、PNG、WebP 到 Supabase Storage；單檔最多 5 MB，住戶只能公開讀取
-- 93 個前端／領域自動測試
+- 103 個前端／領域自動測試
 - 可重建的本機 Supabase migration、seed 與產生型別
 
 ## 本機執行
@@ -56,6 +58,7 @@ python scripts/start_local_live_demo.py
 
 - 住戶端：`http://localhost:5174/`
 - 團主後台：`http://localhost:5174/admin`
+- 住戶分享連結：`http://localhost:5174/campaign/<slug>`
 - 同網路手機網址：啟動器會列出 `http://<區網 IP>:5174/`
 - Email：`admin@group-buy.local`
 - 密碼：`LocalDemo-Only-2026!`
@@ -64,7 +67,7 @@ python scripts/start_local_live_demo.py
 
 啟動器會自動偵測主要區網 IP；若電腦有多張網卡而選錯，可先設定 `LOCAL_LIVE_DEMO_HOST=192.168.x.x` 再啟動。
 
-Live Demo 驗收方式：團主登入後可上傳商品圖片，內容修改會自動暫存但住戶端維持已發布內容；按「發布並開團／更新住戶公告」後，已開啟的住戶端會透過 Realtime 自動更新。第一次開團後品項字母與單價鎖定。團主仍可在訂單統計區結單／重新開放／標記到貨，以及更新逐戶已付款／未付款與領取狀態；結單後住戶端會即時鎖定訂單控制。
+Live Demo 驗收方式：團主登入後先進入團購列表，可建立新團或管理舊團。新團預設只有 A 號，內容修改會自動暫存但住戶端尚不可見；按「發布並開團」後，列表會出現住戶分享連結。已發布內容更新後，開啟中的住戶端會透過 Realtime 自動更新。第一次開團後品項字母與單價鎖定。團主仍可上傳圖片、結單／重新開放／標記到貨，以及更新逐戶已付款／未付款與領取狀態；結單後住戶端會即時鎖定訂單控制。
 
 ## 測試與建置
 
@@ -114,12 +117,13 @@ set -a
 eval "$(npx supabase status -o env)"
 set +a
 python scripts/verify_supabase_draft.py
+python scripts/verify_campaign_management.py
 python scripts/verify_dynamic_items.py
 python scripts/verify_order_workflow.py
 python scripts/verify_storage.py
 ```
 
-四支腳本會使用臨時 Auth 使用者：草稿腳本驗證發布隔離、圖片與開團時間；動態品項腳本驗證安全刪除／停用、歷史數量與訂單時間；工作流腳本驗證團主權限、結單與履約狀態；Storage 腳本驗證團主上傳／刪除、住戶禁止寫入及公開讀取。腳本不會輸出或寫入 API key。動態品項腳本會修改本機 seed 資料，執行後請跑一次 `npx supabase db reset` 還原。
+五支腳本共驗證 51 項 Supabase 行為，並使用臨時 Auth 使用者：團購管理腳本驗證團主可原子建立新團、預設 A 號、列表採用最新草稿標題、既有存取權也不能讀取未發布團購，以及未發布 slug 隔離；草稿腳本驗證發布隔離、圖片與開團時間；動態品項腳本驗證安全刪除／停用、歷史數量與訂單時間；工作流腳本驗證團主權限、結單與履約狀態；Storage 腳本驗證團主上傳／刪除、住戶禁止寫入及公開讀取。腳本不會輸出或寫入 API key。動態品項腳本會修改本機 seed 資料，執行後請跑一次 `npx supabase db reset` 還原。
 
 ## LINE / LIFF
 
