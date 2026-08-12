@@ -666,7 +666,13 @@ export function LocalLiveAdminApp({
 async function ensureResidentSession(client: SupabaseClient<Database>): Promise<Session> {
   const { data, error } = await client.auth.getSession()
   if (error) throw error
-  if (data.session) return data.session
+  if (data.session) {
+    const { data: verified, error: verificationError } = await client.auth.getUser(data.session.access_token)
+    if (verificationError || !verified.user || verified.user.id !== data.session.user.id) {
+      throw verificationError ?? new Error('住戶登入狀態無效，請重新開啟頁面')
+    }
+    return { ...data.session, user: verified.user }
+  }
   const { data: anonymousData, error: anonymousError } = await client.auth.signInAnonymously()
   if (anonymousError || !anonymousData.session) {
     throw anonymousError ?? new Error('無法建立住戶匿名登入')

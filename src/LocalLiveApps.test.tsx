@@ -1082,6 +1082,93 @@ describe('local Supabase visual demo apps', () => {
     expect(client.auth.signOut).not.toHaveBeenCalled()
   })
 
+  it('keeps a verified organizer session when the organizer opens the resident page', async () => {
+    const organizerSession = {
+      access_token: 'organizer-token',
+      user: { id: 'admin-resident-user', is_anonymous: false },
+    }
+    const { client } = authClient(organizerSession)
+    const single = vi.fn().mockResolvedValue({
+      data: {
+        title: published.title,
+        unit_price: published.unitPrice,
+        threshold: published.threshold,
+        announcement: published.announcement,
+        images: published.images,
+        items: published.items,
+        opened_at: published.openedAt,
+        status: 'open',
+      },
+      error: null,
+    })
+    const campaignEq = vi.fn().mockReturnValue({ single })
+    const wallEq = vi.fn().mockResolvedValue({ data: [], error: null })
+    const on = vi.fn().mockReturnThis()
+    const subscribe = vi.fn().mockReturnThis()
+    Object.assign(client, {
+      rpc: vi.fn((name: string) => Promise.resolve(name === 'get_customer_self'
+        ? { data: [{ id: 'admin-customer', name: '團主住戶', period: 2, unit: 'A01' }], error: null }
+        : { data: [{ id: 'campaign-1' }], error: null })),
+      from: vi.fn((table: string) => table === 'campaign_public'
+        ? { select: vi.fn().mockReturnValue({ eq: campaignEq }) }
+        : { select: vi.fn().mockReturnValue({ eq: wallEq }) }),
+      channel: vi.fn().mockReturnValue({ on, subscribe }),
+      removeChannel: vi.fn().mockResolvedValue(undefined),
+    })
+
+    render(
+      <LocalLiveResidentApp
+        client={client}
+        campaignId="campaign-1"
+        campaignSlug="campaign-slug"
+      />,
+    )
+
+    expect(await screen.findByRole('heading', { name: published.title })).toBeInTheDocument()
+    expect(client.auth.getUser).toHaveBeenCalledWith('organizer-token')
+    expect(client.auth.signInAnonymously).not.toHaveBeenCalled()
+  })
+
+  it('rejects a restored resident session when Supabase returns another user', async () => {
+    const session = {
+      access_token: 'mismatched-token',
+      user: { id: 'stored-user', is_anonymous: false },
+    }
+    const { client } = authClient(session)
+    client.auth.getUser = vi.fn().mockResolvedValue({
+      data: { user: { id: 'authoritative-user', is_anonymous: false } },
+      error: null,
+    })
+    const rpc = vi.fn()
+    Object.assign(client, { rpc })
+
+    render(<LocalLiveResidentApp client={client} campaignSlug="campaign-slug" />)
+
+    expect(await screen.findByText('住戶登入狀態無效，請重新開啟頁面')).toBeInTheDocument()
+    expect(rpc).not.toHaveBeenCalled()
+    expect(client.auth.signInAnonymously).not.toHaveBeenCalled()
+  })
+
+  it('fails closed when Supabase rejects a restored resident token', async () => {
+    const session = {
+      access_token: 'expired-token',
+      user: { id: 'stored-user', is_anonymous: false },
+    }
+    const { client } = authClient(session)
+    client.auth.getUser = vi.fn().mockResolvedValue({
+      data: { user: null },
+      error: new Error('JWT expired'),
+    })
+    const rpc = vi.fn()
+    Object.assign(client, { rpc })
+
+    render(<LocalLiveResidentApp client={client} campaignSlug="campaign-slug" />)
+
+    expect(await screen.findByText('JWT expired')).toBeInTheDocument()
+    expect(rpc).not.toHaveBeenCalled()
+    expect(client.auth.signInAnonymously).not.toHaveBeenCalled()
+  })
+
   it('loads published campaign content for an anonymous resident session', async () => {
     const { client } = authClient()
     const single = vi.fn().mockResolvedValue({
