@@ -122,16 +122,13 @@ def main() -> None:
     draft = {
         "campaign_id": CAMPAIGN_ID,
         "title": title,
-        "unit_price": 50,
+        "unit_price": before[0]["unit_price"],
         "threshold": 80,
         "announcement": "只有團主可見的草稿內容",
         "images": [
             {"src": "campaigns/test/front.jpg", "alt": "冰餅包裝正面"}
         ],
-        "items": [
-            *before[0]["items"],
-            {"code": "J", "name": "期間限定", "active": True},
-        ],
+        "items": before[0]["items"],
     }
     status, saved = call(
         "POST",
@@ -195,9 +192,38 @@ def main() -> None:
         status == 200
         and after[0]["title"] == title
         and after[0]["images"][0]["alt"] == "冰餅包裝正面"
-        and after[0]["items"][-1]["code"] == "J"
+        and after[0]["items"] == before[0]["items"]
         and after[0]["opened_at"] == before[0]["opened_at"]
     ), (status, after)
+
+    locked_price = {**draft, "unit_price": before[0]["unit_price"] + 1}
+    status, _ = call(
+        "POST", "/rest/v1/campaign_draft?on_conflict=campaign_id", ANON_KEY,
+        token=admin_token, body=locked_price,
+        prefer="resolution=merge-duplicates,return=minimal",
+    )
+    assert status in (200, 201), status
+    status, payload = call(
+        "POST", "/rest/v1/rpc/publish_campaign_draft", ANON_KEY,
+        token=admin_token, body={"p_campaign_id": CAMPAIGN_ID},
+    )
+    assert status in (400, 409, 422), (status, payload)
+
+    locked_items = {
+        **draft,
+        "items": [*before[0]["items"], {"code": "J", "name": "10號", "active": True}],
+    }
+    status, _ = call(
+        "POST", "/rest/v1/campaign_draft?on_conflict=campaign_id", ANON_KEY,
+        token=admin_token, body=locked_items,
+        prefer="resolution=merge-duplicates,return=minimal",
+    )
+    assert status in (200, 201), status
+    status, payload = call(
+        "POST", "/rest/v1/rpc/publish_campaign_draft", ANON_KEY,
+        token=admin_token, body={"p_campaign_id": CAMPAIGN_ID},
+    )
+    assert status in (400, 409, 422), (status, payload)
 
     invalid = {**draft, "images": [{"src": "campaigns/test/front.jpg"}]}
     status, payload = call(
@@ -234,13 +260,15 @@ def main() -> None:
     print(
         json.dumps(
             {
-                "checks": 9,
+                "checks": 11,
                 "admin_can_save_draft": True,
                 "resident_cannot_read_draft": True,
                 "anonymous_cannot_read_draft": True,
                 "draft_does_not_change_public": True,
                 "resident_cannot_publish": True,
                 "admin_publish_changes_public": True,
+                "opened_price_locked": True,
+                "opened_item_numbers_locked": True,
                 "image_alt_preserved": True,
                 "invalid_image_rejected": True,
                 "test_data_cleaned_up": True,

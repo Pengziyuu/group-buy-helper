@@ -91,21 +91,29 @@ def run_checks() -> None:
         "threshold": campaign["threshold"], "announcement": campaign["announcement"],
         "images": campaign["images"],
     }
-    with_j = [*campaign["items"], {"code": "J", "name": "期間限定", "active": True}]
+    with_j = [*campaign["items"], {"code": "J", "name": "10號", "active": True}]
     status, _ = call("POST", "/rest/v1/campaign_draft?on_conflict=campaign_id", ANON_KEY,
                      token=admin_token, body={**async_fields, "items": with_j},
                      prefer="resolution=merge-duplicates,return=minimal")
     assert status in (200, 201), status
-    assert call("POST", "/rest/v1/rpc/publish_campaign_draft", ANON_KEY,
-                token=admin_token, body={"p_campaign_id": CAMPAIGN_ID})[0] == 200
+    status, _ = call("POST", "/rest/v1/rpc/publish_campaign_draft", ANON_KEY,
+                     token=admin_token, body={"p_campaign_id": CAMPAIGN_ID})
+    assert status in (400, 409, 422), status
 
-    retired = [item for item in campaign["items"] if item["code"] != "B"]
-    status, _ = call("POST", "/rest/v1/campaign_draft?on_conflict=campaign_id", ANON_KEY,
-                     token=admin_token, body={**async_fields, "items": retired},
-                     prefer="resolution=merge-duplicates,return=minimal")
-    assert status in (200, 201), status
-    assert call("POST", "/rest/v1/rpc/publish_campaign_draft", ANON_KEY,
-                token=admin_token, body={"p_campaign_id": CAMPAIGN_ID})[0] == 200
+    # Build a legacy inactive-item fixture through the trusted service role.
+    # The organizer UI/RPC now locks item numbers after opening, while order
+    # safeguards must still preserve historical retired quantities.
+    retired_snapshot = [
+        {**item, "active": False} if item["code"] == "B" else item
+        for item in campaign["items"]
+    ]
+    assert call("PATCH", f"/rest/v1/campaign?id=eq.{CAMPAIGN_ID}", SECRET_KEY,
+                body={"items": retired_snapshot}, prefer="return=minimal")[0] in (200, 204)
+    assert call("PATCH", f"/rest/v1/campaign_item?campaign_id=eq.{CAMPAIGN_ID}&code=eq.B", SECRET_KEY,
+                body={"active": False}, prefer="return=minimal")[0] in (200, 204)
+    assert call("POST", "/rest/v1/campaign_draft?on_conflict=campaign_id", SECRET_KEY,
+                body={**async_fields, "items": retired_snapshot},
+                prefer="resolution=merge-duplicates,return=minimal")[0] in (200, 201)
 
     status, item_rows = call("GET", f"/rest/v1/campaign_item?campaign_id=eq.{CAMPAIGN_ID}&select=code,active", SECRET_KEY)
     states = {row["code"]: row["active"] for row in item_rows}
@@ -180,7 +188,7 @@ def run_checks() -> None:
         "direct_campaign_write_rejected": True,
         "direct_order_item_write_rejected": True,
         "direct_order_delete_rejected": True,
-        "zero_order_item_deleted": True,
+        "opened_item_addition_rejected": True,
         "ordered_item_retired": True,
         "inactive_history_preserved": True,
         "inactive_increase_rejected": True,

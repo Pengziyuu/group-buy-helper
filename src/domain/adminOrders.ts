@@ -1,5 +1,6 @@
 import { summarizeCampaign } from './campaign'
 import { summarizeFulfillment, type PickupStatus } from './orderWorkflow'
+import { itemLabel } from './itemLabel'
 
 export type OrganizerCampaignItem = {
   code: string
@@ -59,12 +60,13 @@ export function buildOrganizerOrderSummary({
   threshold: number
 }): OrganizerOrderSummary {
   const campaignSummary = summarizeCampaign(orders, unitPrice, threshold)
-  const itemByCode = new Map(items.map((item) => [item.code, item]))
+  const itemLabelByCode = new Map(items.map((item, index) => [item.code, itemLabel(index)]))
 
-  const itemRows = items.map((item) => {
+  const itemRows = items.map((item, index) => {
     const quantity = campaignSummary.itemTotals[item.code] ?? 0
     return {
       ...item,
+      name: itemLabel(index),
       quantity,
       amount: quantity * unitPrice,
     }
@@ -81,7 +83,7 @@ export function buildOrganizerOrderSummary({
         })
       const quantity = visibleItems.reduce((sum, [, itemQuantity]) => sum + itemQuantity, 0)
       const itemSummary = visibleItems
-        .map(([code, itemQuantity]) => `${itemByCode.get(code)?.name ?? code}×${itemQuantity}`)
+        .map(([code, itemQuantity]) => `${itemLabelByCode.get(code) ?? code}×${itemQuantity}`)
         .join('、')
       return {
         ...order,

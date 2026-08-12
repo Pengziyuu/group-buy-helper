@@ -127,12 +127,11 @@ function AdminOrdersPanel({
           </div>
           <div className="admin-table-scroll">
             <table>
-              <thead><tr><th>代號</th><th>品項</th><th>數量</th><th>小計</th></tr></thead>
+              <thead><tr><th>字母</th><th>數量</th><th>小計</th></tr></thead>
               <tbody>
                 {summary.itemRows.map((item) => (
                   <tr key={item.code}>
-                    <td><strong className="admin-item-code">{item.code}</strong></td>
-                    <td>{item.name}</td>
+                    <td><strong className="admin-item-code">{item.name}</strong></td>
                     <td><strong>{item.quantity} 個</strong></td>
                     <td>{currency(item.amount)}</td>
                   </tr>

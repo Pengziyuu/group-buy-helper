@@ -488,10 +488,11 @@ export function LocalLiveAdminApp({
         ordersGateway.loadCampaignStatus(campaignId),
       ])
       if (!active) return
-      setContent(draft ?? published)
+      const editableContent = draft ? { ...draft, openedAt: published.openedAt } : published
+      setContent(editableContent)
       setOrderSummary(summary)
       setCampaignStatus(status)
-      setPublicationState(draft && !campaignContentEquals(draft, published) ? 'draft' : 'published')
+      setPublicationState(draft && !campaignContentEquals(editableContent, published) ? 'draft' : 'published')
     }).catch((loadError: unknown) => {
       if (active) setError(errorMessage(loadError))
     })

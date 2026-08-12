@@ -29,7 +29,7 @@ describe('customer campaign app', () => {
     const user = userEvent.setup()
     render(<App />)
 
-    await user.click(screen.getByRole('button', { name: '增加 牛奶' }))
+    await user.click(screen.getByRole('button', { name: '增加 A號' }))
     expect(screen.getByText('我的訂單 7 個')).toBeInTheDocument()
     expect(screen.getByText('$315')).toBeInTheDocument()
 
@@ -43,7 +43,7 @@ describe('customer campaign app', () => {
 
     expect(screen.getByText('已結單')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '送出訂單' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: '增加 牛奶' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '增加 A號' })).toBeDisabled()
     expect(screen.getByText('本團已結單，暫停修改訂單。')).toBeInTheDocument()
   })
 
@@ -63,10 +63,10 @@ describe('customer campaign app', () => {
 
     render(<App publishedContent={content} />)
 
-    expect(screen.getByRole('button', { name: '增加 住戶可選新品' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '增加 牛奶' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '增加 停售花生' })).not.toBeInTheDocument()
-    expect(screen.getAllByText(/停售花生×/).length).toBeGreaterThan(0)
+    expect(screen.getByRole('button', { name: '增加 B號' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '增加 A號' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '增加 A號' })).not.toBeInTheDocument()
+    expect(screen.getAllByText(/A號×/).length).toBeGreaterThan(0)
   })
 
   it('shows campaign and order timestamps with meaningful edit markers', () => {
@@ -85,7 +85,7 @@ describe('customer campaign app', () => {
       <App visibleOrders={initialOrders} residentCustomer={resident} onSubmitOrder={onSubmitOrder} />,
     )
 
-    await user.click(screen.getByRole('button', { name: '增加 牛奶' }))
+    await user.click(screen.getByRole('button', { name: '增加 A號' }))
     expect(screen.getByText('我的訂單 7 個')).toBeInTheDocument()
 
     view.rerender(

@@ -49,7 +49,7 @@ describe('Supabase admin orders gateway', () => {
     ])
     expect(summary.orderRows.find((order) => order.unit === '2K13')).toMatchObject({
       orderId: 'order-1',
-      itemSummary: '牛奶×2、歷史花生×1',
+      itemSummary: 'A號×2、B號×1',
       orderedAt: '2026-08-14T00:10:00Z',
       updatedAt: '2026-08-14T00:12:00Z',
       paid: true,

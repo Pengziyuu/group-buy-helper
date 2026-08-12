@@ -31,7 +31,7 @@ describe('organizer order summary', () => {
       name: '斯祈',
       quantity: 6,
       amount: 270,
-      itemSummary: '花生（招牌）×2、草莓×2、可可×2',
+      itemSummary: 'B號×2、D號×2、E號×2',
     }))
   })
 })

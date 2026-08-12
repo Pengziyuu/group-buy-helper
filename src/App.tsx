@@ -3,6 +3,7 @@ import './App.css'
 import { summarizeCampaign } from './domain/campaign'
 import { formatZhTwTimestamp, wasMeaningfullyUpdated } from './domain/timestamp'
 import { campaignStatusLabel, type CampaignStatus } from './domain/orderWorkflow'
+import { itemLabel } from './domain/itemLabel'
 import {
   campaign,
   currentCustomerId,
@@ -37,7 +38,10 @@ type AppProps = {
 function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visibleOrders, residentCustomer, onSubmitOrder }: AppProps = {}) {
   const [localPublishedCampaign] = useState(() => loadPublishedCampaign(defaultContent))
   const publishedCampaign = publishedContent ?? localPublishedCampaign
-  const itemName = (code: string) => publishedCampaign.items.find((item) => item.code === code)?.name ?? code
+  const itemDisplayLabel = (code: string) => {
+    const index = publishedCampaign.items.findIndex((item) => item.code === code)
+    return index >= 0 ? itemLabel(index) : code
+  }
   const activeItems = publishedCampaign.items.filter((item) => item.active)
   const [localOrders, setLocalOrders] = useState<VisibleOrder[]>(initialOrders)
   const orders = visibleOrders ?? localOrders
@@ -165,25 +169,27 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
 
         <div className="product-list">
           {activeItems.map((item) => {
+            const itemIndex = publishedCampaign.items.findIndex((candidate) => candidate.code === item.code)
+            const displayLabel = itemLabel(itemIndex)
             const quantity = draft[item.code] ?? 0
             return (
               <div className="product-row" key={item.code}>
-                <span className="product-code">{item.code}</span>
+                <span className="product-code">{displayLabel.slice(0, 1)}</span>
                 <div className="product-name">
-                  <strong>{item.name}</strong>
+                  <strong>{displayLabel}</strong>
                   <span>${publishedCampaign.unitPrice}</span>
                 </div>
                 <div className="stepper">
                   <button
                     type="button"
-                    aria-label={`減少 ${item.name.replace(/（.*）/, '')}`}
+                    aria-label={`減少 ${displayLabel}`}
                     onClick={() => adjust(item.code, -1)}
                     disabled={!editable || quantity === 0}
                   >−</button>
-                  <output aria-label={`${item.name}數量`}>{quantity}</output>
+                  <output aria-label={`${displayLabel}數量`}>{quantity}</output>
                   <button
                     type="button"
-                    aria-label={`增加 ${item.name.replace(/（.*）/, '')}`}
+                    aria-label={`增加 ${displayLabel}`}
                     onClick={() => adjust(item.code, 1)}
                     disabled={!editable}
                   >＋</button>
@@ -233,7 +239,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
                   </div>
                   <p>{Object.entries(order.items)
                     .filter(([, quantity]) => quantity > 0)
-                    .map(([code, quantity]) => `${itemName(code)}×${quantity}`)
+                    .map(([code, quantity]) => `${itemDisplayLabel(code)}×${quantity}`)
                     .join('、')}</p>
                   <p className="wall-time">
                     下單時間 {formatZhTwTimestamp(order.orderedAt)}

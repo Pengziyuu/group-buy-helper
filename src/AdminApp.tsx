@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import './AdminApp.css'
 import AdminOrdersPanel, { type FulfillmentUpdate } from './AdminOrdersPanel'
 import { campaign, initialOrders, items } from './data/demo'
 import { buildOrganizerOrderSummary, type OrganizerOrderSummary } from './domain/adminOrders'
 import { campaignStatusLabel, type CampaignStatus } from './domain/orderWorkflow'
+import { itemLabel, MAX_ITEM_LETTERS } from './domain/itemLabel'
 import {
   campaignContentEquals,
   loadDraftCampaign,
@@ -69,6 +70,7 @@ function AdminApp({
   const [announcement, setAnnouncement] = useState(initialDraft.announcement)
   const [images, setImages] = useState(() => [...initialDraft.images])
   const [campaignItems, setCampaignItems] = useState(() => initialDraft.items.map((item) => ({ ...item })))
+  const [openedAt, setOpenedAt] = useState(initialDraft.openedAt)
   const [imageUrl, setImageUrl] = useState('')
   const [imageAlt, setImageAlt] = useState('')
   const [imageFile, setImageFile] = useState<File | null>(null)
@@ -78,7 +80,14 @@ function AdminApp({
   const operationLock = useRef(false)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [notice, setNotice] = useState('')
-  const [busyAction, setBusyAction] = useState<'save' | 'publish' | 'signout' | null>(null)
+  const [busyAction, setBusyAction] = useState<'publish' | 'signout' | null>(null)
+  const [draftRevision, setDraftRevision] = useState(0)
+  const [autoSaveCycle, setAutoSaveCycle] = useState(0)
+  const [autoSaving, setAutoSaving] = useState(false)
+  const savedRevisionRef = useRef(0)
+  const latestRevisionRef = useRef(0)
+  const autoSaveInFlightRef = useRef(false)
+  const flushAutoSaveImmediatelyRef = useRef(false)
   const [publicationState, setPublicationState] = useState<PublicationState>(() =>
     initialPublicationState
       ?? (campaignContentEquals(initialDraft, initialPublished) ? 'published' : 'draft'),
@@ -93,37 +102,55 @@ function AdminApp({
     announcement,
     images,
     items: campaignItems,
-    openedAt: initialDraft.openedAt,
+    openedAt,
   })
   const markDraft = () => {
+    latestRevisionRef.current += 1
+    setDraftRevision(latestRevisionRef.current)
     setPublicationState('draft')
     setNotice('')
   }
 
-  const saveDraft = async () => {
-    if (operationLock.current) return
-    operationLock.current = true
-    setBusyAction('save')
-    setNotice('')
-    try {
-      if (!campaignItems.some((item) => item.active && item.name.trim())) {
-        throw new Error('至少需要一個啟用且有名稱的品項')
+  useEffect(() => {
+    if (draftRevision === savedRevisionRef.current || editorBusy || autoSaveInFlightRef.current) return
+    const revision = draftRevision
+    const delay = flushAutoSaveImmediatelyRef.current ? 0 : 500
+    flushAutoSaveImmediatelyRef.current = false
+    const timer = window.setTimeout(() => {
+      autoSaveInFlightRef.current = true
+      setAutoSaving(true)
+      const content: CampaignContent = {
+        title,
+        unitPrice,
+        threshold,
+        announcement,
+        images,
+        items: campaignItems,
+        openedAt,
       }
-      const content = currentContent()
-      if (onSaveDraft) await onSaveDraft(content)
-      else saveDraftCampaign(content)
-      setPublicationState('draft')
-      setNotice('開團資料已儲存')
-    } catch (error) {
-      setNotice(`儲存失敗：${messageFromError(error)}`)
-    } finally {
-      operationLock.current = false
-      setBusyAction(null)
-    }
-  }
+      const saving = onSaveDraft ? onSaveDraft(content) : Promise.resolve(saveDraftCampaign(content))
+      void saving.then(() => {
+        savedRevisionRef.current = revision
+        if (latestRevisionRef.current === revision) setNotice('已自動暫存')
+      }).catch((error: unknown) => {
+        savedRevisionRef.current = revision
+        if (latestRevisionRef.current === revision) {
+          setNotice(`自動暫存失敗：${messageFromError(error)}`)
+        }
+      }).finally(() => {
+        autoSaveInFlightRef.current = false
+        const hasNewerRevision = latestRevisionRef.current > revision
+        flushAutoSaveImmediatelyRef.current = hasNewerRevision
+        if (!hasNewerRevision) setAutoSaving(false)
+        setAutoSaveCycle((cycle) => cycle + 1)
+      })
+    }, delay)
+    return () => window.clearTimeout(timer)
+  }, [announcement, autoSaveCycle, campaignItems, draftRevision, editorBusy, images, onSaveDraft, openedAt, threshold, title, unitPrice])
 
   const publish = async () => {
     if (operationLock.current) return
+    const wasOpened = itemsLocked
     operationLock.current = true
     setBusyAction('publish')
     setNotice('')
@@ -132,8 +159,12 @@ function AdminApp({
         throw new Error('至少需要一個啟用且有名稱的品項')
       }
       const content = currentContent()
+      if (!onPublish && !content.openedAt) content.openedAt = new Date().toISOString()
       const canonical = onPublish ? await onPublish(content) : undefined
-      if (!onPublish) publishCampaign(content)
+      if (!onPublish) {
+        publishCampaign(content)
+        setOpenedAt(content.openedAt)
+      }
       if (canonical) {
         setTitle(canonical.title)
         setUnitPrice(canonical.unitPrice)
@@ -141,9 +172,12 @@ function AdminApp({
         setAnnouncement(canonical.announcement)
         setImages([...canonical.images])
         setCampaignItems(canonical.items.map((item) => ({ ...item })))
+        setOpenedAt(canonical.openedAt)
       }
+      savedRevisionRef.current = draftRevision
+      latestRevisionRef.current = draftRevision
       setPublicationState('published')
-      setNotice('已發布到住戶端')
+      setNotice(wasOpened ? '住戶公告已更新' : '已發布並開團')
     } catch (error) {
       setNotice(`發布失敗：${messageFromError(error)}`)
     } finally {
@@ -184,7 +218,7 @@ function AdminApp({
       handledImageFileRef.current = null
       if (imageInputRef.current) imageInputRef.current.value = ''
       setImageAlt('')
-      if (onUploadImage) setNotice('圖片已上傳，請儲存草稿')
+      if (onUploadImage) setNotice('圖片已上傳，將自動暫存')
     } catch (error) {
       setNotice(`上傳失敗：${messageFromError(error)}`)
     } finally {
@@ -205,37 +239,14 @@ function AdminApp({
     window.setTimeout(() => imageAltInputRef.current?.focus(), 0)
   }
 
+  const itemsLocked = openedAt !== null
+
   const nextItemCode = () => {
     let suffix = 1
     while (campaignItems.some((item) => item.code === `ITEM${suffix}`)) suffix += 1
     return `ITEM${suffix}`
   }
 
-  const moveItem = (index: number, delta: number) => {
-    setCampaignItems((current) => {
-      const target = index + delta
-      if (target < 0 || target >= current.length) return current
-      const next = [...current]
-      ;[next[index], next[target]] = [next[target], next[index]]
-      return next
-    })
-    markDraft()
-  }
-
-  const removeItem = (index: number) => {
-    const item = campaignItems[index]
-    if (!item) return
-    const orderedQuantity = resolvedOrderSummary?.itemRows.find((row) => row.code === item.code)?.quantity ?? 0
-    if (orderedQuantity > 0) {
-      setCampaignItems((current) => current.map((currentItem, currentIndex) =>
-        currentIndex === index ? { ...currentItem, active: false } : currentItem))
-      setNotice(`已有 ${orderedQuantity} 個訂單，已停用並保留歷史紀錄`)
-    } else {
-      setCampaignItems((current) => current.filter((_, currentIndex) => currentIndex !== index))
-      setNotice('品項已移除')
-    }
-    setPublicationState('draft')
-  }
 
   return (
     <main className="admin-shell">
@@ -268,7 +279,7 @@ function AdminApp({
             </label>
             <label className="field">
               <span>單價</span>
-              <input disabled={editorBusy} type="number" min="0" value={unitPrice} onChange={(event) => { setUnitPrice(Number(event.target.value)); markDraft() }} />
+              <input disabled={editorBusy || itemsLocked} type="number" min="0" value={unitPrice} onChange={(event) => { setUnitPrice(Number(event.target.value)); markDraft() }} />
             </label>
             <label className="field">
               <span>成團門檻</span>
@@ -289,42 +300,39 @@ function AdminApp({
             <section className="item-editor full-field" aria-labelledby="item-editor-heading">
               <div className="image-editor-heading">
                 <h3 id="item-editor-heading">團購品項</h3>
-                <button
-                  type="button"
-                  disabled={editorBusy || campaignItems.length >= 100}
-                  onClick={() => {
-                    setCampaignItems((current) => [...current, { code: nextItemCode(), name: '新商品', active: true }])
-                    markDraft()
-                  }}
-                >新增品項</button>
+                <span>{campaignItems.length} 個品項</span>
               </div>
+              <p>商品名稱、口味與編號對照請寫在上方「開團資訊」。</p>
               <ol className="campaign-item-list">
                 {campaignItems.map((item, index) => (
                   <li key={item.code} className={!item.active ? 'inactive' : ''}>
-                    <strong>{item.code}</strong>
-                    <label className="field">
-                      <span>品項 {item.code} 名稱</span>
-                      <input
-                        aria-label={`品項 ${item.code} 名稱`}
-                        disabled={editorBusy || !item.active}
-                        value={item.name}
-                        onChange={(event) => {
-                          const name = event.target.value
-                          setCampaignItems((current) => current.map((currentItem, currentIndex) =>
-                            currentIndex === index ? { ...currentItem, name } : currentItem))
-                          markDraft()
-                        }}
-                      />
-                    </label>
-                    {!item.active && <span>已停用・保留歷史訂單</span>}
-                    <button type="button" disabled={editorBusy || index === 0} aria-label={`上移 ${item.name}`} onClick={() => moveItem(index, -1)}>↑</button>
-                    <button type="button" disabled={editorBusy || index === campaignItems.length - 1} aria-label={`下移 ${item.name}`} onClick={() => moveItem(index, 1)}>↓</button>
-                    <button type="button" disabled={editorBusy || !item.active} aria-label={`移除 ${item.name}`} onClick={() => removeItem(index)}>移除</button>
+                    <strong>{itemLabel(index)}</strong>
                   </li>
                 ))}
               </ol>
-              {!campaignItems.some((item) => item.active && item.name.trim()) && (
-                <p className="field-error" role="alert">至少需要一個啟用且有名稱的品項</p>
+              {itemsLocked ? (
+                <p>已正式開團，品項字母與單價已鎖定。</p>
+              ) : (
+                <div className="admin-workflow-actions">
+                  <button
+                    type="button"
+                    disabled={editorBusy || campaignItems.length >= MAX_ITEM_LETTERS}
+                    onClick={() => {
+                      const label = itemLabel(campaignItems.length)
+                      setCampaignItems((current) => [...current, { code: nextItemCode(), name: label, active: true }])
+                      markDraft()
+                    }}
+                  >增加品項</button>
+                  <button
+                    type="button"
+                    className="secondary-action"
+                    disabled={editorBusy || campaignItems.length <= 1}
+                    onClick={() => {
+                      setCampaignItems((current) => current.slice(0, -1))
+                      markDraft()
+                    }}
+                  >減少品項</button>
+                </div>
               )}
             </section>
             <section className="image-editor full-field" aria-labelledby="image-editor-heading">
@@ -381,11 +389,8 @@ function AdminApp({
           </div>
           <div className="editor-actions">
             <p role="status">{notice}</p>
-            <button className="secondary-action" type="button" onClick={saveDraft} disabled={editorBusy}>
-              {busyAction === 'save' ? '儲存中…' : '儲存草稿'}
-            </button>
-            <button type="button" onClick={publish} disabled={editorBusy}>
-              {busyAction === 'publish' ? '發布中…' : '發布到住戶端'}
+            <button type="button" onClick={publish} disabled={editorBusy || autoSaving}>
+              {busyAction === 'publish' ? '發布中…' : itemsLocked ? '更新住戶公告' : '發布並開團'}
             </button>
           </div>
         </section>
