@@ -73,6 +73,11 @@
 .submit-button:disabled { opacity: .45; cursor: default; }
 .success { margin: 12px 0 0; text-align: center; color: var(--green); font-weight: 800; }
 .privacy-note { text-align: center; color: var(--muted); font-size: 12px; margin: 11px 0 0; }
+.resident-binding h2 { margin: 2px 0 0; font-size: 20px; }
+.binding-intro { margin: 8px 0 16px; color: var(--muted); font-size: 13px; }
+.binding-fields { display: grid; grid-template-columns: 1fr 110px 1fr; gap: 10px; }
+.binding-fields label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 750; }
+.binding-fields input, .binding-fields select { width: 100%; min-width: 0; padding: 11px 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); font: inherit; }
 .live-pill { color: var(--green); background: #e3f4ed; padding: 5px 9px; border-radius: 999px; font-size: 12px; font-weight: 800; }
 .order-wall { display: grid; gap: 8px; }
 .wall-order { display: grid; grid-template-columns: 38px 1fr auto; gap: 10px; align-items: center; padding: 11px; background: var(--frost); border: 1px solid transparent; border-radius: 13px; }
@@ -94,6 +99,7 @@ footer { color: var(--muted); text-align: center; font-size: 11px; margin: 18px 
   .product-row { grid-template-columns: 30px 1fr auto; gap: 7px; }
   .stepper { grid-template-columns: 33px 28px 33px; }
   .stepper button { width: 33px; }
+  .binding-fields { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -730,6 +730,15 @@ export type Database = {
         Args: { p_auth_user_id: string; p_request_code: string }
         Returns: string
       }
+      bind_customer_self: {
+        Args: { p_name: string; p_period: number; p_unit: string }
+        Returns: {
+          id: string
+          name: string
+          period: number
+          unit: string
+        }[]
+      }
       campaign_image_path_is_live: {
         Args: { p_name: string }
         Returns: boolean

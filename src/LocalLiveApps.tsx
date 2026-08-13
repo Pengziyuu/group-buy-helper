@@ -854,6 +854,26 @@ export function LocalLiveResidentApp({ client, campaignId, campaignSlug }: Local
       liveDemo
       visibleOrders={orders}
       residentCustomer={residentCustomer}
+      onBindResident={async ({ name, period, unit }) => {
+        const { data, error: bindError } = await client.rpc('bind_customer_self', {
+          p_name: name,
+          p_period: period,
+          p_unit: unit,
+        })
+        if (bindError) throw bindError
+        const customer = data?.[0]
+        if (!customer?.id || !customer.name || customer.period === null || !customer.unit) {
+          throw new Error('住戶資料綁定結果無效')
+        }
+        const bound = {
+          customerId: customer.id,
+          name: customer.name,
+          period: customer.period,
+          unit: customer.unit,
+        }
+        setResidentCustomer(bound)
+        return bound
+      }}
       onSubmitOrder={async (items) => {
         const { error: submitError } = await client.rpc('submit_customer_order', {
           p_campaign_id: joinedCampaignId,

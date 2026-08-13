@@ -26,16 +26,21 @@ const defaultContent: CampaignContent = {
 const orderQuantity = (orderItems: Record<string, number>) =>
   Object.values(orderItems).reduce((sum, quantity) => sum + quantity, 0)
 
+type ResidentCustomer = Pick<VisibleOrder, 'customerId' | 'name' | 'period' | 'unit'>
+
+type ResidentBindingInput = Pick<ResidentCustomer, 'name' | 'period' | 'unit'>
+
 type AppProps = {
   publishedContent?: CampaignContent
   liveDemo?: boolean
   campaignStatus?: CampaignStatus
   visibleOrders?: VisibleOrder[]
-  residentCustomer?: Pick<VisibleOrder, 'customerId' | 'name' | 'period' | 'unit'> | null
+  residentCustomer?: ResidentCustomer | null
+  onBindResident?: (input: ResidentBindingInput) => Promise<ResidentCustomer>
   onSubmitOrder?: (items: Record<string, number>) => Promise<void>
 }
 
-function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visibleOrders, residentCustomer, onSubmitOrder }: AppProps = {}) {
+function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visibleOrders, residentCustomer, onBindResident, onSubmitOrder }: AppProps = {}) {
   const [localPublishedCampaign] = useState(() => loadPublishedCampaign(defaultContent))
   const publishedCampaign = publishedContent ?? localPublishedCampaign
   const itemDisplayLabel = (code: string) => {
@@ -48,9 +53,16 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
   const effectiveCustomer = residentCustomer === undefined
     ? initialOrders.find((order) => order.customerId === currentCustomerId)!
     : residentCustomer
-  const ownOrder = effectiveCustomer
-    ? orders.find((order) => order.customerId === effectiveCustomer.customerId)
+  const [boundResident, setBoundResident] = useState<ResidentCustomer | null>(effectiveCustomer)
+  const currentResident = residentCustomer === null ? boundResident : effectiveCustomer
+  const ownOrder = currentResident
+    ? orders.find((order) => order.customerId === currentResident.customerId)
     : undefined
+  const [residentName, setResidentName] = useState('')
+  const [residentPeriod, setResidentPeriod] = useState(2)
+  const [residentUnit, setResidentUnit] = useState('')
+  const [binding, setBinding] = useState(false)
+  const [bindingNotice, setBindingNotice] = useState('')
   const [draft, setDraft] = useState<Record<string, number>>({ ...(ownOrder?.items ?? {}) })
   const [notice, setNotice] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -79,6 +91,26 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
       }
       return { ...current, [code]: next }
     })
+  }
+
+  const bindResident = async () => {
+    if (!onBindResident) return
+    const name = residentName.trim()
+    const unit = residentUnit.trim().toUpperCase()
+    if (!name || !unit) {
+      setBindingNotice('請填寫姓名與戶號')
+      return
+    }
+    setBinding(true)
+    setBindingNotice('')
+    try {
+      const customer = await onBindResident({ name, period: residentPeriod, unit })
+      setBoundResident(customer)
+    } catch (error) {
+      setBindingNotice(error instanceof Error ? error.message : '住戶資料儲存失敗')
+    } finally {
+      setBinding(false)
+    }
   }
 
   const submit = async () => {
@@ -155,11 +187,11 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
         <p className="campaign-copy">{publishedCampaign.announcement}</p>
       </article>
 
-      {effectiveCustomer ? <section className="panel order-panel" aria-labelledby="order-heading">
+      {currentResident ? <section className="panel order-panel" aria-labelledby="order-heading">
         <div className="section-heading">
           <div>
             <p className="section-kicker">我的訂單</p>
-            <h2 id="order-heading">{effectiveCustomer.period === 1 ? '一期' : '二期'} {effectiveCustomer.unit}・{effectiveCustomer.name}</h2>
+            <h2 id="order-heading">{currentResident.period === 1 ? '一期' : '二期'} {currentResident.unit}・{currentResident.name}</h2>
           </div>
           <div className="my-total">
             <strong>我的訂單 {draftQuantity} 個</strong>
@@ -211,8 +243,32 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
               : '本團已結單，暫停修改訂單。'}
         </p>
       </section> : (
-        <section className="panel order-panel" aria-label="我的訂單">
-          <p className="privacy-note">戶號尚未綁定，目前可先查看公開訂單與成團進度。</p>
+        <section className="panel order-panel resident-binding" aria-labelledby="resident-binding-heading">
+          <p className="section-kicker">我的訂單</p>
+          <h2 id="resident-binding-heading">首次填寫住戶資料</h2>
+          <p className="binding-intro">完成一次綁定後，即可選擇品項並送出訂單。</p>
+          <div className="binding-fields">
+            <label>
+              <span>姓名</span>
+              <input value={residentName} onChange={(event) => setResidentName(event.target.value)} maxLength={100} autoComplete="name" />
+            </label>
+            <label>
+              <span>期別</span>
+              <select value={residentPeriod} onChange={(event) => setResidentPeriod(Number(event.target.value))}>
+                <option value={1}>一期</option>
+                <option value={2}>二期</option>
+              </select>
+            </label>
+            <label>
+              <span>戶號</span>
+              <input value={residentUnit} onChange={(event) => setResidentUnit(event.target.value.toUpperCase())} maxLength={20} autoCapitalize="characters" placeholder="例如 A01" />
+            </label>
+          </div>
+          <button className="submit-button" type="button" onClick={() => { void bindResident() }} disabled={binding || !editable}>
+            {binding ? '儲存中…' : '儲存住戶資料'}
+          </button>
+          {bindingNotice && <p className="success" role="status">{bindingNotice}</p>}
+          <p className="privacy-note">住戶資料只用於辨識訂單；每個期別與戶號只能綁定一個帳號。</p>
         </section>
       )}
 
@@ -230,7 +286,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
             .sort((a, b) => Date.parse(a.orderedAt) - Date.parse(b.orderedAt)
               || a.customerId.localeCompare(b.customerId))
             .map((order) => (
-              <article className={`wall-order ${order.customerId === effectiveCustomer?.customerId ? 'own' : ''}`} key={order.customerId}>
+              <article className={`wall-order ${order.customerId === currentResident?.customerId ? 'own' : ''}`} key={order.customerId}>
                 <div className="avatar" aria-hidden="true">{order.name.slice(0, 1).toUpperCase()}</div>
                 <div className="wall-main">
                   <div className="wall-name">

@@ -1207,6 +1207,50 @@ describe('local Supabase visual demo apps', () => {
     expect(client.auth.signInAnonymously).not.toHaveBeenCalled()
   })
 
+  it('binds a first-time resident through the trusted RPC and enables ordering', async () => {
+    const user = userEvent.setup()
+    const { client } = authClient()
+    const single = vi.fn().mockResolvedValue({
+      data: {
+        title: published.title, unit_price: published.unitPrice, threshold: published.threshold,
+        announcement: published.announcement, images: published.images, items: published.items,
+        opened_at: published.openedAt, status: 'open',
+      },
+      error: null,
+    })
+    const campaignEq = vi.fn().mockReturnValue({ single })
+    const wallEq = vi.fn().mockResolvedValue({ data: [], error: null })
+    const rpc = vi.fn((name: string) => {
+      if (name === 'join_campaign_by_slug') return Promise.resolve({ data: [{ id: 'campaign-1' }], error: null })
+      if (name === 'get_customer_self') return Promise.resolve({ data: [], error: null })
+      if (name === 'bind_customer_self') return Promise.resolve({
+        data: [{ id: 'customer-new', name: '彭梓育', period: 2, unit: 'A01' }], error: null,
+      })
+      throw new Error(`unexpected RPC ${name}`)
+    })
+    const on = vi.fn().mockReturnThis()
+    const subscribe = vi.fn().mockReturnThis()
+    Object.assign(client, {
+      rpc,
+      from: vi.fn((table: string) => table === 'campaign_public'
+        ? { select: vi.fn().mockReturnValue({ eq: campaignEq }) }
+        : { select: vi.fn().mockReturnValue({ eq: wallEq }) }),
+      channel: vi.fn().mockReturnValue({ on, subscribe }),
+      removeChannel: vi.fn().mockResolvedValue(undefined),
+    })
+
+    render(<LocalLiveResidentApp client={client} campaignSlug="campaign-slug" />)
+
+    await user.type(await screen.findByRole('textbox', { name: '姓名' }), '彭梓育')
+    await user.type(screen.getByRole('textbox', { name: '戶號' }), 'a01')
+    await user.click(screen.getByRole('button', { name: '儲存住戶資料' }))
+
+    expect(rpc).toHaveBeenCalledWith('bind_customer_self', {
+      p_name: '彭梓育', p_period: 2, p_unit: 'A01',
+    })
+    expect(await screen.findByRole('button', { name: '增加 A號' })).toBeInTheDocument()
+  })
+
   it('loads published campaign content for an anonymous resident session', async () => {
     const { client } = authClient()
     const single = vi.fn().mockResolvedValue({

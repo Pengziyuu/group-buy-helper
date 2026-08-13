@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { initialOrders } from './data/demo'
 import type { CampaignContent } from './services/demoCampaignStore'
@@ -36,6 +36,24 @@ describe('customer campaign app', () => {
     await user.click(screen.getByRole('button', { name: '送出訂單' }))
     expect(screen.getByText('63 / 100')).toBeInTheDocument()
     expect(screen.getByText('訂單已更新')).toBeInTheDocument()
+  })
+
+  it('lets an unbound resident create their household profile before ordering', async () => {
+    const user = userEvent.setup()
+    const onBindResident = vi.fn().mockResolvedValue({
+      customerId: 'new-customer', name: '彭梓育', period: 2, unit: 'A01',
+    })
+
+    render(<App visibleOrders={[]} residentCustomer={null} onBindResident={onBindResident} />)
+
+    expect(screen.getByRole('heading', { name: '首次填寫住戶資料' })).toBeInTheDocument()
+    await user.type(screen.getByRole('textbox', { name: '姓名' }), '彭梓育')
+    await user.selectOptions(screen.getByRole('combobox', { name: '期別' }), '2')
+    await user.type(screen.getByRole('textbox', { name: '戶號' }), 'a01')
+    await user.click(screen.getByRole('button', { name: '儲存住戶資料' }))
+
+    expect(onBindResident).toHaveBeenCalledWith({ name: '彭梓育', period: 2, unit: 'A01' })
+    expect(await screen.findByRole('button', { name: '增加 A號' })).toBeInTheDocument()
   })
 
   it('shows a closed campaign and disables every order control', () => {
