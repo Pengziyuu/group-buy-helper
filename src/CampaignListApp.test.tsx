@@ -26,6 +26,41 @@ describe('organizer campaign list', () => {
     expect(screen.getByRole('link', { name: '住戶連結 冰餅團' })).toHaveAttribute('href', '/campaign/open-slug')
   })
 
+  it('requires explicit confirmation before permanently deleting a campaign', async () => {
+    const user = userEvent.setup()
+    const onDelete = vi.fn().mockResolvedValue(undefined)
+    render(<CampaignListApp campaigns={campaigns} onCreate={vi.fn()} onDelete={onDelete} />)
+
+    await user.click(screen.getByRole('button', { name: '刪除 冰餅團' }))
+    expect(onDelete).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog', { name: '確認刪除團購' })).toHaveTextContent('冰餅團')
+    expect(screen.getByRole('dialog', { name: '確認刪除團購' })).toHaveTextContent('訂單及歷史資料都會永久刪除，無法復原')
+
+    await user.click(screen.getByRole('button', { name: '取消刪除' }))
+    expect(onDelete).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog', { name: '確認刪除團購' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '刪除 冰餅團' }))
+    await user.click(screen.getByRole('button', { name: '確認永久刪除' }))
+
+    await waitFor(() => expect(onDelete).toHaveBeenCalledWith('open-id'))
+    expect(screen.queryByRole('heading', { name: '冰餅團' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the campaign and confirmation open when deletion fails', async () => {
+    const user = userEvent.setup()
+    const onDelete = vi.fn().mockRejectedValue(new Error('刪除團購失敗：permission denied'))
+    render(<CampaignListApp campaigns={campaigns} onCreate={vi.fn()} onDelete={onDelete} />)
+
+    await user.click(screen.getByRole('button', { name: '刪除 冰餅團' }))
+    await user.click(screen.getByRole('button', { name: '確認永久刪除' }))
+
+    const dialog = screen.getByRole('dialog', { name: '確認刪除團購' })
+    expect(await screen.findByRole('alert')).toHaveTextContent('刪除團購失敗：permission denied')
+    expect(dialog).toContainElement(screen.getByRole('alert'))
+    expect(screen.getByRole('heading', { name: '冰餅團' })).toBeInTheDocument()
+  })
+
   it('creates a campaign and opens its editor', async () => {
     const user = userEvent.setup()
     const onCreate = vi.fn().mockResolvedValue({ ...campaigns[0], id: 'new-id' })

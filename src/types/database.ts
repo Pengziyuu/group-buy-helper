@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.15"
+  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -649,6 +654,10 @@ export type Database = {
       }
     }
     Functions: {
+      campaign_image_path_is_live: {
+        Args: { p_name: string }
+        Returns: boolean
+      }
       campaign_is_editable: {
         Args: { p_campaign_id: string }
         Returns: boolean
@@ -680,6 +689,10 @@ export type Database = {
       }
       customer_is_wall_visible: {
         Args: { p_customer_id: string }
+        Returns: boolean
+      }
+      delete_campaign_permanently: {
+        Args: { p_campaign_id: string }
         Returns: boolean
       }
       get_customer_self: {
@@ -906,4 +919,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

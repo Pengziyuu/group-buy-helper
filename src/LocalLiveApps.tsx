@@ -51,6 +51,7 @@ export type LiveAdminOrdersRepository = {
 export type LiveCampaignManagementRepository = {
   list(): Promise<CampaignListItem[]>
   create(title: string): Promise<CampaignListItem>
+  delete(campaignId: string): Promise<{ warning: string | null }>
 }
 
 type LocalLiveAppProps = {
@@ -616,6 +617,11 @@ export function LocalLiveAdminApp({
       <CampaignListApp
         campaigns={campaigns}
         onCreate={(title) => campaignManagementGateway.create(title)}
+        onDelete={async (campaignId) => {
+          const result = await campaignManagementGateway.delete(campaignId)
+          setCampaigns((current) => current?.filter((campaign) => campaign.id !== campaignId) ?? null)
+          return result
+        }}
         onSignOut={async () => {
           authValidationGeneration.current += 1
           signInGeneration.current += 1

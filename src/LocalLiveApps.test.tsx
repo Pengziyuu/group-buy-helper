@@ -86,6 +86,7 @@ describe('local Supabase visual demo apps', () => {
         openedAt: '2026-08-12T00:00:00Z', createdAt: '2026-08-12T00:00:00Z', updatedAt: '2026-08-12T01:00:00Z',
       }]),
       create: vi.fn(),
+      delete: vi.fn().mockResolvedValue({ warning: null }),
     }
 
     render(

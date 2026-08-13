@@ -44,24 +44,34 @@ def signup() -> tuple[str, str]:
 def main() -> None:
     admin_id, admin_token = signup()
     resident_id, resident_token = signup()
-    object_path = f"storage-policy-test/{admin_id}.png"
     status, raw = request(
         "POST", "/rest/v1/admin_users", SECRET_KEY,
         body=json.dumps({"user_id": admin_id}).encode(),
     )
     assert status in (200, 201), (status, raw)
+    status, raw = request(
+        "POST", "/rest/v1/rpc/create_campaign_draft", ANON_KEY,
+        token=admin_token,
+        body=json.dumps({"p_title": "Storage policy verification"}).encode(),
+    )
+    payload = json.loads(raw)
+    assert status == 200, (status, payload)
+    campaign_id = payload["id"]
+    object_path = f"{campaign_id}/{admin_id}.png"
 
     def cleanup() -> None:
         request("DELETE", "/storage/v1/object/campaign-images",
                 ANON_KEY, token=admin_token,
                 body=json.dumps({"prefixes": [object_path]}).encode())
+        request("DELETE", f"/rest/v1/orders?campaign_id=eq.{campaign_id}", SECRET_KEY)
+        request("DELETE", f"/rest/v1/campaign?id=eq.{campaign_id}", SECRET_KEY)
         request("DELETE", f"/rest/v1/admin_users?user_id=eq.{admin_id}", SECRET_KEY)
         request("DELETE", f"/auth/v1/admin/users/{admin_id}", SECRET_KEY)
         request("DELETE", f"/auth/v1/admin/users/{resident_id}", SECRET_KEY)
 
     atexit.register(cleanup)
 
-    resident_path = f"storage-policy-test/{resident_id}.png"
+    resident_path = f"{campaign_id}/{resident_id}.png"
     status, _ = request(
         "POST", f"/storage/v1/object/campaign-images/{resident_path}",
         ANON_KEY, token=resident_token, body=PNG, content_type="image/png",
@@ -99,8 +109,20 @@ def main() -> None:
         ANON_KEY, token=admin_token,
         body=json.dumps({"prefixes": [object_path]}).encode(),
     )
-    admin_can_delete = status in (200, 204)
-    assert admin_can_delete, (status, raw)
+    delete_status = status
+    deleted_objects = json.loads(raw)
+    status, raw = request(
+        "POST", "/storage/v1/object/list/campaign-images",
+        ANON_KEY, token=admin_token,
+        body=json.dumps({"prefix": campaign_id, "limit": 100, "offset": 0}).encode(),
+    )
+    remaining_objects = json.loads(raw) if status == 200 else []
+    admin_can_delete = (
+        delete_status in (200, 204)
+        and any(item.get("name") == object_path for item in deleted_objects)
+        and all(item.get("name") != object_path.rsplit("/", 1)[-1] for item in remaining_objects)
+    )
+    assert admin_can_delete, (delete_status, status, deleted_objects, remaining_objects)
 
     print(json.dumps({
         "checks": 5,
