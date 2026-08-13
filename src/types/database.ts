@@ -300,6 +300,78 @@ export type Database = {
         }
         Relationships: []
       }
+      line_login_rate_limit: {
+        Row: {
+          key_hash: string
+          request_count: number
+          updated_at: string
+          window_started_at: string
+        }
+        Insert: {
+          key_hash: string
+          request_count?: number
+          updated_at?: string
+          window_started_at?: string
+        }
+        Update: {
+          key_hash?: string
+          request_count?: number
+          updated_at?: string
+          window_started_at?: string
+        }
+        Relationships: []
+      }
+      line_organizer_identity: {
+        Row: {
+          approval_request_code: string | null
+          approved_at: string
+          auth_user_id: string
+          created_at: string
+          line_user_id: string
+        }
+        Insert: {
+          approval_request_code?: string | null
+          approved_at?: string
+          auth_user_id: string
+          created_at?: string
+          line_user_id: string
+        }
+        Update: {
+          approval_request_code?: string | null
+          approved_at?: string
+          auth_user_id?: string
+          created_at?: string
+          line_user_id?: string
+        }
+        Relationships: []
+      }
+      line_organizer_request: {
+        Row: {
+          display_name: string | null
+          last_seen_at: string
+          line_user_id: string
+          picture_url: string | null
+          request_code: string
+          requested_at: string
+        }
+        Insert: {
+          display_name?: string | null
+          last_seen_at?: string
+          line_user_id: string
+          picture_url?: string | null
+          request_code?: string
+          requested_at?: string
+        }
+        Update: {
+          display_name?: string | null
+          last_seen_at?: string
+          line_user_id?: string
+          picture_url?: string | null
+          request_code?: string
+          requested_at?: string
+        }
+        Relationships: []
+      }
       order_item: {
         Row: {
           campaign_id: string
@@ -654,6 +726,10 @@ export type Database = {
       }
     }
     Functions: {
+      approve_line_organizer: {
+        Args: { p_auth_user_id: string; p_request_code: string }
+        Returns: string
+      }
       campaign_image_path_is_live: {
         Args: { p_name: string }
         Returns: boolean
@@ -663,6 +739,10 @@ export type Database = {
         Returns: boolean
       }
       can_edit_order: { Args: { p_order_id: string }; Returns: boolean }
+      consume_line_login_rate_limit: {
+        Args: { p_key_hash: string; p_limit: number; p_window_seconds: number }
+        Returns: boolean
+      }
       create_campaign_draft: {
         Args: { p_title?: string }
         Returns: {
@@ -724,6 +804,7 @@ export type Database = {
           updated_at: string
         }[]
       }
+      line_organizer_access_token_hook: { Args: { event: Json }; Returns: Json }
       owns_customer: { Args: { p_customer_id: string }; Returns: boolean }
       owns_order: { Args: { p_order_id: string }; Returns: boolean }
       publish_campaign_draft: {

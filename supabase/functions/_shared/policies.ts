@@ -1,3 +1,43 @@
+export type VerifiedLineTokenPayload = {
+  iss?: unknown
+  aud?: unknown
+  sub?: unknown
+  exp?: unknown
+  iat?: unknown
+}
+
+export function assertVerifiedLineTokenPayload(
+  payload: VerifiedLineTokenPayload,
+  channelId: string,
+  nowSeconds = Math.floor(Date.now() / 1000),
+): string {
+  if (payload.iss !== 'https://access.line.me') throw new Error('LINE ID token issuer 無效')
+  if (payload.aud !== channelId) throw new Error('LINE ID token audience 無效')
+  if (typeof payload.sub !== 'string' || !payload.sub) throw new Error('LINE ID token subject 無效')
+  if (typeof payload.exp !== 'number' || payload.exp <= nowSeconds - 30) throw new Error('LINE ID token 已過期')
+  if (typeof payload.iat !== 'number' || payload.iat > nowSeconds + 30) throw new Error('LINE ID token 簽發時間無效')
+  return payload.sub
+}
+
+export function assertOrganizerAuthenticationMethod(
+  isLineOrganizer: boolean,
+  authenticationMethod: string,
+): void {
+  if (isLineOrganizer && !['magiclink', 'otp', 'token_refresh'].includes(authenticationMethod)) {
+    throw new Error('LINE團主必須重新完成LINE驗證')
+  }
+}
+
+export function assertOrganizerBinding(
+  boundAuthUserId: string,
+  adminAuthUserId: string | null,
+): string {
+  if (!boundAuthUserId || adminAuthUserId !== boundAuthUserId) {
+    throw new Error('團主資格設定不完整')
+  }
+  return boundAuthUserId
+}
+
 export function assertBindingAllowed(
   currentLineUserId: string | null,
   currentAuthUserId: string | null,

@@ -25,7 +25,6 @@ describe('loadLiffIdentity', () => {
     const client = fakeLiff({})
 
     await expect(loadLiffIdentity(client, '123-liff')).resolves.toEqual({
-      lineUserId: 'U123',
       displayName: '斯祈',
       pictureUrl: 'https://example/avatar.jpg',
       idToken: 'signed-line-token',

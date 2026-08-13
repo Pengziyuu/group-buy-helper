@@ -8,7 +8,9 @@ import type { Database } from './types/database'
 const { createClient } = vi.hoisted(() => ({ createClient: vi.fn(() => ({ auth: {} })) }))
 vi.mock('@supabase/supabase-js', () => ({ createClient }))
 vi.mock('./LocalLiveApps', () => ({
-  LocalLiveAdminApp: ({ campaignId }: { campaignId?: string }) => <div>supabase-admin:{campaignId ?? 'list'}</div>,
+  LocalLiveAdminApp: ({ campaignId, liffId, liffClient }: { campaignId?: string; liffId?: string; liffClient?: unknown }) => (
+    <div>supabase-admin:{campaignId ?? 'list'}:{liffId ?? 'no-liff'}:{liffClient ? 'client' : 'no-client'}</div>
+  ),
   LocalLiveResidentApp: ({ campaignSlug }: { campaignSlug?: string }) => <div>supabase-resident:{campaignSlug}</div>,
 }))
 
@@ -18,14 +20,21 @@ const liveConfig = {
   supabaseAnonKey: 'publishable-key',
 }
 const stableClient = { auth: {} } as SupabaseClient<Database>
+const stableLiff = { init: vi.fn() }
 
 describe('RuntimeApp production live routing', () => {
+  it('injects LIFF only into the production organizer app', () => {
+    const config = { ...liveConfig, liffId: '2011099887-PlmOrmYw' }
+    render(<RuntimeApp config={config} pathname="/admin" client={stableClient} liffClient={stableLiff as never} />)
+    expect(screen.getByText('supabase-admin:list:2011099887-PlmOrmYw:client')).toBeInTheDocument()
+  })
+
   it('connects the admin list and editor to the Supabase-backed app', () => {
     const { rerender } = render(<RuntimeApp config={liveConfig} pathname="/admin" client={stableClient} />)
-    expect(screen.getByText('supabase-admin:list')).toBeInTheDocument()
+    expect(screen.getByText('supabase-admin:list:no-liff:no-client')).toBeInTheDocument()
 
     rerender(<RuntimeApp config={liveConfig} pathname="/admin/campaign/8d2f0f6a-1111-4222-8333-123456789abc" client={stableClient} />)
-    expect(screen.getByText('supabase-admin:8d2f0f6a-1111-4222-8333-123456789abc')).toBeInTheDocument()
+    expect(screen.getByText('supabase-admin:8d2f0f6a-1111-4222-8333-123456789abc:no-liff:no-client')).toBeInTheDocument()
   })
 
   it('connects a valid share slug to the Supabase-backed resident app', () => {

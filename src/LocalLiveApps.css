@@ -99,6 +99,33 @@
   opacity: 0.65;
 }
 
+.line-organizer-pending {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid #86efac;
+  border-radius: 12px;
+  background: #f0fdf4;
+  color: #14532d;
+}
+
+.line-organizer-pending p {
+  font-size: 14px;
+}
+
+.line-organizer-pending code {
+  overflow-wrap: anywhere;
+  padding: 10px;
+  border-radius: 8px;
+  background: #dcfce7;
+  font-size: 13px;
+  user-select: all;
+}
+
+.live-login-card .line-login-action {
+  background: #06c755;
+}
+
 .live-login-card a {
   color: #2563eb;
   font-size: 14px;

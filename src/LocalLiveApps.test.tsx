@@ -12,6 +12,8 @@ import { initialOrders, items } from './data/demo'
 import { buildOrganizerOrderSummary } from './domain/adminOrders'
 import type { AdminCampaignSupabaseClient } from './services/adminCampaignGateway'
 import type { CampaignContent } from './services/demoCampaignStore'
+import type { LineOrganizerResult } from './services/lineOrganizerGateway'
+import type { LiffClient } from './services/liffIdentity'
 import {
   LOGOUT_TOMBSTONE_KEY,
   SUPABASE_AUTH_CODE_VERIFIER_KEY,
@@ -132,6 +134,36 @@ describe('local Supabase visual demo apps', () => {
     expect(screen.queryByRole('button', { name: '結單' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: '查看住戶端 ↗' })).not.toBeInTheDocument()
     expect(repository.loadOptionalPublished).toHaveBeenCalledWith('new-campaign')
+  })
+
+  it('uses LINE instead of email and shows a safe organizer approval code', async () => {
+    const user = userEvent.setup()
+    const { client } = authClient()
+    const signIn = vi.fn<() => Promise<LineOrganizerResult>>().mockResolvedValue({
+      status: 'pending',
+      requestCode: 'f09df3a5-4d5d-4938-89a4-d8f8e91c2354',
+      displayName: '團主甲',
+    })
+
+    render(
+      <LocalLiveAdminApp
+        client={client}
+        campaignId="campaign-1"
+        repository={{
+          loadPublished: vi.fn(), loadOptionalDraft: vi.fn(), saveDraft: vi.fn(), publish: vi.fn(),
+        }}
+        ordersRepository={ordersRepository()}
+        liffId="2011099887-PlmOrmYw"
+        liffClient={{} as LiffClient}
+        lineOrganizerGateway={{ signIn }}
+      />,
+    )
+
+    expect(await screen.findByRole('button', { name: '使用 LINE 登入' })).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'Email' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '使用 LINE 登入' }))
+    expect(await screen.findByText('f09df3a5-4d5d-4938-89a4-d8f8e91c2354')).toBeInTheDocument()
+    expect(screen.getByText(/團主甲/)).toBeInTheDocument()
   })
 
   it('requires organizer login before loading the remote editor', async () => {

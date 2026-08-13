@@ -8,13 +8,16 @@ import { usesSupabaseBackend } from './services/runtime'
 import type { Database } from './types/database'
 import { getBrowserAuthStorage, getBrowserSessionStorage } from './services/authStorage'
 
+import type { LiffClient } from './services/liffIdentity'
+
 export type RuntimeAppProps = {
   config: RuntimeConfig
   pathname: string
   client?: SupabaseClient<Database>
+  liffClient?: LiffClient
 }
 
-export default function RuntimeApp({ config, pathname, client }: RuntimeAppProps) {
+export default function RuntimeApp({ config, pathname, client, liffClient }: RuntimeAppProps) {
   const appMode = selectAppMode(pathname)
   const appRoute = parseAppRoute(pathname)
   if (appRoute.kind === 'not-found') {
@@ -31,10 +34,10 @@ export default function RuntimeApp({ config, pathname, client }: RuntimeAppProps
   if (usesSupabaseBackend(config) && config.mode !== 'demo') {
     if (!client) throw new Error('Supabase client未初始化')
     if (appRoute.kind === 'admin-list') {
-      return <LocalLiveAdminApp client={client} authStorage={getBrowserAuthStorage()} logoutFallbackStorage={getBrowserSessionStorage()} />
+      return <LocalLiveAdminApp client={client} liffId={config.mode === 'live' ? config.liffId : undefined} liffClient={liffClient} authStorage={getBrowserAuthStorage()} logoutFallbackStorage={getBrowserSessionStorage()} />
     }
     if (appRoute.kind === 'admin-editor') {
-      return <LocalLiveAdminApp client={client} campaignId={appRoute.campaignId} authStorage={getBrowserAuthStorage()} logoutFallbackStorage={getBrowserSessionStorage()} />
+      return <LocalLiveAdminApp client={client} campaignId={appRoute.campaignId} liffId={config.mode === 'live' ? config.liffId : undefined} liffClient={liffClient} authStorage={getBrowserAuthStorage()} logoutFallbackStorage={getBrowserSessionStorage()} />
     }
     if (appRoute.kind === 'resident-campaign') {
       return <LocalLiveResidentApp client={client} campaignSlug={appRoute.campaignSlug} />

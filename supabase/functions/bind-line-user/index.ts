@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { assertBindingAllowed } from '../_shared/policies.ts'
+import { verifyLineIdToken } from '../_shared/line.ts'
 import { corsHeaders, jsonResponse } from '../_shared/http.ts'
 
 Deno.serve(async (request) => {
@@ -29,16 +30,7 @@ Deno.serve(async (request) => {
     if (!Number.isInteger(period) || period < 1 || period > 10) return jsonResponse({ error: '期別格式錯誤' }, 400)
     if (!/^(?=.*[A-Z])(?=.*\d)[A-Z0-9]+$/.test(unit)) return jsonResponse({ error: '戶號格式錯誤' }, 400)
 
-    const verifyBody = new URLSearchParams({ id_token: idToken, client_id: lineChannelId })
-    const lineResponse = await fetch('https://api.line.me/oauth2/v2.1/verify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: verifyBody,
-    })
-    const lineIdentity = await lineResponse.json()
-    if (!lineResponse.ok || typeof lineIdentity.sub !== 'string') {
-      return jsonResponse({ error: 'LINE 身分驗證失敗' }, 401)
-    }
+    const lineIdentity = await verifyLineIdToken(idToken, lineChannelId)
 
     const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
     const { data: customer, error: lookupError } = await admin
@@ -50,11 +42,11 @@ Deno.serve(async (request) => {
     if (lookupError) throw lookupError
     if (!customer) return jsonResponse({ error: '戶號不在白名單，請聯絡團主' }, 403)
 
-    assertBindingAllowed(customer.line_user_id, customer.auth_user_id, lineIdentity.sub, user.id)
+    assertBindingAllowed(customer.line_user_id, customer.auth_user_id, lineIdentity.subject, user.id)
 
     let bindQuery = admin
       .from('customer')
-      .update({ line_user_id: lineIdentity.sub, auth_user_id: user.id })
+      .update({ line_user_id: lineIdentity.subject, auth_user_id: user.id })
       .eq('id', customer.id)
     bindQuery = customer.line_user_id === null
       ? bindQuery.is('line_user_id', null)
@@ -70,8 +62,8 @@ Deno.serve(async (request) => {
     if (!bound) return jsonResponse({ error: '戶號剛被其他帳號綁定，請聯絡團主' }, 409)
 
     return jsonResponse({ customer: bound, lineProfile: {
-      displayName: lineIdentity.name ?? null,
-      pictureUrl: lineIdentity.picture ?? null,
+      displayName: lineIdentity.displayName,
+      pictureUrl: lineIdentity.pictureUrl,
     } })
   } catch (error) {
     const message = error instanceof Error ? error.message : '未知錯誤'

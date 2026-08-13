@@ -24,6 +24,8 @@ import {
   createCampaignManagementGateway,
   type CampaignListItem,
 } from './services/campaignManagementGateway'
+import { createLineOrganizerGateway, type LineOrganizerResult } from './services/lineOrganizerGateway'
+import type { LiffClient } from './services/liffIdentity'
 import {
   LOGOUT_TOMBSTONE_KEY,
   SUPABASE_AUTH_CODE_VERIFIER_KEY,
@@ -280,12 +282,18 @@ export function LocalLiveAdminApp({
   managementRepository,
   authStorage = null,
   logoutFallbackStorage = null,
+  liffId,
+  liffClient,
+  lineOrganizerGateway,
 }: LocalLiveAppProps & {
   repository?: LiveAdminRepository
   ordersRepository?: LiveAdminOrdersRepository
   managementRepository?: LiveCampaignManagementRepository
   authStorage?: AuthSessionStorage | null
   logoutFallbackStorage?: AuthSessionStorage | null
+  liffId?: string
+  liffClient?: LiffClient
+  lineOrganizerGateway?: { signIn(): Promise<LineOrganizerResult> }
 }) {
   const gateway = useMemo(
     () => repository ?? createAdminCampaignGateway(client as AdminCampaignSupabaseClient),
@@ -299,6 +307,12 @@ export function LocalLiveAdminApp({
   const campaignManagementGateway = useMemo(
     () => managementRepository ?? createCampaignManagementGateway(client),
     [client, managementRepository],
+  )
+  const activeLineOrganizerGateway = useMemo(
+    () => lineOrganizerGateway ?? (liffId && liffClient
+      ? createLineOrganizerGateway(client, liffClient, liffId)
+      : null),
+    [client, liffClient, liffId, lineOrganizerGateway],
   )
   const activeCampaignManagementGateway = campaignId ? null : campaignManagementGateway
   const authValidationGeneration = useRef(0)
@@ -318,6 +332,7 @@ export function LocalLiveAdminApp({
   const [error, setError] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [linePending, setLinePending] = useState<{ requestCode: string; displayName: string | null } | null>(null)
   const [signingIn, setSigningIn] = useState(false)
   const [signOutPending, setSignOutPending] = useState(false)
   const [logoutNotice, setLogoutNotice] = useState('')
@@ -551,6 +566,25 @@ export function LocalLiveAdminApp({
     }
   }, [activeCampaignManagementGateway, campaignId, gateway, ordersGateway, organizerUserId])
 
+  const acceptSignedInSession = (signedInSession: Session | null) => {
+    authValidationGeneration.current += 1
+    authEventsBlocked.current = false
+    logoutBarrier.current = false
+    const markerFailures = clearLogoutMarkers([authStorage, logoutFallbackStorage])
+    if (markerFailures.length > 0) {
+      clearStoredAuth(authStorage)
+      authEventsBlocked.current = true
+      logoutBarrier.current = true
+      setFatalAuthError(`無法清除登出保護標記：${errorMessage(markerFailures[0])}。請清除網站資料後再試。`)
+      setSession(null)
+      return false
+    }
+    setLogoutNotice('')
+    validatedOrganizerId.current = signedInSession?.user?.id ?? null
+    setSession(signedInSession)
+    return true
+  }
+
   const signIn = async (event: FormEvent) => {
     event.preventDefault()
     if (signOutPending || fatalAuthError) return
@@ -563,25 +597,27 @@ export function LocalLiveAdminApp({
     })
     if (signInId !== signInGeneration.current) return
     if (signInError) setError(signInError.message)
-    else {
-      authValidationGeneration.current += 1
-      authEventsBlocked.current = false
-      logoutBarrier.current = false
-      const markerFailures = clearLogoutMarkers([authStorage, logoutFallbackStorage])
-      if (markerFailures.length > 0) {
-        clearStoredAuth(authStorage)
-        authEventsBlocked.current = true
-        logoutBarrier.current = true
-        setFatalAuthError(`無法清除登出保護標記：${errorMessage(markerFailures[0])}。請清除網站資料後再試。`)
-        setSession(null)
-        setSigningIn(false)
-        return
-      }
-      setLogoutNotice('')
-      validatedOrganizerId.current = data.session?.user?.id ?? null
-      setSession(data.session)
-    }
+    else acceptSignedInSession(data.session)
     setSigningIn(false)
+  }
+
+  const signInWithLine = async () => {
+    if (!activeLineOrganizerGateway || signingIn || signOutPending || fatalAuthError) return
+    setSigningIn(true)
+    setError('')
+    setLinePending(null)
+    try {
+      const result = await activeLineOrganizerGateway.signIn()
+      if (result.status === 'pending') {
+        setLinePending({ requestCode: result.requestCode, displayName: result.displayName })
+      } else if (result.status === 'approved') {
+        acceptSignedInSession(result.session)
+      }
+    } catch (lineError) {
+      setError(errorMessage(lineError))
+    } finally {
+      setSigningIn(false)
+    }
   }
 
   if (signOutPending) return <LiveLoading label="登出中…" />
@@ -590,23 +626,44 @@ export function LocalLiveAdminApp({
   if (!session) {
     return (
       <main className="live-login-shell">
-        <form className="live-login-card" onSubmit={signIn}>
-          <p className="admin-eyebrow">SUPABASE LIVE DEMO</p>
-          <h1>團主登入</h1>
-          <p>登入後，草稿與發布內容會儲存在本機 Supabase。</p>
-          {logoutNotice && <p className="live-form-error" role="alert">{logoutNotice}</p>}
-          <label>
-            <span>Email</span>
-            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="username" required />
-          </label>
-          <label>
-            <span>密碼</span>
-            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required />
-          </label>
-          {error && <p className="live-form-error" role="alert">{error}</p>}
-          <button type="submit" disabled={signingIn}>{signingIn ? '登入中…' : '登入'}</button>
-          <a href="/">先查看住戶端</a>
-        </form>
+        {activeLineOrganizerGateway ? (
+          <section className="live-login-card">
+            <p className="admin-eyebrow">LINE LIFF</p>
+            <h1>團主登入</h1>
+            <p>使用LINE驗證身分後進入團主後台。</p>
+            {logoutNotice && <p className="live-form-error" role="alert">{logoutNotice}</p>}
+            {linePending && (
+              <div className="line-organizer-pending" role="status">
+                <strong>{linePending.displayName ? `${linePending.displayName}的團主資格尚待核准` : '團主資格尚待核准'}</strong>
+                <p>請將下方申請代碼提供給系統管理者：</p>
+                <code>{linePending.requestCode}</code>
+              </div>
+            )}
+            {error && <p className="live-form-error" role="alert">{error}</p>}
+            <button type="button" className="line-login-action" onClick={() => { void signInWithLine() }} disabled={signingIn}>
+              {signingIn ? 'LINE驗證中…' : '使用 LINE 登入'}
+            </button>
+            <a href="/">先查看住戶端</a>
+          </section>
+        ) : (
+          <form className="live-login-card" onSubmit={signIn}>
+            <p className="admin-eyebrow">SUPABASE LIVE DEMO</p>
+            <h1>團主登入</h1>
+            <p>Email／密碼僅供本機測試或緊急備援。</p>
+            {logoutNotice && <p className="live-form-error" role="alert">{logoutNotice}</p>}
+            <label>
+              <span>Email</span>
+              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="username" required />
+            </label>
+            <label>
+              <span>密碼</span>
+              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required />
+            </label>
+            {error && <p className="live-form-error" role="alert">{error}</p>}
+            <button type="submit" disabled={signingIn}>{signingIn ? '登入中…' : '登入'}</button>
+            <a href="/">先查看住戶端</a>
+          </form>
+        )}
       </main>
     )
   }

@@ -13,7 +13,6 @@ export type LiffClient = {
 }
 
 export type LiffIdentity = {
-  lineUserId: string
   displayName: string
   pictureUrl?: string
   idToken: string
@@ -37,7 +36,6 @@ export async function loadLiffIdentity(
   if (!idToken) throw new Error('登入成功但缺少 LINE ID token，請重新開啟頁面')
 
   return {
-    lineUserId: profile.userId,
     displayName: profile.displayName,
     pictureUrl: profile.pictureUrl,
     idToken,

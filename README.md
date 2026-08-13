@@ -131,10 +131,19 @@ python scripts/verify_storage.py
 ## LINE / LIFF
 
 1. 建立 LINE Login channel。
-2. 建立 LIFF app，Endpoint URL 指向 Vercel HTTPS 網址。
+2. 建立 LIFF app，Endpoint URL 指向 Vercel HTTPS `/admin` 網址。
 3. 啟用 `profile` 與 `openid` scope。
-4. 將 LIFF ID 放入 `VITE_LIFF_ID`。
-5. ID token 必須交給後端向 LINE 驗證，不信任前端自行傳入的 UserID。
+4. 將 LIFF ID 放入 `VITE_LIFF_ID`，並將 LINE Login Channel ID 放入 Supabase Edge Function secret `LINE_CHANNEL_ID`。
+5. 團主與住戶都只把 ID token 交給後端向 LINE 官方驗證；前端 `profile.userId` 不作為授權依據。
+6. 新團主第一次以 LIFF 登入時只會取得隨機申請代碼，不會立即取得後台權限。使用可信環境執行：
+
+```bash
+API_URL=https://YOUR_PROJECT.supabase.co \
+SECRET_KEY=YOUR_SERVICE_ROLE_KEY \
+python scripts/approve_line_organizer.py <request-code>
+```
+
+核准腳本不接受或輸出 LINE User ID。每位團主使用自己的 LINE 帳號申請與核准，因此可安全設定兩位以上團主。
 
 ## 安全原則
 

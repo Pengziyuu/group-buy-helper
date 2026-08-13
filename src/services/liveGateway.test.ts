@@ -27,7 +27,11 @@ describe('createLiveGateway', () => {
     const { supabase, liff } = clients(false)
     const gateway = createLiveGateway(supabase, liff, '123-liff')
 
-    await expect(gateway.initialize()).resolves.toMatchObject({ lineUserId: 'U123' })
+    await expect(gateway.initialize()).resolves.toEqual({
+      displayName: '斯祈',
+      pictureUrl: undefined,
+      idToken: 'line-token',
+    })
     expect(supabase.auth.signInAnonymously).toHaveBeenCalledOnce()
   })
 
