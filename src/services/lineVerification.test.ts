@@ -35,12 +35,14 @@ describe('verifyLineIdToken', () => {
     const rejected = verifyLineIdToken(
       'sensitive-token',
       '2011099887',
-      vi.fn().mockResolvedValue(new Response('{}', { status: 400 })),
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({
+        error: 'invalid_request', error_description: 'Invalid IdToken Audience.',
+      }), { status: 400, headers: { 'Content-Type': 'application/json' } })),
       1_786_589_000,
     )
-    await expect(rejected).rejects.toMatchObject({ code: 'LINE_VERIFY_REJECTED' })
+    await expect(rejected).rejects.toMatchObject({ code: 'LINE_INVALID_AUDIENCE' })
     await rejected.catch((error: unknown) => {
-      expect(lineVerificationPublicMessage(error)).toBe('LINE身分驗證失敗（LINE_VERIFY_REJECTED）')
+      expect(lineVerificationPublicMessage(error)).toBe('LINE身分驗證失敗（LINE_INVALID_AUDIENCE）')
       expect(lineVerificationPublicMessage(error)).not.toContain('sensitive-token')
     })
 

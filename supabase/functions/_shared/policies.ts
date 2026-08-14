@@ -8,9 +8,11 @@ export type VerifiedLineTokenPayload = {
 
 export type LineVerificationCode =
   | 'LINE_VERIFY_REJECTED'
+  | 'LINE_INVALID_TOKEN'
   | 'LINE_INVALID_ISSUER'
   | 'LINE_INVALID_AUDIENCE'
   | 'LINE_INVALID_SUBJECT'
+  | 'LINE_INVALID_NONCE'
   | 'LINE_TOKEN_EXPIRED'
   | 'LINE_INVALID_ISSUED_AT'
 

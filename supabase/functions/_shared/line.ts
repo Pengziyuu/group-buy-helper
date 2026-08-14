@@ -1,6 +1,7 @@
 import {
   assertVerifiedLineTokenPayload,
   LineVerificationError,
+  type LineVerificationCode,
   type VerifiedLineTokenPayload,
 } from './policies.ts'
 
@@ -13,6 +14,7 @@ export type VerifiedLineIdentity = {
 type LineVerifyPayload = VerifiedLineTokenPayload & {
   name?: unknown
   picture?: unknown
+  error_description?: unknown
 }
 
 type Fetcher = typeof fetch
@@ -21,6 +23,18 @@ export function lineVerificationPublicMessage(error: unknown): string | null {
   return error instanceof LineVerificationError
     ? `LINE身分驗證失敗（${error.code}）`
     : null
+}
+
+function verificationCodeFromDescription(description: unknown): LineVerificationCode {
+  switch (description) {
+    case 'Invalid IdToken.': return 'LINE_INVALID_TOKEN'
+    case 'Invalid IdToken Issuer.': return 'LINE_INVALID_ISSUER'
+    case 'IdToken expired.': return 'LINE_TOKEN_EXPIRED'
+    case 'Invalid IdToken Audience.': return 'LINE_INVALID_AUDIENCE'
+    case 'Invalid IdToken Nonce.': return 'LINE_INVALID_NONCE'
+    case 'Invalid IdToken Subject Identifier.': return 'LINE_INVALID_SUBJECT'
+    default: return 'LINE_VERIFY_REJECTED'
+  }
 }
 
 export async function verifyLineIdToken(
@@ -43,7 +57,9 @@ export async function verifyLineIdToken(
   } catch {
     throw new Error('LINE 身分驗證回應格式錯誤')
   }
-  if (!response.ok) throw new LineVerificationError('LINE_VERIFY_REJECTED')
+  if (!response.ok) throw new LineVerificationError(
+    verificationCodeFromDescription(payload.error_description),
+  )
 
   return {
     subject: assertVerifiedLineTokenPayload(payload, channelId, nowSeconds),
