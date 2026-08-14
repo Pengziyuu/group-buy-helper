@@ -33,6 +33,24 @@ describe('createLineOrganizerGateway', () => {
     expect(verifyOtp).not.toHaveBeenCalled()
   })
 
+  it('surfaces the safe Edge Function error body instead of the generic non-2xx message', async () => {
+    const gateway = createLineOrganizerGateway({
+      auth: { verifyOtp: vi.fn(), getUser: vi.fn() },
+      functions: { invoke: vi.fn().mockResolvedValue({
+        data: null,
+        error: {
+          message: 'Edge Function returned a non-2xx status code',
+          context: new Response(JSON.stringify({ error: 'LINE身分驗證失敗' }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        },
+      }) },
+    }, liff(), '2011099887-PlmOrmYw')
+
+    await expect(gateway.signIn()).rejects.toThrow('LINE 團主登入失敗：LINE身分驗證失敗')
+  })
+
   it('exchanges an approved one-time token and verifies the resulting user', async () => {
     const session = { access_token: 'access-token', user: { id: 'auth-1' } }
     const verifyOtp = vi.fn().mockResolvedValue({ data: { session }, error: null })

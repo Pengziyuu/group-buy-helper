@@ -33,6 +33,21 @@ function record(value: unknown): Record<string, unknown> | null {
     : null
 }
 
+async function functionErrorMessage(error: unknown): Promise<string> {
+  const value = record(error)
+  const context = value?.context
+  if (context && typeof context === 'object' && 'clone' in context) {
+    try {
+      const response = (context as Response).clone()
+      const payload = record(await response.json())
+      if (typeof payload?.error === 'string' && payload.error) return payload.error
+    } catch {
+      // Fall back to the SDK error message when the response has no JSON body.
+    }
+  }
+  return errorMessage(error)
+}
+
 export function createLineOrganizerGateway(
   client: LineOrganizerClient,
   liff: LiffClient,
@@ -55,7 +70,7 @@ export function createLineOrganizerGateway(
           displayName: typeof data.displayName === 'string' ? data.displayName : null,
         }
       }
-      if (response.error) throw new Error(`LINE 團主登入失敗：${errorMessage(response.error)}`)
+      if (response.error) throw new Error(`LINE 團主登入失敗：${await functionErrorMessage(response.error)}`)
       if (data?.status !== 'approved'
         || typeof data.tokenHash !== 'string'
         || data.verificationType !== 'email') {
