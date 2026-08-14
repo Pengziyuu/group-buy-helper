@@ -74,8 +74,13 @@
 .success { margin: 12px 0 0; text-align: center; color: var(--green); font-weight: 800; }
 .privacy-note { text-align: center; color: var(--muted); font-size: 12px; margin: 11px 0 0; }
 .resident-binding h2 { margin: 2px 0 0; font-size: 20px; }
+.verified-resident-identity { display: flex; align-items: center; gap: 11px; margin: 14px 0; padding: 11px; border-radius: 14px; background: #f3faf5; }
+.verified-resident-identity img, .verified-resident-identity > span { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
+.verified-resident-identity > span { display: grid; place-items: center; background: #06c755; color: #fff; font-weight: 800; }
+.verified-resident-identity div { display: grid; gap: 2px; }
+.verified-resident-identity small { color: var(--muted); }
 .binding-intro { margin: 8px 0 16px; color: var(--muted); font-size: 13px; }
-.binding-fields { display: grid; grid-template-columns: 1fr 110px 1fr; gap: 10px; }
+.binding-fields { display: grid; grid-template-columns: 110px 1fr; gap: 10px; }
 .binding-fields label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 750; }
 .binding-fields input, .binding-fields select { width: 100%; min-width: 0; padding: 11px 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); font: inherit; }
 .live-pill { color: var(--green); background: #e3f4ed; padding: 5px 9px; border-radius: 999px; font-size: 12px; font-weight: 800; }

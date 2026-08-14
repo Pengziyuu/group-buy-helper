@@ -378,6 +378,9 @@ allow_dynamic_registration = false
 [functions.line-organizer-login]
 verify_jwt = false
 
+[functions.line-resident-login]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

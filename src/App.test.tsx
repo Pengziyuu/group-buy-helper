@@ -44,15 +44,24 @@ describe('customer campaign app', () => {
       customerId: 'new-customer', name: '彭梓育', period: 2, unit: 'A01',
     })
 
-    render(<App visibleOrders={[]} residentCustomer={null} onBindResident={onBindResident} />)
+    render(
+      <App
+        visibleOrders={[]}
+        residentCustomer={null}
+        verifiedResidentIdentity={{ displayName: '彭梓育', pictureUrl: 'https://example.com/avatar.jpg' }}
+        onBindResident={onBindResident}
+      />,
+    )
 
     expect(screen.getByRole('heading', { name: '首次填寫住戶資料' })).toBeInTheDocument()
-    await user.type(screen.getByRole('textbox', { name: '姓名' }), '彭梓育')
+    expect(screen.queryByRole('textbox', { name: '姓名' })).not.toBeInTheDocument()
+    expect(screen.getByText('彭梓育')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: '彭梓育的LINE頭貼' })).toBeInTheDocument()
     await user.selectOptions(screen.getByRole('combobox', { name: '期別' }), '2')
     await user.type(screen.getByRole('textbox', { name: '戶號' }), 'a01')
     await user.click(screen.getByRole('button', { name: '儲存住戶資料' }))
 
-    expect(onBindResident).toHaveBeenCalledWith({ name: '彭梓育', period: 2, unit: 'A01' })
+    expect(onBindResident).toHaveBeenCalledWith({ period: 2, unit: 'A01' })
     expect(await screen.findByRole('button', { name: '增加 A號' })).toBeInTheDocument()
   })
 

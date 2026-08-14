@@ -40,7 +40,13 @@ export default function RuntimeApp({ config, pathname, client, liffClient }: Run
       return <LocalLiveAdminApp client={client} campaignId={appRoute.campaignId} liffId={config.mode === 'live' ? config.liffId : undefined} liffClient={liffClient} authStorage={getBrowserAuthStorage()} logoutFallbackStorage={getBrowserSessionStorage()} />
     }
     if (appRoute.kind === 'resident-campaign') {
-      return <LocalLiveResidentApp client={client} campaignSlug={appRoute.campaignSlug} />
+      return <LocalLiveResidentApp client={client} campaignSlug={appRoute.campaignSlug} liffId={config.mode === 'live' ? config.residentLiffId : undefined} liffClient={liffClient} />
+    }
+    if (appRoute.kind === 'resident-invite' && config.mode === 'live' && config.residentLiffId) {
+      return <LocalLiveResidentApp client={client} inviteSlug={appRoute.inviteSlug} liffId={config.residentLiffId} liffClient={liffClient} />
+    }
+    if (appRoute.kind === 'resident-default' && config.mode === 'live' && config.residentLiffId) {
+      return <LocalLiveResidentApp client={client} liffId={config.residentLiffId} liffClient={liffClient} />
     }
     if (config.mode === 'local-live-demo') {
       return appMode === 'admin'

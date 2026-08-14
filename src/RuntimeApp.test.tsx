@@ -11,7 +11,9 @@ vi.mock('./LocalLiveApps', () => ({
   LocalLiveAdminApp: ({ campaignId, liffId, liffClient }: { campaignId?: string; liffId?: string; liffClient?: unknown }) => (
     <div>supabase-admin:{campaignId ?? 'list'}:{liffId ?? 'no-liff'}:{liffClient ? 'client' : 'no-client'}</div>
   ),
-  LocalLiveResidentApp: ({ campaignSlug }: { campaignSlug?: string }) => <div>supabase-resident:{campaignSlug}</div>,
+  LocalLiveResidentApp: ({ campaignSlug, inviteSlug, liffId, liffClient }: { campaignSlug?: string; inviteSlug?: string; liffId?: string; liffClient?: unknown }) => (
+    <div>supabase-resident:{campaignSlug ?? 'list'}:{inviteSlug ?? 'no-invite'}:{liffId ?? 'no-liff'}:{liffClient ? 'client' : 'no-client'}</div>
+  ),
 }))
 
 const liveConfig = {
@@ -39,10 +41,22 @@ describe('RuntimeApp production live routing', () => {
 
   it('connects a valid share slug to the Supabase-backed resident app', () => {
     render(<RuntimeApp config={liveConfig} pathname="/campaign/0123456789abcdef0123456789abcdef0123" client={stableClient} />)
-    expect(screen.getByText('supabase-resident:0123456789abcdef0123456789abcdef0123')).toBeInTheDocument()
+    expect(screen.getByText('supabase-resident:0123456789abcdef0123456789abcdef0123:no-invite:no-liff:no-client')).toBeInTheDocument()
   })
 
-  it('does not expose fallback demo campaign data on the production root', () => {
+  it('uses the production root as the fixed resident LIFF campaign list entry', () => {
+    const config = { ...liveConfig, residentLiffId: '2011099887-Resident' }
+    render(<RuntimeApp config={config} pathname="/" client={stableClient} liffClient={stableLiff as never} />)
+    expect(screen.getByText('supabase-resident:list:no-invite:2011099887-Resident:client')).toBeInTheDocument()
+  })
+
+  it('passes a community invitation only through the strict resident join route', () => {
+    const config = { ...liveConfig, residentLiffId: '2011099887-Resident' }
+    render(<RuntimeApp config={config} pathname="/join/abcdef0123456789abcdef0123456789abcd" client={stableClient} liffClient={stableLiff as never} />)
+    expect(screen.getByText('supabase-resident:list:abcdef0123456789abcdef0123456789abcd:2011099887-Resident:client')).toBeInTheDocument()
+  })
+
+  it('does not expose fallback demo campaign data on the production root without a resident LIFF configuration', () => {
     render(<RuntimeApp config={liveConfig} pathname="/" client={stableClient} />)
     expect(screen.getByText('請使用團主提供的完整團購連結')).toBeInTheDocument()
     expect(screen.queryByText('一涼製冰所 超厚三明治冰餅')).not.toBeInTheDocument()

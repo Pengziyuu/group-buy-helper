@@ -74,6 +74,19 @@ def _find_auth_user(internal_email: str, send: Request) -> str | None:
         page += 1
 
 
+def _resident_auth_user(request_code: str, send: Request) -> str | None:
+    status, auth_user_id = send(
+        "POST",
+        "/rest/v1/rpc/get_line_organizer_candidate_auth_user",
+        {"p_request_code": request_code},
+    )
+    if status != 200:
+        raise RuntimeError("無法核對既有LINE住戶身分")
+    if auth_user_id is not None and not isinstance(auth_user_id, str):
+        raise RuntimeError("既有LINE住戶身分資料不一致")
+    return auth_user_id
+
+
 def approve(request_code: str, send: Request = request) -> dict[str, Any]:
     existing = _approved_user(request_code, send)
     if existing:
@@ -88,8 +101,10 @@ def approve(request_code: str, send: Request = request) -> dict[str, Any]:
     if status != 200 or not isinstance(rows, list) or len(rows) != 1:
         raise RuntimeError("找不到待核准的團主申請")
 
+    auth_user_id = _resident_auth_user(request_code, send)
     internal_email = f"line-organizer-{request_code}@auth.invalid"
-    auth_user_id = _find_auth_user(internal_email, send)
+    if not auth_user_id:
+        auth_user_id = _find_auth_user(internal_email, send)
     if not auth_user_id:
         status, auth_user = send("POST", "/auth/v1/admin/users", {
             "email": internal_email,

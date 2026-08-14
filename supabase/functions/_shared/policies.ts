@@ -38,18 +38,14 @@ export function assertOrganizerBinding(
   return boundAuthUserId
 }
 
-export function assertBindingAllowed(
-  currentLineUserId: string | null,
-  currentAuthUserId: string | null,
-  requestedLineUserId: string,
-  requestedAuthUserId: string,
-): void {
-  const lineConflict = currentLineUserId !== null && currentLineUserId !== requestedLineUserId
-  const authConflict = currentAuthUserId !== null && currentAuthUserId !== requestedAuthUserId
-
-  if (lineConflict || authConflict) {
-    throw new Error('戶號已綁定其他 LINE 帳號，請聯絡團主')
+export function selectLineResidentAuthUserId(
+  organizerAuthUserId: string | null,
+  residentAuthUserId: string | null,
+): string | null {
+  if (organizerAuthUserId && residentAuthUserId && organizerAuthUserId !== residentAuthUserId) {
+    throw new Error('LINE身分綁定衝突')
   }
+  return organizerAuthUserId ?? residentAuthUserId
 }
 
 export function normalizeOrderItems(

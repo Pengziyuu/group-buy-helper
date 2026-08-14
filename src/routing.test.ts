@@ -3,6 +3,7 @@ import { parseAppRoute, selectAppMode } from './routing'
 
 const campaignId = '8d2f0f6a-1111-4222-8333-123456789abc'
 const campaignSlug = '0123456789abcdef0123456789abcdef0123'
+const inviteSlug = 'abcdef0123456789abcdef0123456789abcd'
 
 describe('app routing', () => {
   it('opens organizer mode on admin list and exact editor paths', () => {
@@ -17,6 +18,7 @@ describe('app routing', () => {
     expect(parseAppRoute('/admin')).toEqual({ kind: 'admin-list' })
     expect(parseAppRoute(`/admin/campaign/${campaignId}`)).toEqual({ kind: 'admin-editor', campaignId })
     expect(parseAppRoute(`/campaign/${campaignSlug}`)).toEqual({ kind: 'resident-campaign', campaignSlug })
+    expect(parseAppRoute(`/join/${inviteSlug}`)).toEqual({ kind: 'resident-invite', inviteSlug })
     expect(parseAppRoute('/')).toEqual({ kind: 'resident-default' })
   })
 

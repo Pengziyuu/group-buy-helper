@@ -28,7 +28,12 @@ const orderQuantity = (orderItems: Record<string, number>) =>
 
 type ResidentCustomer = Pick<VisibleOrder, 'customerId' | 'name' | 'period' | 'unit'>
 
-type ResidentBindingInput = Pick<ResidentCustomer, 'name' | 'period' | 'unit'>
+type ResidentBindingInput = Pick<ResidentCustomer, 'period' | 'unit'>
+
+type VerifiedResidentIdentity = {
+  displayName: string
+  pictureUrl: string | null
+}
 
 type AppProps = {
   publishedContent?: CampaignContent
@@ -36,11 +41,12 @@ type AppProps = {
   campaignStatus?: CampaignStatus
   visibleOrders?: VisibleOrder[]
   residentCustomer?: ResidentCustomer | null
+  verifiedResidentIdentity?: VerifiedResidentIdentity
   onBindResident?: (input: ResidentBindingInput) => Promise<ResidentCustomer>
   onSubmitOrder?: (items: Record<string, number>) => Promise<void>
 }
 
-function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visibleOrders, residentCustomer, onBindResident, onSubmitOrder }: AppProps = {}) {
+function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visibleOrders, residentCustomer, verifiedResidentIdentity, onBindResident, onSubmitOrder }: AppProps = {}) {
   const [localPublishedCampaign] = useState(() => loadPublishedCampaign(defaultContent))
   const publishedCampaign = publishedContent ?? localPublishedCampaign
   const itemDisplayLabel = (code: string) => {
@@ -58,7 +64,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
   const ownOrder = currentResident
     ? orders.find((order) => order.customerId === currentResident.customerId)
     : undefined
-  const [residentName, setResidentName] = useState('')
+
   const [residentPeriod, setResidentPeriod] = useState(2)
   const [residentUnit, setResidentUnit] = useState('')
   const [binding, setBinding] = useState(false)
@@ -95,16 +101,15 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
 
   const bindResident = async () => {
     if (!onBindResident) return
-    const name = residentName.trim()
     const unit = residentUnit.trim().toUpperCase()
-    if (!name || !unit) {
-      setBindingNotice('請填寫姓名與戶號')
+    if (!unit) {
+      setBindingNotice('請填寫戶號')
       return
     }
     setBinding(true)
     setBindingNotice('')
     try {
-      const customer = await onBindResident({ name, period: residentPeriod, unit })
+      const customer = await onBindResident({ period: residentPeriod, unit })
       setBoundResident(customer)
     } catch (error) {
       setBindingNotice(error instanceof Error ? error.message : '住戶資料儲存失敗')
@@ -247,11 +252,15 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
           <p className="section-kicker">我的訂單</p>
           <h2 id="resident-binding-heading">首次填寫住戶資料</h2>
           <p className="binding-intro">完成一次綁定後，即可選擇品項並送出訂單。</p>
+          {verifiedResidentIdentity && (
+            <div className="verified-resident-identity">
+              {verifiedResidentIdentity.pictureUrl
+                ? <img src={verifiedResidentIdentity.pictureUrl} alt={`${verifiedResidentIdentity.displayName}的LINE頭貼`} referrerPolicy="no-referrer" />
+                : <span aria-hidden="true">{verifiedResidentIdentity.displayName.slice(0, 1)}</span>}
+              <div><small>LINE驗證身分</small><strong>{verifiedResidentIdentity.displayName}</strong></div>
+            </div>
+          )}
           <div className="binding-fields">
-            <label>
-              <span>姓名</span>
-              <input value={residentName} onChange={(event) => setResidentName(event.target.value)} maxLength={100} autoComplete="name" />
-            </label>
             <label>
               <span>期別</span>
               <select value={residentPeriod} onChange={(event) => setResidentPeriod(Number(event.target.value))}>
@@ -287,7 +296,9 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
               || a.customerId.localeCompare(b.customerId))
             .map((order) => (
               <article className={`wall-order ${order.customerId === currentResident?.customerId ? 'own' : ''}`} key={order.customerId}>
-                <div className="avatar" aria-hidden="true">{order.name.slice(0, 1).toUpperCase()}</div>
+                {order.pictureUrl
+                  ? <img className="avatar" src={order.pictureUrl} alt={`${order.name}的LINE頭貼`} referrerPolicy="no-referrer" />
+                  : <div className="avatar" aria-hidden="true">{order.name.slice(0, 1).toUpperCase()}</div>}
                 <div className="wall-main">
                   <div className="wall-name">
                     <strong>{order.name}</strong>

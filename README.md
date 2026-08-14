@@ -83,24 +83,27 @@ npm run build
 ```bash
 VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 VITE_SUPABASE_ANON_KEY=YOUR_PUBLISHABLE_OR_ANON_KEY
-# 公開 HTTPS 部署測試可先留空；接 LINE LIFF 時再設定
+# 團主 LIFF
 VITE_LIFF_ID=YOUR_LIFF_ID
+# 住戶 LIFF
+VITE_RESIDENT_LIFF_ID=YOUR_RESIDENT_LIFF_ID
 ```
 
-Supabase URL 與 publishable/anon key 必須同時存在，否則應用程式會明確報錯，不會半套進入 live 模式。LIFF ID 可在公開 HTTPS 測試通過後再加入。正式 live 模式的 `/admin`、`/admin/campaign/<uuid>` 與 `/campaign/<slug>` 全部使用 Supabase；根網址不會顯示本機示範團。
+Supabase URL 與 publishable/anon key 必須同時存在，否則應用程式會明確報錯，不會半套進入 live 模式。正式 live 模式的 `/admin`、`/admin/campaign/<uuid>`、`/join/<invite>`、`/campaign/<slug>` 與根網址全部使用 Supabase；根網址是已登入住戶的全部已發布團購列表。
 
 Vercel 部署設定已放在 `vercel.json`，所有深層網址都 rewrite 到 `index.html`，因此直接開啟或重新整理團主管理／住戶分享連結不會由主機回傳 404。
 
 ## Supabase
 
-Migration 位於 `supabase/migrations/`。正式上線前：
+Migration 位於 `supabase/migrations/`。目前採**單一社區部署模型**：一個 Supabase／Vercel deployment 對應一個 LINE 社區群組，資料庫會拒絕第二筆 community 與非預設 community 的 campaign。若未來需要一個部署服務多社區，必須先完成 organizer-community membership、全套 RLS／RPC／Storage 多租戶改造，不可直接移除 constraint。
+
+正式上線前：
 
 1. 建立 Supabase 專案。
-2. 啟用 Anonymous Sign-Ins，讓每個 LIFF 使用者取得獨立 `auth.uid()`。
+2. 保持 Anonymous Sign-Ins 關閉；住戶與團主都由可信 LINE ID token 交換獨立 Supabase Session。
 3. 執行 migration。
-4. 建立團主的 Supabase Auth 帳號並加入 `admin_users`。
-5. 匯入住戶白名單；只含姓名、期別、戶號，不含電話。
-6. 設定 Edge Function secrets：LINE Channel ID、Supabase service role key。
+4. 團主由 LINE 申請及可信核准流程加入 `admin_users`。
+5. 設定 Edge Function secrets：LINE Channel ID、Supabase service role key與住戶內部Email雜湊pepper（`LINE_RESIDENT_EMAIL_PEPPER`）。
 
 本機 Supabase（需要 Docker Desktop）：
 
@@ -131,11 +134,15 @@ python scripts/verify_storage.py
 ## LINE / LIFF
 
 1. 建立 LINE Login channel。
-2. 建立 LIFF app，Endpoint URL 指向 Vercel HTTPS `/admin` 網址。
-3. 啟用 `profile` 與 `openid` scope。
-4. 將 LIFF ID 放入 `VITE_LIFF_ID`，並將 LINE Login Channel ID 放入 Supabase Edge Function secret `LINE_CHANNEL_ID`。
-5. 團主與住戶都只把 ID token 交給後端向 LINE 官方驗證；前端 `profile.userId` 不作為授權依據。
-6. 新團主第一次以 LIFF 登入時只會取得隨機申請代碼，不會立即取得後台權限。使用可信環境執行：
+2. 建立團主 LIFF app，Endpoint URL 指向 Vercel HTTPS `/admin` 網址。
+3. 在同一個 LINE Login channel 建立住戶 LIFF app，Endpoint URL 指向 Vercel HTTPS 根網址。
+4. 兩個 LIFF app 都只啟用 `profile` 與 `openid` scope，Add friend option 關閉。
+5. 團主 LIFF ID 放入 `VITE_LIFF_ID`，住戶 LIFF ID 放入 `VITE_RESIDENT_LIFF_ID`，LINE Login Channel ID 放入Edge Function secret `LINE_CHANNEL_ID`。
+6. 團主與住戶都只把 ID token 交給後端向 LINE 官方驗證；前端 `profile.userId`、名稱與頭貼不作為授權或可信資料來源。
+7. 將社區產生的邀請碼只放在群組固定入口 `https://liff.line.me/<住戶LIFF-ID>/join/<邀請碼>`，不得提交到 Git 或公開文件。
+   - **已接受的bearer-link風險：**任何取得該固定連結且持有有效LINE帳號的人都能加入；LINE LIFF無法證明使用者仍在指定聊天群組。
+   - 若連結外流，應輪替community invite slug，並撤銷不明帳號的membership與Auth Session。
+8. 新團主第一次以 LIFF 登入時只會取得隨機申請代碼，不會立即取得後台權限。使用可信環境執行：
 
 ```bash
 API_URL=https://YOUR_PROJECT.supabase.co \
@@ -148,7 +155,9 @@ python scripts/approve_line_organizer.py <request-code>
 ## 安全原則
 
 - `line_user_id` 不出現在公開 view 或前端一般查詢。
-- UserID 經 LINE ID token 驗證後，才可與白名單戶號綁定。
+- LINE subject 經官方驗證後只保存在 service-role-only 資料表，不出現在列表、訂單牆或前端權限資料。
+- 住戶名稱與頭貼只從LINE官方驗證回應同步；首次住戶只填期別與戶號。
+- 住戶列表只由安全RPC回傳其community內已發布團購的最小欄位；草稿與其他community永不回傳。
 - 客人只能更新綁定到自己 `auth.uid()` 的訂單。
 - 結單後禁止修改。
 - 單品數量限制 0–20。
@@ -166,8 +175,8 @@ python scripts/approve_line_organizer.py <request-code>
 
 接 LINE LIFF 時另外需要：
 
-- LINE LIFF ID
+- 團主與住戶兩個 LINE LIFF ID
 - LINE Login Channel ID（僅放 Edge Function secret）
-- 約 30 戶白名單
+- 每個community的固定邀請連結
 
 不要把 service role key、LINE UserID 或其他秘密提交到 Git。

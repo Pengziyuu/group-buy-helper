@@ -13,6 +13,7 @@ import { buildOrganizerOrderSummary } from './domain/adminOrders'
 import type { AdminCampaignSupabaseClient } from './services/adminCampaignGateway'
 import type { CampaignContent } from './services/demoCampaignStore'
 import type { LineOrganizerResult } from './services/lineOrganizerGateway'
+import type { LineResidentSignInResult } from './services/lineResidentGateway'
 import type { LiffClient } from './services/liffIdentity'
 import {
   LOGOUT_TOMBSTONE_KEY,
@@ -79,6 +80,51 @@ function authClient(session: unknown = null, getUserError: unknown = null) {
 }
 
 describe('local Supabase visual demo apps', () => {
+  it('opens the fixed resident LIFF entry and renders all published campaigns', async () => {
+    const user = userEvent.setup()
+    const { client } = authClient()
+    const signIn = vi.fn<() => Promise<LineResidentSignInResult>>().mockResolvedValue({
+      session: { access_token: 'resident-access', user: { id: 'resident-uid' } } as never,
+      identity: { displayName: '彭梓育', pictureUrl: 'https://example.com/avatar.jpg' },
+    })
+    const list = vi.fn().mockResolvedValue([{
+      slug: '0123456789abcdef0123456789abcdef0123',
+      title: '早餐團購',
+      status: 'open' as const,
+      unitPrice: 55,
+      openedAt: '2026-08-14T08:00:00.000Z',
+      totalQuantity: 8,
+      threshold: 10,
+    }])
+    const liffClient: LiffClient = {
+      init: vi.fn().mockResolvedValue(undefined),
+      isLoggedIn: vi.fn().mockReturnValue(true),
+      login: vi.fn(),
+      getProfile: vi.fn().mockResolvedValue({ userId: 'not-trusted', displayName: '前端名稱' }),
+      getIDToken: vi.fn().mockReturnValue('trusted-line-id-token'),
+    }
+
+    render(
+      <LocalLiveResidentApp
+        client={client}
+        inviteSlug="abcdef0123456789abcdef0123456789abcd"
+        liffId="2011099887-Resident"
+        liffClient={liffClient}
+        lineResidentGateway={{ signIn }}
+        residentListRepository={{ list }}
+      />,
+    )
+
+    expect(await screen.findByRole('heading', { name: '全部開團' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '早餐團購' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: '彭梓育的LINE頭貼' })).toBeInTheDocument()
+    expect(signIn).toHaveBeenCalledWith('trusted-line-id-token', 'abcdef0123456789abcdef0123456789abcd')
+    expect(list).toHaveBeenCalledTimes(1)
+    await user.click(screen.getByRole('button', { name: '登出' }))
+    expect(client.auth.signOut).toHaveBeenCalledOnce()
+    expect(await screen.findByText('已登出，請從LINE群組內的固定住戶入口重新進入')).toBeInTheDocument()
+  })
+
   it('shows the campaign list after organizer authentication when no campaign is selected', async () => {
     const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
     const { client } = authClient(session)
@@ -1146,7 +1192,9 @@ describe('local Supabase visual demo apps', () => {
     Object.assign(client, {
       rpc: vi.fn((name: string) => Promise.resolve(name === 'get_customer_self'
         ? { data: [{ id: 'admin-customer', name: '團主住戶', period: 2, unit: 'A01' }], error: null }
-        : { data: [{ id: 'campaign-1' }], error: null })),
+        : name === 'get_line_resident_self'
+          ? { data: [{ display_name: '團主住戶', picture_url: null }], error: null }
+          : { data: [{ id: 'campaign-1' }], error: null })),
       from: vi.fn((table: string) => table === 'campaign_public'
         ? { select: vi.fn().mockReturnValue({ eq: campaignEq }) }
         : { select: vi.fn().mockReturnValue({ eq: wallEq }) }),
@@ -1209,7 +1257,8 @@ describe('local Supabase visual demo apps', () => {
 
   it('binds a first-time resident through the trusted RPC and enables ordering', async () => {
     const user = userEvent.setup()
-    const { client } = authClient()
+    const session = { access_token: 'resident-token', user: { id: 'resident-uid', is_anonymous: false } }
+    const { client } = authClient(session)
     const single = vi.fn().mockResolvedValue({
       data: {
         title: published.title, unit_price: published.unitPrice, threshold: published.threshold,
@@ -1222,6 +1271,9 @@ describe('local Supabase visual demo apps', () => {
     const wallEq = vi.fn().mockResolvedValue({ data: [], error: null })
     const rpc = vi.fn((name: string) => {
       if (name === 'join_campaign_by_slug') return Promise.resolve({ data: [{ id: 'campaign-1' }], error: null })
+      if (name === 'get_line_resident_self') return Promise.resolve({
+        data: [{ display_name: '彭梓育', picture_url: 'https://example.com/avatar.jpg' }], error: null,
+      })
       if (name === 'get_customer_self') return Promise.resolve({ data: [], error: null })
       if (name === 'bind_customer_self') return Promise.resolve({
         data: [{ id: 'customer-new', name: '彭梓育', period: 2, unit: 'A01' }], error: null,
@@ -1241,18 +1293,20 @@ describe('local Supabase visual demo apps', () => {
 
     render(<LocalLiveResidentApp client={client} campaignSlug="campaign-slug" />)
 
-    await user.type(await screen.findByRole('textbox', { name: '姓名' }), '彭梓育')
+    expect(await screen.findByText('彭梓育')).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: '姓名' })).not.toBeInTheDocument()
     await user.type(screen.getByRole('textbox', { name: '戶號' }), 'a01')
     await user.click(screen.getByRole('button', { name: '儲存住戶資料' }))
 
     expect(rpc).toHaveBeenCalledWith('bind_customer_self', {
-      p_name: '彭梓育', p_period: 2, p_unit: 'A01',
+      p_period: 2, p_unit: 'A01',
     })
     expect(await screen.findByRole('button', { name: '增加 A號' })).toBeInTheDocument()
   })
 
-  it('loads published campaign content for an anonymous resident session', async () => {
-    const { client } = authClient()
+  it('loads published campaign content for a verified LINE resident session', async () => {
+    const session = { access_token: 'resident-token', user: { id: 'resident-user', is_anonymous: false } }
+    const { client } = authClient(session)
     const single = vi.fn().mockResolvedValue({
       data: {
         title: published.title,
@@ -1271,6 +1325,7 @@ describe('local Supabase visual demo apps', () => {
     const wallEq = vi.fn().mockResolvedValue({
       data: [{
         order_id: 'order-live-1', customer_id: 'customer-live-1', customer_name: '資料庫住戶',
+        picture_url: 'https://example.com/resident.jpg',
         period: 2, unit: '9Z9', item_code: published.items[0].code, qty: 3,
         ordered_at: '2026-08-14T01:00:00Z', order_updated_at: '2026-08-14T01:05:00Z',
       }],
@@ -1290,7 +1345,9 @@ describe('local Supabase visual demo apps', () => {
     Object.assign(client, {
       rpc: vi.fn((name: string) => Promise.resolve(name === 'get_customer_self'
         ? { data: [{ id: 'customer-live-1', name: '資料庫住戶', period: 2, unit: '9Z9' }], error: null }
-        : { data: [{ id: 'campaign-1' }], error: null })),
+        : name === 'get_line_resident_self'
+          ? { data: [{ display_name: '資料庫住戶', picture_url: 'https://example.com/resident.jpg' }], error: null }
+          : { data: [{ id: 'campaign-1' }], error: null })),
       from,
       channel: vi.fn().mockReturnValue({ on, subscribe }),
       removeChannel: vi.fn().mockResolvedValue(undefined),
@@ -1308,16 +1365,19 @@ describe('local Supabase visual demo apps', () => {
     expect(screen.getByText(/Supabase Live Demo/)).toBeInTheDocument()
     expect(screen.getByText('已結單')).toBeInTheDocument()
     expect(screen.getAllByText('資料庫住戶').length).toBeGreaterThan(0)
+    expect(screen.getByRole('img', { name: '資料庫住戶的LINE頭貼' })).toBeInTheDocument()
     expect(screen.getByText('下單時間 2026/08/14 09:00')).toBeInTheDocument()
     expect(screen.getByText('已修改・最後修改 2026/08/14 09:05')).toBeInTheDocument()
     expect(screen.queryByText('斯祈')).not.toBeInTheDocument()
   })
 
   it('resolves a resident share slug to its campaign id before loading data', async () => {
-    const { client } = authClient()
+    const session = { access_token: 'resident-token', user: { id: 'resident-user', is_anonymous: false } }
+    const { client } = authClient(session)
     const rpc = vi.fn()
       .mockResolvedValueOnce({ data: [{ id: 'resolved-campaign' }], error: null })
       .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({ data: [{ display_name: '住戶', picture_url: null }], error: null })
     const single = vi.fn().mockResolvedValue({
       data: {
         title: '分享團', unit_price: 50, threshold: 10, announcement: '', images: [],

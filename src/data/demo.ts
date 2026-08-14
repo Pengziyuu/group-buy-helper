@@ -8,6 +8,7 @@ export type CampaignItem = {
 
 export type VisibleOrder = Order & {
   name: string
+  pictureUrl?: string | null
   period: number
   unit: string
   orderedAt: string

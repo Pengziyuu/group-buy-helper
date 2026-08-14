@@ -20,11 +20,13 @@ describe('resolveRuntimeConfig', () => {
       VITE_SUPABASE_URL: 'https://example.supabase.co',
       VITE_SUPABASE_ANON_KEY: 'anon-key',
       VITE_LIFF_ID: '123-example',
+      VITE_RESIDENT_LIFF_ID: '123-resident',
     })).toEqual({
       mode: 'live',
       supabaseUrl: 'https://example.supabase.co',
       supabaseAnonKey: 'anon-key',
       liffId: '123-example',
+      residentLiffId: '123-resident',
     })
   })
 
@@ -49,6 +51,8 @@ describe('resolveRuntimeConfig', () => {
 
   it('rejects partial live configuration instead of silently falling back', () => {
     expect(() => resolveRuntimeConfig({ VITE_LIFF_ID: '123-example' }))
+      .toThrow('Supabase URL 與公開金鑰必須一起提供')
+    expect(() => resolveRuntimeConfig({ VITE_RESIDENT_LIFF_ID: '123-resident' }))
       .toThrow('Supabase URL 與公開金鑰必須一起提供')
     expect(() => resolveRuntimeConfig({ VITE_SUPABASE_URL: 'https://example.supabase.co' }))
       .toThrow('Supabase URL 與公開金鑰必須一起提供')

@@ -57,6 +57,7 @@ export type Database = {
       campaign: {
         Row: {
           announcement: string
+          community_id: string
           created_at: string
           deadline: string
           id: string
@@ -72,6 +73,7 @@ export type Database = {
         }
         Insert: {
           announcement?: string
+          community_id?: string
           created_at?: string
           deadline: string
           id?: string
@@ -87,6 +89,7 @@ export type Database = {
         }
         Update: {
           announcement?: string
+          community_id?: string
           created_at?: string
           deadline?: string
           id?: string
@@ -100,7 +103,15 @@ export type Database = {
           unit_price?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "campaign_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "community"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       campaign_access: {
         Row: {
@@ -258,6 +269,59 @@ export type Database = {
           },
         ]
       }
+      community: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          invite_slug: string
+          name: string
+          singleton: boolean
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          invite_slug?: string
+          name: string
+          singleton?: boolean
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          invite_slug?: string
+          name?: string
+          singleton?: boolean
+        }
+        Relationships: []
+      }
+      community_member: {
+        Row: {
+          community_id: string
+          joined_at: string
+          user_id: string
+        }
+        Insert: {
+          community_id: string
+          joined_at?: string
+          user_id: string
+        }
+        Update: {
+          community_id?: string
+          joined_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_member_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "community"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer: {
         Row: {
           auth_user_id: string | null
@@ -267,6 +331,7 @@ export type Database = {
           name: string
           order_count: number
           period: number
+          picture_url: string | null
           total_spent: number
           unit: string
           updated_at: string
@@ -280,6 +345,7 @@ export type Database = {
           name: string
           order_count?: number
           period?: number
+          picture_url?: string | null
           total_spent?: number
           unit: string
           updated_at?: string
@@ -293,6 +359,7 @@ export type Database = {
           name?: string
           order_count?: number
           period?: number
+          picture_url?: string | null
           total_spent?: number
           unit?: string
           updated_at?: string
@@ -369,6 +436,33 @@ export type Database = {
           picture_url?: string | null
           request_code?: string
           requested_at?: string
+        }
+        Relationships: []
+      }
+      line_resident_identity: {
+        Row: {
+          auth_user_id: string
+          created_at: string
+          display_name: string
+          last_verified_at: string
+          line_user_id: string
+          picture_url: string | null
+        }
+        Insert: {
+          auth_user_id: string
+          created_at?: string
+          display_name: string
+          last_verified_at?: string
+          line_user_id: string
+          picture_url?: string | null
+        }
+        Update: {
+          auth_user_id?: string
+          created_at?: string
+          display_name?: string
+          last_verified_at?: string
+          line_user_id?: string
+          picture_url?: string | null
         }
         Relationships: []
       }
@@ -656,6 +750,7 @@ export type Database = {
           order_updated_at: string | null
           ordered_at: string | null
           period: number | null
+          picture_url: string | null
           qty: number | null
           sort_order: number | null
           unit: string | null
@@ -730,15 +825,26 @@ export type Database = {
         Args: { p_auth_user_id: string; p_request_code: string }
         Returns: string
       }
-      bind_customer_self: {
-        Args: { p_name: string; p_period: number; p_unit: string }
-        Returns: {
-          id: string
-          name: string
-          period: number
-          unit: string
-        }[]
-      }
+      bind_customer_self:
+        | {
+            Args: { p_name: string; p_period: number; p_unit: string }
+            Returns: {
+              id: string
+              name: string
+              period: number
+              unit: string
+            }[]
+          }
+        | {
+            Args: { p_period: number; p_unit: string }
+            Returns: {
+              id: string
+              name: string
+              period: number
+              picture_url: string
+              unit: string
+            }[]
+          }
       campaign_image_path_is_live: {
         Args: { p_name: string }
         Returns: boolean
@@ -756,6 +862,7 @@ export type Database = {
         Args: { p_title?: string }
         Returns: {
           announcement: string
+          community_id: string
           created_at: string
           deadline: string
           id: string
@@ -790,7 +897,19 @@ export type Database = {
           id: string
           name: string
           period: number
+          picture_url: string
           unit: string
+        }[]
+      }
+      get_line_organizer_candidate_auth_user: {
+        Args: { p_request_code: string }
+        Returns: string
+      }
+      get_line_resident_self: {
+        Args: never
+        Returns: {
+          display_name: string
+          picture_url: string
         }[]
       }
       has_campaign_access: { Args: { p_campaign_id: string }; Returns: boolean }
@@ -814,12 +933,39 @@ export type Database = {
         }[]
       }
       line_organizer_access_token_hook: { Args: { event: Json }; Returns: Json }
+      list_resident_campaigns: {
+        Args: never
+        Returns: {
+          opened_at: string
+          slug: string
+          status: string
+          threshold: number
+          title: string
+          total_quantity: number
+          unit_price: number
+        }[]
+      }
       owns_customer: { Args: { p_customer_id: string }; Returns: boolean }
       owns_order: { Args: { p_order_id: string }; Returns: boolean }
+      provision_line_resident: {
+        Args: {
+          p_auth_user_id: string
+          p_display_name: string
+          p_invite_slug: string
+          p_line_user_id: string
+          p_picture_url: string
+        }
+        Returns: {
+          community_id: string
+          display_name: string
+          picture_url: string
+        }[]
+      }
       publish_campaign_draft: {
         Args: { p_campaign_id: string }
         Returns: {
           announcement: string
+          community_id: string
           created_at: string
           deadline: string
           id: string
@@ -844,6 +990,7 @@ export type Database = {
         Args: { p_campaign_id: string; p_status: string }
         Returns: {
           announcement: string
+          community_id: string
           created_at: string
           deadline: string
           id: string

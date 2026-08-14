@@ -10,6 +10,27 @@ SPEC.loader.exec_module(MODULE)
 
 
 class ApprovalReconciliationTest(unittest.TestCase):
+    def test_existing_resident_auth_user_is_reused_before_creating_an_organizer_user(self):
+        calls = []
+
+        def request(method, path, body=None):
+            calls.append((method, path, body))
+            if "line_organizer_identity" in path:
+                return 200, []
+            if "line_organizer_request" in path:
+                return 200, [{"request_code": "request-1", "display_name": "團主甲"}]
+            if path == "/rest/v1/rpc/get_line_organizer_candidate_auth_user":
+                return 200, "resident-auth"
+            if path == "/rest/v1/rpc/approve_line_organizer":
+                self.assertEqual(body["p_auth_user_id"], "resident-auth")
+                return 200, "resident-auth"
+            raise AssertionError((method, path, body))
+
+        result = MODULE.approve("request-1", request)
+
+        self.assertEqual(result["authUserId"], "resident-auth")
+        self.assertFalse(any(path.startswith("/auth/v1/admin/users") for _, path, _ in calls))
+
     def test_rpc_transport_failure_reconciles_committed_approval_without_deleting_user(self):
         calls = []
         reconciled = False
@@ -21,6 +42,8 @@ class ApprovalReconciliationTest(unittest.TestCase):
                 return (200, [{"auth_user_id": "auth-1"}]) if reconciled else (200, [])
             if "line_organizer_request" in path:
                 return 200, [{"request_code": "request-1", "display_name": "團主甲"}]
+            if path == "/rest/v1/rpc/get_line_organizer_candidate_auth_user":
+                return 200, None
             if path.startswith("/auth/v1/admin/users") and method == "GET":
                 return 200, {"users": []}
             if path == "/auth/v1/admin/users" and method == "POST":
@@ -46,6 +69,8 @@ class ApprovalReconciliationTest(unittest.TestCase):
                 return 200, []
             if "line_organizer_request" in path:
                 return 200, [{"request_code": request_code, "display_name": "團主甲"}]
+            if path == "/rest/v1/rpc/get_line_organizer_candidate_auth_user":
+                return 200, None
             if path == "/auth/v1/admin/users?page=1&per_page=1000":
                 return 200, {"users": [
                     {"id": f"other-{index}", "email": f"other-{index}@example.test"}

@@ -1,26 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
-  assertBindingAllowed,
   assertOrganizerBinding,
   assertOrganizerAuthenticationMethod,
   assertVerifiedLineTokenPayload,
   normalizeOrderItems,
+  selectLineResidentAuthUserId,
 } from '../../supabase/functions/_shared/policies'
-
-describe('assertBindingAllowed', () => {
-  it('allows an unbound whitelist customer to bind', () => {
-    expect(() => assertBindingAllowed(null, null, 'U123', 'auth-1')).not.toThrow()
-  })
-
-  it('allows the same LINE and auth identities to resume', () => {
-    expect(() => assertBindingAllowed('U123', 'auth-1', 'U123', 'auth-1')).not.toThrow()
-  })
-
-  it('rejects attempts to take over an already-bound unit', () => {
-    expect(() => assertBindingAllowed('U123', 'auth-1', 'U999', 'auth-2'))
-      .toThrow('戶號已綁定')
-  })
-})
 
 describe('assertOrganizerAuthenticationMethod', () => {
   it('allows only LINE-controlled magic links and refreshes for a LINE organizer', () => {
@@ -67,6 +52,26 @@ describe('assertVerifiedLineTokenPayload', () => {
       exp: now + 300,
       iat: now - 30,
     }, '2011099887', now)).toThrow('LINE ID token audience')
+  })
+})
+
+describe('selectLineResidentAuthUserId', () => {
+  it('reuses the organizer Auth UID for an organizer entering as a resident', () => {
+    expect(selectLineResidentAuthUserId('organizer-uid', null)).toBe('organizer-uid')
+    expect(selectLineResidentAuthUserId('organizer-uid', 'organizer-uid')).toBe('organizer-uid')
+  })
+
+  it('resumes an existing resident Auth UID', () => {
+    expect(selectLineResidentAuthUserId(null, 'resident-uid')).toBe('resident-uid')
+  })
+
+  it('rejects conflicting organizer and resident bindings for the same LINE subject', () => {
+    expect(() => selectLineResidentAuthUserId('organizer-uid', 'different-uid'))
+      .toThrow('LINE身分綁定衝突')
+  })
+
+  it('returns null when a new resident account is required', () => {
+    expect(selectLineResidentAuthUserId(null, null)).toBeNull()
   })
 })
 

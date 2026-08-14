@@ -2,6 +2,7 @@ export type RuntimeEnvironment = Partial<Record<
   | 'VITE_SUPABASE_URL'
   | 'VITE_SUPABASE_ANON_KEY'
   | 'VITE_LIFF_ID'
+  | 'VITE_RESIDENT_LIFF_ID'
   | 'VITE_LOCAL_SUPABASE_DEMO'
   | 'VITE_DEMO_CAMPAIGN_ID'
   | 'VITE_DEMO_CAMPAIGN_SLUG',
@@ -22,6 +23,7 @@ export type RuntimeConfig =
       supabaseUrl: string
       supabaseAnonKey: string
       liffId?: string
+      residentLiffId?: string
     }
 
 export function resolveRuntimeConfig(environment: RuntimeEnvironment): RuntimeConfig {
@@ -31,6 +33,7 @@ export function resolveRuntimeConfig(environment: RuntimeEnvironment): RuntimeCo
   const campaignId = environment.VITE_DEMO_CAMPAIGN_ID?.trim()
   const campaignSlug = environment.VITE_DEMO_CAMPAIGN_SLUG?.trim()
   const liffId = environment.VITE_LIFF_ID?.trim()
+  const residentLiffId = environment.VITE_RESIDENT_LIFF_ID?.trim()
 
   if (supabaseAnonKey?.startsWith('sb_secret_')) {
     throw new Error('VITE_SUPABASE_ANON_KEY只能使用publishable或anon公開金鑰')
@@ -50,13 +53,14 @@ export function resolveRuntimeConfig(environment: RuntimeEnvironment): RuntimeCo
   }
   const suppliedSupabase = [supabaseUrl, supabaseAnonKey].filter(Boolean).length
 
-  if (suppliedSupabase === 0 && !liffId) return { mode: 'demo' }
+  if (suppliedSupabase === 0 && !liffId && !residentLiffId) return { mode: 'demo' }
   if (suppliedSupabase !== 2) throw new Error('Supabase URL 與公開金鑰必須一起提供')
   return {
     mode: 'live',
     supabaseUrl: supabaseUrl!,
     supabaseAnonKey: supabaseAnonKey!,
     ...(liffId ? { liffId } : {}),
+    ...(residentLiffId ? { residentLiffId } : {}),
   }
 }
 
@@ -68,6 +72,7 @@ export const runtimeConfig = resolveRuntimeConfig({
   VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
   VITE_SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY,
   VITE_LIFF_ID: import.meta.env.VITE_LIFF_ID,
+  VITE_RESIDENT_LIFF_ID: import.meta.env.VITE_RESIDENT_LIFF_ID,
   VITE_LOCAL_SUPABASE_DEMO: import.meta.env.VITE_LOCAL_SUPABASE_DEMO,
   VITE_DEMO_CAMPAIGN_ID: import.meta.env.VITE_DEMO_CAMPAIGN_ID,
   VITE_DEMO_CAMPAIGN_SLUG: import.meta.env.VITE_DEMO_CAMPAIGN_SLUG,
