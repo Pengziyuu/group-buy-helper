@@ -278,11 +278,11 @@ function LiveLoading({ label }: { label: string }) {
   )
 }
 
-function LiveError({ message }: { message: string }) {
+function LiveError({ message, title = '無法載入團購小幫手' }: { message: string; title?: string }) {
   return (
     <main className="live-state-shell">
       <div className="live-state-card live-error" role="alert">
-        <strong>無法載入 Supabase Live Demo</strong>
+        <strong>{title}</strong>
         <p>{message}</p>
       </div>
     </main>
@@ -815,7 +815,7 @@ function LocalLiveResidentListApp({
     return () => { active = false }
   }, [client, inviteSlug, liffClient, liffId, lineResidentGateway, residentListRepository])
 
-  if (error) return <LiveError message={error} />
+  if (error) return <LiveError message={error} title="無法載入住戶入口" />
   if (!identity || !campaigns) return <LiveLoading label="確認LINE住戶身分並載入開團列表…" />
   return (
     <ResidentCampaignListApp

@@ -125,6 +125,14 @@ describe('local Supabase visual demo apps', () => {
     expect(await screen.findByText('已登出，請從LINE群組內的固定住戶入口重新進入')).toBeInTheDocument()
   })
 
+  it('uses the production product name when the fixed resident entry is missing', async () => {
+    const { client } = authClient()
+    render(<LocalLiveResidentApp client={client} liffId="resident-liff" />)
+
+    expect(await screen.findByText('無法載入住戶入口')).toBeInTheDocument()
+    expect(screen.queryByText(/Demo/)).not.toBeInTheDocument()
+  })
+
   it('shows the campaign list after organizer authentication when no campaign is selected', async () => {
     const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
     const { client } = authClient(session)
