@@ -14,6 +14,16 @@ const ADMIN_EDITOR_PATTERN = new RegExp(`^/admin/campaign/(${UUID_SOURCE})/?$`, 
 const RESIDENT_CAMPAIGN_PATTERN = new RegExp(`^/campaign/(${SLUG_SOURCE})/?$`, 'i')
 const RESIDENT_INVITE_PATTERN = new RegExp(`^/join/(${SLUG_SOURCE})/?$`)
 
+export function resolveLiffPath(pathname: string, search: string): string {
+  if (pathname !== '/') return pathname
+  const states = new URLSearchParams(search).getAll('liff.state')
+  if (states.length !== 1) return pathname
+  const stateRoute = parseAppRoute(states[0])
+  return stateRoute.kind === 'resident-invite' || stateRoute.kind === 'resident-campaign'
+    ? states[0]
+    : pathname
+}
+
 export function parseAppRoute(pathname: string): AppRoute {
   if (pathname === '/') return { kind: 'resident-default' }
   if (pathname === '/admin' || pathname === '/admin/') return { kind: 'admin-list' }

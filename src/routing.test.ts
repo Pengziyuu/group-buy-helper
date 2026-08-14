@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseAppRoute, selectAppMode } from './routing'
+import { parseAppRoute, resolveLiffPath, selectAppMode } from './routing'
 
 const campaignId = '8d2f0f6a-1111-4222-8333-123456789abc'
 const campaignSlug = '0123456789abcdef0123456789abcdef0123'
@@ -32,5 +32,14 @@ describe('app routing', () => {
     expect(parseAppRoute(`/admin//campaign/${campaignId}`)).toEqual({ kind: 'not-found' })
     expect(parseAppRoute(`//campaign/${campaignSlug}`)).toEqual({ kind: 'not-found' })
     expect(parseAppRoute(`/c%61mpaign/${campaignSlug}`)).toEqual({ kind: 'not-found' })
+  })
+
+  it('recovers only strict resident routes from LINE liff.state', () => {
+    expect(resolveLiffPath('/', `?liff.state=%2Fjoin%2F${inviteSlug}`)).toBe(`/join/${inviteSlug}`)
+    expect(resolveLiffPath('/', `?liff.state=%2Fcampaign%2F${campaignSlug}`)).toBe(`/campaign/${campaignSlug}`)
+    expect(resolveLiffPath('/admin', `?liff.state=%2Fjoin%2F${inviteSlug}`)).toBe('/admin')
+    expect(resolveLiffPath('/', '?liff.state=https%3A%2F%2Fevil.example')).toBe('/')
+    expect(resolveLiffPath('/', `?liff.state=%2Fadmin&liff.state=%2Fjoin%2F${inviteSlug}`)).toBe('/')
+    expect(resolveLiffPath('/', `?liff.state=%252Fjoin%252F${inviteSlug}`)).toBe('/')
   })
 })
