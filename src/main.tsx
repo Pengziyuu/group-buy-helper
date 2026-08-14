@@ -17,7 +17,9 @@ const liffClient: LiffClient = {
     return loadedLiff.init(options)
   },
   isLoggedIn: () => loadedLiff?.isLoggedIn() ?? false,
+  isInClient: () => loadedLiff?.isInClient() ?? false,
   login: () => { loadedLiff?.login() },
+  logout: () => { loadedLiff?.logout() },
   getProfile: async () => {
     if (!loadedLiff) throw new Error('LIFF 尚未初始化')
     return loadedLiff.getProfile()
