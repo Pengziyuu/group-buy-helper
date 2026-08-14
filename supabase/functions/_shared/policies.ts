@@ -6,16 +6,34 @@ export type VerifiedLineTokenPayload = {
   iat?: unknown
 }
 
+export type LineVerificationCode =
+  | 'LINE_VERIFY_REJECTED'
+  | 'LINE_INVALID_ISSUER'
+  | 'LINE_INVALID_AUDIENCE'
+  | 'LINE_INVALID_SUBJECT'
+  | 'LINE_TOKEN_EXPIRED'
+  | 'LINE_INVALID_ISSUED_AT'
+
+export class LineVerificationError extends Error {
+  readonly code: LineVerificationCode
+
+  constructor(code: LineVerificationCode) {
+    super(code)
+    this.name = 'LineVerificationError'
+    this.code = code
+  }
+}
+
 export function assertVerifiedLineTokenPayload(
   payload: VerifiedLineTokenPayload,
   channelId: string,
   nowSeconds = Math.floor(Date.now() / 1000),
 ): string {
-  if (payload.iss !== 'https://access.line.me') throw new Error('LINE ID token issuer 無效')
-  if (payload.aud !== channelId) throw new Error('LINE ID token audience 無效')
-  if (typeof payload.sub !== 'string' || !payload.sub) throw new Error('LINE ID token subject 無效')
-  if (typeof payload.exp !== 'number' || payload.exp <= nowSeconds - 30) throw new Error('LINE ID token 已過期')
-  if (typeof payload.iat !== 'number' || payload.iat > nowSeconds + 30) throw new Error('LINE ID token 簽發時間無效')
+  if (payload.iss !== 'https://access.line.me') throw new LineVerificationError('LINE_INVALID_ISSUER')
+  if (payload.aud !== channelId) throw new LineVerificationError('LINE_INVALID_AUDIENCE')
+  if (typeof payload.sub !== 'string' || !payload.sub) throw new LineVerificationError('LINE_INVALID_SUBJECT')
+  if (typeof payload.exp !== 'number' || payload.exp <= nowSeconds - 30) throw new LineVerificationError('LINE_TOKEN_EXPIRED')
+  if (typeof payload.iat !== 'number' || payload.iat > nowSeconds + 30) throw new LineVerificationError('LINE_INVALID_ISSUED_AT')
   return payload.sub
 }
 

@@ -51,7 +51,7 @@ describe('assertVerifiedLineTokenPayload', () => {
       sub: 'U123',
       exp: now + 300,
       iat: now - 30,
-    }, '2011099887', now)).toThrow('LINE ID token audience')
+    }, '2011099887', now)).toThrow('LINE_INVALID_AUDIENCE')
   })
 })
 

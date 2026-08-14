@@ -1,6 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { clientAddress, corsHeaders, jsonResponse, readJsonBodyWithLimit } from '../_shared/http.ts'
-import { verifyLineIdToken } from '../_shared/line.ts'
+import { lineVerificationPublicMessage, verifyLineIdToken } from '../_shared/line.ts'
 import { enforceLineLoginRateLimit } from '../_shared/lineRateLimit.ts'
 import { selectLineResidentAuthUserId } from '../_shared/policies.ts'
 
@@ -129,7 +129,8 @@ Deno.serve(async (request) => {
     if (message === '無法識別請求來源' || message === 'JSON格式錯誤') {
       return jsonResponse({ error: '請求格式錯誤' }, 400)
     }
-    if (message.startsWith('LINE ')) return jsonResponse({ error: 'LINE身分驗證失敗' }, 401)
+    const lineError = lineVerificationPublicMessage(error)
+    if (lineError) return jsonResponse({ error: lineError }, 401)
     if (message.includes('邀請')) return jsonResponse({ error: '社區邀請連結無效' }, 403)
     console.error('line-resident-login failed', error)
     return jsonResponse({ error: '住戶登入服務暫時無法使用' }, 500)
