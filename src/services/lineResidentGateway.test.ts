@@ -20,10 +20,10 @@ describe('createLineResidentGateway', () => {
     const getUser = vi.fn().mockResolvedValue({ data: { user: { id: 'resident-uid' } }, error: null })
     const gateway = createLineResidentGateway({ functions: { invoke }, auth: { verifyOtp, getUser } } as never)
 
-    const result = await gateway.signIn('line-id-token', '0123456789abcdef0123456789abcdef0123')
+    const result = await gateway.signIn('line-id-token')
 
     expect(invoke).toHaveBeenCalledWith('line-resident-login', {
-      body: { idToken: 'line-id-token', inviteSlug: '0123456789abcdef0123456789abcdef0123' },
+      body: { idToken: 'line-id-token' },
     })
     expect(verifyOtp).toHaveBeenCalledWith({ type: 'email', token_hash: 'one-time-hash' })
     expect(getUser).toHaveBeenCalledWith('access')
@@ -43,7 +43,7 @@ describe('createLineResidentGateway', () => {
       },
     } as never)
 
-    await expect(gateway.signIn('line-id-token', '0123456789abcdef0123456789abcdef0123'))
+    await expect(gateway.signIn('line-id-token'))
       .rejects.toThrow('住戶登入驗證失敗')
   })
 })

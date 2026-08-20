@@ -15,7 +15,7 @@ describe('line-resident-login Edge Function boundary', () => {
     expect(source).toContain("request.method !== 'POST'")
     expect(source).toContain('readJsonBodyWithLimit(request, 16_384)')
     expect(source).toContain('idToken.length > 8_192')
-    expect(source).toMatch(/inviteSlug[\s\S]*\^\[0-9a-f\]\{36\}\$/i)
+    expect(source).not.toMatch(/inviteSlug|p_invite_slug/i)
     expect(source).toContain('enforceLineLoginRateLimit')
     expect(source).toContain('verifyLineIdToken')
     expect(source).toContain("admin.rpc('provision_line_resident'")

@@ -32,9 +32,9 @@ export type LineResidentSignInResult = {
 
 export function createLineResidentGateway(client: SupabaseClient<Database>) {
   return {
-    async signIn(idToken: string, inviteSlug: string): Promise<LineResidentSignInResult> {
+    async signIn(idToken: string): Promise<LineResidentSignInResult> {
       const response = await client.functions.invoke('line-resident-login', {
-        body: { idToken, inviteSlug },
+        body: { idToken },
       })
       if (response.error) {
         throw new Error(`LINE住戶登入失敗：${await functionErrorMessage(response.error)}`)

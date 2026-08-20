@@ -89,9 +89,9 @@ VITE_LIFF_ID=YOUR_LIFF_ID
 VITE_RESIDENT_LIFF_ID=YOUR_RESIDENT_LIFF_ID
 ```
 
-Supabase URL 與 publishable/anon key 必須同時存在，否則應用程式會明確報錯，不會半套進入 live 模式。正式 live 模式的 `/admin`、`/admin/campaign/<uuid>`、`/join/<invite>`、`/campaign/<slug>` 與根網址全部使用 Supabase；根網址是已登入住戶的全部已發布團購列表。
+Supabase URL 與 publishable/anon key 必須同時存在，否則應用程式會明確報錯，不會半套進入 live 模式。正式 live 模式的 `/admin`、`/admin/campaign/<uuid>`、`/campaign/<slug>` 與根網址全部使用 Supabase；根網址是LINE驗證住戶的全部已發布團購列表。舊版 `/join/<invite>` 僅保留網址相容性，不再作為入會憑證。
 
-Vercel 部署設定已放在 `vercel.json`，所有深層網址都 rewrite 到 `index.html`，因此直接開啟或重新整理團主管理／住戶分享連結不會由主機回傳 404。
+Vercel 部署設定已放在 `vercel.json`；`/admin`使用團主專用HTML連結預覽，其餘SPA深層網址rewrite到`index.html`，因此直接開啟或重新整理團主管理／住戶分享連結不會由主機回傳404。
 
 ## Supabase
 
@@ -139,9 +139,9 @@ python scripts/verify_storage.py
 4. 兩個 LIFF app 都只啟用 `profile` 與 `openid` scope，Add friend option 關閉。
 5. 團主 LIFF ID 放入 `VITE_LIFF_ID`，住戶 LIFF ID 放入 `VITE_RESIDENT_LIFF_ID`，LINE Login Channel ID 放入Edge Function secret `LINE_CHANNEL_ID`。
 6. 團主與住戶都只把 ID token 交給後端向 LINE 官方驗證；前端 `profile.userId`、名稱與頭貼不作為授權或可信資料來源。
-7. 將社區產生的邀請碼只放在群組固定入口 `https://liff.line.me/<住戶LIFF-ID>/join/<邀請碼>`，不得提交到 Git 或公開文件。
-   - **已接受的bearer-link風險：**任何取得該固定連結且持有有效LINE帳號的人都能加入；LINE LIFF無法證明使用者仍在指定聊天群組。
-   - 若連結外流，應輪替community invite slug，並撤銷不明帳號的membership與Auth Session。
+7. 住戶固定使用短版入口 `https://liff.line.me/<住戶LIFF-ID>`。任何持有效LINE帳號者都可加入；LINE LIFF無法證明使用者目前是否在指定聊天群組。
+   - 團主後台以LINE官方驗證名稱、頭貼、期別／戶號及加入時間顯示住戶名單。
+   - 團主可移除並封鎖陌生住戶；封鎖會立即撤銷community membership，阻止再次加入。解除封鎖後恢復membership。
 8. 新團主第一次以 LIFF 登入時只會取得隨機申請代碼，不會立即取得後台權限。使用可信環境執行：
 
 ```bash
@@ -158,6 +158,7 @@ python scripts/approve_line_organizer.py <request-code>
 - LINE subject 經官方驗證後只保存在 service-role-only 資料表，不出現在列表、訂單牆或前端權限資料。
 - 住戶名稱與頭貼只從LINE官方驗證回應同步；首次住戶只填期別與戶號。
 - 住戶列表只由安全RPC回傳其community內已發布團購的最小欄位；草稿與其他community永不回傳。
+- 團主管理住戶只使用安全隨機member code；LINE subject、Auth UID與community UUID不回傳前端。
 - 客人只能更新綁定到自己 `auth.uid()` 的訂單。
 - 結單後禁止修改。
 - 單品數量限制 0–20。
@@ -177,6 +178,6 @@ python scripts/approve_line_organizer.py <request-code>
 
 - 團主與住戶兩個 LINE LIFF ID
 - LINE Login Channel ID（僅放 Edge Function secret）
-- 每個community的固定邀請連結
+- 團主與住戶的固定LIFF短網址
 
 不要把 service role key、LINE UserID 或其他秘密提交到 Git。

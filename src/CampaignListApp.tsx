@@ -2,6 +2,8 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { campaignStatusLabel } from './domain/orderWorkflow'
 import { formatZhTwTimestamp } from './domain/timestamp'
 import type { CampaignListItem } from './services/campaignManagementGateway'
+import ResidentMemberManagementApp from './ResidentMemberManagementApp'
+import type { ResidentMember } from './services/residentMemberManagementGateway'
 import './CampaignListApp.css'
 
 type CampaignListAppProps = {
@@ -10,9 +12,11 @@ type CampaignListAppProps = {
   onDelete?: (campaignId: string) => Promise<{ warning: string | null } | void>
   onNavigate?: (path: string) => void
   onSignOut?: () => Promise<void>
+  residentMembers?: ResidentMember[]
+  onSetResidentBlocked?: (memberCode: string, blocked: boolean) => Promise<void>
 }
 
-export default function CampaignListApp({ campaigns, onCreate, onDelete, onNavigate, onSignOut }: CampaignListAppProps) {
+export default function CampaignListApp({ campaigns, onCreate, onDelete, onNavigate, onSignOut, residentMembers, onSetResidentBlocked }: CampaignListAppProps) {
   const [visibleCampaigns, setVisibleCampaigns] = useState(campaigns)
   const [creating, setCreating] = useState(false)
   const [title, setTitle] = useState('未命名團購')
@@ -134,6 +138,9 @@ export default function CampaignListApp({ campaigns, onCreate, onDelete, onNavig
           </article>
         ))}
       </section>
+      {residentMembers && onSetResidentBlocked && (
+        <ResidentMemberManagementApp members={residentMembers} onSetBlocked={onSetResidentBlocked} />
+      )}
     </main>
   )
 }

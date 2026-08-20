@@ -7,6 +7,7 @@ import {
   type LiveAdminOrdersRepository,
   type LiveAdminRepository,
   type LiveCampaignManagementRepository,
+  type LiveResidentMemberRepository,
 } from './LocalLiveApps'
 import { initialOrders, items } from './data/demo'
 import { buildOrganizerOrderSummary } from './domain/adminOrders'
@@ -107,7 +108,6 @@ describe('local Supabase visual demo apps', () => {
     render(
       <LocalLiveResidentApp
         client={client}
-        inviteSlug="abcdef0123456789abcdef0123456789abcd"
         liffId="2011099887-Resident"
         liffClient={liffClient}
         lineResidentGateway={{ signIn }}
@@ -118,11 +118,11 @@ describe('local Supabase visual demo apps', () => {
     expect(await screen.findByRole('heading', { name: '全部開團' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '早餐團購' })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: '彭梓育的LINE頭貼' })).toBeInTheDocument()
-    expect(signIn).toHaveBeenCalledWith('trusted-line-id-token', 'abcdef0123456789abcdef0123456789abcd')
+    expect(signIn).toHaveBeenCalledWith('trusted-line-id-token')
     expect(list).toHaveBeenCalledTimes(1)
     await user.click(screen.getByRole('button', { name: '登出' }))
     expect(client.auth.signOut).toHaveBeenCalledOnce()
-    expect(await screen.findByText('已登出，請從LINE群組內的固定住戶入口重新進入')).toBeInTheDocument()
+    expect(await screen.findByText('已登出，請重新開啟住戶LINE入口')).toBeInTheDocument()
   })
 
   it('uses the production product name when the fixed resident entry is missing', async () => {
@@ -144,11 +144,20 @@ describe('local Supabase visual demo apps', () => {
       create: vi.fn(),
       delete: vi.fn().mockResolvedValue({ warning: null }),
     }
+    const residentMemberRepository: LiveResidentMemberRepository = {
+      list: vi.fn().mockResolvedValue([{
+        memberCode: 'abcdef0123456789abcdef0123456789abcd',
+        displayName: '住戶甲', pictureUrl: null, period: 2, unit: 'K13',
+        joinedAt: '2026-08-14T00:00:00Z', blocked: false, blockedAt: null,
+      }]),
+      setBlocked: vi.fn().mockResolvedValue(undefined),
+    }
 
     render(
       <LocalLiveAdminApp
         client={client}
         managementRepository={managementRepository}
+        residentMemberRepository={residentMemberRepository}
         authStorage={null}
       />,
     )
@@ -156,6 +165,9 @@ describe('local Supabase visual demo apps', () => {
     expect(await screen.findByRole('heading', { name: '我的團購' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '歷史冰餅團' })).toBeInTheDocument()
     expect(managementRepository.list).toHaveBeenCalledTimes(1)
+    expect(residentMemberRepository.list).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('heading', { name: '住戶管理' })).toBeInTheDocument()
+    expect(screen.getByText('住戶甲')).toBeInTheDocument()
   })
 
   it('opens a newly created draft before it has a published snapshot', async () => {

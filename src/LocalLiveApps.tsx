@@ -30,6 +30,10 @@ import {
 } from './services/campaignManagementGateway'
 import { createLineOrganizerGateway, type LineOrganizerResult } from './services/lineOrganizerGateway'
 import { createLineResidentGateway, type LineResidentSignInResult } from './services/lineResidentGateway'
+import {
+  createResidentMemberManagementGateway,
+  type ResidentMember,
+} from './services/residentMemberManagementGateway'
 import { loadLiffIdentity, type LiffClient } from './services/liffIdentity'
 import {
   LOGOUT_TOMBSTONE_KEY,
@@ -61,6 +65,11 @@ export type LiveCampaignManagementRepository = {
   delete(campaignId: string): Promise<{ warning: string | null }>
 }
 
+export type LiveResidentMemberRepository = {
+  list(): Promise<ResidentMember[]>
+  setBlocked(memberCode: string, blocked: boolean): Promise<void>
+}
+
 type LocalLiveAppProps = {
   client: SupabaseClient<Database>
   campaignId?: string
@@ -70,10 +79,9 @@ type LocalLiveResidentAppProps = {
   client: SupabaseClient<Database>
   campaignId?: string
   campaignSlug?: string
-  inviteSlug?: string
   liffId?: string
   liffClient?: LiffClient
-  lineResidentGateway?: { signIn(idToken: string, inviteSlug: string): Promise<LineResidentSignInResult> }
+  lineResidentGateway?: { signIn(idToken: string): Promise<LineResidentSignInResult> }
   residentListRepository?: LiveResidentListRepository
 }
 
@@ -295,6 +303,7 @@ export function LocalLiveAdminApp({
   repository,
   ordersRepository,
   managementRepository,
+  residentMemberRepository,
   authStorage = null,
   logoutFallbackStorage = null,
   liffId,
@@ -304,6 +313,7 @@ export function LocalLiveAdminApp({
   repository?: LiveAdminRepository
   ordersRepository?: LiveAdminOrdersRepository
   managementRepository?: LiveCampaignManagementRepository
+  residentMemberRepository?: LiveResidentMemberRepository
   authStorage?: AuthSessionStorage | null
   logoutFallbackStorage?: AuthSessionStorage | null
   liffId?: string
@@ -323,6 +333,10 @@ export function LocalLiveAdminApp({
     () => managementRepository ?? createCampaignManagementGateway(client),
     [client, managementRepository],
   )
+  const residentMemberGateway = useMemo(
+    () => residentMemberRepository ?? createResidentMemberManagementGateway(client),
+    [client, residentMemberRepository],
+  )
   const activeLineOrganizerGateway = useMemo(
     () => lineOrganizerGateway ?? (liffId && liffClient
       ? createLineOrganizerGateway(client, liffClient, liffId)
@@ -330,6 +344,7 @@ export function LocalLiveAdminApp({
     [client, liffClient, liffId, lineOrganizerGateway],
   )
   const activeCampaignManagementGateway = campaignId ? null : campaignManagementGateway
+  const activeResidentMemberGateway = campaignId ? null : residentMemberGateway
   const authValidationGeneration = useRef(0)
   const signInGeneration = useRef(0)
   const signOutGeneration = useRef(0)
@@ -342,6 +357,7 @@ export function LocalLiveAdminApp({
   const [orderSummary, setOrderSummary] = useState<OrganizerOrderSummary | null>(null)
   const [campaignStatus, setCampaignStatus] = useState<CampaignStatus | null>(null)
   const [campaigns, setCampaigns] = useState<CampaignListItem[] | null>(null)
+  const [residentMembers, setResidentMembers] = useState<ResidentMember[] | null>(null)
   const [residentSlug, setResidentSlug] = useState<string | null>(null)
   const [publicationState, setPublicationState] = useState<'draft' | 'published'>('published')
   const [error, setError] = useState('')
@@ -532,6 +548,7 @@ export function LocalLiveAdminApp({
       setOrderSummary(null)
       setCampaignStatus(null)
       setCampaigns(null)
+      setResidentMembers(null)
       setResidentSlug(null)
       return
     }
@@ -542,9 +559,15 @@ export function LocalLiveAdminApp({
       setOrderSummary(null)
       setCampaignStatus(null)
       setResidentSlug(null)
-      if (!activeCampaignManagementGateway) return
-      void activeCampaignManagementGateway.list().then((items) => {
-        if (active) setCampaigns(items)
+      if (!activeCampaignManagementGateway || !activeResidentMemberGateway) return
+      void Promise.all([
+        activeCampaignManagementGateway.list(),
+        activeResidentMemberGateway.list(),
+      ]).then(([items, members]) => {
+        if (active) {
+          setCampaigns(items)
+          setResidentMembers(members)
+        }
       }).catch((loadError: unknown) => {
         if (active) setError(errorMessage(loadError))
       })
@@ -579,7 +602,7 @@ export function LocalLiveAdminApp({
     return () => {
       active = false
     }
-  }, [activeCampaignManagementGateway, campaignId, gateway, ordersGateway, organizerUserId])
+  }, [activeCampaignManagementGateway, activeResidentMemberGateway, campaignId, gateway, ordersGateway, organizerUserId])
 
   const acceptSignedInSession = (signedInSession: Session | null) => {
     authValidationGeneration.current += 1
@@ -684,10 +707,15 @@ export function LocalLiveAdminApp({
   }
   if (error) return <LiveError message={error} />
   if (!campaignId) {
-    if (!campaigns) return <LiveLoading label="載入團購列表…" />
+    if (!campaigns || !residentMembers) return <LiveLoading label="載入團購與住戶列表…" />
     return (
       <CampaignListApp
         campaigns={campaigns}
+        residentMembers={residentMembers}
+        onSetResidentBlocked={async (memberCode, blocked) => {
+          await residentMemberGateway.setBlocked(memberCode, blocked)
+          setResidentMembers(await residentMemberGateway.list())
+        }}
         onCreate={(title) => campaignManagementGateway.create(title)}
         onDelete={async (campaignId) => {
           const result = await campaignManagementGateway.delete(campaignId)
@@ -773,7 +801,6 @@ function residentCampaignListRepository(client: SupabaseClient<Database>): LiveR
 
 function LocalLiveResidentListApp({
   client,
-  inviteSlug,
   liffId,
   liffClient,
   lineResidentGateway,
@@ -787,19 +814,19 @@ function LocalLiveResidentListApp({
     let active = true
     const initialize = async () => {
       let trustedIdentity: ResidentLineIdentity
-      if (inviteSlug) {
+      if (liffId || liffClient) {
         if (!liffId || !liffClient) throw new Error('住戶LINE登入設定不完整')
         const liffIdentity = await loadLiffIdentity(liffClient, liffId)
         if (!liffIdentity) return
         const gateway = lineResidentGateway ?? createLineResidentGateway(client)
-        const result = await gateway.signIn(liffIdentity.idToken, inviteSlug)
+        const result = await gateway.signIn(liffIdentity.idToken)
         trustedIdentity = result.identity
       } else {
         const session = await ensureResidentSession(client, false)
         const { data, error: identityError } = await client.rpc('get_line_resident_self')
         if (identityError) throw identityError
         const row = data?.[0]
-        if (!row?.display_name) throw new Error('請從LINE群組內的固定住戶入口進入')
+        if (!row?.display_name) throw new Error('請使用住戶LINE入口登入')
         trustedIdentity = { displayName: row.display_name, pictureUrl: row.picture_url }
         if (!session.user?.id) throw new Error('住戶登入狀態無效')
       }
@@ -813,7 +840,7 @@ function LocalLiveResidentListApp({
       if (active) setError(errorMessage(loadError))
     })
     return () => { active = false }
-  }, [client, inviteSlug, liffClient, liffId, lineResidentGateway, residentListRepository])
+  }, [client, liffClient, liffId, lineResidentGateway, residentListRepository])
 
   if (error) return <LiveError message={error} title="無法載入住戶入口" />
   if (!identity || !campaigns) return <LiveLoading label="確認LINE住戶身分並載入開團列表…" />
@@ -832,7 +859,7 @@ function LocalLiveResidentListApp({
         }
         setIdentity(null)
         setCampaigns([])
-        setError('已登出，請從LINE群組內的固定住戶入口重新進入')
+        setError('已登出，請重新開啟住戶LINE入口')
       }}
     />
   )
@@ -848,7 +875,7 @@ async function ensureResidentSession(client: SupabaseClient<Database>, allowAnon
     }
     return { ...data.session, user: verified.user }
   }
-  if (!allowAnonymous) throw new Error('請從LINE群組內的固定住戶入口進入')
+  if (!allowAnonymous) throw new Error('請先從住戶LINE入口登入')
   const { data: anonymousData, error: anonymousError } = await client.auth.signInAnonymously()
   if (anonymousError || !anonymousData.session) {
     throw anonymousError ?? new Error('無法建立住戶匿名登入')
@@ -900,7 +927,7 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug }: Loca
       if (active) {
         setOrders(visibleOrdersFromRows(wallResult.data ?? []))
         const identity = identityResult.data?.[0]
-        if (!identity?.display_name) throw new Error('請從LINE群組內的固定住戶入口進入')
+        if (!identity?.display_name) throw new Error('請先從住戶LINE入口登入')
         setResidentIdentity({ displayName: identity.display_name, pictureUrl: identity.picture_url })
         const customer = customerResult.data?.[0]
         setResidentCustomer(customer?.id && customer.name && customer.period !== null && customer.unit

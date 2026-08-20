@@ -50,10 +50,10 @@ describe('RuntimeApp production live routing', () => {
     expect(screen.getByText('supabase-resident:list:no-invite:2011099887-Resident:client')).toBeInTheDocument()
   })
 
-  it('passes a community invitation only through the strict resident join route', () => {
+  it('keeps legacy resident invitation URLs compatible with the public LINE entry', () => {
     const config = { ...liveConfig, residentLiffId: '2011099887-Resident' }
     render(<RuntimeApp config={config} pathname="/join/abcdef0123456789abcdef0123456789abcd" client={stableClient} liffClient={stableLiff as never} />)
-    expect(screen.getByText('supabase-resident:list:abcdef0123456789abcdef0123456789abcd:2011099887-Resident:client')).toBeInTheDocument()
+    expect(screen.getByText('supabase-resident:list:no-invite:2011099887-Resident:client')).toBeInTheDocument()
   })
 
   it('does not expose fallback demo campaign data on the production root without a resident LIFF configuration', () => {

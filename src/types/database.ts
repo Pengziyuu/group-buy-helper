@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.15"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -274,7 +269,6 @@ export type Database = {
           active: boolean
           created_at: string
           id: string
-          invite_slug: string
           name: string
           singleton: boolean
         }
@@ -282,7 +276,6 @@ export type Database = {
           active?: boolean
           created_at?: string
           id?: string
-          invite_slug?: string
           name: string
           singleton?: boolean
         }
@@ -290,7 +283,6 @@ export type Database = {
           active?: boolean
           created_at?: string
           id?: string
-          invite_slug?: string
           name?: string
           singleton?: boolean
         }
@@ -300,21 +292,62 @@ export type Database = {
         Row: {
           community_id: string
           joined_at: string
+          member_code: string
           user_id: string
         }
         Insert: {
           community_id: string
           joined_at?: string
+          member_code?: string
           user_id: string
         }
         Update: {
           community_id?: string
           joined_at?: string
+          member_code?: string
           user_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "community_member_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "community"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_resident_block: {
+        Row: {
+          blocked_at: string
+          blocked_by: string
+          community_id: string
+          joined_at: string
+          line_user_id: string
+          member_code: string
+          user_id: string
+        }
+        Insert: {
+          blocked_at?: string
+          blocked_by: string
+          community_id: string
+          joined_at: string
+          line_user_id: string
+          member_code: string
+          user_id: string
+        }
+        Update: {
+          blocked_at?: string
+          blocked_by?: string
+          community_id?: string
+          joined_at?: string
+          line_user_id?: string
+          member_code?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_resident_block_community_id_fkey"
             columns: ["community_id"]
             isOneToOne: false
             referencedRelation: "community"
@@ -821,6 +854,23 @@ export type Database = {
       }
     }
     Functions: {
+      admin_list_residents: {
+        Args: never
+        Returns: {
+          blocked: boolean
+          blocked_at: string
+          display_name: string
+          joined_at: string
+          member_code: string
+          period: number
+          picture_url: string
+          unit: string
+        }[]
+      }
+      admin_set_resident_blocked: {
+        Args: { p_blocked: boolean; p_member_code: string }
+        Returns: undefined
+      }
       approve_line_organizer: {
         Args: { p_auth_user_id: string; p_request_code: string }
         Returns: string
@@ -951,7 +1001,6 @@ export type Database = {
         Args: {
           p_auth_user_id: string
           p_display_name: string
-          p_invite_slug: string
           p_line_user_id: string
           p_picture_url: string
         }

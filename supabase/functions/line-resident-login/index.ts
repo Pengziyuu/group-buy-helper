@@ -53,22 +53,12 @@ Deno.serve(async (request) => {
     const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
     const body = await readJsonBodyWithLimit(request, 16_384)
     const idToken = typeof body.idToken === 'string' ? body.idToken : ''
-    const inviteSlug = typeof body.inviteSlug === 'string' ? body.inviteSlug : ''
     if (!idToken) return jsonResponse({ error: '缺少 LINE ID token' }, 400)
     if (idToken.length > 8_192) return jsonResponse({ error: 'LINE ID token 格式錯誤' }, 400)
-    if (!/^[0-9a-f]{36}$/.test(inviteSlug)) return jsonResponse({ error: '社區邀請連結無效' }, 403)
 
     await enforceLineLoginRateLimit(admin, clientAddress(request), rateLimitPepper)
     const lineIdentity = await verifyLineIdToken(idToken, lineChannelId)
 
-    const { data: community, error: communityError } = await admin
-      .from('community')
-      .select('id')
-      .eq('invite_slug', inviteSlug)
-      .eq('active', true)
-      .maybeSingle()
-    if (communityError) throw communityError
-    if (!community) return jsonResponse({ error: '社區邀請連結無效' }, 403)
 
     const [organizerResult, residentResult] = await Promise.all([
       admin.from('line_organizer_identity')
@@ -103,7 +93,6 @@ Deno.serve(async (request) => {
       p_auth_user_id: authUserId,
       p_display_name: lineIdentity.displayName,
       p_picture_url: lineIdentity.pictureUrl,
-      p_invite_slug: inviteSlug,
     })
     if (provisionError) throw provisionError
 
@@ -131,7 +120,7 @@ Deno.serve(async (request) => {
     }
     const lineError = lineVerificationPublicMessage(error)
     if (lineError) return jsonResponse({ error: lineError }, 401)
-    if (message.includes('邀請')) return jsonResponse({ error: '社區邀請連結無效' }, 403)
+    if (message.includes('resident blocked')) return jsonResponse({ error: '此LINE帳號已被團主移除' }, 403)
     console.error('line-resident-login failed', error)
     return jsonResponse({ error: '住戶登入服務暫時無法使用' }, 500)
   }
