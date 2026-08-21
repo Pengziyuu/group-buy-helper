@@ -128,6 +128,8 @@
   gap: 28px;
 }
 
+.admin-order-sections > section { min-width: 0; }
+
 .admin-subheading {
   margin-bottom: 10px;
 }
@@ -141,6 +143,10 @@
   color: var(--admin-muted);
   font-size: 12px;
 }
+
+.admin-order-filter { display: flex; gap: 8px; margin: 0 0 10px; }
+.admin-order-filter button { min-height: 40px; padding: 0 12px; border: 1px solid var(--admin-line); border-radius: 8px; background: #fff; color: var(--admin-muted); font: inherit; font-size: 12px; cursor: pointer; }
+.admin-order-filter button[aria-pressed="true"] { border-color: var(--color-primary); background: var(--color-primary-subtle); color: var(--color-primary); font-weight: 750; }
 
 .admin-table-scroll {
   overflow-x: auto;
@@ -167,6 +173,16 @@
   .admin-order-metrics { grid-template-columns: repeat(2, 1fr); }
   .admin-workflow-bar { align-items: stretch; flex-direction: column; }
   .admin-workflow-actions button { flex: 1; }
+  .admin-table-scroll:has(.resident-order-table) { overflow: visible; border: 0; }
+  .resident-order-table { min-width: 0 !important; display: block; }
+  .resident-order-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+  .resident-order-table tbody { display: grid; gap: 10px; }
+  .resident-order-table tr { display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; border: 1px solid var(--admin-line); border-radius: 12px; background: #fff; }
+  .resident-order-table td { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-top: 1px solid var(--admin-line); overflow-wrap: anywhere; }
+  .resident-order-table td::before { content: attr(data-label); flex: none; color: var(--admin-muted); font-size: 10px; font-weight: 750; }
+  .resident-order-table td[data-label="戶號"], .resident-order-table td[data-label="姓名"], .resident-order-table td[data-label="訂購內容"] { grid-column: 1 / -1; }
+  .resident-order-table td[data-label="訂購內容"] { align-items: flex-start; }
+  .resident-order-table .status-button, .resident-order-table select { min-height: 44px; }
 }
 
 @media (max-width: 420px) {

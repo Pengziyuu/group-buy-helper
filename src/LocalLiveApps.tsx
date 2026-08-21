@@ -35,6 +35,9 @@ import {
   type ResidentMember,
 } from './services/residentMemberManagementGateway'
 import { loadLiffIdentity, type LiffClient } from './services/liffIdentity'
+import { Button } from './components/ui/Button'
+import { ErrorState, LoadingState } from './components/ui/AsyncState'
+import { FeedbackMessage } from './components/ui/FeedbackMessage'
 import {
   LOGOUT_TOMBSTONE_KEY,
   SUPABASE_AUTH_CODE_VERIFIER_KEY,
@@ -277,11 +280,8 @@ function campaignStatusFromRow(row: CampaignRow | null): CampaignStatus {
 
 function LiveLoading({ label }: { label: string }) {
   return (
-    <main className="live-state-shell" aria-busy="true">
-      <div className="live-state-card">
-        <span className="live-spinner" aria-hidden="true" />
-        <p>{label}</p>
-      </div>
+    <main className="live-state-shell">
+      <LoadingState label={label} page />
     </main>
   )
 }
@@ -289,10 +289,7 @@ function LiveLoading({ label }: { label: string }) {
 function LiveError({ message, title = '無法載入團購小幫手' }: { message: string; title?: string }) {
   return (
     <main className="live-state-shell">
-      <div className="live-state-card live-error" role="alert">
-        <strong>{title}</strong>
-        <p>{message}</p>
-      </div>
+      <ErrorState title={title} message={message} page />
     </main>
   )
 }
@@ -669,7 +666,7 @@ export function LocalLiveAdminApp({
             <p className="admin-eyebrow">LINE LIFF</p>
             <h1>團主登入</h1>
             <p>使用LINE驗證身分後進入團主後台。</p>
-            {logoutNotice && <p className="live-form-error" role="alert">{logoutNotice}</p>}
+            {logoutNotice && <FeedbackMessage tone="warning" urgent>{logoutNotice}</FeedbackMessage>}
             {linePending && (
               <div className="line-organizer-pending" role="status">
                 <strong>{linePending.displayName ? `${linePending.displayName}的團主資格尚待核准` : '團主資格尚待核准'}</strong>
@@ -677,10 +674,10 @@ export function LocalLiveAdminApp({
                 <code>{linePending.requestCode}</code>
               </div>
             )}
-            {error && <p className="live-form-error" role="alert">{error}</p>}
-            <button type="button" className="line-login-action" onClick={() => { void signInWithLine() }} disabled={signingIn}>
-              {signingIn ? 'LINE驗證中…' : '使用 LINE 登入'}
-            </button>
+            {error && <FeedbackMessage tone="error">{error}</FeedbackMessage>}
+            <Button className="line-login-action" onClick={() => { void signInWithLine() }} loading={signingIn} loadingLabel="LINE驗證中…">
+              使用 LINE 登入
+            </Button>
             <a href="/">先查看住戶端</a>
           </section>
         ) : (
@@ -688,7 +685,7 @@ export function LocalLiveAdminApp({
             <p className="admin-eyebrow">SUPABASE LIVE DEMO</p>
             <h1>團主登入</h1>
             <p>Email／密碼僅供本機測試或緊急備援。</p>
-            {logoutNotice && <p className="live-form-error" role="alert">{logoutNotice}</p>}
+            {logoutNotice && <FeedbackMessage tone="warning" urgent>{logoutNotice}</FeedbackMessage>}
             <label>
               <span>Email</span>
               <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="username" required />
@@ -697,8 +694,8 @@ export function LocalLiveAdminApp({
               <span>密碼</span>
               <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required />
             </label>
-            {error && <p className="live-form-error" role="alert">{error}</p>}
-            <button type="submit" disabled={signingIn}>{signingIn ? '登入中…' : '登入'}</button>
+            {error && <FeedbackMessage tone="error">{error}</FeedbackMessage>}
+            <Button type="submit" loading={signingIn} loadingLabel="登入中…">登入</Button>
             <a href="/">先查看住戶端</a>
           </form>
         )}
@@ -891,14 +888,17 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug }: Loca
   const [residentIdentity, setResidentIdentity] = useState<ResidentLineIdentity | null>(null)
   const [joinedCampaignId, setJoinedCampaignId] = useState<string | null>(campaignId ?? null)
   const [error, setError] = useState('')
+  const [syncError, setSyncError] = useState('')
   const sessionPromise = useRef<Promise<Session> | null>(null)
+  const retrySyncRef = useRef<(() => Promise<void>) | null>(null)
 
   useEffect(() => {
     let active = true
+    let syncGeneration = 0
     let channel: ReturnType<typeof client.channel> | null = null
     let resolvedCampaignId = campaignId
 
-    const loadPublished = async () => {
+    const loadPublished = async (generation?: number) => {
       if (!resolvedCampaignId) throw new Error('找不到團購活動')
       const { data, error: queryError } = await client
         .from('campaign_public')
@@ -906,13 +906,13 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug }: Loca
         .eq('id', resolvedCampaignId)
         .single()
       if (queryError) throw queryError
-      if (active) {
+      if (active && (generation === undefined || generation === syncGeneration)) {
         setContent(campaignContentFromRow(data))
         setCampaignStatus(campaignStatusFromRow(data))
       }
     }
 
-    const loadResidentData = async () => {
+    const loadResidentData = async (generation?: number) => {
       if (!resolvedCampaignId) throw new Error('找不到團購活動')
       const [wallResult, customerResult, identityResult] = await Promise.all([
         client.from('order_wall')
@@ -924,7 +924,7 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug }: Loca
       if (wallResult.error) throw wallResult.error
       if (customerResult.error) throw customerResult.error
       if (identityResult.error) throw identityResult.error
-      if (active) {
+      if (active && (generation === undefined || generation === syncGeneration)) {
         setOrders(visibleOrdersFromRows(wallResult.data ?? []))
         const identity = identityResult.data?.[0]
         if (!identity?.display_name) throw new Error('請先從住戶LINE入口登入')
@@ -954,22 +954,32 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug }: Loca
       if (active) setJoinedCampaignId(resolvedId)
       await Promise.all([loadPublished(), loadResidentData()])
       if (!active) return
+      const runSync = async (...loaders: Array<(generation?: number) => Promise<void>>) => {
+        const generation = ++syncGeneration
+        try {
+          await Promise.all(loaders.map((loader) => loader(generation)))
+          if (active && generation === syncGeneration) setSyncError('')
+        } catch (syncFailure) {
+          if (active && generation === syncGeneration) setSyncError(errorMessage(syncFailure))
+        }
+      }
+      retrySyncRef.current = () => runSync(loadPublished, loadResidentData)
       channel = client
         .channel(`campaign-live-${resolvedCampaignId}`)
         .on(
           'postgres_changes',
           { event: 'UPDATE', schema: 'public', table: 'campaign', filter: `id=eq.${resolvedCampaignId}` },
-          () => { void loadPublished().catch((realtimeError: unknown) => setError(errorMessage(realtimeError))) },
+          () => { void runSync(loadPublished) },
         )
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'orders', filter: `campaign_id=eq.${resolvedCampaignId}` },
-          () => { void loadResidentData().catch((realtimeError: unknown) => setError(errorMessage(realtimeError))) },
+          () => { void runSync(loadResidentData) },
         )
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'order_item', filter: `campaign_id=eq.${resolvedCampaignId}` },
-          () => { void loadResidentData().catch((realtimeError: unknown) => setError(errorMessage(realtimeError))) },
+          () => { void runSync(loadResidentData) },
         )
         .subscribe()
     }
@@ -980,6 +990,8 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug }: Loca
 
     return () => {
       active = false
+      syncGeneration += 1
+      retrySyncRef.current = null
       if (channel) void client.removeChannel(channel)
     }
   }, [campaignId, campaignSlug, client])
@@ -994,6 +1006,10 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug }: Loca
       visibleOrders={orders}
       residentCustomer={residentCustomer}
       verifiedResidentIdentity={residentIdentity}
+      syncError={syncError}
+      onSyncRetry={() => {
+        void retrySyncRef.current?.()
+      }}
       onBindResident={async ({ period, unit }) => {
         const { data, error: bindError } = await client.rpc('bind_customer_self', {
           p_period: period,

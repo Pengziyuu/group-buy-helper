@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { formatZhTwTimestamp } from './domain/timestamp'
 import type { ResidentMember } from './services/residentMemberManagementGateway'
+import { ConfirmDialog } from './components/ui/ConfirmDialog'
+import { FeedbackMessage } from './components/ui/FeedbackMessage'
 import './ResidentMemberManagementApp.css'
 
 type Props = {
@@ -62,8 +64,8 @@ export default function ResidentMemberManagementApp({ members, onSetBlocked }: P
         <span>{visibleMembers.filter((member) => !member.blocked).length} 位住戶</span>
       </div>
 
-      {feedback && <p className="resident-member-feedback" role="status">{feedback}</p>}
-      {error && <p className="resident-member-error" role="alert">{error}</p>}
+      {feedback && <FeedbackMessage tone="success">{feedback}</FeedbackMessage>}
+      {error && <FeedbackMessage tone="error">{error}</FeedbackMessage>}
       {visibleMembers.length === 0 && <p className="resident-member-empty">目前還沒有住戶加入。</p>}
 
       <div className="resident-member-list">
@@ -92,20 +94,17 @@ export default function ResidentMemberManagementApp({ members, onSetBlocked }: P
       </div>
 
       {removeTarget && (
-        <div className="campaign-delete-backdrop">
-          <section className="campaign-delete-dialog" role="dialog" aria-modal="true" aria-labelledby="resident-remove-heading">
-            <h2 id="resident-remove-heading">確認移除住戶</h2>
+        <ConfirmDialog
+          title="確認移除住戶"
+          confirmLabel="確認移除並封鎖"
+          busy={Boolean(busyCode)}
+          onCancel={() => { setRemoveTarget(null); setError('') }}
+          onConfirm={() => { void changeBlocked(removeTarget, true) }}
+        >
             <p>確定要移除並封鎖「{removeTarget.displayName}」嗎？</p>
             <p>對方將立即失去住戶存取權，除非團主日後解除封鎖。</p>
-            {error && <p role="alert">{error}</p>}
-            <div>
-              <button type="button" className="secondary-action" disabled={Boolean(busyCode)} onClick={() => { setRemoveTarget(null); setError('') }}>取消</button>
-              <button type="button" className="danger-action" disabled={Boolean(busyCode)} onClick={() => { void changeBlocked(removeTarget, true) }}>
-                {busyCode ? '處理中…' : '確認移除並封鎖'}
-              </button>
-            </div>
-          </section>
-        </div>
+            {error && <FeedbackMessage tone="error">{error}</FeedbackMessage>}
+        </ConfirmDialog>
       )}
     </section>
   )

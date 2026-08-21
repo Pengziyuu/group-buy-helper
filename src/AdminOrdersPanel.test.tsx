@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { initialOrders, items } from './data/demo'
@@ -63,5 +63,47 @@ describe('organizer orders panel', () => {
       paid: false,
       pickupStatus: 'ready',
     })
+  })
+
+  it('locks only the order row being updated', async () => {
+    const user = userEvent.setup()
+    let resolveUpdate: (() => void) | undefined
+    const onSetOrderFulfillment = vi.fn().mockImplementation(() => new Promise<void>((resolve) => { resolveUpdate = resolve }))
+    const workflowSummary = {
+      ...summary,
+      orderRows: summary.orderRows.slice(0, 2).map((order, index) => ({
+        ...order,
+        orderId: `order-${index + 1}`,
+        paid: false,
+        pickupStatus: 'pending' as const,
+      })),
+    }
+
+    render(<AdminOrdersPanel summary={workflowSummary} campaignStatus="open" onSetOrderFulfillment={onSetOrderFulfillment} />)
+    await user.click(screen.getByRole('button', { name: '標記 H11 已付款' }))
+
+    expect(screen.getByRole('button', { name: '更新 H11 中' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '標記 1E7 已付款' })).toBeEnabled()
+    expect(screen.getByRole('combobox', { name: '1E7 領取狀態' })).toBeEnabled()
+    resolveUpdate?.()
+    await waitFor(() => expect(screen.getByRole('button', { name: '標記 H11 已付款' })).toBeEnabled())
+  })
+
+  it('filters resident orders to unresolved payment or pickup tasks', async () => {
+    const user = userEvent.setup()
+    const workflowSummary = {
+      ...summary,
+      orderRows: summary.orderRows.slice(0, 2).map((order, index) => ({
+        ...order,
+        orderId: `order-${index + 1}`,
+        paid: index === 0,
+        pickupStatus: index === 0 ? 'picked_up' as const : 'pending' as const,
+      })),
+    }
+    render(<AdminOrdersPanel summary={workflowSummary} campaignStatus="open" onSetOrderFulfillment={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: '待處理 1' }))
+    expect(screen.queryByText('H11')).not.toBeInTheDocument()
+    expect(screen.getByText('1E7')).toBeInTheDocument()
   })
 })

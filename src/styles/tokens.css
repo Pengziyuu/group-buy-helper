@@ -1,0 +1,52 @@
+:root {
+  color-scheme: light;
+  --color-bg: #f5f6f3;
+  --color-surface: #fff;
+  --color-surface-subtle: #f0f3f0;
+  --color-surface-raised: #fff;
+  --color-text: #1d2924;
+  --color-text-secondary: #56645d;
+  --color-text-tertiary: #748079;
+  --color-border: #d8dfdb;
+  --color-border-strong: #b9c5bf;
+  --color-primary: #2f6b57;
+  --color-primary-hover: #255544;
+  --color-primary-active: #1e483a;
+  --color-primary-subtle: #e7f0eb;
+  --color-on-primary: #fff;
+  --color-line: #06c755;
+  --color-line-hover: #05b84e;
+  --color-line-subtle: #e6f8ec;
+  --color-success: #247a4d;
+  --color-success-subtle: #e8f5ed;
+  --color-warning: #946200;
+  --color-warning-subtle: #fff4d6;
+  --color-danger: #b42318;
+  --color-danger-hover: #8f1c13;
+  --color-danger-subtle: #fdecea;
+  --color-info: #1769a5;
+  --color-info-subtle: #eaf3f9;
+  --color-focus: #1677c8;
+  --color-disabled-bg: #ecefed;
+  --color-disabled-text: #8a9690;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  --radius-sm: 6px;
+  --radius-control: 8px;
+  --radius-surface: 12px;
+  --radius-prominent: 16px;
+  --shadow-sticky: 0 2px 8px rgb(29 41 36 / 8%);
+  --shadow-dialog: 0 16px 40px rgb(29 41 36 / 16%);
+  --duration-fast: 120ms;
+  --duration-normal: 180ms;
+  --duration-dialog: 240ms;
+}

@@ -19,6 +19,25 @@ describe('organizer campaign editor', () => {
     expect(screen.getByRole('img', { name: '超厚三明治冰餅口味示意圖' })).toBeInTheDocument()
   })
 
+  it('lets the organizer expand and collapse the full resident preview', async () => {
+    const user = userEvent.setup()
+    render(<AdminApp />)
+
+    const expand = screen.getByRole('button', { name: '展開完整預覽' })
+    expect(expand).toHaveAttribute('aria-expanded', 'false')
+    await user.click(expand)
+    expect(screen.getByRole('button', { name: '收合完整預覽' })).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('provides direct navigation across the long editor workflow', () => {
+    render(<AdminApp />)
+    const navigation = screen.getByRole('navigation', { name: '編輯器區段' })
+    expect(within(navigation).getByRole('link', { name: '基本資訊' })).toHaveAttribute('href', '#editor-heading')
+    expect(within(navigation).getByRole('link', { name: '團購品項' })).toHaveAttribute('href', '#item-editor-heading')
+    expect(within(navigation).getByRole('link', { name: '商品圖片' })).toHaveAttribute('href', '#image-editor-heading')
+    expect(within(navigation).getByRole('link', { name: '訂單管理' })).toHaveAttribute('href', '#admin-orders-heading')
+  })
+
   it('updates the resident preview and saves the campaign draft', async () => {
     const user = userEvent.setup()
     render(<AdminApp />)
@@ -251,6 +270,21 @@ describe('organizer campaign editor', () => {
     expect(await screen.findByText('自動暫存失敗：網路中斷')).toBeInTheDocument()
     await new Promise((resolve) => setTimeout(resolve, 700))
     await waitFor(() => expect(onSaveDraft).toHaveBeenCalledTimes(1))
+  })
+
+  it('lets the organizer manually retry a failed autosave', async () => {
+    const user = userEvent.setup()
+    const onSaveDraft = vi.fn()
+      .mockRejectedValueOnce(new Error('網路中斷'))
+      .mockResolvedValueOnce(undefined)
+    render(<AdminApp onSaveDraft={onSaveDraft} />)
+
+    await user.type(screen.getByRole('textbox', { name: '團購標題' }), '待重試修改')
+    expect(await screen.findByText('自動暫存失敗：網路中斷')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '立即重試暫存' }))
+
+    await waitFor(() => expect(onSaveDraft).toHaveBeenCalledTimes(2))
+    expect(await screen.findByText('已自動暫存')).toBeInTheDocument()
   })
 
   it('uses a simple lettered item count before the first opening', async () => {

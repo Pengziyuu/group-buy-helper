@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import RuntimeApp from './RuntimeApp'
@@ -68,5 +69,38 @@ describe('RuntimeApp production live routing', () => {
     )
     rerender(<StrictMode><RuntimeApp config={liveConfig} pathname="/" client={stableClient} /></StrictMode>)
     expect(createClient).not.toHaveBeenCalled()
+  })
+})
+
+describe('RuntimeApp localStorage resident demo routing', () => {
+  it('opens the resident list at root and the order page from its campaign link', () => {
+    const config = { mode: 'demo' as const }
+    const { rerender } = render(<RuntimeApp config={config} pathname="/" />)
+
+    expect(screen.getByRole('heading', { name: '全部開團' })).toBeInTheDocument()
+    const campaignLink = screen.getByRole('link', { name: '查看一涼製冰所 超厚三明治冰餅' })
+    expect(campaignLink).toHaveAttribute('href', '/campaign/0123456789abcdef0123456789abcdef0123')
+
+    rerender(<RuntimeApp config={config} pathname="/campaign/0123456789abcdef0123456789abcdef0123" />)
+    expect(screen.getByRole('heading', { name: '一涼製冰所 超厚三明治冰餅' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /二期 2K13/ })).toBeInTheDocument()
+  })
+})
+
+describe('RuntimeApp localStorage organizer demo routing', () => {
+  it('opens the organizer list before entering a campaign editor', async () => {
+    const user = userEvent.setup()
+    const config = { mode: 'demo' as const }
+    const campaignId = '01234567-89ab-cdef-0123-456789abcdef'
+    const { rerender } = render(<RuntimeApp config={config} pathname="/admin" />)
+
+    expect(screen.getByRole('heading', { name: '我的團購' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '編輯 一涼製冰所 超厚三明治冰餅' })).toHaveAttribute('href', `/admin/campaign/${campaignId}`)
+
+    rerender(<RuntimeApp config={config} pathname={`/admin/campaign/${campaignId}`} />)
+    expect(screen.getByRole('heading', { name: '團主後台' })).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: '編輯器區段' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '標記 H11 已付款' }))
+    expect(await screen.findByRole('button', { name: '標記 H11 未付款' })).toBeInTheDocument()
   })
 })

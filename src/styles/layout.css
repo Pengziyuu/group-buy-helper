@@ -1,0 +1,20 @@
+.page-container {
+  width: min(100%, 1360px);
+  margin-inline: auto;
+  padding-inline: 12px;
+}
+
+.reading-column { max-width: 76ch; }
+.form-column { width: min(100%, 720px); }
+
+@media (min-width: 430px) {
+  .page-container { padding-inline: 16px; }
+}
+
+@media (min-width: 1024px) {
+  .page-container { padding-inline: 24px; }
+}
+
+@media (min-width: 1440px) {
+  .page-container { padding-inline: 32px; }
+}

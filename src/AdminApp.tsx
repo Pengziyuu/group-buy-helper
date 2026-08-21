@@ -88,6 +88,8 @@ function AdminApp({
   const [draftRevision, setDraftRevision] = useState(0)
   const [autoSaveCycle, setAutoSaveCycle] = useState(0)
   const [autoSaving, setAutoSaving] = useState(false)
+  const [autoSaveFailedRevision, setAutoSaveFailedRevision] = useState<number | null>(null)
+  const [previewExpanded, setPreviewExpanded] = useState(false)
   const savedRevisionRef = useRef(0)
   const latestRevisionRef = useRef(0)
   const autoSaveInFlightRef = useRef(false)
@@ -115,6 +117,7 @@ function AdminApp({
     latestRevisionRef.current += 1
     setDraftRevision(latestRevisionRef.current)
     setPublicationState('draft')
+    setAutoSaveFailedRevision(null)
     setNotice('')
   }
 
@@ -138,10 +141,14 @@ function AdminApp({
       const saving = onSaveDraft ? onSaveDraft(content) : Promise.resolve(saveDraftCampaign(content))
       void saving.then(() => {
         savedRevisionRef.current = revision
-        if (latestRevisionRef.current === revision) setNotice('已自動暫存')
+        if (latestRevisionRef.current === revision) {
+          setAutoSaveFailedRevision(null)
+          setNotice('已自動暫存')
+        }
       }).catch((error: unknown) => {
         savedRevisionRef.current = revision
         if (latestRevisionRef.current === revision) {
+          setAutoSaveFailedRevision(revision)
           setNotice(`自動暫存失敗：${messageFromError(error)}`)
         }
       }).finally(() => {
@@ -154,6 +161,15 @@ function AdminApp({
     }, delay)
     return () => window.clearTimeout(timer)
   }, [announcement, autoSaveCycle, campaignItems, draftRevision, editorBusy, images, onSaveDraft, openedAt, threshold, title, unitPrice])
+
+  const retryAutoSave = () => {
+    if (autoSaveFailedRevision === null || editorBusy || autoSaveInFlightRef.current) return
+    savedRevisionRef.current = Math.min(savedRevisionRef.current, autoSaveFailedRevision - 1)
+    flushAutoSaveImmediatelyRef.current = true
+    setAutoSaveFailedRevision(null)
+    setNotice('正在重試暫存…')
+    setAutoSaveCycle((cycle) => cycle + 1)
+  }
 
   const publish = async () => {
     if (operationLock.current) return
@@ -271,6 +287,13 @@ function AdminApp({
           {onSignOut && <button type="button" onClick={signOut} disabled={editorBusy}>登出</button>}
         </div>
       </header>
+
+      <nav className="admin-section-nav" aria-label="編輯器區段">
+        <a href="#editor-heading">基本資訊</a>
+        <a href="#item-editor-heading">團購品項</a>
+        <a href="#image-editor-heading">商品圖片</a>
+        <a href="#admin-orders-heading">訂單管理</a>
+      </nav>
 
       <div className="admin-workspace">
         <section className="editor-card" aria-labelledby="editor-heading">
@@ -433,6 +456,9 @@ function AdminApp({
           </div>
           <div className="editor-actions">
             <p role="status">{notice}</p>
+            {autoSaveFailedRevision !== null && (
+              <button type="button" className="secondary-action" onClick={retryAutoSave} disabled={editorBusy || autoSaving}>立即重試暫存</button>
+            )}
             <button type="button" onClick={publish} disabled={editorBusy || autoSaving || !numericInputsValid}>
               {busyAction === 'publish' ? '發布中…' : itemsLocked ? '更新住戶公告' : '發布並開團'}
             </button>
@@ -442,7 +468,9 @@ function AdminApp({
         <section className="resident-preview" aria-label="住戶端預覽">
           <div className="preview-bar">
             <span>住戶端預覽</span>
-            <span>即時更新</span>
+            <button type="button" aria-expanded={previewExpanded} aria-controls="resident-preview-announcement" onClick={() => setPreviewExpanded((expanded) => !expanded)}>
+              {previewExpanded ? '收合完整預覽' : '展開完整預覽'}
+            </button>
           </div>
           <article className="preview-phone">
             <div className="preview-status">
@@ -456,7 +484,7 @@ function AdminApp({
                 <img key={`${image.src}-${index}`} src={image.src} alt={image.alt} />
               ))}
             </div>
-            <p className="preview-copy">{announcement}</p>
+            <p id="resident-preview-announcement" className={`preview-copy ${previewExpanded ? 'is-expanded' : 'is-collapsed'}`}>{announcement}</p>
           </article>
         </section>
       </div>

@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import CampaignListApp from './CampaignListApp'
 import type { CampaignListItem } from './services/campaignManagementGateway'
+import type { ResidentMember } from './services/residentMemberManagementGateway'
 
 const campaigns: CampaignListItem[] = [
   {
@@ -16,6 +17,73 @@ const campaigns: CampaignListItem[] = [
 ]
 
 describe('organizer campaign list', () => {
+  it('switches between campaign management and resident management as peer sections', async () => {
+    const user = userEvent.setup()
+    const members: ResidentMember[] = [{
+      memberCode: 'member-1', displayName: '住戶甲', pictureUrl: null,
+      period: 2, unit: 'A01', joinedAt: '2026-08-14T00:00:00Z', blocked: false, blockedAt: null,
+    }]
+    render(
+      <CampaignListApp
+        campaigns={campaigns}
+        onCreate={vi.fn()}
+        residentMembers={members}
+        onSetResidentBlocked={vi.fn().mockResolvedValue(undefined)}
+      />,
+    )
+
+    expect(screen.getByRole('region', { name: '團購列表' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '住戶管理' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '住戶管理 1' }))
+    expect(screen.getByRole('heading', { name: '住戶管理' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: '團購列表' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '團購管理 2' }))
+    expect(screen.getByRole('region', { name: '團購列表' })).toBeInTheDocument()
+  })
+
+  it('filters campaigns by operational state without changing repository data', async () => {
+    const user = userEvent.setup()
+    const completed: CampaignListItem[] = [
+      {
+        id: 'closed-id', slug: 'closed-slug', title: '已結單水果團', status: 'closed', openedAt: '2026-08-10T00:00:00Z',
+        createdAt: '2026-08-09T00:00:00Z', updatedAt: '2026-08-11T00:00:00Z',
+      },
+      {
+        id: 'arrived-id', slug: 'arrived-slug', title: '已到貨麵包團', status: 'arrived', openedAt: '2026-08-08T00:00:00Z',
+        createdAt: '2026-08-07T00:00:00Z', updatedAt: '2026-08-09T00:00:00Z',
+      },
+    ]
+    render(<CampaignListApp campaigns={[...campaigns, ...completed]} onCreate={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: '草稿 1' }))
+    expect(screen.getByRole('heading', { name: '新草稿' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '冰餅團' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '已完成 2' }))
+    expect(screen.getByRole('heading', { name: '已結單水果團' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '已到貨麵包團' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '新草稿' })).not.toBeInTheDocument()
+  })
+
+  it('copies a published resident link and confirms the action', async () => {
+    const user = userEvent.setup()
+    const onCopyResidentLink = vi.fn().mockResolvedValue(undefined)
+    render(
+      <CampaignListApp
+        campaigns={campaigns}
+        onCreate={vi.fn()}
+        onCopyResidentLink={onCopyResidentLink}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: '複製住戶連結 冰餅團' }))
+    expect(onCopyResidentLink).toHaveBeenCalledWith('/campaign/open-slug')
+    expect(await screen.findByRole('status')).toHaveTextContent('已複製冰餅團住戶連結')
+    expect(screen.queryByRole('button', { name: '複製住戶連結 新草稿' })).not.toBeInTheDocument()
+  })
+
   it('shows drafts and published campaigns with safe resident links', () => {
     render(<CampaignListApp campaigns={campaigns} onCreate={vi.fn()} />)
 

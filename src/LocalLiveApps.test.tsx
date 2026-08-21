@@ -134,6 +134,7 @@ describe('local Supabase visual demo apps', () => {
   })
 
   it('shows the campaign list after organizer authentication when no campaign is selected', async () => {
+    const user = userEvent.setup()
     const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
     const { client } = authClient(session)
     const managementRepository: LiveCampaignManagementRepository = {
@@ -166,6 +167,7 @@ describe('local Supabase visual demo apps', () => {
     expect(screen.getByRole('heading', { name: '歷史冰餅團' })).toBeInTheDocument()
     expect(managementRepository.list).toHaveBeenCalledTimes(1)
     expect(residentMemberRepository.list).toHaveBeenCalledTimes(1)
+    await user.click(screen.getByRole('button', { name: '住戶管理 1' }))
     expect(screen.getByRole('heading', { name: '住戶管理' })).toBeInTheDocument()
     expect(screen.getByText('住戶甲')).toBeInTheDocument()
   })
@@ -1424,5 +1426,67 @@ describe('local Supabase visual demo apps', () => {
 
     await waitFor(() => expect(rpc).toHaveBeenCalledWith('join_campaign_by_slug', { p_slug: 'share-slug' }))
     await waitFor(() => expect(campaignEq).toHaveBeenCalledWith('id', 'resolved-campaign'))
+  })
+
+  it('ignores an older realtime failure after a manual sync retry succeeds', async () => {
+    const user = userEvent.setup()
+    const session = { access_token: 'resident-token', user: { id: 'resident-user', is_anonymous: false } }
+    const { client } = authClient(session)
+    const publishedRow = {
+      title: published.title,
+      unit_price: published.unitPrice,
+      threshold: published.threshold,
+      announcement: published.announcement,
+      images: published.images,
+      items: published.items,
+      opened_at: published.openedAt,
+      status: 'open',
+    }
+    let rejectStaleRequest!: (reason?: unknown) => void
+    const staleRequest = new Promise<never>((_, reject) => { rejectStaleRequest = reject })
+    const single = vi.fn()
+      .mockResolvedValueOnce({ data: publishedRow, error: null })
+      .mockRejectedValueOnce(new Error('第一次同步失敗'))
+      .mockImplementationOnce(() => staleRequest)
+      .mockResolvedValue({ data: publishedRow, error: null })
+    const campaignEq = vi.fn().mockReturnValue({ single })
+    const wallEq = vi.fn().mockResolvedValue({ data: [], error: null })
+    const callbacks: Array<() => void> = []
+    const channel = {
+      on: vi.fn((_event: string, _filter: unknown, callback: () => void) => {
+        callbacks.push(callback)
+        return channel
+      }),
+      subscribe: vi.fn(() => channel),
+    }
+    Object.assign(client, {
+      rpc: vi.fn((name: string) => Promise.resolve(name === 'get_customer_self'
+        ? { data: [{ id: 'customer-1', name: '測試住戶', period: 2, unit: 'A01' }], error: null }
+        : name === 'get_line_resident_self'
+          ? { data: [{ display_name: '測試住戶', picture_url: null }], error: null }
+          : { data: [{ id: 'campaign-1' }], error: null })),
+      from: vi.fn((table: string) => table === 'campaign_public'
+        ? { select: vi.fn().mockReturnValue({ eq: campaignEq }) }
+        : { select: vi.fn().mockReturnValue({ eq: wallEq }) }),
+      channel: vi.fn().mockReturnValue(channel),
+      removeChannel: vi.fn().mockResolvedValue(undefined),
+    })
+
+    render(<LocalLiveResidentApp client={client} campaignSlug="campaign-slug" />)
+    expect(await screen.findByRole('heading', { name: published.title })).toBeInTheDocument()
+
+    act(() => { callbacks[0]() })
+    expect(await screen.findByRole('alert')).toHaveTextContent('第一次同步失敗')
+    act(() => { callbacks[0]() })
+    await waitFor(() => expect(single).toHaveBeenCalledTimes(3))
+
+    await user.click(screen.getByRole('button', { name: '重新同步' }))
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+
+    await act(async () => {
+      rejectStaleRequest(new Error('過期的同步錯誤'))
+      await Promise.resolve()
+    })
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })

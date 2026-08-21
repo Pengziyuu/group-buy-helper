@@ -12,6 +12,11 @@ import {
   type VisibleOrder,
 } from './data/demo'
 import { loadPublishedCampaign, type CampaignContent } from './services/demoCampaignStore'
+import { Button } from './components/ui/Button'
+import { QuantityControl } from './components/ui/QuantityControl'
+import { StickyActionBar } from './components/ui/StickyActionBar'
+import { FeedbackMessage } from './components/ui/FeedbackMessage'
+import { ProgressBar } from './components/ui/ProgressBar'
 
 const defaultContent: CampaignContent = {
   title: campaign.title,
@@ -44,9 +49,11 @@ type AppProps = {
   verifiedResidentIdentity?: VerifiedResidentIdentity
   onBindResident?: (input: ResidentBindingInput) => Promise<ResidentCustomer>
   onSubmitOrder?: (items: Record<string, number>) => Promise<void>
+  syncError?: string
+  onSyncRetry?: () => void
 }
 
-function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visibleOrders, residentCustomer, verifiedResidentIdentity, onBindResident, onSubmitOrder }: AppProps = {}) {
+function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visibleOrders, residentCustomer, verifiedResidentIdentity, onBindResident, onSubmitOrder, syncError, onSyncRetry }: AppProps = {}) {
   const [localPublishedCampaign] = useState(() => loadPublishedCampaign(defaultContent))
   const publishedCampaign = publishedContent ?? localPublishedCampaign
   const itemDisplayLabel = (code: string) => {
@@ -70,9 +77,10 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
   const [binding, setBinding] = useState(false)
   const [bindingNotice, setBindingNotice] = useState('')
   const [draft, setDraft] = useState<Record<string, number>>({ ...(ownOrder?.items ?? {}) })
-  const [notice, setNotice] = useState('')
+  const [notice, setNotice] = useState<{ tone: 'success' | 'error'; text: string } | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [draftDirty, setDraftDirty] = useState(false)
+  const [announcementExpanded, setAnnouncementExpanded] = useState(false)
 
   useEffect(() => {
     if (visibleOrders && !draftDirty) setDraft({ ...(ownOrder?.items ?? {}) })
@@ -84,10 +92,11 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
   )
   const draftQuantity = orderQuantity(draft)
   const editable = campaignStatus === 'open'
+  const hasLongAnnouncement = publishedCampaign.announcement.length > 240
 
   const adjust = (code: string, delta: number) => {
     if (!editable) return
-    setNotice('')
+    setNotice(null)
     setDraftDirty(true)
     setDraft((current) => {
       const next = Math.max(0, Math.min(20, (current[code] ?? 0) + delta))
@@ -121,13 +130,13 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
   const submit = async () => {
     if (onSubmitOrder) {
       setSubmitting(true)
-      setNotice('')
+      setNotice(null)
       try {
         await onSubmitOrder(draft)
         setDraftDirty(false)
-        setNotice('訂單已更新')
+        setNotice({ tone: 'success', text: '訂單已更新' })
       } catch (error) {
-        setNotice(error instanceof Error ? error.message : '訂單更新失敗')
+        setNotice({ tone: 'error', text: error instanceof Error ? error.message : '訂單更新失敗' })
       } finally {
         setSubmitting(false)
       }
@@ -141,11 +150,24 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
       ),
     )
     setDraftDirty(false)
-    setNotice('訂單已更新')
+    setNotice({ tone: 'success', text: '訂單已更新' })
   }
 
   return (
     <main className="app-shell">
+      <nav className="resident-detail-nav" aria-label="團購頁面導覽">
+        <a href="/" aria-label="回到全部開團">← 回到全部開團</a>
+        {currentResident && <a href="#order-heading">前往我的訂單</a>}
+      </nav>
+      {syncError && (
+        <FeedbackMessage
+          className="resident-sync-feedback"
+          tone="warning"
+          urgent
+          actionLabel={onSyncRetry ? '重新同步' : undefined}
+          onAction={onSyncRetry}
+        >{syncError}</FeedbackMessage>
+      )}
       <section className="hero-card">
         <div className="eyebrow-row">
           <span className="status-dot" aria-hidden="true" />
@@ -153,7 +175,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
           <span className="price">每個 ${publishedCampaign.unitPrice}</span>
         </div>
         <h1>{publishedCampaign.title}</h1>
-        <p className="arrival">🧊 {campaign.arrival}</p>
+        {!liveDemo && <p className="arrival">🧊 {campaign.arrival}</p>}
         {publishedCampaign.openedAt && (
           <p className="campaign-time">開團時間 {formatZhTwTimestamp(publishedCampaign.openedAt)}</p>
         )}
@@ -162,35 +184,9 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
           <strong>{summary.quantity} / {summary.threshold}</strong>
           <span>{summary.formed ? '已成團' : `還差 ${summary.remaining} 個成團`}</span>
         </div>
-        <div
-          className="progress-track"
-          role="progressbar"
-          aria-label="成團進度"
-          aria-valuenow={summary.quantity}
-          aria-valuemin={0}
-          aria-valuemax={publishedCampaign.threshold}
-        >
-          <span style={{ width: `${summary.progressPercent}%` }} />
-        </div>
+        <ProgressBar className="campaign-progress" label="成團進度" value={summary.quantity} max={publishedCampaign.threshold} />
         <p className="social-proof">已有 {orders.length} 戶參加，大家的訂單都看得到</p>
       </section>
-
-      <article className="panel campaign-post" aria-labelledby="campaign-post-heading">
-        <div className="post-heading">
-          <div>
-            <p className="section-kicker">團主公告</p>
-            <h2 id="campaign-post-heading">開團資訊</h2>
-          </div>
-          <span className="organizer-badge">團主提供</span>
-        </div>
-
-        <div className="campaign-gallery" aria-label="團購圖片">
-          {publishedCampaign.images.map((image) => (
-            <img key={image.src} src={image.src} alt={image.alt} loading="eager" />
-          ))}
-        </div>
-        <p className="campaign-copy">{publishedCampaign.announcement}</p>
-      </article>
 
       {currentResident ? <section className="panel order-panel" aria-labelledby="order-heading">
         <div className="section-heading">
@@ -200,7 +196,6 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
           </div>
           <div className="my-total">
             <strong>我的訂單 {draftQuantity} 個</strong>
-            <span>${draftQuantity * publishedCampaign.unitPrice}</span>
           </div>
         </div>
 
@@ -216,30 +211,32 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
                   <strong>{displayLabel}</strong>
                   <span>${publishedCampaign.unitPrice}</span>
                 </div>
-                <div className="stepper">
-                  <button
-                    type="button"
-                    aria-label={`減少 ${displayLabel}`}
-                    onClick={() => adjust(item.code, -1)}
-                    disabled={!editable || quantity === 0}
-                  >−</button>
-                  <output aria-label={`${displayLabel}數量`}>{quantity}</output>
-                  <button
-                    type="button"
-                    aria-label={`增加 ${displayLabel}`}
-                    onClick={() => adjust(item.code, 1)}
-                    disabled={!editable}
-                  >＋</button>
-                </div>
+                <QuantityControl
+                  label={displayLabel}
+                  value={quantity}
+                  disabled={!editable}
+                  onDecrement={() => adjust(item.code, -1)}
+                  onIncrement={() => adjust(item.code, 1)}
+                />
               </div>
             )
           })}
         </div>
 
-        <button className="submit-button" type="button" onClick={() => { void submit() }} disabled={!editable || submitting || draftQuantity === 0}>
-          送出訂單
-        </button>
-        {notice && <p className="success" role="status">{notice}</p>}
+        <StickyActionBar className="resident-order-action" ariaLabel="訂單摘要與送出">
+          <div className="resident-order-action-total">
+            <span>{draftQuantity} 個</span>
+            <strong>${draftQuantity * publishedCampaign.unitPrice}</strong>
+          </div>
+          <Button
+            className="submit-button"
+            onClick={() => { void submit() }}
+            disabled={!editable || draftQuantity === 0}
+            loading={submitting}
+            loadingLabel="訂單送出中…"
+          >送出訂單</Button>
+        </StickyActionBar>
+        {notice && <FeedbackMessage className="resident-order-feedback" tone={notice.tone}>{notice.text}</FeedbackMessage>}
         <p className="privacy-note">
           {editable
             ? '送出後仍可在結單前修改。你只能修改自己的訂單。'
@@ -273,13 +270,48 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
               <input value={residentUnit} onChange={(event) => setResidentUnit(event.target.value.toUpperCase())} maxLength={20} autoCapitalize="characters" placeholder="例如 A01" />
             </label>
           </div>
-          <button className="submit-button" type="button" onClick={() => { void bindResident() }} disabled={binding || !editable}>
-            {binding ? '儲存中…' : '儲存住戶資料'}
-          </button>
-          {bindingNotice && <p className="success" role="status">{bindingNotice}</p>}
+          <Button
+            className="submit-button"
+            onClick={() => { void bindResident() }}
+            disabled={!editable}
+            loading={binding}
+            loadingLabel="住戶資料儲存中…"
+          >儲存住戶資料</Button>
+          {bindingNotice && <FeedbackMessage className="resident-binding-feedback" tone="error">{bindingNotice}</FeedbackMessage>}
           <p className="privacy-note">住戶資料只用於辨識訂單；每個期別與戶號只能綁定一個帳號。</p>
         </section>
       )}
+
+      <article className="panel campaign-post" aria-labelledby="campaign-post-heading">
+        <div className="post-heading">
+          <div>
+            <p className="section-kicker">團主公告</p>
+            <h2 id="campaign-post-heading">開團資訊</h2>
+          </div>
+          <span className="organizer-badge">團主提供</span>
+        </div>
+
+        <div className="campaign-gallery" aria-label="團購圖片">
+          {publishedCampaign.images.map((image) => (
+            <img key={image.src} src={image.src} alt={image.alt} loading="eager" />
+          ))}
+        </div>
+        <div
+          id="campaign-announcement"
+          className={`campaign-copy${hasLongAnnouncement && !announcementExpanded ? ' is-collapsed' : ''}`}
+        >{publishedCampaign.announcement}</div>
+        {hasLongAnnouncement && (
+          <Button
+            className="announcement-toggle"
+            variant="tertiary"
+            aria-controls="campaign-announcement"
+            aria-expanded={announcementExpanded}
+            onClick={() => setAnnouncementExpanded((current) => !current)}
+          >
+            {announcementExpanded ? '收合開團資訊' : '展開完整開團資訊'}
+          </Button>
+        )}
+      </article>
 
       <section className="panel wall-panel" aria-labelledby="wall-heading">
         <div className="section-heading compact">
