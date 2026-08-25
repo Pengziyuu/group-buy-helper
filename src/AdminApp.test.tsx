@@ -29,13 +29,57 @@ describe('organizer campaign editor', () => {
     expect(screen.getByRole('button', { name: '收合完整預覽' })).toHaveAttribute('aria-expanded', 'true')
   })
 
-  it('provides direct navigation across the long editor workflow', () => {
+  it('separates campaign settings and order management into exclusive tabs', async () => {
+    const user = userEvent.setup()
     render(<AdminApp />)
-    const navigation = screen.getByRole('navigation', { name: '編輯器區段' })
-    expect(within(navigation).getByRole('link', { name: '基本資訊' })).toHaveAttribute('href', '#editor-heading')
-    expect(within(navigation).getByRole('link', { name: '團購品項' })).toHaveAttribute('href', '#item-editor-heading')
-    expect(within(navigation).getByRole('link', { name: '商品圖片' })).toHaveAttribute('href', '#image-editor-heading')
-    expect(within(navigation).getByRole('link', { name: '訂單管理' })).toHaveAttribute('href', '#admin-orders-heading')
+    const tabs = screen.getByRole('tablist', { name: '團主工作區' })
+    const settingsTab = within(tabs).getByRole('tab', { name: '開團設定' })
+    const ordersTab = within(tabs).getByRole('tab', { name: '訂單管理' })
+
+    expect(settingsTab).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '訂單統計' })).not.toBeInTheDocument()
+
+    await user.click(ordersTab)
+    expect(ordersTab).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText('查看訂單進度，處理付款與領取狀態。')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '訂單統計' })).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: '團購標題' })).not.toBeInTheDocument()
+
+    await user.click(settingsTab)
+    expect(settingsTab).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '訂單統計' })).not.toBeInTheDocument()
+  })
+
+  it('supports keyboard navigation between organizer workspace tabs', async () => {
+    const user = userEvent.setup()
+    render(<AdminApp />)
+    const tabs = screen.getByRole('tablist', { name: '團主工作區' })
+    const settingsTab = within(tabs).getByRole('tab', { name: '開團設定' })
+    const ordersTab = within(tabs).getByRole('tab', { name: '訂單管理' })
+
+    settingsTab.focus()
+    await user.keyboard('{ArrowRight}')
+    expect(ordersTab).toHaveFocus()
+    expect(ordersTab).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('heading', { name: '訂單統計' })).toBeInTheDocument()
+
+    await user.keyboard('{ArrowRight}')
+    expect(settingsTab).toHaveFocus()
+    expect(settingsTab).toHaveAttribute('aria-selected', 'true')
+
+    await user.keyboard('{ArrowLeft}')
+    expect(ordersTab).toHaveFocus()
+    expect(ordersTab).toHaveAttribute('aria-selected', 'true')
+
+    await user.keyboard('{Home}')
+    expect(settingsTab).toHaveFocus()
+    expect(settingsTab).toHaveAttribute('aria-selected', 'true')
+
+    await user.keyboard('{End}')
+    expect(ordersTab).toHaveFocus()
+    expect(ordersTab).toHaveAttribute('aria-selected', 'true')
   })
 
   it('updates the resident preview and saves the campaign draft', async () => {

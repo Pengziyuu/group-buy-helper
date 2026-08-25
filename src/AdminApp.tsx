@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import './AdminApp.css'
 import AdminOrdersPanel, { type FulfillmentUpdate } from './AdminOrdersPanel'
 import { campaign, initialOrders, items } from './data/demo'
@@ -80,6 +80,8 @@ function AdminApp({
   const [imageFile, setImageFile] = useState<File | null>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const imageAltInputRef = useRef<HTMLInputElement>(null)
+  const settingsTabRef = useRef<HTMLButtonElement>(null)
+  const ordersTabRef = useRef<HTMLButtonElement>(null)
   const handledImageFileRef = useRef<File | null>(null)
   const operationLock = useRef(false)
   const [uploadingImage, setUploadingImage] = useState(false)
@@ -90,6 +92,7 @@ function AdminApp({
   const [autoSaving, setAutoSaving] = useState(false)
   const [autoSaveFailedRevision, setAutoSaveFailedRevision] = useState<number | null>(null)
   const [previewExpanded, setPreviewExpanded] = useState(false)
+  const [activeWorkspace, setActiveWorkspace] = useState<'settings' | 'orders'>('settings')
   const savedRevisionRef = useRef(0)
   const latestRevisionRef = useRef(0)
   const autoSaveInFlightRef = useRef(false)
@@ -272,6 +275,18 @@ function AdminApp({
     return `ITEM${suffix}`
   }
 
+  const handleWorkspaceTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+    event.preventDefault()
+    const nextWorkspace = event.key === 'Home'
+      ? 'settings'
+      : event.key === 'End'
+        ? 'orders'
+        : activeWorkspace === 'settings' ? 'orders' : 'settings'
+    setActiveWorkspace(nextWorkspace)
+    ;(nextWorkspace === 'settings' ? settingsTabRef : ordersTabRef).current?.focus()
+  }
+
 
   return (
     <main className="admin-shell">
@@ -279,7 +294,9 @@ function AdminApp({
         <div>
           <p className="admin-eyebrow">GROUP BUY HELPER</p>
           <h1>團主後台</h1>
-          <p>編輯開團內容，右側即時確認住戶看到的畫面。</p>
+          <p>{activeWorkspace === 'settings'
+            ? '編輯開團內容，右側即時確認住戶看到的畫面。'
+            : '查看訂單進度，處理付款與領取狀態。'}</p>
         </div>
         <div className="admin-header-actions">
           <a href="/admin" className="resident-link">團購列表</a>
@@ -288,14 +305,38 @@ function AdminApp({
         </div>
       </header>
 
-      <nav className="admin-section-nav" aria-label="編輯器區段">
-        <a href="#editor-heading">基本資訊</a>
-        <a href="#item-editor-heading">團購品項</a>
-        <a href="#image-editor-heading">商品圖片</a>
-        <a href="#admin-orders-heading">訂單管理</a>
-      </nav>
+      <div className="admin-workspace-tabs" role="tablist" aria-label="團主工作區">
+        <button
+          ref={settingsTabRef}
+          type="button"
+          role="tab"
+          id="admin-settings-tab"
+          aria-controls="admin-settings-panel"
+          aria-selected={activeWorkspace === 'settings'}
+          tabIndex={activeWorkspace === 'settings' ? 0 : -1}
+          onClick={() => setActiveWorkspace('settings')}
+          onKeyDown={handleWorkspaceTabKeyDown}
+        >開團設定</button>
+        <button
+          ref={ordersTabRef}
+          type="button"
+          role="tab"
+          id="admin-orders-tab"
+          aria-controls="admin-orders-panel"
+          aria-selected={activeWorkspace === 'orders'}
+          tabIndex={activeWorkspace === 'orders' ? 0 : -1}
+          onClick={() => setActiveWorkspace('orders')}
+          onKeyDown={handleWorkspaceTabKeyDown}
+        >訂單管理</button>
+      </div>
 
-      <div className="admin-workspace">
+      <section
+        id="admin-settings-panel"
+        role="tabpanel"
+        aria-labelledby="admin-settings-tab"
+        hidden={activeWorkspace !== 'settings'}
+      >
+        <div className="admin-workspace">
         <section className="editor-card" aria-labelledby="editor-heading">
           <div className="admin-section-heading">
             <div>
@@ -487,15 +528,28 @@ function AdminApp({
             <p id="resident-preview-announcement" className={`preview-copy ${previewExpanded ? 'is-expanded' : 'is-collapsed'}`}>{announcement}</p>
           </article>
         </section>
-      </div>
-      {resolvedOrderSummary && (
-        <AdminOrdersPanel
-          summary={resolvedOrderSummary}
-          campaignStatus={campaignStatus}
-          onSetCampaignStatus={onSetCampaignStatus}
-          onSetOrderFulfillment={onSetOrderFulfillment}
-        />
-      )}
+        </div>
+      </section>
+      <section
+        id="admin-orders-panel"
+        role="tabpanel"
+        aria-labelledby="admin-orders-tab"
+        hidden={activeWorkspace !== 'orders'}
+      >
+        {resolvedOrderSummary ? (
+          <AdminOrdersPanel
+            summary={resolvedOrderSummary}
+            campaignStatus={campaignStatus}
+            onSetCampaignStatus={onSetCampaignStatus}
+            onSetOrderFulfillment={onSetOrderFulfillment}
+          />
+        ) : (
+          <div className="admin-orders-empty">
+            <h2>訂單管理</h2>
+            <p>團購發布後，住戶訂單與履約狀態會顯示在這裡。</p>
+          </div>
+        )}
+      </section>
     </main>
   )
 }

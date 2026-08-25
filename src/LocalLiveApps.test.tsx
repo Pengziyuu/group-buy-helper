@@ -267,6 +267,7 @@ describe('local Supabase visual demo apps', () => {
       'href',
       '/campaign/82be35197b9a8c709a939627ce4c411d8de3',
     )
+    await user.click(screen.getByRole('tab', { name: '訂單管理' }))
     await user.click(screen.getByRole('button', { name: '結單' }))
     expect(workflowRepository.setCampaignStatus).toHaveBeenCalledWith('campaign-1', 'closed')
   })

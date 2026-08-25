@@ -99,7 +99,8 @@ describe('RuntimeApp localStorage organizer demo routing', () => {
 
     rerender(<RuntimeApp config={config} pathname={`/admin/campaign/${campaignId}`} />)
     expect(screen.getByRole('heading', { name: '團主後台' })).toBeInTheDocument()
-    expect(screen.getByRole('navigation', { name: '編輯器區段' })).toBeInTheDocument()
+    expect(screen.getByRole('tablist', { name: '團主工作區' })).toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: '訂單管理' }))
     await user.click(screen.getByRole('button', { name: '標記 H11 已付款' }))
     expect(await screen.findByRole('button', { name: '標記 H11 未付款' })).toBeInTheDocument()
   })

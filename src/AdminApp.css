@@ -15,10 +15,50 @@
 .resident-link { flex: none; padding: 10px 14px; border: 1px solid var(--admin-line); border-radius: 9px; background: #fff; color: var(--admin-ink); font-size: 14px; font-weight: 750; text-decoration: none; }
 .admin-header-actions button { padding: 10px 14px; border: 1px solid var(--admin-line); border-radius: 9px; background: var(--admin-warm); color: var(--admin-ink); font: inherit; font-size: 14px; font-weight: 750; cursor: pointer; }
 
-.admin-section-nav { position: sticky; top: 0; z-index: 8; display: flex; gap: 2px; margin-bottom: 18px; overflow-x: auto; border-bottom: 1px solid var(--admin-line); background: color-mix(in srgb, var(--color-background) 94%, transparent); }
-.admin-section-nav a { min-height: 44px; display: inline-flex; flex: none; align-items: center; padding: 0 12px; border-bottom: 2px solid transparent; color: var(--admin-muted); font-size: 13px; font-weight: 700; text-decoration: none; white-space: nowrap; }
-.admin-section-nav a:hover, .admin-section-nav a:focus-visible { border-bottom-color: var(--color-primary); color: var(--color-primary); }
-#editor-heading, #item-editor-heading, #image-editor-heading, #admin-orders-heading, #item-summary-heading, #resident-orders-heading { scroll-margin-top: 58px; }
+.admin-workspace-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: min(100%, 480px);
+  margin-bottom: 24px;
+  padding: 4px;
+  border: 1px solid var(--admin-line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-background) 94%, transparent);
+  box-shadow: 0 2px 8px rgb(29 41 36 / 8%);
+}
+.admin-workspace-tabs button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--admin-muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.admin-workspace-tabs button[aria-selected='true'] {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  box-shadow: 0 1px 3px rgb(29 41 36 / 10%);
+  font-weight: 800;
+}
+.admin-workspace-tabs button:hover { color: var(--color-primary); }
+.admin-workspace-tabs button:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}
+.admin-orders-empty {
+  padding: 32px;
+  border: 1px solid var(--admin-line);
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+.admin-orders-empty h2 { margin: 0 0 8px; font-size: 22px; }
+.admin-orders-empty p { margin: 0; color: var(--admin-muted); }
 
 .admin-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(360px, .82fr); gap: 20px; align-items: start; }
 .editor-card, .resident-preview { border: 1px solid var(--admin-line); border-radius: 16px; background: #fff; box-shadow: 0 4px 18px rgba(0, 0, 0, .035); }
