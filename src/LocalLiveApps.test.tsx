@@ -54,7 +54,7 @@ function memoryAuthStorage(initial: Record<string, string> = {}) {
   return { storage, values }
 }
 
-function authClient(session: unknown = null, getUserError: unknown = null) {
+function authClient(session: unknown = null, getUserError: unknown = null, isAdmin = true) {
   const signInWithPassword = vi.fn().mockResolvedValue({
     data: {
       session: {
@@ -65,6 +65,7 @@ function authClient(session: unknown = null, getUserError: unknown = null) {
     error: null,
   })
   const client = {
+    rpc: vi.fn().mockResolvedValue({ data: isAdmin, error: null }),
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session }, error: null }),
       getUser: vi.fn().mockResolvedValue({
@@ -295,6 +296,34 @@ describe('local Supabase visual demo apps', () => {
     expect(repository.loadPublished).not.toHaveBeenCalled()
   })
 
+  it('does not treat a non-anonymous LINE resident session as an organizer login', async () => {
+    const session = { access_token: 'resident-line-token', user: { id: 'resident-user', is_anonymous: false } }
+    const { client } = authClient(session, null, false)
+    const managementRepository: LiveCampaignManagementRepository = {
+      list: vi.fn(), create: vi.fn(), delete: vi.fn(),
+    }
+    const residentMemberRepository: LiveResidentMemberRepository = {
+      list: vi.fn(), setBlocked: vi.fn(),
+    }
+
+    render(
+      <LocalLiveAdminApp
+        client={client}
+        managementRepository={managementRepository}
+        residentMemberRepository={residentMemberRepository}
+        liffId="2011099887-PlmOrmYw"
+        liffClient={{} as LiffClient}
+        lineOrganizerGateway={{ signIn: vi.fn() }}
+      />,
+    )
+
+    expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
+    expect(client.rpc).toHaveBeenCalledWith('is_admin')
+    expect(client.auth.signOut).toHaveBeenCalled()
+    expect(managementRepository.list).not.toHaveBeenCalled()
+    expect(residentMemberRepository.list).not.toHaveBeenCalled()
+  })
+
   it('keeps the editor mounted while revalidating the same organizer after returning from a picker', async () => {
     const user = userEvent.setup()
     const initialSession = {
@@ -310,6 +339,7 @@ describe('local Supabase visual demo apps', () => {
         finishRevalidation = resolve
       }))
     const client = {
+      rpc: vi.fn().mockResolvedValue({ data: true, error: null }),
       auth: {
         getSession: vi.fn().mockResolvedValue({ data: { session: initialSession }, error: null }),
         getUser,
@@ -365,6 +395,7 @@ describe('local Supabase visual demo apps', () => {
     const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
     let authStateCallback: ((event: string, session: unknown) => void) | undefined
     const client = {
+      rpc: vi.fn().mockResolvedValue({ data: true, error: null }),
       auth: {
         getSession: vi.fn().mockResolvedValue({ data: { session }, error: null }),
         getUser: vi.fn()
@@ -410,6 +441,7 @@ describe('local Supabase visual demo apps', () => {
     let authStateCallback: ((event: string, session: unknown) => void) | undefined
     const signOut = vi.fn().mockImplementation(() => new Promise(() => undefined))
     const client = {
+      rpc: vi.fn().mockResolvedValue({ data: true, error: null }),
       auth: {
         getSession: vi.fn().mockResolvedValue({ data: { session }, error: null }),
         getUser: vi.fn()
@@ -953,6 +985,7 @@ describe('local Supabase visual demo apps', () => {
       finishValidation = resolve
     }))
     const client = {
+      rpc: vi.fn().mockResolvedValue({ data: true, error: null }),
       auth: {
         getSession: vi.fn().mockResolvedValue({ data: { session: staleSession }, error: null }),
         getUser,
@@ -1008,6 +1041,7 @@ describe('local Supabase visual demo apps', () => {
     })
     const signOut = vi.fn().mockResolvedValue({ error: null })
     const client = {
+      rpc: vi.fn().mockResolvedValue({ data: true, error: null }),
       auth: {
         getSession: vi.fn().mockResolvedValue({ data: { session: oldSession }, error: null }),
         getUser,
@@ -1113,6 +1147,7 @@ describe('local Supabase visual demo apps', () => {
       return { error: null }
     })
     const client = {
+      rpc: vi.fn().mockResolvedValue({ data: true, error: null }),
       auth: {
         getSession: vi.fn().mockResolvedValue({ data: { session: staleSession }, error: null }),
         getUser: vi.fn().mockResolvedValue({
@@ -1155,6 +1190,7 @@ describe('local Supabase visual demo apps', () => {
       finishValidation = resolve
     }))
     const client = {
+      rpc: vi.fn().mockResolvedValue({ data: true, error: null }),
       auth: {
         getSession: vi.fn().mockResolvedValue({ data: { session }, error: null }),
         getUser,

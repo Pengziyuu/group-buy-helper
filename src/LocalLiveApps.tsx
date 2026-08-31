@@ -508,6 +508,19 @@ export function LocalLiveAdminApp({
         return
       }
 
+      const { data: isAdmin, error: organizerError } = await client.rpc('is_admin')
+      if (!active || validationId !== authValidationGeneration.current) return
+      if (organizerError) {
+        if (preserveVerifiedEditor) return
+        setError(`驗證團主資格失敗：${errorMessage(organizerError)}，請重新整理後再試。`)
+        setSession(null)
+        return
+      }
+      if (isAdmin !== true) {
+        invalidateOrganizer()
+        return
+      }
+
       validatedOrganizerId.current = authoritativeUser.id
       authEventsBlocked.current = false
       setError('')
