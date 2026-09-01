@@ -133,12 +133,22 @@ function AdminOrdersPanel({
             <span>{summary.itemRows.length} 個品項</span>
           </div>
           <div className="admin-table-scroll">
-            <table>
-              <thead><tr><th>字母</th><th>數量</th><th>小計</th></tr></thead>
+            <table className="item-summary-table">
+              <colgroup>
+                <col />
+                <col className="item-summary-quantity-column" />
+                <col className="item-summary-amount-column" />
+              </colgroup>
+              <thead><tr><th>品項</th><th>數量</th><th>小計</th></tr></thead>
               <tbody>
                 {summary.itemRows.map((item) => (
                   <tr key={item.code}>
-                    <td><strong className="admin-item-code">{item.label} {item.name}</strong></td>
+                    <td>
+                      <span className="admin-item-identity">
+                        <strong className="admin-item-code">{item.label}</strong>
+                        <span className="admin-item-name">{item.name}</span>
+                      </span>
+                    </td>
                     <td><strong>{item.quantity} 個</strong></td>
                     <td>{currency(item.amount)}</td>
                   </tr>

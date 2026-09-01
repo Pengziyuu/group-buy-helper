@@ -162,10 +162,17 @@
 }
 
 .resident-order-table { min-width: 820px !important; }
+.item-summary-table { min-width: 0 !important; table-layout: fixed; }
+.item-summary-quantity-column { width: 74px; }
+.item-summary-amount-column { width: 88px; }
 .admin-table-scroll th { padding: 10px 12px; background: var(--admin-warm); color: var(--admin-muted); font-size: 11px; letter-spacing: .03em; }
 .admin-table-scroll td { padding: 11px 12px; border-top: 1px solid var(--admin-line); font-size: 12px; vertical-align: top; }
 .admin-table-scroll tbody tr:hover { background: #fafcff; }
-.admin-item-code { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 7px; background: #e8f2fb; color: var(--admin-blue); }
+.admin-item-identity { display: flex; align-items: flex-start; gap: 9px; min-width: 0; }
+.admin-item-code { display: grid; flex: none; place-items: center; width: 26px; height: 26px; border-radius: 7px; background: #e8f2fb; color: var(--admin-blue); }
+.admin-item-name { min-width: 0; padding-top: 5px; color: var(--admin-ink); font-weight: 700; line-height: 1.4; overflow-wrap: break-word; }
+.item-summary-table th:nth-child(n + 2),
+.item-summary-table td:nth-child(n + 2) { white-space: nowrap; }
 .admin-unit-period { display: block; margin-bottom: 2px; color: var(--admin-muted); font-size: 10px; }
 
 @media (max-width: 720px) {
