@@ -39,6 +39,7 @@
 }
 
 .resident-member-card {
+  flex-wrap: wrap;
   gap: 0.9rem;
   padding: 1rem;
   border: 1px solid rgba(26, 50, 38, 0.12);
@@ -50,6 +51,30 @@
   background: #faf7f7;
   opacity: 0.82;
 }
+
+.resident-member-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.resident-member-actions > button,
+.resident-household-editor-actions > button { min-height: 44px; }
+.resident-household-editor-actions > button { min-width: 44px; }
+
+.resident-household-editor {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(26, 50, 38, 0.12);
+}
+
+.resident-household-editor label { min-width: 0; display: grid; gap: 0.35rem; color: #5d6d64; font-size: 0.8rem; font-weight: 700; }
+.resident-household-editor select { width: 100%; min-height: 44px; padding: 0 0.7rem; border: 1px solid #819087; border-radius: 0.55rem; background: #fff; color: #1d2924; font: inherit; }
+.resident-household-editor-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 0.5rem; }
 
 .resident-member-avatar,
 .resident-member-avatar img,
@@ -108,4 +133,9 @@
   .resident-member-card > button {
     width: 100%;
   }
+
+  .resident-member-actions { width: 100%; }
+  .resident-member-actions > button { flex: 1 1 140px; min-height: 44px; }
+  .resident-household-editor { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .resident-household-editor-actions > button { flex: 1; min-height: 44px; }
 }

@@ -21,7 +21,7 @@ describe('organizer campaign list', () => {
     const user = userEvent.setup()
     const members: ResidentMember[] = [{
       memberCode: 'member-1', displayName: '住戶甲', pictureUrl: null,
-      period: 2, unit: 'A01', joinedAt: '2026-08-14T00:00:00Z', blocked: false, blockedAt: null,
+      period: 2, unit: '1A1', joinedAt: '2026-08-14T00:00:00Z', blocked: false, blockedAt: null,
     }]
     render(
       <CampaignListApp
@@ -29,6 +29,7 @@ describe('organizer campaign list', () => {
         onCreate={vi.fn()}
         residentMembers={members}
         onSetResidentBlocked={vi.fn().mockResolvedValue(undefined)}
+        onUpdateResidentHousehold={vi.fn().mockResolvedValue(undefined)}
       />,
     )
 

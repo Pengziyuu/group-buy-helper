@@ -29,8 +29,8 @@ const demoOrganizerCampaign = {
   updatedAt: campaign.openedAt,
 }
 const demoResidentMembers = [
-  { memberCode: 'demo-member-a01', displayName: '測試住戶甲', pictureUrl: null, period: 2, unit: 'A01', joinedAt: campaign.openedAt, blocked: false, blockedAt: null },
-  { memberCode: 'demo-member-b08', displayName: '測試住戶乙', pictureUrl: null, period: 1, unit: 'B08', joinedAt: campaign.openedAt, blocked: true, blockedAt: campaign.openedAt },
+  { memberCode: 'demo-member-a01', displayName: '測試住戶甲', pictureUrl: null, period: 2, unit: '1A1', joinedAt: campaign.openedAt, blocked: false, blockedAt: null },
+  { memberCode: 'demo-member-b08', displayName: '測試住戶乙', pictureUrl: null, period: 1, unit: 'B8', joinedAt: campaign.openedAt, blocked: true, blockedAt: campaign.openedAt },
 ]
 const demoTotalQuantity = initialOrders.reduce((total, order) =>
   total + Object.values(order.items).reduce((sum, quantity) => sum + quantity, 0), 0)
@@ -127,6 +127,7 @@ export default function RuntimeApp({ config, pathname, client, liffClient }: Run
         onCreate={async (title) => ({ ...demoOrganizerCampaign, title, openedAt: null })}
         residentMembers={demoResidentMembers}
         onSetResidentBlocked={async () => undefined}
+        onUpdateResidentHousehold={async () => undefined}
       />
     )
   }

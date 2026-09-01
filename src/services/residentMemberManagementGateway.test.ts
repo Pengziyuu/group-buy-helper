@@ -9,7 +9,7 @@ describe('createResidentMemberManagementGateway', () => {
         display_name: '住戶甲',
         picture_url: 'https://example.com/avatar.jpg',
         period: 2,
-        unit: 'K13',
+        unit: '2K13',
         joined_at: '2026-08-14T00:00:00Z',
         blocked: false,
         blocked_at: null,
@@ -23,7 +23,7 @@ describe('createResidentMemberManagementGateway', () => {
       displayName: '住戶甲',
       pictureUrl: 'https://example.com/avatar.jpg',
       period: 2,
-      unit: 'K13',
+      unit: '2K13',
       joinedAt: '2026-08-14T00:00:00Z',
       blocked: false,
       blockedAt: null,
@@ -40,6 +40,19 @@ describe('createResidentMemberManagementGateway', () => {
     expect(rpc).toHaveBeenCalledWith('admin_set_resident_blocked', {
       p_member_code: 'abcdef0123456789abcdef0123456789abcd',
       p_blocked: true,
+    })
+  })
+
+  it('updates a resident household by opaque member code', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: null })
+    const gateway = createResidentMemberManagementGateway({ rpc } as never)
+
+    await gateway.updateHousehold('abcdef0123456789abcdef0123456789abcd', { period: 3, unit: '3Z15' })
+
+    expect(rpc).toHaveBeenCalledWith('admin_update_resident_household', {
+      p_member_code: 'abcdef0123456789abcdef0123456789abcd',
+      p_period: 3,
+      p_unit: '3Z15',
     })
   })
 })

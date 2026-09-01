@@ -72,6 +72,7 @@ export type LiveCampaignManagementRepository = {
 export type LiveResidentMemberRepository = {
   list(): Promise<ResidentMember[]>
   setBlocked(memberCode: string, blocked: boolean): Promise<void>
+  updateHousehold(memberCode: string, household: { period: number; unit: string }): Promise<void>
 }
 
 type LocalLiveAppProps = {
@@ -725,6 +726,10 @@ export function LocalLiveAdminApp({
         residentMembers={residentMembers}
         onSetResidentBlocked={async (memberCode, blocked) => {
           await residentMemberGateway.setBlocked(memberCode, blocked)
+          setResidentMembers(await residentMemberGateway.list())
+        }}
+        onUpdateResidentHousehold={async (memberCode, household) => {
+          await residentMemberGateway.updateHousehold(memberCode, household)
           setResidentMembers(await residentMemberGateway.list())
         }}
         onCreate={(title) => campaignManagementGateway.create(title)}

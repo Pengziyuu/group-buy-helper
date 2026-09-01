@@ -874,6 +874,10 @@ export type Database = {
         Args: { p_blocked: boolean; p_member_code: string }
         Returns: undefined
       }
+      admin_update_resident_household: {
+        Args: { p_member_code: string; p_period: number; p_unit: string }
+        Returns: undefined
+      }
       approve_line_organizer: {
         Args: { p_auth_user_id: string; p_request_code: string }
         Returns: string
@@ -1073,6 +1077,10 @@ export type Database = {
       }
       valid_campaign_images: { Args: { p_images: Json }; Returns: boolean }
       valid_campaign_items: { Args: { p_items: Json }; Returns: boolean }
+      valid_resident_household: {
+        Args: { p_period: number; p_unit: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

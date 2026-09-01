@@ -17,9 +17,10 @@ type CampaignListAppProps = {
   onCopyResidentLink?: (path: string) => Promise<void>
   residentMembers?: ResidentMember[]
   onSetResidentBlocked?: (memberCode: string, blocked: boolean) => Promise<void>
+  onUpdateResidentHousehold?: (memberCode: string, household: { period: number; unit: string }) => Promise<void>
 }
 
-export default function CampaignListApp({ campaigns, onCreate, onDelete, onNavigate, onSignOut, onCopyResidentLink, residentMembers, onSetResidentBlocked }: CampaignListAppProps) {
+export default function CampaignListApp({ campaigns, onCreate, onDelete, onNavigate, onSignOut, onCopyResidentLink, residentMembers, onSetResidentBlocked, onUpdateResidentHousehold }: CampaignListAppProps) {
   const [visibleCampaigns, setVisibleCampaigns] = useState(campaigns)
   const [creating, setCreating] = useState(false)
   const [title, setTitle] = useState('未命名團購')
@@ -134,7 +135,7 @@ export default function CampaignListApp({ campaigns, onCreate, onDelete, onNavig
         </div>
       </header>
 
-      {residentMembers && onSetResidentBlocked && (
+      {residentMembers && onSetResidentBlocked && onUpdateResidentHousehold && (
         <nav className="campaign-section-nav" aria-label="團主後台區段">
           <button type="button" aria-current={activeSection === 'campaigns' ? 'page' : undefined} onClick={() => setActiveSection('campaigns')}>
             團購管理 {visibleCampaigns.length}
@@ -221,8 +222,8 @@ export default function CampaignListApp({ campaigns, onCreate, onDelete, onNavig
         ))}
       </section>
       </>}
-      {activeSection === 'residents' && residentMembers && onSetResidentBlocked && (
-        <ResidentMemberManagementApp members={residentMembers} onSetBlocked={onSetResidentBlocked} />
+      {activeSection === 'residents' && residentMembers && onSetResidentBlocked && onUpdateResidentHousehold && (
+        <ResidentMemberManagementApp members={residentMembers} onSetBlocked={onSetResidentBlocked} onUpdateHousehold={onUpdateResidentHousehold} />
       )}
     </main>
   )

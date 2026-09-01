@@ -103,10 +103,10 @@ describe('customer campaign app', () => {
     expect(screen.getByText('7 個')).toBeInTheDocument()
   })
 
-  it('lets an unbound resident create their household profile before ordering', async () => {
+  it('lets an unbound resident choose a complete phase-three household before ordering', async () => {
     const user = userEvent.setup()
     const onBindResident = vi.fn().mockResolvedValue({
-      customerId: 'new-customer', name: '彭梓育', period: 2, unit: 'A01',
+      customerId: 'new-customer', name: '彭梓育', period: 3, unit: '3Z15',
     })
 
     render(
@@ -122,12 +122,41 @@ describe('customer campaign app', () => {
     expect(screen.queryByRole('textbox', { name: '姓名' })).not.toBeInTheDocument()
     expect(screen.getByText('彭梓育')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: '彭梓育的LINE頭貼' })).toBeInTheDocument()
-    await user.selectOptions(screen.getByRole('combobox', { name: '期別' }), '2')
-    await user.type(screen.getByRole('textbox', { name: '戶號' }), 'a01')
+    expect(screen.getByRole('option', { name: '三期' })).toBeInTheDocument()
+    await user.selectOptions(screen.getByRole('combobox', { name: '期別' }), '3')
+    await user.selectOptions(screen.getByRole('combobox', { name: '前段' }), '3')
+    await user.selectOptions(screen.getByRole('combobox', { name: '棟別' }), 'Z')
+    await user.selectOptions(screen.getByRole('combobox', { name: '號碼' }), '15')
     await user.click(screen.getByRole('button', { name: '儲存住戶資料' }))
 
-    expect(onBindResident).toHaveBeenCalledWith({ period: 2, unit: 'A01' })
+    expect(onBindResident).toHaveBeenCalledWith({ period: 3, unit: '3Z15' })
     expect(await screen.findByRole('button', { name: '增加 A 牛奶（招牌）' })).toBeInTheDocument()
+  })
+
+  it('hides the prefix for phase one and binds only the letter and number', async () => {
+    const user = userEvent.setup()
+    const onBindResident = vi.fn().mockResolvedValue({
+      customerId: 'customer-phase-one',
+      name: '彭梓育',
+      period: 1,
+      unit: 'Z15',
+    })
+    render(
+      <App
+        visibleOrders={[]}
+        residentCustomer={null}
+        verifiedResidentIdentity={{ displayName: '彭梓育', pictureUrl: null }}
+        onBindResident={onBindResident}
+      />,
+    )
+
+    await user.selectOptions(screen.getByRole('combobox', { name: '期別' }), '1')
+    expect(screen.queryByRole('combobox', { name: '前段' })).not.toBeInTheDocument()
+    await user.selectOptions(screen.getByRole('combobox', { name: '棟別' }), 'Z')
+    await user.selectOptions(screen.getByRole('combobox', { name: '號碼' }), '15')
+    await user.click(screen.getByRole('button', { name: '儲存住戶資料' }))
+
+    expect(onBindResident).toHaveBeenCalledWith({ period: 1, unit: 'Z15' })
   })
 
   it('shows resident binding failures as an inline alert', async () => {
@@ -141,7 +170,6 @@ describe('customer campaign app', () => {
       />,
     )
 
-    await user.type(screen.getByRole('textbox', { name: '戶號' }), 'A01')
     await user.click(screen.getByRole('button', { name: '儲存住戶資料' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('這個戶號已被綁定')
   })
@@ -169,7 +197,17 @@ describe('customer campaign app', () => {
       openedAt: '2026-08-14T00:05:09.000Z',
     }
     const resident = initialOrders[0]
-    const visibleOrders = [{ ...resident, items: { A: 2, B: 1 } }]
+    const visibleOrders = [
+      { ...resident, items: { A: 2, B: 1 } },
+      {
+        ...initialOrders[1],
+        customerId: 'customer-phase-three',
+        name: '三期住戶',
+        period: 3,
+        unit: '3Z15',
+        items: { A: 1, B: 0 },
+      },
+    ]
 
     render(<App publishedContent={content} visibleOrders={visibleOrders} residentCustomer={resident} />)
 
@@ -179,6 +217,7 @@ describe('customer campaign app', () => {
     expect(screen.getByText('$60')).toBeInTheDocument()
     expect(screen.getByText('$150')).toBeInTheDocument()
     expect(screen.getByText('A+2、B+1')).toBeInTheDocument()
+    expect(screen.getByText('三期 3Z15')).toBeInTheDocument()
     expect(screen.queryByText(/A號|B號/)).not.toBeInTheDocument()
   })
 

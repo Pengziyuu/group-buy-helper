@@ -5,6 +5,15 @@ import { formatZhTwTimestamp, wasMeaningfullyUpdated } from './domain/timestamp'
 import { campaignStatusLabel, type CampaignStatus } from './domain/orderWorkflow'
 import { itemLabel } from './domain/itemLabel'
 import {
+  formatHouseholdUnit,
+  formatResidentPeriod,
+  HOUSEHOLD_LETTERS,
+  HOUSEHOLD_NUMBERS,
+  HOUSEHOLD_PREFIXES,
+  RESIDENT_PERIODS,
+  type ResidentPeriod,
+} from './domain/household'
+import {
   campaign,
   currentCustomerId,
   initialOrders,
@@ -75,8 +84,10 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
     ? orders.find((order) => order.customerId === currentResident.customerId)
     : undefined
 
-  const [residentPeriod, setResidentPeriod] = useState(2)
-  const [residentUnit, setResidentUnit] = useState('')
+  const [residentPeriod, setResidentPeriod] = useState<ResidentPeriod>(2)
+  const [residentPrefix, setResidentPrefix] = useState(1)
+  const [residentLetter, setResidentLetter] = useState('A')
+  const [residentNumber, setResidentNumber] = useState(1)
   const [binding, setBinding] = useState(false)
   const [bindingNotice, setBindingNotice] = useState('')
   const [draft, setDraft] = useState<Record<string, number>>({ ...(ownOrder?.items ?? {}) })
@@ -124,11 +135,12 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
 
   const bindResident = async () => {
     if (!onBindResident) return
-    const unit = residentUnit.trim().toUpperCase()
-    if (!unit) {
-      setBindingNotice('請填寫戶號')
-      return
-    }
+    const unit = formatHouseholdUnit({
+      period: residentPeriod,
+      prefix: residentPeriod === 1 ? null : residentPrefix,
+      letter: residentLetter,
+      number: residentNumber,
+    })
     setBinding(true)
     setBindingNotice('')
     try {
@@ -206,7 +218,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
         <div className="section-heading">
           <div>
             <p className="section-kicker">我的訂單</p>
-            <h2 id="order-heading">{currentResident.period === 1 ? '一期' : '二期'} {currentResident.unit}・{currentResident.name}</h2>
+            <h2 id="order-heading">{formatResidentPeriod(currentResident.period)} {currentResident.unit}・{currentResident.name}</h2>
           </div>
           <div className="my-total">
             <strong>我的訂單 {draftQuantity} 個</strong>
@@ -275,14 +287,29 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
           <div className="binding-fields">
             <label>
               <span>期別</span>
-              <select value={residentPeriod} onChange={(event) => setResidentPeriod(Number(event.target.value))}>
-                <option value={1}>一期</option>
-                <option value={2}>二期</option>
+              <select value={residentPeriod} onChange={(event) => setResidentPeriod(Number(event.target.value) as ResidentPeriod)}>
+                {RESIDENT_PERIODS.map((period) => (
+                  <option key={period} value={period}>{new Intl.NumberFormat('zh-Hant-u-nu-hanidec').format(period)}期</option>
+                ))}
+              </select>
+            </label>
+            {residentPeriod !== 1 && <label>
+              <span>前段</span>
+              <select value={residentPrefix} onChange={(event) => setResidentPrefix(Number(event.target.value))}>
+                {HOUSEHOLD_PREFIXES.map((prefix) => <option key={prefix} value={prefix}>{prefix}</option>)}
+              </select>
+            </label>}
+            <label>
+              <span>棟別</span>
+              <select value={residentLetter} onChange={(event) => setResidentLetter(event.target.value)}>
+                {HOUSEHOLD_LETTERS.map((letter) => <option key={letter} value={letter}>{letter}</option>)}
               </select>
             </label>
             <label>
-              <span>戶號</span>
-              <input value={residentUnit} onChange={(event) => setResidentUnit(event.target.value.toUpperCase())} maxLength={20} autoCapitalize="characters" placeholder="例如 A01" />
+              <span>號碼</span>
+              <select value={residentNumber} onChange={(event) => setResidentNumber(Number(event.target.value))}>
+                {HOUSEHOLD_NUMBERS.map((number) => <option key={number} value={number}>{number}</option>)}
+              </select>
             </label>
           </div>
           <Button
@@ -349,7 +376,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
                 <div className="wall-main">
                   <div className="wall-name">
                     <strong>{order.name}</strong>
-                    <span>{order.period === 1 ? '一期' : '二期'} {order.unit}</span>
+                    <span>{formatResidentPeriod(order.period)} {order.unit}</span>
                   </div>
                   <p>{Object.entries(order.items)
                     .filter(([, quantity]) => quantity > 0)

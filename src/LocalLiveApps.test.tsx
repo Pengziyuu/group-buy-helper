@@ -149,10 +149,11 @@ describe('local Supabase visual demo apps', () => {
     const residentMemberRepository: LiveResidentMemberRepository = {
       list: vi.fn().mockResolvedValue([{
         memberCode: 'abcdef0123456789abcdef0123456789abcd',
-        displayName: '住戶甲', pictureUrl: null, period: 2, unit: 'K13',
+        displayName: '住戶甲', pictureUrl: null, period: 2, unit: '2K13',
         joinedAt: '2026-08-14T00:00:00Z', blocked: false, blockedAt: null,
       }]),
       setBlocked: vi.fn().mockResolvedValue(undefined),
+      updateHousehold: vi.fn().mockResolvedValue(undefined),
     }
 
     render(
@@ -303,7 +304,7 @@ describe('local Supabase visual demo apps', () => {
       list: vi.fn(), create: vi.fn(), delete: vi.fn(),
     }
     const residentMemberRepository: LiveResidentMemberRepository = {
-      list: vi.fn(), setBlocked: vi.fn(),
+      list: vi.fn(), setBlocked: vi.fn(), updateHousehold: vi.fn(),
     }
 
     render(
@@ -1250,7 +1251,7 @@ describe('local Supabase visual demo apps', () => {
     const subscribe = vi.fn().mockReturnThis()
     Object.assign(client, {
       rpc: vi.fn((name: string) => Promise.resolve(name === 'get_customer_self'
-        ? { data: [{ id: 'admin-customer', name: '團主住戶', period: 2, unit: 'A01' }], error: null }
+        ? { data: [{ id: 'admin-customer', name: '團主住戶', period: 2, unit: '1A1' }], error: null }
         : name === 'get_line_resident_self'
           ? { data: [{ display_name: '團主住戶', picture_url: null }], error: null }
           : { data: [{ id: 'campaign-1' }], error: null })),
@@ -1335,7 +1336,7 @@ describe('local Supabase visual demo apps', () => {
       })
       if (name === 'get_customer_self') return Promise.resolve({ data: [], error: null })
       if (name === 'bind_customer_self') return Promise.resolve({
-        data: [{ id: 'customer-new', name: '彭梓育', period: 2, unit: 'A01' }], error: null,
+        data: [{ id: 'customer-new', name: '彭梓育', period: 2, unit: '1A1' }], error: null,
       })
       throw new Error(`unexpected RPC ${name}`)
     })
@@ -1354,11 +1355,10 @@ describe('local Supabase visual demo apps', () => {
 
     expect(await screen.findByText('彭梓育')).toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: '姓名' })).not.toBeInTheDocument()
-    await user.type(screen.getByRole('textbox', { name: '戶號' }), 'a01')
     await user.click(screen.getByRole('button', { name: '儲存住戶資料' }))
 
     expect(rpc).toHaveBeenCalledWith('bind_customer_self', {
-      p_period: 2, p_unit: 'A01',
+      p_period: 2, p_unit: '1A1',
     })
     expect(await screen.findByRole('button', { name: '增加 A 牛奶（招牌）' })).toBeInTheDocument()
   })
@@ -1498,7 +1498,7 @@ describe('local Supabase visual demo apps', () => {
     }
     Object.assign(client, {
       rpc: vi.fn((name: string) => Promise.resolve(name === 'get_customer_self'
-        ? { data: [{ id: 'customer-1', name: '測試住戶', period: 2, unit: 'A01' }], error: null }
+        ? { data: [{ id: 'customer-1', name: '測試住戶', period: 2, unit: '1A1' }], error: null }
         : name === 'get_line_resident_self'
           ? { data: [{ display_name: '測試住戶', picture_url: null }], error: null }
           : { data: [{ id: 'campaign-1' }], error: null })),

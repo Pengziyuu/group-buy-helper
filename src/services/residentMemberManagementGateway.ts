@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database'
+import { parseHouseholdUnit } from '../domain/household'
 
 export type ResidentMember = {
   memberCode: string
@@ -70,6 +71,17 @@ export function createResidentMemberManagementGateway(client: SupabaseClient<Dat
         p_blocked: blocked,
       })
       if (error) throw new Error(`${blocked ? '移除住戶' : '解除封鎖'}失敗：${errorMessage(error)}`)
+    },
+
+    async updateHousehold(memberCode: string, household: { period: number; unit: string }): Promise<void> {
+      if (!/^[0-9a-f]{36}$/.test(memberCode)) throw new Error('住戶管理代碼無效')
+      const normalized = parseHouseholdUnit(household.period, household.unit)
+      const { error } = await client.rpc('admin_update_resident_household', {
+        p_member_code: memberCode,
+        p_period: normalized.period,
+        p_unit: household.unit.trim().toUpperCase(),
+      })
+      if (error) throw new Error(`調整住戶資料失敗：${errorMessage(error)}`)
     },
   }
 }
