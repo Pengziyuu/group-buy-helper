@@ -6,7 +6,7 @@ import type { Database } from '../types/database'
 
 export type AdminOrdersSupabaseClient = SupabaseClient<Database>
 
-type ItemRow = { code: string; name: string; active: boolean; sort_order: number }
+type ItemRow = { code: string; name: string; unit_price: number; active: boolean; sort_order: number }
 type WallRow = {
   order_id: string | null
   customer_name: string | null
@@ -32,6 +32,7 @@ function validateItems(data: unknown): ItemRow[] {
   if (!Array.isArray(data) || data.some((row) => !row
     || typeof row.code !== 'string'
     || typeof row.name !== 'string'
+    || typeof row.unit_price !== 'number'
     || typeof row.active !== 'boolean'
     || typeof row.sort_order !== 'number')) {
     throw new Error('Supabase 回傳的團購品項格式錯誤')
@@ -66,13 +67,12 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
 
     async loadSummary(
       campaignId: string,
-      unitPrice: number,
       threshold: number,
     ): Promise<OrganizerOrderSummary> {
       const [itemResult, wallResult, statusResult] = await Promise.all([
         client
           .from('campaign_item')
-          .select('code,name,active,sort_order')
+          .select('code,name,unit_price,active,sort_order')
           .eq('campaign_id', campaignId)
           .order('sort_order'),
         client
@@ -91,7 +91,12 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
       if (wallResult.error) throw new Error(`讀取住戶訂單失敗：${errorMessage(wallResult.error)}`)
       if (statusResult.error) throw new Error(`讀取付款領取狀態失敗：${errorMessage(statusResult.error)}`)
 
-      const items = validateItems(itemResult.data)
+      const items = validateItems(itemResult.data).map((item) => ({
+        code: item.code,
+        name: item.name,
+        unitPrice: item.unit_price,
+        active: item.active,
+      }))
       const wallRows = validateWall(wallResult.data)
       const statuses = new Map(
         validateStatuses(statusResult.data)
@@ -127,7 +132,6 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
       return buildOrganizerOrderSummary({
         orders: [...ordersById.values()],
         items,
-        unitPrice,
         threshold,
       })
     },

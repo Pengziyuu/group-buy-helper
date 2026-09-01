@@ -138,7 +138,7 @@ function AdminOrdersPanel({
               <tbody>
                 {summary.itemRows.map((item) => (
                   <tr key={item.code}>
-                    <td><strong className="admin-item-code">{item.name}</strong></td>
+                    <td><strong className="admin-item-code">{item.label} {item.name}</strong></td>
                     <td><strong>{item.quantity} 個</strong></td>
                     <td>{currency(item.amount)}</td>
                   </tr>

@@ -26,7 +26,7 @@
 .resident-list-header p,
 .resident-list-heading p { margin: 0; color: var(--color-text-tertiary); font-size: 12px; letter-spacing: .08em; }
 .resident-list-header strong { display: block; line-height: 1.35; }
-.resident-list-header button { min-height: 44px; margin-left: auto; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-control); background: transparent; color: var(--color-text-secondary); cursor: pointer; }
+.resident-list-header button { min-height: 44px; margin-left: auto; padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-text-secondary); cursor: pointer; }
 .resident-list-header button:hover { background: var(--color-surface-subtle); }
 
 .resident-list-heading { padding: var(--space-8) 0 var(--space-5); }

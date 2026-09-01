@@ -11,7 +11,7 @@ import {
   items,
   type VisibleOrder,
 } from './data/demo'
-import { loadPublishedCampaign, type CampaignContent } from './services/demoCampaignStore'
+import { loadPublishedCampaign, normalizeCampaignContent, type CampaignContent } from './services/demoCampaignStore'
 import { Button } from './components/ui/Button'
 import { QuantityControl } from './components/ui/QuantityControl'
 import { StickyActionBar } from './components/ui/StickyActionBar'
@@ -55,7 +55,10 @@ type AppProps = {
 
 function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visibleOrders, residentCustomer, verifiedResidentIdentity, onBindResident, onSubmitOrder, syncError, onSyncRetry }: AppProps = {}) {
   const [localPublishedCampaign] = useState(() => loadPublishedCampaign(defaultContent))
-  const publishedCampaign = publishedContent ?? localPublishedCampaign
+  const publishedCampaign = useMemo(
+    () => normalizeCampaignContent(publishedContent ?? localPublishedCampaign),
+    [localPublishedCampaign, publishedContent],
+  )
   const itemDisplayLabel = (code: string) => {
     const index = publishedCampaign.items.findIndex((item) => item.code === code)
     return index >= 0 ? itemLabel(index) : code
@@ -87,10 +90,21 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
   }, [draftDirty, ownOrder, visibleOrders])
 
   const summary = useMemo(
-    () => summarizeCampaign(orders, publishedCampaign.unitPrice, publishedCampaign.threshold),
+    () => summarizeCampaign(
+      orders,
+      publishedCampaign.items.map((item) => ({ code: item.code, unitPrice: item.unitPrice ?? publishedCampaign.unitPrice })),
+      publishedCampaign.threshold,
+    ),
     [orders, publishedCampaign],
   )
   const draftQuantity = orderQuantity(draft)
+  const draftAmount = Object.entries(draft).reduce((sum, [code, quantity]) => {
+    const item = publishedCampaign.items.find((candidate) => candidate.code === code)
+    return sum + quantity * (item?.unitPrice ?? publishedCampaign.unitPrice)
+  }, 0)
+  const activePrices = activeItems.map((item) => item.unitPrice ?? publishedCampaign.unitPrice)
+  const minimumPrice = activePrices.length > 0 ? Math.min(...activePrices) : 0
+  const maximumPrice = activePrices.length > 0 ? Math.max(...activePrices) : 0
   const editable = campaignStatus === 'open'
   const hasLongAnnouncement = publishedCampaign.announcement.length > 240
 
@@ -172,7 +186,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
         <div className="eyebrow-row">
           <span className="status-dot" aria-hidden="true" />
           <span>{campaignStatusLabel(campaignStatus)}</span>
-          <span className="price">每個 ${publishedCampaign.unitPrice}</span>
+          <span className="price">{minimumPrice === maximumPrice ? `$${minimumPrice}` : `$${minimumPrice}～$${maximumPrice}`}</span>
         </div>
         <h1>{publishedCampaign.title}</h1>
         {!liveDemo && <p className="arrival">🧊 {campaign.arrival}</p>}
@@ -203,16 +217,17 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
           {activeItems.map((item) => {
             const itemIndex = publishedCampaign.items.findIndex((candidate) => candidate.code === item.code)
             const displayLabel = itemLabel(itemIndex)
+            const itemPrice = item.unitPrice ?? publishedCampaign.unitPrice
             const quantity = draft[item.code] ?? 0
             return (
               <div className="product-row" key={item.code}>
-                <span className="product-code">{displayLabel.slice(0, 1)}</span>
+                <span className="product-code">{displayLabel}</span>
                 <div className="product-name">
-                  <strong>{displayLabel}</strong>
-                  <span>${publishedCampaign.unitPrice}</span>
+                  <strong>{item.name}</strong>
+                  <span>${itemPrice}</span>
                 </div>
                 <QuantityControl
-                  label={displayLabel}
+                  label={`${displayLabel} ${item.name}`}
                   value={quantity}
                   disabled={!editable}
                   onDecrement={() => adjust(item.code, -1)}
@@ -226,7 +241,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
         <StickyActionBar className="resident-order-action" ariaLabel="訂單摘要與送出">
           <div className="resident-order-action-total">
             <span>{draftQuantity} 個</span>
-            <strong>${draftQuantity * publishedCampaign.unitPrice}</strong>
+            <strong>${draftAmount}</strong>
           </div>
           <Button
             className="submit-button"
@@ -338,7 +353,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
                   </div>
                   <p>{Object.entries(order.items)
                     .filter(([, quantity]) => quantity > 0)
-                    .map(([code, quantity]) => `${itemDisplayLabel(code)}×${quantity}`)
+                    .map(([code, quantity]) => `${itemDisplayLabel(code)}+${quantity}`)
                     .join('、')}</p>
                   <p className="wall-time">
                     下單時間 {formatZhTwTimestamp(order.orderedAt)}

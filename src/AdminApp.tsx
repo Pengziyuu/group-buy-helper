@@ -4,11 +4,12 @@ import AdminOrdersPanel, { type FulfillmentUpdate } from './AdminOrdersPanel'
 import { campaign, initialOrders, items } from './data/demo'
 import { buildOrganizerOrderSummary, type OrganizerOrderSummary } from './domain/adminOrders'
 import { campaignStatusLabel, type CampaignStatus } from './domain/orderWorkflow'
-import { itemLabel, MAX_ITEM_LETTERS } from './domain/itemLabel'
+import { itemLabel, MAX_CAMPAIGN_ITEMS } from './domain/itemLabel'
 import {
   campaignContentEquals,
   loadDraftCampaign,
   loadPublishedCampaign,
+  normalizeCampaignContent,
   publishCampaign,
   saveDraftCampaign,
   type CampaignContent,
@@ -27,7 +28,6 @@ const defaultContent: CampaignContent = {
 const demoOrderSummary = buildOrganizerOrderSummary({
   orders: initialOrders,
   items,
-  unitPrice: campaign.unitPrice,
   threshold: campaign.threshold,
 })
 
@@ -64,12 +64,14 @@ function AdminApp({
   onUploadImage,
   residentHref = '/',
 }: AdminAppProps = {}) {
-  const [initialDraft] = useState(() => initialContent ?? loadDraftCampaign(defaultContent))
-  const [initialPublished] = useState(() => initialContent ?? loadPublishedCampaign(defaultContent))
+  const [initialDraft] = useState(() => initialContent
+    ? normalizeCampaignContent(initialContent)
+    : loadDraftCampaign(defaultContent))
+  const [initialPublished] = useState(() => initialContent
+    ? normalizeCampaignContent(initialContent)
+    : loadPublishedCampaign(defaultContent))
   const [title, setTitle] = useState(initialDraft.title)
-  const [unitPrice, setUnitPrice] = useState(initialDraft.unitPrice)
   const [threshold, setThreshold] = useState(initialDraft.threshold)
-  const [unitPriceInput, setUnitPriceInput] = useState(String(initialDraft.unitPrice))
   const [thresholdInput, setThresholdInput] = useState(String(initialDraft.threshold))
   const [announcement, setAnnouncement] = useState(initialDraft.announcement)
   const [images, setImages] = useState(() => [...initialDraft.images])
@@ -102,9 +104,14 @@ function AdminApp({
       ?? (campaignContentEquals(initialDraft, initialPublished) ? 'published' : 'draft'),
   )
   const editorBusy = busyAction !== null || uploadingImage
-  const unitPriceInputValid = /^\d+(?:\.\d{0,2})?$/.test(unitPriceInput) && Number(unitPriceInput) >= 0
+  const activeItemPrices = campaignItems
+    .filter((item) => item.active)
+    .flatMap((item) => item.unitPrice === undefined ? [] : [item.unitPrice])
+  const unitPrice = activeItemPrices.length > 0 ? Math.min(...activeItemPrices) : 0
+  const maximumItemPrice = activeItemPrices.length > 0 ? Math.max(...activeItemPrices) : 0
+  const itemPricesValid = campaignItems.every((item) => Number.isFinite(item.unitPrice) && (item.unitPrice ?? -1) >= 0)
   const thresholdInputValid = /^\d+$/.test(thresholdInput) && Number(thresholdInput) >= 1
-  const numericInputsValid = unitPriceInputValid && thresholdInputValid
+  const numericInputsValid = itemPricesValid && thresholdInputValid
   const resolvedOrderSummary = orderSummary === undefined ? demoOrderSummary : orderSummary
 
   const currentContent = (): CampaignContent => ({
@@ -125,7 +132,7 @@ function AdminApp({
   }
 
   useEffect(() => {
-    if (draftRevision === savedRevisionRef.current || editorBusy || autoSaveInFlightRef.current) return
+    if (draftRevision === savedRevisionRef.current || editorBusy || autoSaveInFlightRef.current || !numericInputsValid) return
     const revision = draftRevision
     const delay = flushAutoSaveImmediatelyRef.current ? 0 : 500
     flushAutoSaveImmediatelyRef.current = false
@@ -163,7 +170,7 @@ function AdminApp({
       })
     }, delay)
     return () => window.clearTimeout(timer)
-  }, [announcement, autoSaveCycle, campaignItems, draftRevision, editorBusy, images, onSaveDraft, openedAt, threshold, title, unitPrice])
+  }, [announcement, autoSaveCycle, campaignItems, draftRevision, editorBusy, images, numericInputsValid, onSaveDraft, openedAt, threshold, title, unitPrice])
 
   const retryAutoSave = () => {
     if (autoSaveFailedRevision === null || editorBusy || autoSaveInFlightRef.current) return
@@ -184,6 +191,9 @@ function AdminApp({
       if (!campaignItems.some((item) => item.active && item.name.trim())) {
         throw new Error('至少需要一個啟用且有名稱的品項')
       }
+      if (!itemPricesValid) {
+        throw new Error('每個品項都需要有效的單價')
+      }
       const content = currentContent()
       if (!onPublish && !content.openedAt) content.openedAt = new Date().toISOString()
       const canonical = onPublish ? await onPublish(content) : undefined
@@ -193,9 +203,7 @@ function AdminApp({
       }
       if (canonical) {
         setTitle(canonical.title)
-        setUnitPrice(canonical.unitPrice)
         setThreshold(canonical.threshold)
-        setUnitPriceInput(String(canonical.unitPrice))
         setThresholdInput(String(canonical.threshold))
         setAnnouncement(canonical.announcement)
         setImages([...canonical.images])
@@ -352,27 +360,6 @@ function AdminApp({
               <input disabled={editorBusy} value={title} onChange={(event) => { setTitle(event.target.value); markDraft() }} />
             </label>
             <label className="field">
-              <span>單價</span>
-              <input
-                disabled={editorBusy || itemsLocked}
-                type="number"
-                min="0"
-                inputMode="numeric"
-                value={unitPriceInput}
-                onChange={(event) => {
-                  const value = event.target.value
-                  setUnitPriceInput(value)
-                  if (/^\d+(?:\.\d{0,2})?$/.test(value)) {
-                    setUnitPrice(Number(value))
-                    markDraft()
-                  }
-                }}
-                onBlur={() => {
-                  if (!unitPriceInputValid) setUnitPriceInput(String(unitPrice))
-                }}
-              />
-            </label>
-            <label className="field">
               <span>成團門檻</span>
               <input
                 disabled={editorBusy}
@@ -410,24 +397,69 @@ function AdminApp({
                 <h3 id="item-editor-heading">團購品項</h3>
                 <span>{campaignItems.length} 個品項</span>
               </div>
-              <p>商品名稱、口味與編號對照請寫在上方「開團資訊」。</p>
+              <p>代碼會自動延伸為 A～Z、AA～AZ；請為每個品項設定名稱與單價。</p>
               <ol className="campaign-item-list">
-                {campaignItems.map((item, index) => (
-                  <li key={item.code} className={!item.active ? 'inactive' : ''}>
-                    <strong>{itemLabel(index)}</strong>
-                  </li>
-                ))}
+                {campaignItems.map((item, index) => {
+                  const label = itemLabel(index)
+                  return (
+                    <li key={item.code} className={!item.active ? 'inactive' : ''}>
+                      <strong className="campaign-item-code">{label}</strong>
+                      <label className="campaign-item-name">
+                        <span>商品名稱（口味）</span>
+                        <input
+                          aria-label={`品項 ${label} 商品名稱（口味）`}
+                          disabled={editorBusy || itemsLocked}
+                          maxLength={200}
+                          value={item.name}
+                          onChange={(event) => {
+                            const name = event.target.value
+                            setCampaignItems((current) => current.map((candidate) => candidate.code === item.code
+                              ? { ...candidate, name }
+                              : candidate))
+                            markDraft()
+                          }}
+                        />
+                      </label>
+                      <label className="campaign-item-price">
+                        <span>單價</span>
+                        <input
+                          aria-label={`品項 ${label} 單價`}
+                          disabled={editorBusy || itemsLocked}
+                          type="number"
+                          min="0"
+                          max="9999999.99"
+                          step="0.01"
+                          inputMode="decimal"
+                          value={item.unitPrice ?? ''}
+                          onChange={(event) => {
+                            const value = event.target.value
+                            if (value !== '' && !/^\d+(?:\.\d{0,2})?$/.test(value)) return
+                            const nextPrice = value === '' ? undefined : Number(value)
+                            setCampaignItems((current) => current.map((candidate) => candidate.code === item.code
+                              ? { ...candidate, unitPrice: nextPrice }
+                              : candidate))
+                            markDraft()
+                          }}
+                        />
+                      </label>
+                    </li>
+                  )
+                })}
               </ol>
               {itemsLocked ? (
-                <p>已正式開團，品項字母與單價已鎖定。</p>
+                <p>已正式開團，品項代碼、名稱與單價已鎖定。</p>
               ) : (
                 <div className="admin-workflow-actions">
                   <button
                     type="button"
-                    disabled={editorBusy || campaignItems.length >= MAX_ITEM_LETTERS}
+                    disabled={editorBusy || campaignItems.length >= MAX_CAMPAIGN_ITEMS}
                     onClick={() => {
-                      const label = itemLabel(campaignItems.length)
-                      setCampaignItems((current) => [...current, { code: nextItemCode(), name: label, active: true }])
+                      setCampaignItems((current) => [...current, {
+                        code: nextItemCode(),
+                        name: '新口味',
+                        unitPrice,
+                        active: true,
+                      }])
                       markDraft()
                     }}
                   >增加品項</button>
@@ -516,7 +548,7 @@ function AdminApp({
           <article className="preview-phone">
             <div className="preview-status">
               <span>● {campaignStatus ? campaignStatusLabel(campaignStatus) : '收單中'}</span>
-              <strong>每個 ${unitPrice}</strong>
+              <strong>{unitPrice === maximumItemPrice ? `$${unitPrice}` : `$${unitPrice}～$${maximumItemPrice}`}</strong>
             </div>
             <h2>{title || '未命名團購'}</h2>
             <p className="preview-threshold">結單：{threshold} 個成團</p>

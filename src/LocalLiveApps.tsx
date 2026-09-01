@@ -15,6 +15,7 @@ import {
 } from './services/adminCampaignGateway'
 import {
   campaignContentEquals,
+  normalizeCampaignContent,
   type CampaignContent,
   type CampaignImage,
 } from './services/demoCampaignStore'
@@ -57,7 +58,7 @@ export type LiveAdminRepository = {
 
 export type LiveAdminOrdersRepository = {
   loadCampaignStatus(campaignId: string): Promise<CampaignStatus>
-  loadSummary(campaignId: string, unitPrice: number, threshold: number): Promise<OrganizerOrderSummary>
+  loadSummary(campaignId: string, threshold: number): Promise<OrganizerOrderSummary>
   setCampaignStatus(campaignId: string, status: CampaignStatus): Promise<void>
   setOrderFulfillment(orderId: string, update: FulfillmentUpdate): Promise<void>
 }
@@ -260,7 +261,7 @@ function campaignContentFromRow(row: CampaignRow | null): CampaignContent {
     || !Array.isArray(row.items)) {
     throw new Error('Supabase 回傳的團購資料格式錯誤')
   }
-  return {
+  return normalizeCampaignContent({
     title: row.title,
     unitPrice: row.unit_price,
     threshold: row.threshold,
@@ -268,7 +269,7 @@ function campaignContentFromRow(row: CampaignRow | null): CampaignContent {
     images: row.images,
     items: row.items as CampaignContent['items'],
     openedAt: typeof row.opened_at === 'string' ? row.opened_at : null,
-  }
+  })
 }
 
 function campaignStatusFromRow(row: CampaignRow | null): CampaignStatus {
@@ -598,7 +599,7 @@ export function LocalLiveAdminApp({
       if (!baseContent) throw new Error('找不到團購草稿')
       const editableContent = draft ? { ...draft, openedAt: published?.openedAt ?? null } : baseContent
       const summary = published
-        ? await ordersGateway.loadSummary(campaignId, editableContent.unitPrice, editableContent.threshold)
+        ? await ordersGateway.loadSummary(campaignId, editableContent.threshold)
         : null
       if (!active) return
       setContent(editableContent)
@@ -760,7 +761,7 @@ export function LocalLiveAdminApp({
       }}
       onSetOrderFulfillment={async (orderId, update) => {
         await ordersGateway.setOrderFulfillment(orderId, update)
-        setOrderSummary(await ordersGateway.loadSummary(campaignId, content.unitPrice, content.threshold))
+        setOrderSummary(await ordersGateway.loadSummary(campaignId, content.threshold))
       }}
       onSaveDraft={async (nextContent) => {
         await gateway.saveDraft(campaignId, nextContent)
@@ -770,7 +771,7 @@ export function LocalLiveAdminApp({
         const published = await gateway.publish(campaignId)
         setContent(published)
         setResidentSlug(await gateway.loadResidentSlug?.(campaignId) ?? null)
-        setOrderSummary(await ordersGateway.loadSummary(campaignId, published.unitPrice, published.threshold))
+        setOrderSummary(await ordersGateway.loadSummary(campaignId, published.threshold))
         return published
       }}
       onSignOut={async () => {

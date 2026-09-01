@@ -11,8 +11,8 @@ function queryResult(data: unknown) {
 describe('Supabase admin orders gateway', () => {
   it('rebuilds resident orders and merges organizer-only fulfillment state', async () => {
     const itemQuery = queryResult([
-      { code: 'A', name: '牛奶', active: true, sort_order: 1 },
-      { code: 'B', name: '歷史花生', active: false, sort_order: 2 },
+      { code: 'A', name: '牛奶', unit_price: 45, active: true, sort_order: 1 },
+      { code: 'B', name: '歷史花生', unit_price: 45, active: false, sort_order: 2 },
     ])
     const wallQuery = queryResult([
       { order_id: 'order-1', customer_name: '斯祈', period: 2, unit: '2K13', item_code: 'A', qty: 2, ordered_at: '2026-08-14T00:10:00Z', order_updated_at: '2026-08-14T00:12:00Z' },
@@ -37,7 +37,7 @@ describe('Supabase admin orders gateway', () => {
 
     await expect(gateway.loadCampaignStatus('campaign-1')).resolves.toBe('open')
 
-    const summary = await gateway.loadSummary('campaign-1', 45, 10)
+    const summary = await gateway.loadSummary('campaign-1', 10)
 
     expect(from).toHaveBeenCalledWith('organizer_order_status')
     expect(summary.householdCount).toBe(2)
@@ -49,7 +49,7 @@ describe('Supabase admin orders gateway', () => {
     ])
     expect(summary.orderRows.find((order) => order.unit === '2K13')).toMatchObject({
       orderId: 'order-1',
-      itemSummary: 'A號×2、B號×1',
+      itemSummary: 'A 牛奶×2、B 歷史花生×1',
       orderedAt: '2026-08-14T00:10:00Z',
       updatedAt: '2026-08-14T00:12:00Z',
       paid: true,

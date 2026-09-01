@@ -6,6 +6,7 @@ export type CampaignImage = {
 export type CampaignItem = {
   code: string
   name: string
+  unitPrice?: number
   active: boolean
 }
 
@@ -54,6 +55,8 @@ function isCampaignContent(value: unknown): value is CampaignContent {
       && typeof item.name === 'string'
       && item.name.trim().length > 0
       && item.name.length <= 200
+      && (item.unitPrice === undefined
+        || (typeof item.unitPrice === 'number' && Number.isFinite(item.unitPrice) && item.unitPrice >= 0))
       && typeof item.active === 'boolean')
     && new Set(candidate.items.map((item) => item.code)).size === candidate.items.length
     && candidate.items.some((item) => item.active && item.name.trim().length > 0)
@@ -61,22 +64,32 @@ function isCampaignContent(value: unknown): value is CampaignContent {
       || (typeof candidate.openedAt === 'string' && Number.isFinite(Date.parse(candidate.openedAt))))
 }
 
+export function normalizeCampaignContent(content: CampaignContent): CampaignContent {
+  return {
+    ...content,
+    items: content.items.map((item) => ({
+      ...item,
+      unitPrice: item.unitPrice ?? content.unitPrice,
+    })),
+  }
+}
+
 function loadCampaign(key: string, fallback: CampaignContent, storage = browserStorage()): CampaignContent {
-  if (!storage) return fallback
+  if (!storage) return normalizeCampaignContent(fallback)
   try {
     const raw = storage.getItem(key)
-    if (!raw) return fallback
+    if (!raw) return normalizeCampaignContent(fallback)
     const parsed: unknown = JSON.parse(raw)
-    return isCampaignContent(parsed) ? parsed : fallback
+    return normalizeCampaignContent(isCampaignContent(parsed) ? parsed : fallback)
   } catch {
-    return fallback
+    return normalizeCampaignContent(fallback)
   }
 }
 
 function saveCampaign(key: string, content: CampaignContent, storage = browserStorage()): void {
   if (!storage) return
   if (!isCampaignContent(content)) throw new Error('團購資料格式錯誤')
-  storage.setItem(key, JSON.stringify(content))
+  storage.setItem(key, JSON.stringify(normalizeCampaignContent(content)))
 }
 
 export function campaignContentEquals(left: CampaignContent, right: CampaignContent): boolean {
@@ -89,6 +102,7 @@ export function campaignContentEquals(left: CampaignContent, right: CampaignCont
     && left.items.length === right.items.length
     && left.items.every((item, index) => item.code === right.items[index]?.code
       && item.name === right.items[index]?.name
+      && (item.unitPrice ?? left.unitPrice) === (right.items[index]?.unitPrice ?? right.unitPrice)
       && item.active === right.items[index]?.active)
 }
 

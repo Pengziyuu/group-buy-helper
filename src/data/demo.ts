@@ -3,6 +3,7 @@ import type { Order } from '../domain/campaign'
 export type CampaignItem = {
   code: string
   name: string
+  unitPrice: number
   active: boolean
 }
 
@@ -69,15 +70,15 @@ export const campaign = {
 }
 
 export const items: CampaignItem[] = [
-  { code: 'A', name: '牛奶（招牌）', active: true },
-  { code: 'B', name: '花生（招牌）', active: true },
-  { code: 'C', name: '抹茶', active: true },
-  { code: 'D', name: '草莓', active: true },
-  { code: 'E', name: '可可', active: true },
-  { code: 'F', name: '黑芝麻', active: true },
-  { code: 'G', name: 'OREO', active: true },
-  { code: 'H', name: '烏龍奶', active: true },
-  { code: 'I', name: '泰奶', active: true },
+  { code: 'A', name: '牛奶（招牌）', unitPrice: 45, active: true },
+  { code: 'B', name: '花生（招牌）', unitPrice: 45, active: true },
+  { code: 'C', name: '抹茶', unitPrice: 45, active: true },
+  { code: 'D', name: '草莓', unitPrice: 45, active: true },
+  { code: 'E', name: '可可', unitPrice: 45, active: true },
+  { code: 'F', name: '黑芝麻', unitPrice: 45, active: true },
+  { code: 'G', name: 'OREO', unitPrice: 45, active: true },
+  { code: 'H', name: '烏龍奶', unitPrice: 45, active: true },
+  { code: 'I', name: '泰奶', unitPrice: 45, active: true },
 ]
 
 export const currentCustomerId = '2:2K13'

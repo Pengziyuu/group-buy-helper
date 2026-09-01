@@ -120,15 +120,15 @@ describe('shared UI primitives', () => {
     const decrement = vi.fn()
     const increment = vi.fn()
     const { rerender } = render(
-      <QuantityControl label="A號" value={0} onDecrement={decrement} onIncrement={increment} />,
+      <QuantityControl label="A 牛奶" value={0} onDecrement={decrement} onIncrement={increment} />,
     )
 
-    expect(screen.getByRole('button', { name: '減少 A號' })).toBeDisabled()
-    await user.click(screen.getByRole('button', { name: '增加 A號' }))
+    expect(screen.getByRole('button', { name: '減少 A 牛奶' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: '增加 A 牛奶' }))
     expect(increment).toHaveBeenCalledOnce()
 
-    rerender(<QuantityControl label="A號" value={20} onDecrement={decrement} onIncrement={increment} />)
-    expect(screen.getByRole('button', { name: '增加 A號' })).toBeDisabled()
+    rerender(<QuantityControl label="A 牛奶" value={20} onDecrement={decrement} onIncrement={increment} />)
+    expect(screen.getByRole('button', { name: '增加 A 牛奶' })).toBeDisabled()
   })
 
   it('provides lightweight app and section navigation with a sticky action container', () => {

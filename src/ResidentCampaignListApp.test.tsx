@@ -41,6 +41,8 @@ describe('ResidentCampaignListApp', () => {
     expect(screen.getByText('收單中')).toBeInTheDocument()
     expect(screen.getByText('已結單')).toBeInTheDocument()
     expect(screen.getByText('成團進度 8 / 10')).toBeInTheDocument()
+    expect(screen.getAllByText('最低價')).toHaveLength(2)
+    expect(screen.queryByText('單價')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '登出' }))
     expect(onLogout).toHaveBeenCalledOnce()
   })

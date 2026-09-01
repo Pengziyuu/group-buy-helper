@@ -34,7 +34,7 @@ const published: CampaignContent = {
   openedAt: '2026-08-12T00:00:00Z',
 }
 
-const orderSummary = buildOrganizerOrderSummary({ orders: initialOrders, items, unitPrice: 50, threshold: 80 })
+const orderSummary = buildOrganizerOrderSummary({ orders: initialOrders, items, threshold: 80 })
 const ordersRepository = (): LiveAdminOrdersRepository => ({
   loadCampaignStatus: vi.fn().mockResolvedValue('open'),
   loadSummary: vi.fn().mockResolvedValue(orderSummary),
@@ -178,7 +178,7 @@ describe('local Supabase visual demo apps', () => {
     const { client } = authClient(session)
     const newDraft: CampaignContent = {
       title: '週末麵包團', unitPrice: 0, threshold: 1, announcement: '', images: [],
-      items: [{ code: 'ITEM1', name: 'A號', active: true }], openedAt: null,
+      items: [{ code: 'ITEM1', name: 'A', unitPrice: 0, active: true }], openedAt: null,
     }
     const repository: LiveAdminRepository = {
       loadPublished: vi.fn().mockRejectedValue(new Error('尚未發布')),
@@ -198,7 +198,7 @@ describe('local Supabase visual demo apps', () => {
     )
 
     expect(await screen.findByRole('textbox', { name: '團購標題' })).toHaveValue('週末麵包團')
-    expect(screen.getAllByText('A號')).not.toHaveLength(0)
+    expect(screen.getByRole('textbox', { name: '品項 A 商品名稱（口味）' })).toHaveValue('A')
     expect(screen.getByRole('button', { name: '發布並開團' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '結單' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: '查看住戶端 ↗' })).not.toBeInTheDocument()
@@ -1360,7 +1360,7 @@ describe('local Supabase visual demo apps', () => {
     expect(rpc).toHaveBeenCalledWith('bind_customer_self', {
       p_period: 2, p_unit: 'A01',
     })
-    expect(await screen.findByRole('button', { name: '增加 A號' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: '增加 A 牛奶（招牌）' })).toBeInTheDocument()
   })
 
   it('loads published campaign content for a verified LINE resident session', async () => {
@@ -1440,7 +1440,7 @@ describe('local Supabase visual demo apps', () => {
     const single = vi.fn().mockResolvedValue({
       data: {
         title: '分享團', unit_price: 50, threshold: 10, announcement: '', images: [],
-        items: [{ code: 'ITEM1', name: 'A號', active: true }],
+        items: [{ code: 'ITEM1', name: 'A', unitPrice: 0, active: true }],
         opened_at: '2026-08-12T00:00:00Z', status: 'open',
       },
       error: null,

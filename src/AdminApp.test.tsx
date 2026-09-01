@@ -13,7 +13,7 @@ describe('organizer campaign editor', () => {
 
     expect(screen.getByRole('heading', { name: '團主後台' })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: '團購標題' })).toHaveValue('一涼製冰所 超厚三明治冰餅')
-    expect(screen.getByRole('spinbutton', { name: '單價' })).toHaveValue(45)
+    expect(screen.getByRole('spinbutton', { name: '品項 A 單價' })).toHaveValue(45)
     expect(screen.getByRole('spinbutton', { name: '成團門檻' })).toHaveValue(100)
     expect(screen.getByRole('region', { name: '住戶端預覽' })).toHaveTextContent('炎炎夏日')
     expect(screen.getByRole('img', { name: '超厚三明治冰餅口味示意圖' })).toBeInTheDocument()
@@ -98,9 +98,9 @@ describe('organizer campaign editor', () => {
     const user = userEvent.setup()
     render(<AdminApp initialContent={{
       title: '新團', unitPrice: 0, threshold: 1, announcement: '', images: [],
-      items: [{ code: 'ITEM1', name: 'A號', active: true }], openedAt: null,
+      items: [{ code: 'ITEM1', name: 'A', unitPrice: 0, active: true }], openedAt: null,
     }} initialPublicationState="draft" />)
-    const price = screen.getByRole<HTMLInputElement>('spinbutton', { name: '單價' })
+    const price = screen.getByRole<HTMLInputElement>('spinbutton', { name: '品項 A 單價' })
     const threshold = screen.getByRole<HTMLInputElement>('spinbutton', { name: '成團門檻' })
 
     await user.clear(price)
@@ -331,66 +331,71 @@ describe('organizer campaign editor', () => {
     expect(await screen.findByText('已自動暫存')).toBeInTheDocument()
   })
 
-  it('uses a simple lettered item count before the first opening', async () => {
+  it('edits item names and prices and continues labels after Z', async () => {
     const user = userEvent.setup()
     const content: CampaignContent = {
-      title: '編號團', unitPrice: 50, threshold: 10,
-      announcement: 'A號牛奶、B號花生', images: [],
-      items: [
-        { code: '1', name: 'A號', active: true },
-        { code: '2', name: 'B號', active: true },
-      ],
+      title: '多品項團', unitPrice: 10, threshold: 10,
+      announcement: '多口味商品', images: [],
+      items: Array.from({ length: 26 }, (_, index) => ({
+        code: `ITEM${index + 1}`,
+        name: `口味${index + 1}`,
+        unitPrice: 10 + index,
+        active: true,
+      })),
       openedAt: null,
     }
     const onSaveDraft = vi.fn().mockResolvedValue(undefined)
     render(<AdminApp initialContent={content} orderSummary={null} onSaveDraft={onSaveDraft} />)
 
-    expect(screen.getByText('A號')).toBeInTheDocument()
-    expect(screen.getByText('B號')).toBeInTheDocument()
-    expect(screen.queryByRole('textbox', { name: /品項 .* 名稱/ })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /上移|下移|移除/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: '品項 A 商品名稱（口味）' })).toHaveValue('口味1')
+    expect(screen.getByRole('spinbutton', { name: '品項 A 單價' })).toHaveValue(10)
+    expect(screen.queryByRole('spinbutton', { name: '單價' })).not.toBeInTheDocument()
 
+    await user.clear(screen.getByRole('textbox', { name: '品項 A 商品名稱（口味）' }))
+    await user.type(screen.getByRole('textbox', { name: '品項 A 商品名稱（口味）' }), '牛奶')
+    await user.clear(screen.getByRole('spinbutton', { name: '品項 A 單價' }))
+    await user.type(screen.getByRole('spinbutton', { name: '品項 A 單價' }), '45')
     await user.click(screen.getByRole('button', { name: '增加品項' }))
-    expect(screen.getByText('C號')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: '減少品項' }))
-    expect(screen.queryByText('C號')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /暫存|儲存草稿|儲存公告修改/ })).not.toBeInTheDocument()
-    await waitFor(() => expect(onSaveDraft).toHaveBeenCalledWith(expect.objectContaining({ items: [
-      { code: '1', name: 'A號', active: true },
-      { code: '2', name: 'B號', active: true },
-    ] })))
+
+    expect(screen.getByText('AA')).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: '品項 AA 商品名稱（口味）' })).toBeInTheDocument()
+    await waitFor(() => expect(onSaveDraft).toHaveBeenCalledWith(expect.objectContaining({
+      items: expect.arrayContaining([
+        expect.objectContaining({ code: 'ITEM1', name: '牛奶', unitPrice: 45 }),
+      ]),
+    })))
   })
 
-  it('locks fallback item letters immediately after the first publication', async () => {
+  it('locks fallback items immediately after the first publication', async () => {
     const user = userEvent.setup()
     const content: CampaignContent = {
-      title: '新團', unitPrice: 50, threshold: 10, announcement: 'A號商品', images: [],
-      items: [{ code: '1', name: 'A號', active: true }], openedAt: null,
+      title: '新團', unitPrice: 50, threshold: 10, announcement: 'A 商品', images: [],
+      items: [{ code: '1', name: 'A', unitPrice: 50, active: true }], openedAt: null,
     }
     render(<AdminApp initialContent={content} orderSummary={null} />)
 
     await user.click(screen.getByRole('button', { name: '發布並開團' }))
 
-    expect(screen.getByText('已正式開團，品項字母與單價已鎖定。')).toBeInTheDocument()
+    expect(screen.getByText('已正式開團，品項代碼、名稱與單價已鎖定。')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '更新住戶公告' })).toBeInTheDocument()
   })
 
-  it('locks item letters and unit price after the first opening', () => {
+  it('locks item structure and prices after the first opening', () => {
     const content: CampaignContent = {
       title: '已開團', unitPrice: 50, threshold: 10,
-      announcement: 'A號牛奶、B號花生', images: [],
+      announcement: 'A 牛奶、B 花生', images: [],
       items: [
-        { code: 'A', name: '牛奶', active: true },
-        { code: 'B', name: '花生', active: true },
+        { code: 'A', name: '牛奶', unitPrice: 50, active: true },
+        { code: 'B', name: '花生', unitPrice: 50, active: true },
       ],
       openedAt: '2026-08-14T00:05:00Z',
     }
     render(<AdminApp initialContent={content} orderSummary={null} />)
 
-    expect(screen.getByText('已正式開團，品項字母與單價已鎖定。')).toBeInTheDocument()
+    expect(screen.getByText('已正式開團，品項代碼、名稱與單價已鎖定。')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '增加品項' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '減少品項' })).not.toBeInTheDocument()
-    expect(screen.getByRole('spinbutton', { name: '單價' })).toBeDisabled()
+    expect(screen.getByRole('spinbutton', { name: '品項 A 單價' })).toBeDisabled()
     expect(screen.getByRole('spinbutton', { name: '成團門檻' })).toBeEnabled()
     expect(screen.getByRole('textbox', { name: '開團資訊' })).toBeEnabled()
     expect(screen.queryByRole('button', { name: '儲存公告修改' })).not.toBeInTheDocument()
@@ -415,8 +420,8 @@ describe('organizer campaign editor', () => {
 
     await user.click(screen.getByRole('button', { name: '發布並開團' }))
 
-    expect(await screen.findByText('B號')).toBeInTheDocument()
-    expect(screen.getByText('已正式開團，品項字母與單價已鎖定。')).toBeInTheDocument()
+    expect(await screen.findByRole('textbox', { name: '品項 B 商品名稱（口味）' })).toHaveValue('歷史口味')
+    expect(screen.getByText('已正式開團，品項代碼、名稱與單價已鎖定。')).toBeInTheDocument()
     expect(screen.getByText('已發布')).toBeInTheDocument()
   })
 })

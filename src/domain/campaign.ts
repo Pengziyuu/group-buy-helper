@@ -3,6 +3,11 @@ export type Order = {
   items: Record<string, number>
 }
 
+export type PricedCampaignItem = {
+  code: string
+  unitPrice: number
+}
+
 export type CampaignSummary = {
   itemTotals: Record<string, number>
   quantity: number
@@ -15,7 +20,7 @@ export type CampaignSummary = {
 
 export function summarizeCampaign(
   orders: Order[],
-  unitPrice: number,
+  items: PricedCampaignItem[],
   threshold: number,
 ): CampaignSummary {
   const itemTotals: Record<string, number> = {}
@@ -30,12 +35,18 @@ export function summarizeCampaign(
   const sortedTotals = Object.fromEntries(
     Object.entries(itemTotals).sort(([a], [b]) => a.localeCompare(b)),
   )
+  const priceByCode = new Map(items.map((item) => [item.code, item.unitPrice]))
   const quantity = Object.values(sortedTotals).reduce((sum, value) => sum + value, 0)
+  const amount = Object.entries(sortedTotals).reduce((sum, [code, itemQuantity]) => {
+    const unitPrice = priceByCode.get(code)
+    if (unitPrice === undefined) throw new Error(`找不到品項 ${code} 的價格`)
+    return sum + itemQuantity * unitPrice
+  }, 0)
 
   return {
     itemTotals: sortedTotals,
     quantity,
-    amount: quantity * unitPrice,
+    amount,
     threshold,
     remaining: Math.max(0, threshold - quantity),
     progressPercent: Math.min(100, Math.round((quantity / threshold) * 100)),

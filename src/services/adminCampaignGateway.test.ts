@@ -9,8 +9,8 @@ const content: CampaignContent = {
   announcement: '團主公告',
   images: [{ src: 'campaigns/demo/front.jpg', alt: '冰餅包裝正面' }],
   items: [
-    { code: 'MILK', name: '牛奶', active: true },
-    { code: 'OLD', name: '停售口味', active: false },
+    { code: 'MILK', name: '牛奶', unitPrice: 50, active: true },
+    { code: 'OLD', name: '停售口味', unitPrice: 50, active: false },
   ],
   openedAt: '2026-08-14T00:05:09.000Z',
 }

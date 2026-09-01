@@ -5,7 +5,7 @@
   justify-content: center;
   gap: var(--space-2);
   padding: 9px 16px;
-  border: 1px solid transparent;
+  border: 1px solid var(--color-primary-hover);
   border-radius: var(--radius-control);
   background: var(--color-primary);
   color: var(--color-on-primary);
@@ -20,7 +20,7 @@
 .ui-button[data-variant="secondary"] { border-color: var(--color-border-strong); background: var(--color-surface); color: var(--color-text); }
 .ui-button[data-variant="secondary"]:hover:not(:disabled),
 .ui-button[data-variant="tertiary"]:hover:not(:disabled) { background: var(--color-surface-subtle); }
-.ui-button[data-variant="tertiary"] { background: transparent; color: var(--color-primary); }
+.ui-button[data-variant="tertiary"] { border-color: var(--color-border-strong); background: transparent; color: var(--color-primary); }
 .ui-button[data-variant="destructive"] { background: var(--color-danger); color: #fff; }
 .ui-button[data-variant="destructive"]:hover:not(:disabled) { background: var(--color-danger-hover); }
 .ui-button:disabled { background: var(--color-disabled-bg); color: var(--color-disabled-text); cursor: not-allowed; }
@@ -66,6 +66,8 @@
 
 .ui-quantity-control { display: grid; grid-template-columns: 44px 36px 44px; align-items: center; overflow: hidden; border: 1px solid var(--color-border-strong); border-radius: var(--radius-control); }
 .ui-quantity-control button { width: 44px; height: 44px; border: 0; background: var(--color-surface-subtle); color: var(--color-primary); font-size: 20px; font-weight: 700; cursor: pointer; }
+.ui-quantity-control button:first-child { border-right: 1px solid var(--color-border); }
+.ui-quantity-control button:last-child { border-left: 1px solid var(--color-border); }
 .ui-quantity-control button:disabled { color: var(--color-disabled-text); cursor: not-allowed; }
 .ui-quantity-control output { text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
 

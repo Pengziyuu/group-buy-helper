@@ -67,7 +67,7 @@ export default function ResidentCampaignListApp({ identity, campaigns, onLogout 
             </div>
             <p className="resident-campaign-time">開團時間 {formatZhTwTimestamp(campaign.openedAt)}</p>
             <div className="resident-campaign-facts">
-              <p><span>單價</span><strong>NT$ {campaign.unitPrice.toLocaleString('zh-TW')}</strong></p>
+              <p><span>最低價</span><strong>NT$ {campaign.unitPrice.toLocaleString('zh-TW')}</strong></p>
               <p>成團進度 {campaign.totalQuantity} / {campaign.threshold}</p>
             </div>
             <ProgressBar label={`${campaign.title}成團進度`} value={campaign.totalQuantity} max={campaign.threshold} />

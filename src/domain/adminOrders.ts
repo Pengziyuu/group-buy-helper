@@ -5,6 +5,7 @@ import { itemLabel } from './itemLabel'
 export type OrganizerCampaignItem = {
   code: string
   name: string
+  unitPrice: number
   active?: boolean
 }
 
@@ -22,6 +23,7 @@ export type OrganizerVisibleOrder = {
 }
 
 export type OrganizerItemRow = OrganizerCampaignItem & {
+  label: string
   quantity: number
   amount: number
 }
@@ -51,24 +53,25 @@ export type OrganizerOrderSummary = {
 export function buildOrganizerOrderSummary({
   orders,
   items,
-  unitPrice,
   threshold,
 }: {
   orders: OrganizerVisibleOrder[]
   items: OrganizerCampaignItem[]
-  unitPrice: number
   threshold: number
 }): OrganizerOrderSummary {
-  const campaignSummary = summarizeCampaign(orders, unitPrice, threshold)
-  const itemLabelByCode = new Map(items.map((item, index) => [item.code, itemLabel(index)]))
+  const campaignSummary = summarizeCampaign(orders, items, threshold)
+  const itemByCode = new Map(items.map((item, index) => [item.code, {
+    ...item,
+    label: itemLabel(index),
+  }]))
 
   const itemRows = items.map((item, index) => {
     const quantity = campaignSummary.itemTotals[item.code] ?? 0
     return {
       ...item,
-      name: itemLabel(index),
+      label: itemLabel(index),
       quantity,
-      amount: quantity * unitPrice,
+      amount: quantity * item.unitPrice,
     }
   })
 
@@ -82,14 +85,22 @@ export function buildOrganizerOrderSummary({
           return leftIndex - rightIndex || left.localeCompare(right)
         })
       const quantity = visibleItems.reduce((sum, [, itemQuantity]) => sum + itemQuantity, 0)
+      const amount = visibleItems.reduce((sum, [code, itemQuantity]) => {
+        const item = itemByCode.get(code)
+        if (!item) throw new Error(`找不到品項 ${code}`)
+        return sum + itemQuantity * item.unitPrice
+      }, 0)
       const itemSummary = visibleItems
-        .map(([code, itemQuantity]) => `${itemLabelByCode.get(code) ?? code}×${itemQuantity}`)
+        .map(([code, itemQuantity]) => {
+          const item = itemByCode.get(code)
+          return item ? `${item.label} ${item.name}×${itemQuantity}` : `${code}×${itemQuantity}`
+        })
         .join('、')
       return {
         ...order,
         orderId: order.orderId ?? order.customerId,
         quantity,
-        amount: quantity * unitPrice,
+        amount,
         itemSummary,
         paid: order.paid ?? false,
         pickupStatus: order.pickupStatus ?? 'pending',

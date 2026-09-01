@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import App from './App'
-import { initialOrders } from './data/demo'
+import { initialOrders, items } from './data/demo'
 import type { CampaignContent } from './services/demoCampaignStore'
 
 describe('customer campaign app', () => {
@@ -24,7 +24,7 @@ describe('customer campaign app', () => {
 
   it('clamps accessible progress after the campaign exceeds its threshold', () => {
     render(<App publishedContent={{
-      title: '超額成團', unitPrice: 45, threshold: 1, announcement: '公告', images: [], items: [],
+      title: '超額成團', unitPrice: 45, threshold: 1, announcement: '公告', images: [], items,
       openedAt: '2026-08-14T00:05:09.000Z',
     }} />)
 
@@ -66,7 +66,7 @@ describe('customer campaign app', () => {
     const user = userEvent.setup()
     render(<App />)
 
-    await user.click(screen.getByRole('button', { name: '增加 A號' }))
+    await user.click(screen.getByRole('button', { name: '增加 A 牛奶（招牌）' }))
     expect(screen.getByText('我的訂單 7 個')).toBeInTheDocument()
     expect(screen.getByText('$315')).toBeInTheDocument()
 
@@ -96,7 +96,7 @@ describe('customer campaign app', () => {
       />,
     )
 
-    await user.click(screen.getByRole('button', { name: '增加 A號' }))
+    await user.click(screen.getByRole('button', { name: '增加 A 牛奶（招牌）' }))
     await user.click(screen.getByRole('button', { name: '送出訂單' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('目前無法更新訂單')
@@ -127,7 +127,7 @@ describe('customer campaign app', () => {
     await user.click(screen.getByRole('button', { name: '儲存住戶資料' }))
 
     expect(onBindResident).toHaveBeenCalledWith({ period: 2, unit: 'A01' })
-    expect(await screen.findByRole('button', { name: '增加 A號' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: '增加 A 牛奶（招牌）' })).toBeInTheDocument()
   })
 
   it('shows resident binding failures as an inline alert', async () => {
@@ -151,11 +151,11 @@ describe('customer campaign app', () => {
 
     expect(screen.getByText('已結單')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '送出訂單' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: '增加 A號' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '增加 A 牛奶（招牌）' })).toBeDisabled()
     expect(screen.getByText('本團已結單，暫停修改訂單。')).toBeInTheDocument()
   })
 
-  it('renders only dynamic active items while retaining inactive historical names', () => {
+  it('shows item names and prices without 號 and uses plus signs on the live wall', () => {
     const content: CampaignContent = {
       title: '自訂品項團',
       unitPrice: 45,
@@ -163,18 +163,23 @@ describe('customer campaign app', () => {
       announcement: '自訂公告',
       images: [],
       items: [
-        { code: 'B', name: '停售花生', active: false },
-        { code: 'CUSTOM', name: '住戶可選新品', active: true },
+        { code: 'A', name: '牛奶', unitPrice: 45, active: true },
+        { code: 'B', name: '草莓', unitPrice: 60, active: true },
       ],
       openedAt: '2026-08-14T00:05:09.000Z',
     }
+    const resident = initialOrders[0]
+    const visibleOrders = [{ ...resident, items: { A: 2, B: 1 } }]
 
-    render(<App publishedContent={content} />)
+    render(<App publishedContent={content} visibleOrders={visibleOrders} residentCustomer={resident} />)
 
-    expect(screen.getByRole('button', { name: '增加 B號' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '增加 A號' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '增加 A號' })).not.toBeInTheDocument()
-    expect(screen.getAllByText(/A號×/).length).toBeGreaterThan(0)
+    expect(screen.getByText('牛奶')).toBeInTheDocument()
+    expect(screen.getByText('$45')).toBeInTheDocument()
+    expect(screen.getByText('草莓')).toBeInTheDocument()
+    expect(screen.getByText('$60')).toBeInTheDocument()
+    expect(screen.getByText('$150')).toBeInTheDocument()
+    expect(screen.getByText('A+2、B+1')).toBeInTheDocument()
+    expect(screen.queryByText(/A號|B號/)).not.toBeInTheDocument()
   })
 
   it('shows campaign and order timestamps with meaningful edit markers', () => {
@@ -193,7 +198,7 @@ describe('customer campaign app', () => {
       <App visibleOrders={initialOrders} residentCustomer={resident} onSubmitOrder={onSubmitOrder} />,
     )
 
-    await user.click(screen.getByRole('button', { name: '增加 A號' }))
+    await user.click(screen.getByRole('button', { name: '增加 A 牛奶（招牌）' }))
     expect(screen.getByText('我的訂單 7 個')).toBeInTheDocument()
 
     view.rerender(

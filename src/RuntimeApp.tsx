@@ -49,7 +49,6 @@ function DemoOrganizerEditor() {
   const orderSummary = buildOrganizerOrderSummary({
     orders,
     items,
-    unitPrice: campaign.unitPrice,
     threshold: campaign.threshold,
   })
 

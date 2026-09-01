@@ -1,8 +1,16 @@
-export const MAX_ITEM_LETTERS = 26
+export const MAX_CAMPAIGN_ITEMS = 100
 
 export function itemLabel(index: number): string {
-  if (!Number.isInteger(index) || index < 0 || index >= MAX_ITEM_LETTERS) {
-    throw new RangeError('品項字母索引必須介於 0 到 25')
+  if (!Number.isInteger(index) || index < 0) {
+    throw new RangeError('品項字母索引必須是非負整數')
   }
-  return `${String.fromCharCode(65 + index)}號`
+
+  let value = index + 1
+  let label = ''
+  while (value > 0) {
+    value -= 1
+    label = String.fromCharCode(65 + (value % 26)) + label
+    value = Math.floor(value / 26)
+  }
+  return label
 }

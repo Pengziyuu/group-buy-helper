@@ -31,6 +31,7 @@ function toContent(data: unknown): CampaignContent {
     || row.items.some((item) => !item
       || typeof item.code !== 'string'
       || typeof item.name !== 'string'
+      || (item.unitPrice !== undefined && typeof item.unitPrice !== 'number')
       || typeof item.active !== 'boolean')) {
     throw new Error('Supabase 回傳的團購草稿格式錯誤')
   }
@@ -40,7 +41,7 @@ function toContent(data: unknown): CampaignContent {
     threshold: row.threshold,
     announcement: row.announcement,
     images: row.images,
-    items: row.items,
+    items: row.items.map((item) => ({ ...item, unitPrice: item.unitPrice ?? row.unit_price })),
     openedAt: typeof row.opened_at === 'string' ? row.opened_at : null,
   }
 }
@@ -103,16 +104,22 @@ export function createAdminCampaignGateway(client: AdminCampaignSupabaseClient) 
     },
 
     async saveDraft(campaignId: string, content: CampaignContent): Promise<CampaignContent> {
+      const normalizedItems = content.items.map((item) => ({
+        ...item,
+        unitPrice: item.unitPrice ?? content.unitPrice,
+      }))
+      const activePrices = normalizedItems.filter((item) => item.active).map((item) => item.unitPrice)
+      const minimumPrice = activePrices.length > 0 ? Math.min(...activePrices) : 0
       const { data, error } = await client
         .from('campaign_draft')
         .upsert({
           campaign_id: campaignId,
           title: content.title,
-          unit_price: content.unitPrice,
+          unit_price: minimumPrice,
           threshold: content.threshold,
           announcement: content.announcement,
           images: content.images,
-          items: content.items,
+          items: normalizedItems,
         })
         .select(draftColumns)
         .single()

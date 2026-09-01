@@ -15,8 +15,8 @@ const original: CampaignContent = {
   announcement: '原始公告',
   images: [],
   items: [
-    { code: 'MILK', name: '牛奶', active: true },
-    { code: 'OLD', name: '舊口味', active: false },
+    { code: 'MILK', name: '牛奶', unitPrice: 45, active: true },
+    { code: 'OLD', name: '舊口味', unitPrice: 45, active: false },
   ],
   openedAt: '2026-08-14T00:05:09.000Z',
 }
@@ -63,7 +63,7 @@ describe('demo campaign draft and publishing store', () => {
   it('rejects content without an active named item', () => {
     const invalid = {
       ...original,
-      items: [{ code: 'OLD', name: '舊口味', active: false }],
+      items: [{ code: 'OLD', name: '舊口味', unitPrice: 45, active: false }],
     }
 
     expect(() => saveDraftCampaign(invalid)).toThrow('團購資料格式錯誤')
