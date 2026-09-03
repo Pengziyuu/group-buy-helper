@@ -24,6 +24,8 @@ import type { OrganizerOrderSummary } from './domain/adminOrders'
 import type { CampaignStatus } from './domain/orderWorkflow'
 import type { VisibleOrder } from './data/demo'
 import { createAdminOrdersGateway } from './services/adminOrdersGateway'
+import { createPickupNotificationGateway, type PickupNotificationResponse } from './services/pickupNotificationGateway'
+import type { PickupNotificationAudience } from './domain/pickupNotification'
 import { createCampaignImageGateway } from './services/campaignImageGateway'
 import {
   createCampaignManagementGateway,
@@ -61,6 +63,11 @@ export type LiveAdminOrdersRepository = {
   loadSummary(campaignId: string, threshold: number): Promise<OrganizerOrderSummary>
   setCampaignStatus(campaignId: string, status: CampaignStatus): Promise<void>
   setOrderFulfillment(orderId: string, update: FulfillmentUpdate): Promise<void>
+}
+
+export type LivePickupNotificationRepository = {
+  preview(campaignId: string, audience: PickupNotificationAudience, message: string): Promise<PickupNotificationResponse>
+  send(campaignId: string, audience: PickupNotificationAudience, message: string, previewToken: string): Promise<PickupNotificationResponse>
 }
 
 export type LiveCampaignManagementRepository = {
@@ -301,6 +308,7 @@ export function LocalLiveAdminApp({
   campaignId,
   repository,
   ordersRepository,
+  pickupNotificationRepository,
   managementRepository,
   residentMemberRepository,
   authStorage = null,
@@ -311,6 +319,7 @@ export function LocalLiveAdminApp({
 }: LocalLiveAppProps & {
   repository?: LiveAdminRepository
   ordersRepository?: LiveAdminOrdersRepository
+  pickupNotificationRepository?: LivePickupNotificationRepository
   managementRepository?: LiveCampaignManagementRepository
   residentMemberRepository?: LiveResidentMemberRepository
   authStorage?: AuthSessionStorage | null
@@ -326,6 +335,10 @@ export function LocalLiveAdminApp({
   const ordersGateway = useMemo(
     () => ordersRepository ?? createAdminOrdersGateway(client),
     [client, ordersRepository],
+  )
+  const pickupNotificationGateway = useMemo(
+    () => pickupNotificationRepository ?? createPickupNotificationGateway(client),
+    [client, pickupNotificationRepository],
   )
   const imageGateway = useMemo(() => createCampaignImageGateway(client), [client])
   const campaignManagementGateway = useMemo(
@@ -758,7 +771,11 @@ export function LocalLiveAdminApp({
       initialPublicationState={publicationState}
       orderSummary={orderSummary}
       campaignStatus={campaignStatus}
+      campaignId={campaignId}
+      campaignTitle={content.title}
       residentHref={residentSlug ? `/campaign/${residentSlug}` : null}
+      onPreviewPickupNotification={(audience, message) => pickupNotificationGateway.preview(campaignId, audience, message)}
+      onSendPickupNotification={(audience, message, previewToken) => pickupNotificationGateway.send(campaignId, audience, message, previewToken)}
       onUploadImage={(file) => imageGateway.upload(campaignId, file)}
       onSetCampaignStatus={async (status) => {
         await ordersGateway.setCampaignStatus(campaignId, status)

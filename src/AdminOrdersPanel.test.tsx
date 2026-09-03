@@ -28,6 +28,41 @@ describe('organizer orders panel', () => {
     expect(screen.getByRole('row', { name: /2K13 斯祈 B 花生（招牌）×2、D 草莓×2、E 可可×2/ })).toBeInTheDocument()
   })
 
+  it('offers LINE pickup notification actions only for a closed live campaign', () => {
+    const onPreviewPickupNotification = vi.fn().mockResolvedValue({
+      sent: false,
+      previewToken: null,
+      mentionableRecipients: [],
+      unavailableRecipients: [],
+      mentionableCount: 0,
+      messageCount: 0,
+    })
+    const onSendPickupNotification = vi.fn()
+    const { rerender } = render(
+      <AdminOrdersPanel
+        summary={summary}
+        campaignStatus="open"
+        campaignId="campaign-1"
+        campaignTitle="神農包子"
+        onPreviewPickupNotification={onPreviewPickupNotification}
+        onSendPickupNotification={onSendPickupNotification}
+      />,
+    )
+    expect(screen.queryByRole('heading', { name: 'LINE領取通知' })).not.toBeInTheDocument()
+
+    rerender(
+      <AdminOrdersPanel
+        summary={summary}
+        campaignStatus="closed"
+        campaignId="campaign-1"
+        campaignTitle="神農包子"
+        onPreviewPickupNotification={onPreviewPickupNotification}
+        onSendPickupNotification={onSendPickupNotification}
+      />,
+    )
+    expect(screen.getByRole('heading', { name: 'LINE領取通知' })).toBeInTheDocument()
+  })
+
   it('lets the organizer close the campaign and update fulfillment by order id', async () => {
     const user = userEvent.setup()
     const onSetCampaignStatus = vi.fn().mockResolvedValue(undefined)

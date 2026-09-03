@@ -3,6 +3,8 @@ import './AdminApp.css'
 import AdminOrdersPanel, { type FulfillmentUpdate } from './AdminOrdersPanel'
 import { campaign, initialOrders, items } from './data/demo'
 import { buildOrganizerOrderSummary, type OrganizerOrderSummary } from './domain/adminOrders'
+import type { PickupNotificationAudience } from './domain/pickupNotification'
+import type { PickupNotificationResponse } from './services/pickupNotificationGateway'
 import { campaignStatusLabel, type CampaignStatus } from './domain/orderWorkflow'
 import { itemLabel, MAX_CAMPAIGN_ITEMS } from './domain/itemLabel'
 import {
@@ -41,8 +43,12 @@ type AdminAppProps = {
   onSignOut?: () => Promise<void>
   orderSummary?: OrganizerOrderSummary | null
   campaignStatus?: CampaignStatus
+  campaignId?: string
+  campaignTitle?: string
   onSetCampaignStatus?: (status: CampaignStatus) => Promise<void>
   onSetOrderFulfillment?: (orderId: string, update: FulfillmentUpdate) => Promise<void>
+  onPreviewPickupNotification?: (audience: PickupNotificationAudience, message: string) => Promise<PickupNotificationResponse>
+  onSendPickupNotification?: (audience: PickupNotificationAudience, message: string, previewToken: string) => Promise<PickupNotificationResponse>
   onUploadImage?: (file: File) => Promise<string>
   residentHref?: string | null
 }
@@ -59,8 +65,12 @@ function AdminApp({
   onSignOut,
   orderSummary,
   campaignStatus,
+  campaignId,
+  campaignTitle,
   onSetCampaignStatus,
   onSetOrderFulfillment,
+  onPreviewPickupNotification,
+  onSendPickupNotification,
   onUploadImage,
   residentHref = '/',
 }: AdminAppProps = {}) {
@@ -572,8 +582,12 @@ function AdminApp({
           <AdminOrdersPanel
             summary={resolvedOrderSummary}
             campaignStatus={campaignStatus}
+            campaignId={campaignId}
+            campaignTitle={campaignTitle}
             onSetCampaignStatus={onSetCampaignStatus}
             onSetOrderFulfillment={onSetOrderFulfillment}
+            onPreviewPickupNotification={onPreviewPickupNotification}
+            onSendPickupNotification={onSendPickupNotification}
           />
         ) : (
           <div className="admin-orders-empty">

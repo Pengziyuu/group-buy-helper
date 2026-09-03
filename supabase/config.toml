@@ -381,6 +381,12 @@ verify_jwt = false
 [functions.line-resident-login]
 verify_jwt = false
 
+[functions.line-group-webhook]
+verify_jwt = false
+
+[functions.send-pickup-notification]
+verify_jwt = true
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

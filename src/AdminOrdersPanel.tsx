@@ -1,5 +1,8 @@
 import { useRef, useState } from 'react'
 import type { OrganizerOrderSummary, OrganizerOrderRow } from './domain/adminOrders'
+import type { PickupNotificationAudience } from './domain/pickupNotification'
+import type { PickupNotificationResponse } from './services/pickupNotificationGateway'
+import PickupNotificationPanel from './PickupNotificationPanel'
 import {
   campaignStatusAction,
   campaignStatusLabel,
@@ -19,15 +22,23 @@ export type FulfillmentUpdate = {
 type AdminOrdersPanelProps = {
   summary: OrganizerOrderSummary
   campaignStatus?: CampaignStatus
+  campaignId?: string
+  campaignTitle?: string
   onSetCampaignStatus?: (status: CampaignStatus) => Promise<void>
   onSetOrderFulfillment?: (orderId: string, update: FulfillmentUpdate) => Promise<void>
+  onPreviewPickupNotification?: (audience: PickupNotificationAudience, message: string) => Promise<PickupNotificationResponse>
+  onSendPickupNotification?: (audience: PickupNotificationAudience, message: string, previewToken: string) => Promise<PickupNotificationResponse>
 }
 
 function AdminOrdersPanel({
   summary,
   campaignStatus,
+  campaignId,
+  campaignTitle,
   onSetCampaignStatus,
   onSetOrderFulfillment,
+  onPreviewPickupNotification,
+  onSendPickupNotification,
 }: AdminOrdersPanelProps) {
   const [busyKeys, setBusyKeys] = useState<Set<string>>(() => new Set())
   const busyKeysRef = useRef(new Set<string>())
@@ -125,6 +136,16 @@ function AdminOrdersPanel({
         <div><strong>{summary.quantity} / {summary.threshold}</strong><span>{summary.progressPercent}%</span></div>
         <div className="admin-progress-track"><span style={{ width: `${summary.progressPercent}%` }} /></div>
       </div>
+
+      {campaignStatus && campaignId && campaignTitle && onPreviewPickupNotification && onSendPickupNotification && (
+        <PickupNotificationPanel
+          campaignId={campaignId}
+          campaignTitle={campaignTitle}
+          campaignStatus={campaignStatus}
+          onPreview={onPreviewPickupNotification}
+          onSend={onSendPickupNotification}
+        />
+      )}
 
       <div className="admin-order-sections">
         <section aria-labelledby="item-summary-heading">

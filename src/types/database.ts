@@ -291,6 +291,29 @@ export type Database = {
         }
         Relationships: []
       }
+      community_line_group: {
+        Row: {
+          community_id: string
+          line_group_id: string
+        }
+        Insert: {
+          community_id: string
+          line_group_id: string
+        }
+        Update: {
+          community_id?: string
+          line_group_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_line_group_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: true
+            referencedRelation: "community"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       community_member: {
         Row: {
           community_id: string
@@ -502,6 +525,21 @@ export type Database = {
         }
         Relationships: []
       }
+      line_webhook_event_replay: {
+        Row: {
+          expires_at: string
+          webhook_event_id: string
+        }
+        Insert: {
+          expires_at?: string
+          webhook_event_id: string
+        }
+        Update: {
+          expires_at?: string
+          webhook_event_id?: string
+        }
+        Relationships: []
+      }
       order_item: {
         Row: {
           campaign_id: string
@@ -669,6 +707,76 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "organizer_order_status"
             referencedColumns: ["order_id"]
+          },
+        ]
+      }
+      pickup_notification_intent: {
+        Row: {
+          audience: string
+          caller_hash: string
+          campaign_id: string
+          delivery_status: string
+          expires_at: string
+          line_group_id: string
+          line_retry_key: string
+          message_count: number | null
+          message_hash: string | null
+          recipient_count: number | null
+          recipient_hash: string | null
+          retain_until: string
+          token: string
+        }
+        Insert: {
+          audience: string
+          caller_hash: string
+          campaign_id: string
+          delivery_status?: string
+          expires_at?: string
+          line_group_id: string
+          line_retry_key?: string
+          message_count?: number | null
+          message_hash?: string | null
+          recipient_count?: number | null
+          recipient_hash?: string | null
+          retain_until?: string
+          token?: string
+        }
+        Update: {
+          audience?: string
+          caller_hash?: string
+          campaign_id?: string
+          delivery_status?: string
+          expires_at?: string
+          line_group_id?: string
+          line_retry_key?: string
+          message_count?: number | null
+          message_hash?: string | null
+          recipient_count?: number | null
+          recipient_hash?: string | null
+          retain_until?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pickup_notification_intent_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "admin_campaign_list"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pickup_notification_intent_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pickup_notification_intent_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_public"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -911,6 +1019,25 @@ export type Database = {
         Returns: boolean
       }
       can_edit_order: { Args: { p_order_id: string }; Returns: boolean }
+      claim_pickup_notification_intent: {
+        Args: {
+          p_audience: string
+          p_caller_hash: string
+          p_caller_user_id: string
+          p_campaign_id: string
+          p_eligible_hash: string
+          p_line_group_id: string
+          p_message_hash: string
+          p_recipient_hash: string
+          p_token: string
+        }
+        Returns: {
+          delivery_status: string
+          line_retry_key: string
+          message_count: number
+          recipient_count: number
+        }[]
+      }
       consume_line_login_rate_limit: {
         Args: { p_key_hash: string; p_limit: number; p_window_seconds: number }
         Returns: boolean
@@ -948,6 +1075,18 @@ export type Database = {
         Args: { p_campaign_id: string }
         Returns: boolean
       }
+      finalize_pickup_notification_intent: {
+        Args: {
+          p_audience: string
+          p_caller_hash: string
+          p_campaign_id: string
+          p_message_count: number
+          p_recipient_count: number
+          p_recipient_hash: string
+          p_token: string
+        }
+        Returns: boolean
+      }
       get_customer_self: {
         Args: never
         Returns: {
@@ -970,7 +1109,38 @@ export type Database = {
         }[]
       }
       has_campaign_access: { Args: { p_campaign_id: string }; Returns: boolean }
+      inspect_pickup_notification_intent: {
+        Args: {
+          p_audience: string
+          p_caller_hash: string
+          p_caller_user_id: string
+          p_campaign_id: string
+          p_token: string
+        }
+        Returns: {
+          delivery_status: string
+          message_count: number
+          recipient_count: number
+        }[]
+      }
+      internal_pickup_notification_eligible_hash: {
+        Args: { p_audience: string; p_campaign_id: string }
+        Returns: string
+      }
+      internal_pickup_notification_recipients: {
+        Args: { p_audience: string; p_campaign_id: string }
+        Returns: {
+          display_name: string
+          line_user_id: string
+          member_code: string
+          paid: boolean
+          period: number
+          picture_url: string
+          unit: string
+        }[]
+      }
       is_admin: { Args: never; Returns: boolean }
+      is_approved_line_organizer: { Args: never; Returns: boolean }
       join_campaign_by_slug: {
         Args: { p_slug: string }
         Returns: {
@@ -1002,8 +1172,26 @@ export type Database = {
           unit_price: number
         }[]
       }
+      mark_pickup_notification_intent_sent: {
+        Args: {
+          p_audience: string
+          p_caller_hash: string
+          p_campaign_id: string
+          p_token: string
+        }
+        Returns: boolean
+      }
       owns_customer: { Args: { p_customer_id: string }; Returns: boolean }
       owns_order: { Args: { p_order_id: string }; Returns: boolean }
+      process_line_group_binding_event: {
+        Args: {
+          p_community_id: string
+          p_line_group_id: string
+          p_line_user_id: string
+          p_webhook_event_id: string
+        }
+        Returns: string
+      }
       provision_line_resident: {
         Args: {
           p_auth_user_id: string
@@ -1041,6 +1229,19 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      reserve_pickup_notification_intent: {
+        Args: {
+          p_audience: string
+          p_caller_hash: string
+          p_caller_user_id: string
+          p_campaign_id: string
+          p_community_id: string
+        }
+        Returns: {
+          line_group_id: string
+          token: string
+        }[]
       }
       set_campaign_status: {
         Args: { p_campaign_id: string; p_status: string }
