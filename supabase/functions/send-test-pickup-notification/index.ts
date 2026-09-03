@@ -1,3 +1,3 @@
 import { createPickupNotificationHandler } from '../_shared/sendPickupNotification.ts'
 
-Deno.serve(createPickupNotificationHandler('production'))
+Deno.serve(createPickupNotificationHandler('test'))

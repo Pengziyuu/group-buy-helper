@@ -49,6 +49,7 @@ async function snapshotEncryptionKey(secret: string): Promise<CryptoKey> {
 
 export type SealedPickupRecipientSnapshot = {
   intentId: string
+  destination: 'test' | 'production'
   groupId: string
   lineUserIds: string[]
 }
@@ -56,10 +57,12 @@ export type SealedPickupRecipientSnapshot = {
 export async function sealPickupRecipientSnapshot(
   secret: string,
   intentId: string,
+  destination: 'test' | 'production',
   groupId: string,
   lineUserIds: string[],
 ): Promise<string> {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(intentId)
+    || (destination !== 'test' && destination !== 'production')
     || !/^C[0-9a-f]{32}$/iu.test(groupId)
     || lineUserIds.length < 1 || lineUserIds.length > MAX_PICKUP_NOTIFICATION_RECIPIENTS
     || lineUserIds.some((id) => !/^U[0-9a-f]{32}$/iu.test(id))
@@ -67,7 +70,7 @@ export async function sealPickupRecipientSnapshot(
     throw new Error('通知預覽快照格式錯誤')
   }
   const iv = crypto.getRandomValues(new Uint8Array(12))
-  const plaintext = new TextEncoder().encode(JSON.stringify([groupId, lineUserIds]))
+  const plaintext = new TextEncoder().encode(JSON.stringify([destination, groupId, lineUserIds]))
   const ciphertext = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv, additionalData: new TextEncoder().encode(intentId) },
     await snapshotEncryptionKey(secret),
@@ -97,14 +100,15 @@ export async function openPickupRecipientSnapshot(
       packed.slice(12),
     )
     const parsed: unknown = JSON.parse(new TextDecoder().decode(plaintext))
-    if (!Array.isArray(parsed) || parsed.length !== 2) throw new Error('invalid token')
-    const [groupId, lineUserIds] = parsed
-    if (typeof groupId !== 'string' || !/^C[0-9a-f]{32}$/iu.test(groupId)
+    if (!Array.isArray(parsed) || parsed.length !== 3) throw new Error('invalid token')
+    const [destination, groupId, lineUserIds] = parsed
+    if ((destination !== 'test' && destination !== 'production')
+      || typeof groupId !== 'string' || !/^C[0-9a-f]{32}$/iu.test(groupId)
       || !Array.isArray(lineUserIds) || lineUserIds.length < 1
       || lineUserIds.length > MAX_PICKUP_NOTIFICATION_RECIPIENTS
       || lineUserIds.some((id) => typeof id !== 'string' || !/^U[0-9a-f]{32}$/iu.test(id))
       || new Set(lineUserIds).size !== lineUserIds.length) throw new Error('invalid token')
-    return { intentId, groupId, lineUserIds: lineUserIds as string[] }
+    return { intentId, destination, groupId, lineUserIds: lineUserIds as string[] }
   } catch (error) {
     if (error instanceof Error && error.message === '通知預覽加密尚未設定') throw error
     throw new Error('預覽憑證無效')

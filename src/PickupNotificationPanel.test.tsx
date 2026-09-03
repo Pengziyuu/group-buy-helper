@@ -28,6 +28,48 @@ describe('pickup notification panel', () => {
     expect(screen.getByRole('button', { name: '預覽二期通知' })).toBeEnabled()
   })
 
+  it('locks test mode to the test group and adds an immutable test prefix', async () => {
+    const user = userEvent.setup()
+    const onPreview = vi.fn().mockResolvedValue(preview)
+    const onSend = vi.fn().mockResolvedValue({ ...preview, sent: true })
+    render(
+      <PickupNotificationPanel
+        campaignId="campaign-1"
+        campaignTitle="測試包子團"
+        campaignStatus="closed"
+        mode="test"
+        onPreview={onPreview}
+        onSend={onSend}
+      />,
+    )
+
+    expect(screen.getByText('發送目的地：測試群組')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '預覽測試包子團二期測試通知' }))
+    expect(onPreview).toHaveBeenCalledWith('phase2', expect.stringMatching(/^【測試】/))
+    const message = await screen.findByRole('textbox', { name: '測試通知正文' })
+    await user.clear(message)
+    await user.type(message, '新版功能測試')
+    await user.click(screen.getByRole('button', { name: '確認發送測試通知並＠2位住戶' }))
+    expect(onSend).toHaveBeenCalledWith('phase2', '【測試】\n新版功能測試', preview.previewToken)
+  })
+
+  it('reserves prefix space in the test message length limit', async () => {
+    const user = userEvent.setup()
+    render(
+      <PickupNotificationPanel
+        campaignId="campaign-1"
+        campaignTitle="測試包子團"
+        campaignStatus="closed"
+        mode="test"
+        onPreview={vi.fn().mockResolvedValue(preview)}
+        onSend={vi.fn()}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: '預覽測試包子團二期測試通知' }))
+    expect(await screen.findByRole('textbox', { name: '測試通知正文' })).toHaveAttribute('maxlength', '4495')
+  })
+
   it('traps focus in the modal, closes with Escape and restores the trigger focus', async () => {
     const user = userEvent.setup()
     const triggerLabel = '預覽二期通知'

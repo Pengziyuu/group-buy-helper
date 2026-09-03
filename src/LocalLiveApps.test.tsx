@@ -7,6 +7,7 @@ import {
   type LiveAdminOrdersRepository,
   type LiveAdminRepository,
   type LiveCampaignManagementRepository,
+  type LivePickupNotificationTestCampaignRepository,
   type LiveResidentMemberRepository,
 } from './LocalLiveApps'
 import { initialOrders, items } from './data/demo'
@@ -132,6 +133,68 @@ describe('local Supabase visual demo apps', () => {
 
     expect(await screen.findByText('無法載入住戶入口')).toBeInTheDocument()
     expect(screen.queryByText(/Demo/)).not.toBeInTheDocument()
+  })
+
+  it('loads the isolated notification lab without loading resident management data', async () => {
+    const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
+    const { client } = authClient(session)
+    const campaign = {
+      id: 'campaign-test', slug: 'share-slug', title: '通知測試團', status: 'closed' as const,
+      openedAt: '2026-08-12T00:00:00Z', createdAt: '2026-08-12T00:00:00Z', updatedAt: '2026-08-12T01:00:00Z',
+    }
+    const managementRepository: LiveCampaignManagementRepository = {
+      list: vi.fn().mockResolvedValue([campaign]), create: vi.fn(), delete: vi.fn(),
+    }
+    const markerRepository: LivePickupNotificationTestCampaignRepository = {
+      list: vi.fn().mockResolvedValue(['campaign-test']), setEnabled: vi.fn(),
+    }
+    const preview = vi.fn()
+
+    render(
+      <LocalLiveAdminApp
+        client={client}
+        notificationLab
+        managementRepository={managementRepository}
+        pickupNotificationTestCampaignRepository={markerRepository}
+        pickupNotificationRepository={{ preview, send: vi.fn() }}
+      />,
+    )
+
+    expect(await screen.findByRole('heading', { name: '通知測試中心' })).toBeInTheDocument()
+    expect(screen.getByText('發送目的地：測試群組')).toBeInTheDocument()
+    expect(managementRepository.list).toHaveBeenCalledOnce()
+    expect(markerRepository.list).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('button', { name: '住戶管理' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the committed marker state when mutation succeeds without a second list refresh', async () => {
+    const user = userEvent.setup()
+    const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
+    const { client } = authClient(session)
+    const campaign = {
+      id: 'campaign-test', slug: 'share-slug', title: '通知測試團', status: 'closed' as const,
+      openedAt: '2026-08-12T00:00:00Z', createdAt: '2026-08-12T00:00:00Z', updatedAt: '2026-08-12T01:00:00Z',
+    }
+    const markerRepository: LivePickupNotificationTestCampaignRepository = {
+      list: vi.fn().mockResolvedValueOnce(['campaign-test']).mockRejectedValue(new Error('reload failed')),
+      setEnabled: vi.fn().mockResolvedValue(undefined),
+    }
+
+    render(
+      <LocalLiveAdminApp
+        client={client}
+        notificationLab
+        managementRepository={{ list: vi.fn().mockResolvedValue([campaign]), create: vi.fn(), delete: vi.fn() }}
+        pickupNotificationTestCampaignRepository={markerRepository}
+        pickupNotificationRepository={{ preview: vi.fn(), send: vi.fn() }}
+      />,
+    )
+
+    await user.click(await screen.findByRole('button', { name: '將通知測試團移出通知測試中心' }))
+    await user.click(screen.getByRole('button', { name: '確認移出測試中心' }))
+    await waitFor(() => expect(markerRepository.setEnabled).toHaveBeenCalledWith('campaign-test', false))
+    expect(markerRepository.list).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: '將通知測試團加入通知測試中心' })).toBeInTheDocument()
   })
 
   it('shows the campaign list after organizer authentication when no campaign is selected', async () => {

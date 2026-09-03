@@ -1,19 +1,20 @@
 # LINE領取通知設定與驗證
 
-本功能讓團主針對每個已結單團購，分別向「一期＋三期」及「二期」的實際購買者發送LINE正式mention。系統不保存發送時間、發送團主或通知歷史。
+本功能讓團主針對每個已結單團購，分別向「一期＋三期」及「二期」的實際購買者發送LINE正式mention。測試與正式共用同一套Production系統及LINE官方帳號，但介面、Edge入口、群組槽位及intent皆強制分離。系統不保存發送時間、發送團主或通知歷史。
 
 ## 安全架構
 
 - LINE Messaging API Channel必須與既有LINE Login Channels建立在**同一個LINE Provider**，確保同一住戶的LINE User ID一致。
 - Channel secret與Channel access token只能存於Supabase Edge Function secrets。
-- Browser只送出`campaignId`、通知組別與已核對文案，不送LINE User ID或群組ID。
+- 正式介面只呼叫`send-pickup-notification`，測試中心只呼叫`send-test-pickup-notification`；兩個Edge入口各自把`production`／`test`寫死，不接受Browser傳入目的地。
+- Browser只送出`campaignId`、通知組別與已核對文案，不送LINE User ID、群組ID或環境參數。
 - Edge Function會重新驗證Supabase session、`public.is_admin()`與`public.is_approved_line_organizer()`、團購狀態及實際訂單，並只針對本次購買者逐一確認其目前仍在目標LINE群組。
-- 預覽會建立15分鐘技術性send intent；開始發送後只延長至建立時即固定的1小時絕對上限，並由pg_cron每5分鐘自動清除到期資料。DB只保存隨機token、匿名caller hash、收件人／文案hash、LINE retry key、狀態與到期時間，不保存LINE User ID名單、文案、團主UID、發送時間或長期通知歷史。
-- 收件人LINE ID與group ID只放在團主瀏覽器暫持的AES-GCM opaque preview token密文中；密鑰只存在Edge Function secret。Browser不能讀取或竄改內容，DB也不落地保存這份名單。
+- 預覽會建立15分鐘技術性send intent；intent同時保存固定`binding_kind`與當下`line_group_id`。開始發送後只延長至建立時即固定的1小時絕對上限，並由pg_cron每5分鐘自動清除到期資料。DB只保存隨機token、匿名caller hash、收件人／文案hash、LINE retry key、環境、狀態與到期時間，不保存LINE User ID名單、文案、團主UID、發送時間或長期通知歷史。
+- 收件人LINE ID、group ID與環境只放在團主瀏覽器暫持的AES-GCM opaque preview token密文中；密鑰只存在Edge Function secret。Browser不能讀取或竄改內容，DB也不落地保存這份名單。測試與正式preview token不能交換使用。
 - 發送時只逐一重查本次購買者是否仍在LINE群組，不讀取無關群組成員；`ready → sending`的claim會在單一Postgres statement snapshot內，同時重算全部DB資格名單hash、核對目前community群組綁定、團購狀態與團主權限。任一名單、群組或文案hash不一致就要求重新預覽。
 - 網路逾時的`sending`重試不再查詢可變資料，而是從opaque token重建完全相同payload並沿用LINE `X-Line-Retry-Key`，避免重複通知。
 - Webhook綁定事件以15分鐘event ID cache與5分鐘時間窗防重播，不建立永久webhook歷史。
-- `community_line_group`、短期技術表與敏感收件人RPC只授權`service_role`。
+- `community_line_group`、測試團購標記表、短期技術表與敏感收件人RPC不允許Browser直接存取。測試團購標記只可經已驗證團主的窄RPC管理。
 - 每則Text message v2最多20個mentions；單次最多5則、共100位。超過時拒絕，不截斷名單。
 
 ## 1. LINE Developers Console
@@ -52,13 +53,20 @@ npx supabase secrets list
 
 ## 3. 後端部署順序
 
-先套用migration，再部署兩個Edge Functions，最後才部署顯示通知按鈕的前端：
+先確認舊版沒有仍在保留期限內的`sending` intent；查詢結果必須為`0`，否則等待`retain_until`到期並再次確認。migration本身也會在非零時中止：
+
+```bash
+npx supabase db query --linked --experimental --yes "select count(*) as retained_sending_intents from public.pickup_notification_intent where delivery_status = 'sending' and retain_until > now();"
+```
+
+確認為`0`後，先套用migration，再部署三個Edge Functions，最後才部署顯示通知按鈕的前端：
 
 ```bash
 npx supabase db push --dry-run
 npx supabase db push
 npx supabase functions deploy line-group-webhook
 npx supabase functions deploy send-pickup-notification
+npx supabase functions deploy send-test-pickup-notification
 ```
 
 LINE webhook URL格式：
@@ -69,26 +77,46 @@ https://<SUPABASE_PROJECT_REF>.supabase.co/functions/v1/line-group-webhook
 
 在LINE Developers Console設定Webhook URL、開啟webhook，並執行Verify。
 
-## 4. 綁定社區群組
+## 4. 分別綁定測試與正式群組
 
-1. 將官方帳號加入目標社區LINE群組。
-2. 使用已在系統核准的團主LINE帳號，在該群組輸入完全相同的文字：
+同一LINE官方帳號可以同時加入測試群組與正式社區群組。每個槽位各自只有一個群組，同一群組不能同時占用兩個槽位。
+
+1. 將官方帳號加入測試LINE群組，由已核准團主輸入：
 
 ```text
-綁定團購通知
+綁定測試團購通知
 ```
 
-3. 機器人回覆「團購領取通知已綁定至這個群組。」才算成功。
+   機器人回覆「測試團購通知已綁定至這個群組。」才算成功。
+
+2. 將官方帳號加入正式社區LINE群組，由已核准團主輸入：
+
+```text
+綁定正式團購通知
+```
+
+   機器人回覆「正式團購通知已綁定至這個群組。」才算成功。
+
+既有單一綁定在環境migration套用後自動成為`test`槽位，不必重新綁定測試群組。重新綁定其中一個槽位不會覆蓋另一個槽位，但該槽位先前建立且尚未發送的preview會失效。
 
 Webhook會驗證`x-line-signature`，再以同Provider的LINE User ID確認發話者同時存在於`line_organizer_identity`及`admin_users`。陌生住戶或未核准團主不能綁定。
 
-## 5. 受控正式驗證
+## 5. 測試中心與正式介面
 
-1. 使用真實但可控的已結單團購，確認訂單及住戶期別正確。
-2. 團主開啟「訂單管理」後，先按「預覽一期、三期通知」或「預覽二期通知」。
-3. 核對可＠名單、無法＠名單與預計訊息數。
-4. 編輯通知內容後再確認發送。
-5. 確認LINE群組收到由官方帳號發出的正式mentions。
-6. 若發送失敗，UI必須顯示失敗；不得以普通`@姓名`文字替代。
+- 測試中心固定為`/admin/notification-lab`，全頁顯示測試警示，只能處理明確經資料庫標記的已結單／已到貨測試團購。
+- 測試通知自動加入不可省略的`【測試】`前綴，只會呼叫測試Edge入口並送往測試群組。
+- 正式通知保留在各團購的「訂單管理」，只會呼叫正式Edge入口並送往正式社區群組，沒有環境或群組下拉選單。
+- 標記為測試的團購會被後端拒絕從正式入口發送；未標記團購也會被後端拒絕從測試入口發送。
+- 通知進入`sending`後，在成功或短期intent絕對TTL結束前，不可重綁該群組槽位或切換該團購的測試標記，以保留完全相同payload的安全重試能力。
+
+## 6. 受控驗證與功能晉升
+
+1. 先在通知測試中心使用明確標記的已結單測試團購，核對名單、訊息數、`【測試】`前綴與真實mention。
+2. 測試成功後，以同一個已審核Git commit及migration部署正式功能；不要複製測試intent或測試資料。
+3. 正式團購開啟「訂單管理」後，先按「預覽一期、三期通知」或「預覽二期通知」。
+4. 核對可＠名單、無法＠名單、發送目的地與預計訊息數。
+5. 編輯通知內容後再確認發送。
+6. 確認LINE群組收到由官方帳號發出的正式mentions。
+7. 若發送失敗，UI必須顯示失敗；不得以普通`@姓名`文字替代。
 
 正式測試不建立seed、不恢復已刪除團購，也不在未經確認時向群組發訊息。

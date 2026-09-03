@@ -293,14 +293,17 @@ export type Database = {
       }
       community_line_group: {
         Row: {
+          binding_kind: string
           community_id: string
           line_group_id: string
         }
         Insert: {
+          binding_kind: string
           community_id: string
           line_group_id: string
         }
         Update: {
+          binding_kind?: string
           community_id?: string
           line_group_id?: string
         }
@@ -308,7 +311,7 @@ export type Database = {
           {
             foreignKeyName: "community_line_group_community_id_fkey"
             columns: ["community_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "community"
             referencedColumns: ["id"]
           },
@@ -713,6 +716,7 @@ export type Database = {
       pickup_notification_intent: {
         Row: {
           audience: string
+          binding_kind: string
           caller_hash: string
           campaign_id: string
           delivery_status: string
@@ -728,6 +732,7 @@ export type Database = {
         }
         Insert: {
           audience: string
+          binding_kind: string
           caller_hash: string
           campaign_id: string
           delivery_status?: string
@@ -743,6 +748,7 @@ export type Database = {
         }
         Update: {
           audience?: string
+          binding_kind?: string
           caller_hash?: string
           campaign_id?: string
           delivery_status?: string
@@ -775,6 +781,40 @@ export type Database = {
             foreignKeyName: "pickup_notification_intent_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "campaign_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pickup_notification_test_campaign: {
+        Row: {
+          campaign_id: string
+        }
+        Insert: {
+          campaign_id: string
+        }
+        Update: {
+          campaign_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pickup_notification_test_campaign_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: true
+            referencedRelation: "admin_campaign_list"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pickup_notification_test_campaign_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: true
+            referencedRelation: "campaign"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pickup_notification_test_campaign_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: true
             referencedRelation: "campaign_public"
             referencedColumns: ["id"]
           },
@@ -1019,25 +1059,46 @@ export type Database = {
         Returns: boolean
       }
       can_edit_order: { Args: { p_order_id: string }; Returns: boolean }
-      claim_pickup_notification_intent: {
-        Args: {
-          p_audience: string
-          p_caller_hash: string
-          p_caller_user_id: string
-          p_campaign_id: string
-          p_eligible_hash: string
-          p_line_group_id: string
-          p_message_hash: string
-          p_recipient_hash: string
-          p_token: string
-        }
-        Returns: {
-          delivery_status: string
-          line_retry_key: string
-          message_count: number
-          recipient_count: number
-        }[]
-      }
+      claim_pickup_notification_intent:
+        | {
+            Args: {
+              p_audience: string
+              p_caller_hash: string
+              p_caller_user_id: string
+              p_campaign_id: string
+              p_eligible_hash: string
+              p_line_group_id: string
+              p_message_hash: string
+              p_recipient_hash: string
+              p_token: string
+            }
+            Returns: {
+              delivery_status: string
+              line_retry_key: string
+              message_count: number
+              recipient_count: number
+            }[]
+          }
+        | {
+            Args: {
+              p_audience: string
+              p_binding_kind: string
+              p_caller_hash: string
+              p_caller_user_id: string
+              p_campaign_id: string
+              p_eligible_hash: string
+              p_line_group_id: string
+              p_message_hash: string
+              p_recipient_hash: string
+              p_token: string
+            }
+            Returns: {
+              delivery_status: string
+              line_retry_key: string
+              message_count: number
+              recipient_count: number
+            }[]
+          }
       consume_line_login_rate_limit: {
         Args: { p_key_hash: string; p_limit: number; p_window_seconds: number }
         Returns: boolean
@@ -1075,18 +1136,32 @@ export type Database = {
         Args: { p_campaign_id: string }
         Returns: boolean
       }
-      finalize_pickup_notification_intent: {
-        Args: {
-          p_audience: string
-          p_caller_hash: string
-          p_campaign_id: string
-          p_message_count: number
-          p_recipient_count: number
-          p_recipient_hash: string
-          p_token: string
-        }
-        Returns: boolean
-      }
+      finalize_pickup_notification_intent:
+        | {
+            Args: {
+              p_audience: string
+              p_binding_kind: string
+              p_caller_hash: string
+              p_campaign_id: string
+              p_message_count: number
+              p_recipient_count: number
+              p_recipient_hash: string
+              p_token: string
+            }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              p_audience: string
+              p_caller_hash: string
+              p_campaign_id: string
+              p_message_count: number
+              p_recipient_count: number
+              p_recipient_hash: string
+              p_token: string
+            }
+            Returns: boolean
+          }
       get_customer_self: {
         Args: never
         Returns: {
@@ -1109,20 +1184,37 @@ export type Database = {
         }[]
       }
       has_campaign_access: { Args: { p_campaign_id: string }; Returns: boolean }
-      inspect_pickup_notification_intent: {
-        Args: {
-          p_audience: string
-          p_caller_hash: string
-          p_caller_user_id: string
-          p_campaign_id: string
-          p_token: string
-        }
-        Returns: {
-          delivery_status: string
-          message_count: number
-          recipient_count: number
-        }[]
-      }
+      inspect_pickup_notification_intent:
+        | {
+            Args: {
+              p_audience: string
+              p_caller_hash: string
+              p_caller_user_id: string
+              p_campaign_id: string
+              p_token: string
+            }
+            Returns: {
+              delivery_status: string
+              message_count: number
+              recipient_count: number
+            }[]
+          }
+        | {
+            Args: {
+              p_audience: string
+              p_binding_kind: string
+              p_caller_hash: string
+              p_caller_user_id: string
+              p_campaign_id: string
+              p_message_hash: string
+              p_token: string
+            }
+            Returns: {
+              delivery_status: string
+              message_count: number
+              recipient_count: number
+            }[]
+          }
       internal_pickup_notification_eligible_hash: {
         Args: { p_audience: string; p_campaign_id: string }
         Returns: string
@@ -1160,6 +1252,12 @@ export type Database = {
         }[]
       }
       line_organizer_access_token_hook: { Args: { event: Json }; Returns: Json }
+      list_pickup_notification_test_campaigns: {
+        Args: never
+        Returns: {
+          campaign_id: string
+        }[]
+      }
       list_resident_campaigns: {
         Args: never
         Returns: {
@@ -1172,19 +1270,31 @@ export type Database = {
           unit_price: number
         }[]
       }
-      mark_pickup_notification_intent_sent: {
-        Args: {
-          p_audience: string
-          p_caller_hash: string
-          p_campaign_id: string
-          p_token: string
-        }
-        Returns: boolean
-      }
+      mark_pickup_notification_intent_sent:
+        | {
+            Args: {
+              p_audience: string
+              p_caller_hash: string
+              p_campaign_id: string
+              p_token: string
+            }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              p_audience: string
+              p_binding_kind: string
+              p_caller_hash: string
+              p_campaign_id: string
+              p_token: string
+            }
+            Returns: boolean
+          }
       owns_customer: { Args: { p_customer_id: string }; Returns: boolean }
       owns_order: { Args: { p_order_id: string }; Returns: boolean }
       process_line_group_binding_event: {
         Args: {
+          p_binding_kind: string
           p_community_id: string
           p_line_group_id: string
           p_line_user_id: string
@@ -1233,6 +1343,7 @@ export type Database = {
       reserve_pickup_notification_intent: {
         Args: {
           p_audience: string
+          p_binding_kind: string
           p_caller_hash: string
           p_caller_user_id: string
           p_campaign_id: string
@@ -1271,6 +1382,10 @@ export type Database = {
       set_order_fulfillment: {
         Args: { p_order_id: string; p_paid: boolean; p_pickup_status: string }
         Returns: Json
+      }
+      set_pickup_notification_test_campaign: {
+        Args: { p_campaign_id: string; p_enabled: boolean }
+        Returns: boolean
       }
       submit_customer_order: {
         Args: { p_campaign_id: string; p_items: Json }

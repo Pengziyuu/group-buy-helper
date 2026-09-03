@@ -387,6 +387,9 @@ verify_jwt = false
 [functions.send-pickup-notification]
 verify_jwt = true
 
+[functions.send-test-pickup-notification]
+verify_jwt = true
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

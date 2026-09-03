@@ -92,6 +92,9 @@ export default function RuntimeApp({ config, pathname, client, liffClient }: Run
     if (appRoute.kind === 'admin-list') {
       return <LocalLiveAdminApp client={client} liffId={config.mode === 'live' ? config.liffId : undefined} liffClient={liffClient} authStorage={getBrowserAuthStorage()} logoutFallbackStorage={getBrowserSessionStorage()} />
     }
+    if (appRoute.kind === 'admin-notification-lab') {
+      return <LocalLiveAdminApp client={client} notificationLab liffId={config.mode === 'live' ? config.liffId : undefined} liffClient={liffClient} authStorage={getBrowserAuthStorage()} logoutFallbackStorage={getBrowserSessionStorage()} />
+    }
     if (appRoute.kind === 'admin-editor') {
       return <LocalLiveAdminApp client={client} campaignId={appRoute.campaignId} liffId={config.mode === 'live' ? config.liffId : undefined} liffClient={liffClient} authStorage={getBrowserAuthStorage()} logoutFallbackStorage={getBrowserSessionStorage()} />
     }
@@ -115,6 +118,18 @@ export default function RuntimeApp({ config, pathname, client, liffClient }: Run
           title="請使用團主提供的完整團購連結"
           description="正式測試站不會在首頁顯示示範資料。"
           action={<a className="ui-button" data-variant="secondary" href="/admin">團主登入</a>}
+          page
+        />
+      </main>
+    )
+  }
+  if (appRoute.kind === 'admin-notification-lab') {
+    return (
+      <main className="live-state-shell">
+        <EmptyState
+          title="通知測試中心僅提供Live模式使用"
+          description="本機示範資料不會模擬LINE測試通知，請使用已連接Supabase的團主入口。"
+          action={<a className="ui-button" data-variant="secondary" href="/admin">回到團主後台</a>}
           page
         />
       </main>

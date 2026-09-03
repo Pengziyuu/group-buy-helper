@@ -56,11 +56,11 @@ describe('LINE pickup notification payload', () => {
     const intentId = '92000000-0000-4000-8000-000000000001'
     const groupId = `C${'a'.repeat(32)}`
     const ids = [`U${'1'.repeat(32)}`, `U${'2'.repeat(32)}`]
-    const sealed = await sealPickupRecipientSnapshot('test-secret-with-at-least-32-characters', intentId, groupId, ids)
+    const sealed = await sealPickupRecipientSnapshot('test-secret-with-at-least-32-characters', intentId, 'test', groupId, ids)
     expect(sealed).toMatch(new RegExp(`^${intentId}\\.[A-Za-z0-9_-]+$`))
     expect(sealed).not.toContain(groupId)
     expect(sealed).not.toContain(ids[0])
-    await expect(openPickupRecipientSnapshot('test-secret-with-at-least-32-characters', sealed)).resolves.toEqual({ intentId, groupId, lineUserIds: ids })
+    await expect(openPickupRecipientSnapshot('test-secret-with-at-least-32-characters', sealed)).resolves.toEqual({ intentId, destination: 'test', groupId, lineUserIds: ids })
     const separator = sealed.indexOf('.') + 1
     const replacement = sealed[separator] === 'A' ? 'B' : 'A'
     const tampered = sealed.slice(0, separator) + replacement + sealed.slice(separator + 1)

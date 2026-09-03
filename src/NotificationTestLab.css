@@ -1,0 +1,59 @@
+.notification-lab-shell {
+  width: min(1120px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 32px 0 64px;
+}
+
+.notification-lab-header,
+.notification-lab-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.notification-lab-header {
+  margin-bottom: 24px;
+}
+
+.notification-lab-header h1,
+.notification-lab-card h2 {
+  margin: 4px 0 8px;
+}
+
+.notification-lab-header > a {
+  color: inherit;
+  font-weight: 700;
+}
+
+.notification-lab-list {
+  display: grid;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.notification-lab-card {
+  border: 2px solid #d97706;
+  border-radius: 18px;
+  background: #fffaf0;
+  padding: 20px;
+}
+
+.notification-lab-card-heading span {
+  display: inline-block;
+  color: #92400e;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+@media (max-width: 640px) {
+  .notification-lab-header,
+  .notification-lab-card-heading {
+    flex-direction: column;
+  }
+
+  .notification-lab-card-heading button {
+    width: 100%;
+  }
+}

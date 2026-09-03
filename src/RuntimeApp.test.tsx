@@ -9,9 +9,11 @@ import type { Database } from './types/database'
 const { createClient } = vi.hoisted(() => ({ createClient: vi.fn(() => ({ auth: {} })) }))
 vi.mock('@supabase/supabase-js', () => ({ createClient }))
 vi.mock('./LocalLiveApps', () => ({
-  LocalLiveAdminApp: ({ campaignId, liffId, liffClient }: { campaignId?: string; liffId?: string; liffClient?: unknown }) => (
-    <div>supabase-admin:{campaignId ?? 'list'}:{liffId ?? 'no-liff'}:{liffClient ? 'client' : 'no-client'}</div>
-  ),
+  LocalLiveAdminApp: ({ campaignId, liffId, liffClient, notificationLab }: { campaignId?: string; liffId?: string; liffClient?: unknown; notificationLab?: boolean }) => notificationLab
+    ? <div>supabase-admin:notification-lab</div>
+    : (
+      <div>supabase-admin:{campaignId ?? 'list'}:{liffId ?? 'no-liff'}:{liffClient ? 'client' : 'no-client'}</div>
+    ),
   LocalLiveResidentApp: ({ campaignSlug, inviteSlug, liffId, liffClient }: { campaignSlug?: string; inviteSlug?: string; liffId?: string; liffClient?: unknown }) => (
     <div>supabase-resident:{campaignSlug ?? 'list'}:{inviteSlug ?? 'no-invite'}:{liffId ?? 'no-liff'}:{liffClient ? 'client' : 'no-client'}</div>
   ),
@@ -38,6 +40,11 @@ describe('RuntimeApp production live routing', () => {
 
     rerender(<RuntimeApp config={liveConfig} pathname="/admin/campaign/8d2f0f6a-1111-4222-8333-123456789abc" client={stableClient} />)
     expect(screen.getByText('supabase-admin:8d2f0f6a-1111-4222-8333-123456789abc:no-liff:no-client')).toBeInTheDocument()
+  })
+
+  it('connects the isolated notification lab to the Supabase-backed organizer app', () => {
+    render(<RuntimeApp config={liveConfig} pathname="/admin/notification-lab" client={stableClient} />)
+    expect(screen.getByText('supabase-admin:notification-lab')).toBeInTheDocument()
   })
 
   it('connects a valid share slug to the Supabase-backed resident app', () => {
@@ -73,6 +80,12 @@ describe('RuntimeApp production live routing', () => {
 })
 
 describe('RuntimeApp localStorage resident demo routing', () => {
+  it('does not impersonate the Live notification lab with resident demo data', () => {
+    render(<RuntimeApp config={{ mode: 'demo' }} pathname="/admin/notification-lab" />)
+    expect(screen.getByText('通知測試中心僅提供Live模式使用')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '送出訂單' })).not.toBeInTheDocument()
+  })
+
   it('opens the resident list at root and the order page from its campaign link', () => {
     const config = { mode: 'demo' as const }
     const { rerender } = render(<RuntimeApp config={config} pathname="/" />)

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import type { Session, SupabaseClient } from '@supabase/supabase-js'
 import AdminApp from './AdminApp'
 import CampaignListApp from './CampaignListApp'
+import NotificationTestLab from './NotificationTestLab'
 import type { FulfillmentUpdate } from './AdminOrdersPanel'
 import App from './App'
 import ResidentCampaignListApp, {
@@ -25,6 +26,7 @@ import type { CampaignStatus } from './domain/orderWorkflow'
 import type { VisibleOrder } from './data/demo'
 import { createAdminOrdersGateway } from './services/adminOrdersGateway'
 import { createPickupNotificationGateway, type PickupNotificationResponse } from './services/pickupNotificationGateway'
+import { createPickupNotificationTestCampaignGateway } from './services/pickupNotificationTestCampaignGateway'
 import type { PickupNotificationAudience } from './domain/pickupNotification'
 import { createCampaignImageGateway } from './services/campaignImageGateway'
 import {
@@ -68,6 +70,11 @@ export type LiveAdminOrdersRepository = {
 export type LivePickupNotificationRepository = {
   preview(campaignId: string, audience: PickupNotificationAudience, message: string): Promise<PickupNotificationResponse>
   send(campaignId: string, audience: PickupNotificationAudience, message: string, previewToken: string): Promise<PickupNotificationResponse>
+}
+
+export type LivePickupNotificationTestCampaignRepository = {
+  list(): Promise<string[]>
+  setEnabled(campaignId: string, enabled: boolean): Promise<void>
 }
 
 export type LiveCampaignManagementRepository = {
@@ -309,6 +316,7 @@ export function LocalLiveAdminApp({
   repository,
   ordersRepository,
   pickupNotificationRepository,
+  pickupNotificationTestCampaignRepository,
   managementRepository,
   residentMemberRepository,
   authStorage = null,
@@ -316,10 +324,12 @@ export function LocalLiveAdminApp({
   liffId,
   liffClient,
   lineOrganizerGateway,
+  notificationLab = false,
 }: LocalLiveAppProps & {
   repository?: LiveAdminRepository
   ordersRepository?: LiveAdminOrdersRepository
   pickupNotificationRepository?: LivePickupNotificationRepository
+  pickupNotificationTestCampaignRepository?: LivePickupNotificationTestCampaignRepository
   managementRepository?: LiveCampaignManagementRepository
   residentMemberRepository?: LiveResidentMemberRepository
   authStorage?: AuthSessionStorage | null
@@ -327,6 +337,7 @@ export function LocalLiveAdminApp({
   liffId?: string
   liffClient?: LiffClient
   lineOrganizerGateway?: { signIn(): Promise<LineOrganizerResult> }
+  notificationLab?: boolean
 }) {
   const gateway = useMemo(
     () => repository ?? createAdminCampaignGateway(client as AdminCampaignSupabaseClient),
@@ -337,9 +348,20 @@ export function LocalLiveAdminApp({
     [client, ordersRepository],
   )
   const pickupNotificationGateway = useMemo(
-    () => pickupNotificationRepository ?? createPickupNotificationGateway(client),
+    () => pickupNotificationRepository ?? createPickupNotificationGateway(client, 'production'),
     [client, pickupNotificationRepository],
   )
+  const pickupNotificationTestGateway = useMemo(
+    () => pickupNotificationRepository ?? createPickupNotificationGateway(client, 'test'),
+    [client, pickupNotificationRepository],
+  )
+  const testCampaignGateway = useMemo(
+    () => pickupNotificationTestCampaignRepository
+      ?? createPickupNotificationTestCampaignGateway(client as never),
+    [client, pickupNotificationTestCampaignRepository],
+  )
+  const testCampaignGatewayRef = useRef(testCampaignGateway)
+  testCampaignGatewayRef.current = testCampaignGateway
   const imageGateway = useMemo(() => createCampaignImageGateway(client), [client])
   const campaignManagementGateway = useMemo(
     () => managementRepository ?? createCampaignManagementGateway(client),
@@ -356,7 +378,7 @@ export function LocalLiveAdminApp({
     [client, liffClient, liffId, lineOrganizerGateway],
   )
   const activeCampaignManagementGateway = campaignId ? null : campaignManagementGateway
-  const activeResidentMemberGateway = campaignId ? null : residentMemberGateway
+  const activeResidentMemberGateway = campaignId || notificationLab ? null : residentMemberGateway
   const authValidationGeneration = useRef(0)
   const signInGeneration = useRef(0)
   const signOutGeneration = useRef(0)
@@ -369,6 +391,7 @@ export function LocalLiveAdminApp({
   const [orderSummary, setOrderSummary] = useState<OrganizerOrderSummary | null>(null)
   const [campaignStatus, setCampaignStatus] = useState<CampaignStatus | null>(null)
   const [campaigns, setCampaigns] = useState<CampaignListItem[] | null>(null)
+  const [testCampaignIds, setTestCampaignIds] = useState<string[] | null>(null)
   const [residentMembers, setResidentMembers] = useState<ResidentMember[] | null>(null)
   const [residentSlug, setResidentSlug] = useState<string | null>(null)
   const [publicationState, setPublicationState] = useState<'draft' | 'published'>('published')
@@ -573,6 +596,7 @@ export function LocalLiveAdminApp({
       setOrderSummary(null)
       setCampaignStatus(null)
       setCampaigns(null)
+      setTestCampaignIds(null)
       setResidentMembers(null)
       setResidentSlug(null)
       return
@@ -584,7 +608,22 @@ export function LocalLiveAdminApp({
       setOrderSummary(null)
       setCampaignStatus(null)
       setResidentSlug(null)
-      if (!activeCampaignManagementGateway || !activeResidentMemberGateway) return
+      if (!activeCampaignManagementGateway) return
+      if (notificationLab) {
+        void Promise.all([
+          activeCampaignManagementGateway.list(),
+          testCampaignGatewayRef.current.list(),
+        ]).then(([items, markedIds]) => {
+          if (active) {
+            setCampaigns(items)
+            setTestCampaignIds(markedIds)
+          }
+        }).catch((loadError: unknown) => {
+          if (active) setError(errorMessage(loadError))
+        })
+        return () => { active = false }
+      }
+      if (!activeResidentMemberGateway) return
       void Promise.all([
         activeCampaignManagementGateway.list(),
         activeResidentMemberGateway.list(),
@@ -627,7 +666,7 @@ export function LocalLiveAdminApp({
     return () => {
       active = false
     }
-  }, [activeCampaignManagementGateway, activeResidentMemberGateway, campaignId, gateway, ordersGateway, organizerUserId])
+  }, [activeCampaignManagementGateway, activeResidentMemberGateway, campaignId, gateway, notificationLab, ordersGateway, organizerUserId])
 
   const acceptSignedInSession = (signedInSession: Session | null) => {
     authValidationGeneration.current += 1
@@ -732,6 +771,20 @@ export function LocalLiveAdminApp({
   }
   if (error) return <LiveError message={error} />
   if (!campaignId) {
+    if (notificationLab) {
+      if (!campaigns || !testCampaignIds) return <LiveLoading label="載入通知測試中心…" />
+      return (
+        <NotificationTestLab
+          campaigns={campaigns}
+          testCampaignIds={testCampaignIds}
+          onSetTestCampaign={async (targetCampaignId, enabled) => {
+            await testCampaignGateway.setEnabled(targetCampaignId, enabled)
+          }}
+          onPreview={(targetCampaignId, audience, message) => pickupNotificationTestGateway.preview(targetCampaignId, audience, message)}
+          onSend={(targetCampaignId, audience, message, previewToken) => pickupNotificationTestGateway.send(targetCampaignId, audience, message, previewToken)}
+        />
+      )
+    }
     if (!campaigns || !residentMembers) return <LiveLoading label="載入團購與住戶列表…" />
     return (
       <CampaignListApp

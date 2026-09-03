@@ -29,6 +29,16 @@ describe('pickup notification gateway', () => {
     })
   })
 
+  it('fixes a test gateway to the test destination for every request', async () => {
+    const invoke = vi.fn().mockResolvedValue({ data: response, error: null })
+    const gateway = createPickupNotificationGateway({ functions: { invoke } } as never, 'test')
+
+    await gateway.preview('00000000-0000-4000-8000-000000000123', 'phase2', '【測試】通知')
+    expect(invoke).toHaveBeenCalledWith('send-test-pickup-notification', {
+      body: { action: 'preview', campaignId: '00000000-0000-4000-8000-000000000123', audience: 'phase2', message: '【測試】通知' },
+    })
+  })
+
   it('accepts a sent idempotency acknowledgement without replaying sensitive recipient rows', async () => {
     const invoke = vi.fn().mockResolvedValue({
       data: { ...response, sent: true, mentionableRecipients: [], unavailableRecipients: [], mentionableCount: 1 },

@@ -2,6 +2,7 @@ export type AppMode = 'resident' | 'admin'
 
 export type AppRoute =
   | { kind: 'admin-list' }
+  | { kind: 'admin-notification-lab' }
   | { kind: 'admin-editor'; campaignId: string }
   | { kind: 'resident-campaign'; campaignSlug: string }
   | { kind: 'resident-invite'; inviteSlug: string }
@@ -27,6 +28,9 @@ export function resolveLiffPath(pathname: string, search: string): string {
 export function parseAppRoute(pathname: string): AppRoute {
   if (pathname === '/') return { kind: 'resident-default' }
   if (pathname === '/admin' || pathname === '/admin/') return { kind: 'admin-list' }
+  if (pathname === '/admin/notification-lab' || pathname === '/admin/notification-lab/') {
+    return { kind: 'admin-notification-lab' }
+  }
 
   const adminMatch = ADMIN_EDITOR_PATTERN.exec(pathname)
   if (adminMatch) return { kind: 'admin-editor', campaignId: adminMatch[1] }

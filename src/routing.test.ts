@@ -16,6 +16,7 @@ describe('app routing', () => {
 
   it('parses organizer list, editor, and resident share routes', () => {
     expect(parseAppRoute('/admin')).toEqual({ kind: 'admin-list' })
+    expect(parseAppRoute('/admin/notification-lab')).toEqual({ kind: 'admin-notification-lab' })
     expect(parseAppRoute(`/admin/campaign/${campaignId}`)).toEqual({ kind: 'admin-editor', campaignId })
     expect(parseAppRoute(`/campaign/${campaignSlug}`)).toEqual({ kind: 'resident-campaign', campaignSlug })
     expect(parseAppRoute(`/join/${inviteSlug}`)).toEqual({ kind: 'resident-invite', inviteSlug })

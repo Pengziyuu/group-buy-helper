@@ -1,5 +1,7 @@
 import type { PickupNotificationAudience, PickupNotificationRecipient } from '../domain/pickupNotification'
 
+export type PickupNotificationDestination = 'production' | 'test'
+
 export type PickupNotificationResponse = {
   sent: boolean
   previewToken: string | null
@@ -92,7 +94,10 @@ function parseResponse(value: unknown): PickupNotificationResponse {
   }
 }
 
-export function createPickupNotificationGateway(client: PickupNotificationClient) {
+export function createPickupNotificationGateway(
+  client: PickupNotificationClient,
+  destination: PickupNotificationDestination = 'production',
+) {
   const invoke = async (
     action: 'preview' | 'send',
     campaignId: string,
@@ -102,7 +107,10 @@ export function createPickupNotificationGateway(client: PickupNotificationClient
   ) => {
     const body: Record<string, unknown> = { action, campaignId, audience, message }
     if (previewToken) body.previewToken = previewToken
-    const response = await client.functions.invoke('send-pickup-notification', { body })
+    const functionName = destination === 'test'
+      ? 'send-test-pickup-notification'
+      : 'send-pickup-notification'
+    const response = await client.functions.invoke(functionName, { body })
     if (response.error) throw new Error(await functionErrorMessage(response.error))
     return parseResponse(response.data)
   }

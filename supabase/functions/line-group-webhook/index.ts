@@ -3,7 +3,8 @@ import { jsonResponse } from '../_shared/http.ts'
 import { verifyLineWebhookSignature } from '../_shared/pickupNotification.ts'
 
 const COMMUNITY_ID = '00000000-0000-4000-8000-000000000001'
-const BIND_COMMAND = '綁定團購通知'
+const TEST_BIND_COMMAND = '綁定測試團購通知'
+const PRODUCTION_BIND_COMMAND = '綁定正式團購通知'
 
 type LineWebhookEvent = {
   type?: unknown
@@ -58,9 +59,13 @@ Deno.serve(async (request) => {
     const service = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
 
     for (const event of (parsed as { events: LineWebhookEvent[] }).events) {
+      const messageText = event.message?.text
+      const bindingKind = messageText === TEST_BIND_COMMAND
+        ? 'test'
+        : messageText === PRODUCTION_BIND_COMMAND ? 'production' : null
       const isCommand = event.type === 'message'
         && event.message?.type === 'text'
-        && event.message.text === BIND_COMMAND
+        && bindingKind !== null
         && event.source?.type === 'group'
       if (!isCommand) continue
 
@@ -79,6 +84,7 @@ Deno.serve(async (request) => {
           p_community_id: COMMUNITY_ID,
           p_line_group_id: groupId,
           p_line_user_id: lineUserId,
+          p_binding_kind: bindingKind,
         })
       if (processError) throw processError
       if (result === 'duplicate') continue
@@ -86,8 +92,22 @@ Deno.serve(async (request) => {
         if (replyToken) await reply(channelAccessToken, replyToken, '只有已核准團主可以綁定通知群組。')
         continue
       }
+      if (result === 'busy') {
+        if (replyToken) await reply(channelAccessToken, replyToken, '這個通知槽位正在發送中，請稍後再綁定。')
+        continue
+      }
+      if (result === 'conflict') {
+        if (replyToken) await reply(channelAccessToken, replyToken, '同一個LINE群組不能同時作為測試與正式通知群組。')
+        continue
+      }
       if (result !== 'bound') throw new Error('unexpected LINE binding result')
-      if (replyToken) await reply(channelAccessToken, replyToken, '團購領取通知已綁定至這個群組。')
+      if (replyToken) await reply(
+        channelAccessToken,
+        replyToken,
+        bindingKind === 'test'
+          ? '測試團購通知已綁定至這個群組。'
+          : '正式團購通知已綁定至這個群組。',
+      )
     }
 
     return jsonResponse({ ok: true })
