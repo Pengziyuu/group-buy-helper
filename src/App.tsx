@@ -41,6 +41,11 @@ const defaultContent: CampaignContent = {
 const orderQuantity = (orderItems: Record<string, number>) =>
   Object.values(orderItems).reduce((sum, quantity) => sum + quantity, 0)
 
+const orderItemsEqual = (left: Record<string, number>, right: Record<string, number>) => {
+  const codes = new Set([...Object.keys(left), ...Object.keys(right)])
+  return [...codes].every((code) => (left[code] ?? 0) === (right[code] ?? 0))
+}
+
 type ResidentCustomer = Pick<VisibleOrder, 'customerId' | 'name' | 'period' | 'unit'>
 
 type ResidentBindingInput = Pick<ResidentCustomer, 'period' | 'unit'>
@@ -92,14 +97,25 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
   const [binding, setBinding] = useState(false)
   const [bindingNotice, setBindingNotice] = useState('')
   const [draft, setDraft] = useState<Record<string, number>>({ ...(ownOrder?.items ?? {}) })
+  const [savedDraft, setSavedDraft] = useState<Record<string, number>>({ ...(ownOrder?.items ?? {}) })
   const [notice, setNotice] = useState<{ tone: 'success' | 'error'; text: string } | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [draftDirty, setDraftDirty] = useState(false)
+  const draftDirty = !orderItemsEqual(draft, savedDraft)
   const [announcementExpanded, setAnnouncementExpanded] = useState(false)
 
   useEffect(() => {
-    if (visibleOrders && !draftDirty) setDraft({ ...(ownOrder?.items ?? {}) })
+    if (visibleOrders && !draftDirty) {
+      const nextSavedDraft = { ...(ownOrder?.items ?? {}) }
+      setDraft(nextSavedDraft)
+      setSavedDraft(nextSavedDraft)
+    }
   }, [draftDirty, ownOrder, visibleOrders])
+
+  useEffect(() => {
+    if (notice?.tone !== 'success') return
+    const timer = window.setTimeout(() => setNotice(null), 3500)
+    return () => window.clearTimeout(timer)
+  }, [notice])
 
   const summary = useMemo(
     () => summarizeCampaign(
@@ -123,7 +139,6 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
   const adjust = (code: string, delta: number) => {
     if (!editable) return
     setNotice(null)
-    setDraftDirty(true)
     setDraft((current) => {
       const next = Math.max(0, Math.min(20, (current[code] ?? 0) + delta))
       if (next === 0) {
@@ -160,7 +175,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
       setNotice(null)
       try {
         await onSubmitOrder(draft)
-        setDraftDirty(false)
+        setSavedDraft({ ...draft })
         setNotice({ tone: 'success', text: '訂單已更新' })
       } catch (error) {
         setNotice({ tone: 'error', text: error instanceof Error ? error.message : '訂單更新失敗' })
@@ -176,7 +191,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
           : order,
       ),
     )
-    setDraftDirty(false)
+    setSavedDraft({ ...draft })
     setNotice({ tone: 'success', text: '訂單已更新' })
   }
 
@@ -267,12 +282,13 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
           <Button
             className="submit-button"
             onClick={() => { void submit() }}
-            disabled={!editable || draftQuantity === 0}
+            disabled={!editable || !draftDirty || draftQuantity === 0}
             loading={submitting}
             loadingLabel="訂單送出中…"
           >送出訂單</Button>
         </StickyActionBar>
-        {notice && <FeedbackMessage className="resident-order-feedback" tone={notice.tone}>{notice.text}</FeedbackMessage>}
+        {notice?.tone === 'error' && <FeedbackMessage className="resident-order-feedback" tone="error">{notice.text}</FeedbackMessage>}
+        {notice?.tone === 'success' && <FeedbackMessage className="resident-order-toast" tone="success">{notice.text}</FeedbackMessage>}
         <p className="privacy-note">
           {editable
             ? '送出後仍可在結單前修改。你只能修改自己的訂單。'

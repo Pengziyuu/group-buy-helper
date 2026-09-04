@@ -66,13 +66,29 @@ describe('customer campaign app', () => {
     const user = userEvent.setup()
     render(<App />)
 
+    const submitOrder = screen.getByRole('button', { name: '送出訂單' })
+    expect(submitOrder).toBeDisabled()
     await user.click(screen.getByRole('button', { name: '增加 A 牛奶（招牌）' }))
     expect(screen.getByText('我的訂單 7 個')).toBeInTheDocument()
     expect(screen.getByText('$315')).toBeInTheDocument()
+    expect(submitOrder).toBeEnabled()
 
-    await user.click(screen.getByRole('button', { name: '送出訂單' }))
+    await user.click(submitOrder)
     expect(screen.getByText('63 / 100')).toBeInTheDocument()
-    expect(screen.getByText('訂單已更新')).toBeInTheDocument()
+    const successToast = screen.getByText('訂單已更新').closest('[role="status"]')
+    expect(successToast).toHaveClass('resident-order-toast')
+    expect(submitOrder).toBeDisabled()
+  })
+
+  it('disables submission again when quantity changes are reverted', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    const submitOrder = screen.getByRole('button', { name: '送出訂單' })
+    await user.click(screen.getByRole('button', { name: '增加 A 牛奶（招牌）' }))
+    expect(submitOrder).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: '減少 A 牛奶（招牌）' }))
+    expect(submitOrder).toBeDisabled()
   })
 
   it('keeps order totals and the only submit action together', () => {
@@ -81,7 +97,7 @@ describe('customer campaign app', () => {
     const orderAction = screen.getByRole('region', { name: '訂單摘要與送出' })
     expect(within(orderAction).getByText('6 個')).toBeInTheDocument()
     expect(within(orderAction).getByText('$270')).toBeInTheDocument()
-    expect(within(orderAction).getByRole('button', { name: '送出訂單' })).toBeInTheDocument()
+    expect(within(orderAction).getByRole('button', { name: '送出訂單' })).toBeDisabled()
     expect(screen.getAllByRole('button', { name: '送出訂單' })).toHaveLength(1)
   })
 

@@ -99,6 +99,21 @@
 .resident-order-action .submit-button { min-width: 150px; margin: 0; }
 .resident-order-feedback,
 .resident-binding-feedback { margin-top: var(--space-3); }
+.resident-order-toast {
+  position: fixed;
+  z-index: 40;
+  left: 50%;
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  width: min(calc(100% - 24px), 440px);
+  transform: translateX(-50%);
+  background: var(--color-success-subtle);
+  box-shadow: 0 12px 30px rgb(24 39 55 / 18%);
+  animation: resident-toast-in .2s ease-out;
+}
+@keyframes resident-toast-in {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
 .resident-sync-feedback { margin-bottom: var(--space-3); }
 .privacy-note { margin: var(--space-3) 0 0; color: var(--color-text-secondary); font-size: 12px; text-align: center; }
 
