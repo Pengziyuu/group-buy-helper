@@ -54,12 +54,12 @@ describe('customer campaign app', () => {
     expect(screen.getByRole('button', { name: '收合開團資訊' })).toHaveAttribute('aria-expanded', 'true')
   })
 
-  it('places the resident order flow before the full organizer announcement', () => {
+  it('places product information before the resident order flow', () => {
     render(<App />)
 
     const orderHeading = screen.getByRole('heading', { name: /二期 2K13/ })
     const announcementHeading = screen.getByRole('heading', { name: '開團資訊' })
-    expect(orderHeading.compareDocumentPosition(announcementHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(announcementHeading.compareDocumentPosition(orderHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('lets the signed-in customer update only their own order', async () => {

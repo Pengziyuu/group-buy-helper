@@ -238,6 +238,37 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
         <p className="social-proof">已有 {orders.length} 戶參加，大家的訂單都看得到</p>
       </section>
 
+      <article className="panel campaign-post" aria-labelledby="campaign-post-heading">
+        <div className="post-heading">
+          <div>
+            <p className="section-kicker">團主公告</p>
+            <h2 id="campaign-post-heading">開團資訊</h2>
+          </div>
+          <span className="organizer-badge">團主提供</span>
+        </div>
+
+        <div className="campaign-gallery" aria-label="團購圖片">
+          {publishedCampaign.images.map((image) => (
+            <img key={image.src} src={image.src} alt={image.alt} loading="eager" />
+          ))}
+        </div>
+        <div
+          id="campaign-announcement"
+          className={`campaign-copy${hasLongAnnouncement && !announcementExpanded ? ' is-collapsed' : ''}`}
+        ><LinkifiedText text={publishedCampaign.announcement} /></div>
+        {hasLongAnnouncement && (
+          <Button
+            className="announcement-toggle"
+            variant="tertiary"
+            aria-controls="campaign-announcement"
+            aria-expanded={announcementExpanded}
+            onClick={() => setAnnouncementExpanded((current) => !current)}
+          >
+            {announcementExpanded ? '收合開團資訊' : '展開完整開團資訊'}
+          </Button>
+        )}
+      </article>
+
       {currentResident ? <section className="panel order-panel" aria-labelledby="order-heading">
         <div className="section-heading">
           <div>
@@ -348,37 +379,6 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
           <p className="privacy-note">住戶資料只用於辨識訂單；每個期別與戶號只能綁定一個帳號。</p>
         </section>
       )}
-
-      <article className="panel campaign-post" aria-labelledby="campaign-post-heading">
-        <div className="post-heading">
-          <div>
-            <p className="section-kicker">團主公告</p>
-            <h2 id="campaign-post-heading">開團資訊</h2>
-          </div>
-          <span className="organizer-badge">團主提供</span>
-        </div>
-
-        <div className="campaign-gallery" aria-label="團購圖片">
-          {publishedCampaign.images.map((image) => (
-            <img key={image.src} src={image.src} alt={image.alt} loading="eager" />
-          ))}
-        </div>
-        <div
-          id="campaign-announcement"
-          className={`campaign-copy${hasLongAnnouncement && !announcementExpanded ? ' is-collapsed' : ''}`}
-        ><LinkifiedText text={publishedCampaign.announcement} /></div>
-        {hasLongAnnouncement && (
-          <Button
-            className="announcement-toggle"
-            variant="tertiary"
-            aria-controls="campaign-announcement"
-            aria-expanded={announcementExpanded}
-            onClick={() => setAnnouncementExpanded((current) => !current)}
-          >
-            {announcementExpanded ? '收合開團資訊' : '展開完整開團資訊'}
-          </Button>
-        )}
-      </article>
 
       <section className="panel wall-panel" aria-labelledby="wall-heading">
         <div className="section-heading compact">
