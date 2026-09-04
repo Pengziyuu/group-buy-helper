@@ -59,8 +59,32 @@
 .admin-workflow-bar > div:first-child { display: grid; gap: 3px; }
 .admin-workflow-bar span { color: var(--admin-muted); font-size: 11px; font-weight: 750; }
 .admin-workflow-bar strong { font-size: 18px; }
-.admin-workflow-actions { display: flex; gap: 8px; }
-.admin-workflow-actions button { min-height: 38px; padding: 0 14px; }
+.admin-workflow-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.admin-workflow-actions .workflow-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--admin-blue);
+  border-radius: 9px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background-color .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+.workflow-action-primary { background: var(--admin-blue); color: #fff; }
+.workflow-action-secondary { background: #fff; color: var(--admin-blue); }
+.workflow-action-icon { font-size: 18px; font-weight: 800; line-height: 1; }
+.workflow-action-primary:hover:not(:disabled) { border-color: #0e65aa; background: #0e65aa; transform: translateY(-1px); }
+.workflow-action-secondary:hover:not(:disabled) { background: #e8f2fb; transform: translateY(-1px); }
+.admin-workflow-actions .workflow-action:focus-visible {
+  outline: 3px solid rgb(22 119 200 / 25%);
+  outline-offset: 2px;
+}
+.admin-workflow-actions .workflow-action:disabled { opacity: .55; cursor: wait; transform: none; }
 
 .admin-fulfillment-metrics {
   display: flex;

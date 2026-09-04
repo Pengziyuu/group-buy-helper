@@ -96,18 +96,21 @@ function AdminOrdersPanel({
             <div className="admin-workflow-actions">
               <button
                 type="button"
+                className="workflow-action workflow-action-secondary"
                 disabled={busyKeys.has('campaign')}
                 onClick={() => run('campaign', () => onSetCampaignStatus(statusAction.next))}
               >
+                <span className="workflow-action-icon" aria-hidden="true">↻</span>
                 {statusAction.label}
               </button>
               {campaignStatus === 'closed' && (
                 <button
                   type="button"
-                  className="secondary-action"
+                  className="workflow-action workflow-action-primary"
                   disabled={busyKeys.has('campaign')}
                   onClick={() => run('campaign', () => onSetCampaignStatus('arrived'))}
                 >
+                  <span className="workflow-action-icon" aria-hidden="true">✓</span>
                   標記到貨
                 </button>
               )}
