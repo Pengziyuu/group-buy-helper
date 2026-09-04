@@ -79,20 +79,23 @@ describe('organizer campaign list', () => {
       />,
     )
 
+    await user.click(screen.getByLabelText('更多操作 冰餅團', { selector: 'summary' }))
     await user.click(screen.getByRole('button', { name: '複製住戶連結 冰餅團' }))
     expect(onCopyResidentLink).toHaveBeenCalledWith('/campaign/open-slug')
     expect(await screen.findByRole('status')).toHaveTextContent('已複製冰餅團住戶連結')
     expect(screen.queryByRole('button', { name: '複製住戶連結 新草稿' })).not.toBeInTheDocument()
   })
 
-  it('shows drafts and published campaigns with safe resident links', () => {
+  it('shows drafts and published campaigns with safe resident links', async () => {
+    const user = userEvent.setup()
     render(<CampaignListApp campaigns={campaigns} onCreate={vi.fn()} />)
 
     expect(screen.getByRole('heading', { name: '我的團購' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '編輯 新草稿' })).toHaveAttribute('href', '/admin/campaign/draft-id')
+    expect(screen.getByRole('link', { name: '管理團購 新草稿' })).toHaveAttribute('href', '/admin/campaign/draft-id')
     expect(screen.getByText('尚未開團')).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: '住戶連結 新草稿' })).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '住戶連結 冰餅團' })).toHaveAttribute('href', '/campaign/open-slug')
+    expect(screen.queryByRole('link', { name: '查看住戶頁 新草稿' })).not.toBeInTheDocument()
+    await user.click(screen.getByLabelText('更多操作 冰餅團', { selector: 'summary' }))
+    expect(screen.getByRole('link', { name: '查看住戶頁 冰餅團' })).toHaveAttribute('href', '/campaign/open-slug')
   })
 
   it('requires explicit confirmation before permanently deleting a campaign', async () => {
@@ -100,6 +103,7 @@ describe('organizer campaign list', () => {
     const onDelete = vi.fn().mockResolvedValue(undefined)
     render(<CampaignListApp campaigns={campaigns} onCreate={vi.fn()} onDelete={onDelete} />)
 
+    await user.click(screen.getByLabelText('更多操作 冰餅團', { selector: 'summary' }))
     await user.click(screen.getByRole('button', { name: '刪除 冰餅團' }))
     expect(onDelete).not.toHaveBeenCalled()
     expect(screen.getByRole('dialog', { name: '確認刪除團購' })).toHaveTextContent('冰餅團')
@@ -109,6 +113,7 @@ describe('organizer campaign list', () => {
     expect(onDelete).not.toHaveBeenCalled()
     expect(screen.queryByRole('dialog', { name: '確認刪除團購' })).not.toBeInTheDocument()
 
+    await user.click(screen.getByLabelText('更多操作 冰餅團', { selector: 'summary' }))
     await user.click(screen.getByRole('button', { name: '刪除 冰餅團' }))
     await user.click(screen.getByRole('button', { name: '確認永久刪除' }))
 
@@ -121,6 +126,7 @@ describe('organizer campaign list', () => {
     const onDelete = vi.fn().mockRejectedValue(new Error('刪除團購失敗：permission denied'))
     render(<CampaignListApp campaigns={campaigns} onCreate={vi.fn()} onDelete={onDelete} />)
 
+    await user.click(screen.getByLabelText('更多操作 冰餅團', { selector: 'summary' }))
     await user.click(screen.getByRole('button', { name: '刪除 冰餅團' }))
     await user.click(screen.getByRole('button', { name: '確認永久刪除' }))
 

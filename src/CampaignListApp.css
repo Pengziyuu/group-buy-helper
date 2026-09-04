@@ -14,7 +14,7 @@
 .campaign-create-card > div { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .campaign-list-actions :is(a, button),
 .campaign-create-card button,
-.campaign-list-card-actions :is(a, button) { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 8px 14px; border: 1px solid var(--color-primary-hover); border-radius: var(--radius-control); background: var(--color-primary); color: var(--color-on-primary); font: inherit; font-size: 14px; font-weight: 650; text-decoration: none; cursor: pointer; }
+.campaign-list-card-actions > a { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 8px 14px; border: 1px solid var(--color-primary-hover); border-radius: var(--radius-control); background: var(--color-primary); color: var(--color-on-primary); font: inherit; font-size: 14px; font-weight: 650; text-decoration: none; cursor: pointer; }
 .campaign-list-actions .secondary-action,
 .campaign-create-card .secondary-action,
 .campaign-list-card-actions .resident-share-link,
@@ -23,10 +23,63 @@
 .campaign-list-actions .secondary-action:hover { background: var(--color-primary-subtle); color: var(--color-primary); }
 .campaign-list-actions :is(a, button):focus-visible { outline: 3px solid color-mix(in srgb, var(--color-primary) 24%, transparent); outline-offset: 2px; }
 .campaign-action-icon { font-size: 17px; line-height: 1; }
-.campaign-list-card-actions .danger-link { margin-left: auto; border-color: var(--color-danger); background: transparent; color: var(--color-danger); }
+.campaign-overflow { position: relative; }
+.campaign-overflow > summary {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  list-style: none;
+}
+.campaign-overflow > summary::-webkit-details-marker { display: none; }
+.campaign-overflow > summary span { font-size: 24px; font-weight: 750; line-height: 1; transform: translateY(-3px); }
+.campaign-overflow > summary:hover,
+.campaign-overflow[open] > summary { border-color: var(--color-primary); background: var(--color-primary-subtle); color: var(--color-primary); }
+.campaign-overflow > summary:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-primary) 24%, transparent); outline-offset: 2px; }
+.campaign-overflow-menu {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 6px);
+  right: 0;
+  width: max-content;
+  min-width: 190px;
+  display: grid;
+  padding: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  box-shadow: 0 12px 30px rgb(24 39 55 / 16%);
+}
+.campaign-overflow-menu :is(a, button) {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.campaign-overflow-menu :is(a, button):hover { background: var(--color-surface-subtle); }
+.campaign-overflow-menu :is(a, button):focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+.campaign-overflow-menu .danger-link { color: var(--color-danger); }
+.campaign-overflow-menu button:disabled { color: var(--color-disabled-text); cursor: wait; }
 .campaign-list-actions button:disabled,
 .campaign-create-card button:disabled,
-.campaign-list-card-actions button:disabled { background: var(--color-disabled-bg); color: var(--color-disabled-text); cursor: not-allowed; }
+.campaign-list-card-actions > button:disabled { background: var(--color-disabled-bg); color: var(--color-disabled-text); cursor: not-allowed; }
 
 .campaign-section-nav { display: flex; gap: var(--space-1); margin-bottom: var(--space-5); overflow-x: auto; border-bottom: 1px solid var(--color-border); }
 .campaign-section-nav button { min-height: 44px; margin-bottom: 6px; padding: 0 var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-text-secondary); font: inherit; font-size: 14px; cursor: pointer; white-space: nowrap; }
@@ -67,8 +120,7 @@
   .campaign-list-card > p,
   .campaign-list-card-actions { grid-column: 1; grid-row: auto; max-width: none; }
   .campaign-list-card-actions { justify-content: flex-start; }
-  .campaign-list-card-actions :is(a, button) { flex: 1 1 120px; }
-  .campaign-list-card-actions .danger-link { flex: 0 0 auto; margin-left: 0; }
+  .campaign-list-card-actions > a { flex: 1 1 120px; }
 }
 
 @media (min-width: 768px) {

@@ -207,19 +207,40 @@ export default function CampaignListApp({ campaigns, onCreate, onDelete, onNavig
             </div>
             <p>{campaign.openedAt ? `開團時間 ${formatZhTwTimestamp(campaign.openedAt)}` : '草稿會自動暫存，住戶目前看不到。'}</p>
             <div className="campaign-list-card-actions">
-              <a href={`/admin/campaign/${campaign.id}`} aria-label={`編輯 ${campaign.title}`}>編輯團購</a>
-              {campaign.openedAt && (
-                <>
-                  <a className="resident-share-link" href={`/campaign/${campaign.slug}`} aria-label={`住戶連結 ${campaign.title}`} target="_blank" rel="noreferrer">住戶連結 ↗</a>
-                  <button type="button" className="copy-link-action" aria-label={`複製住戶連結 ${campaign.title}`} disabled={Boolean(copyingCampaignId)} onClick={() => { void copyResidentLink(campaign) }}>
-                    {copyingCampaignId === campaign.id ? '複製中…' : '複製連結'}
-                  </button>
-                </>
-              )}
-              {onDelete && (
-                <button type="button" className="danger-link" aria-label={`刪除 ${campaign.title}`} onClick={() => { setDeleteError(''); setDeleteTarget(campaign) }}>
-                  刪除團購
-                </button>
+              <a className="campaign-primary-action" href={`/admin/campaign/${campaign.id}`} aria-label={`管理團購 ${campaign.title}`}>管理團購</a>
+              {(campaign.openedAt || onDelete) && (
+                <details className="campaign-overflow" aria-label={`更多操作 ${campaign.title}`}>
+                  <summary aria-label={`更多操作 ${campaign.title}`}>
+                    <span aria-hidden="true">⋯</span>
+                  </summary>
+                  <div className="campaign-overflow-menu">
+                    {campaign.openedAt && (
+                      <>
+                        <a href={`/campaign/${campaign.slug}`} aria-label={`查看住戶頁 ${campaign.title}`} target="_blank" rel="noreferrer">
+                          <span aria-hidden="true">↗</span>
+                          查看住戶頁
+                        </a>
+                        <button type="button" aria-label={`複製住戶連結 ${campaign.title}`} disabled={Boolean(copyingCampaignId)} onClick={(event) => {
+                          event.currentTarget.closest('details')?.removeAttribute('open')
+                          void copyResidentLink(campaign)
+                        }}>
+                          <span aria-hidden="true">⧉</span>
+                          {copyingCampaignId === campaign.id ? '複製中…' : '複製住戶連結'}
+                        </button>
+                      </>
+                    )}
+                    {onDelete && (
+                      <button type="button" className="danger-link" aria-label={`刪除 ${campaign.title}`} onClick={(event) => {
+                        event.currentTarget.closest('details')?.removeAttribute('open')
+                        setDeleteError('')
+                        setDeleteTarget(campaign)
+                      }}>
+                        <span aria-hidden="true">×</span>
+                        刪除團購
+                      </button>
+                    )}
+                  </div>
+                </details>
               )}
             </div>
           </article>
