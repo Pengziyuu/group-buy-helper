@@ -182,8 +182,16 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
   return (
     <main className="app-shell">
       <nav className="resident-detail-nav" aria-label="團購頁面導覽">
-        <a href="/" aria-label="回到全部開團">← 回到全部開團</a>
-        {currentResident && <a href="#order-heading">前往我的訂單</a>}
+        <a className="resident-nav-action resident-nav-secondary" href="/" aria-label="回到全部開團">
+          <span aria-hidden="true">←</span>
+          回到全部開團
+        </a>
+        {currentResident && (
+          <a className="resident-nav-action resident-nav-primary" href="#order-heading">
+            <span aria-hidden="true">↓</span>
+            前往我的訂單
+          </a>
+        )}
       </nav>
       {syncError && (
         <FeedbackMessage

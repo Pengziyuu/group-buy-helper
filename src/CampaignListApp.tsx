@@ -130,7 +130,10 @@ export default function CampaignListApp({ campaigns, onCreate, onDelete, onNavig
           <p>建立新團、管理進行中團購，也能回看過去團購。</p>
         </div>
         <div className="campaign-list-actions">
-          <a className="secondary-action" href="/admin/notification-lab">通知測試中心</a>
+          <a className="secondary-action" href="/admin/notification-lab">
+            <span className="campaign-action-icon" aria-hidden="true">⚗</span>
+            通知測試中心
+          </a>
           <button type="button" onClick={() => setCreating(true)}>新增團購</button>
           {onSignOut && <button type="button" className="secondary-action" onClick={() => { void onSignOut() }}>登出</button>}
         </div>
