@@ -26,6 +26,7 @@ import { QuantityControl } from './components/ui/QuantityControl'
 import { StickyActionBar } from './components/ui/StickyActionBar'
 import { FeedbackMessage } from './components/ui/FeedbackMessage'
 import { ProgressBar } from './components/ui/ProgressBar'
+import LinkifiedText from './components/LinkifiedText'
 
 const defaultContent: CampaignContent = {
   title: campaign.title,
@@ -349,7 +350,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
         <div
           id="campaign-announcement"
           className={`campaign-copy${hasLongAnnouncement && !announcementExpanded ? ' is-collapsed' : ''}`}
-        >{publishedCampaign.announcement}</div>
+        ><LinkifiedText text={publishedCampaign.announcement} /></div>
         {hasLongAnnouncement && (
           <Button
             className="announcement-toggle"

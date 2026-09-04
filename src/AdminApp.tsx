@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import './AdminApp.css'
 import AdminOrdersPanel, { type FulfillmentUpdate } from './AdminOrdersPanel'
+import LinkifiedText from './components/LinkifiedText'
 import { campaign, initialOrders, items } from './data/demo'
 import { buildOrganizerOrderSummary, type OrganizerOrderSummary } from './domain/adminOrders'
 import type { PickupNotificationAudience } from './domain/pickupNotification'
@@ -567,7 +568,9 @@ function AdminApp({
                 <img key={`${image.src}-${index}`} src={image.src} alt={image.alt} />
               ))}
             </div>
-            <p id="resident-preview-announcement" className={`preview-copy ${previewExpanded ? 'is-expanded' : 'is-collapsed'}`}>{announcement}</p>
+            <p id="resident-preview-announcement" className={`preview-copy ${previewExpanded ? 'is-expanded' : 'is-collapsed'}`}>
+              <LinkifiedText text={announcement} />
+            </p>
           </article>
         </section>
         </div>

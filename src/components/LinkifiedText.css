@@ -1,0 +1,15 @@
+.inline-content-link {
+  color: var(--color-primary);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
+
+.inline-content-link:hover { color: var(--color-primary-hover); }
+.inline-content-link:focus-visible {
+  border-radius: 3px;
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 24%, transparent);
+  outline-offset: 2px;
+}
