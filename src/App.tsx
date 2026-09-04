@@ -252,6 +252,9 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
             <img key={image.src} src={image.src} alt={image.alt} loading="eager" />
           ))}
         </div>
+        {publishedCampaign.images.length > 1 && (
+          <p className="campaign-gallery-hint">← 左右滑動查看 {publishedCampaign.images.length} 張圖片 →</p>
+        )}
         <div
           id="campaign-announcement"
           className={`campaign-copy${hasLongAnnouncement && !announcementExpanded ? ' is-collapsed' : ''}`}

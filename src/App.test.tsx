@@ -33,12 +33,20 @@ describe('customer campaign app', () => {
   })
 
   it('shows the organizer announcement and campaign image above ordering', () => {
-    render(<App />)
+    const { rerender } = render(<App />)
 
     expect(screen.getByText(/🌞炎炎夏日 #冰品最佳首選🧊🍦/)).toBeInTheDocument()
     expect(screen.getByText(/🉐🉐美味代購價一個\$４５元🉐🉐/)).toBeInTheDocument()
     expect(screen.getByText(/保存期限:冷凍約三個月/)).toBeInTheDocument()
     expect(screen.getByRole('img', { name: '超厚三明治冰餅口味示意圖' })).toBeInTheDocument()
+    expect(screen.queryByText(/左右滑動查看/u)).not.toBeInTheDocument()
+
+    rerender(<App publishedContent={{
+      title: '多圖團購', unitPrice: 45, threshold: 10, announcement: '多圖公告', items,
+      images: [{ src: '/one.jpg', alt: '第一張' }, { src: '/two.jpg', alt: '第二張' }],
+      openedAt: '2026-08-14T00:05:09.000Z',
+    }} />)
+    expect(screen.getByText('← 左右滑動查看 2 張圖片 →')).toBeInTheDocument()
   })
 
   it('provides in-app navigation and lets residents expand a long announcement', async () => {
