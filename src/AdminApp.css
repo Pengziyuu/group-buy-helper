@@ -75,6 +75,14 @@
 .field textarea { resize: vertical; line-height: 1.6; }
 .field input:focus, .field textarea:focus { border-color: var(--admin-blue); box-shadow: 0 0 0 3px rgba(22, 119, 200, .12); }
 .field small { justify-self: end; color: var(--admin-muted); font-size: 11px; }
+.threshold-fieldset { min-width: 0; margin: 0; padding: 12px; border: 1px solid #d7d4cf; border-radius: 10px; }
+.threshold-fieldset legend { padding: 0 5px; font-size: 13px; font-weight: 750; }
+.threshold-kind-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.threshold-kind-options label { display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 8px 10px; border: 1px solid #d7d4cf; border-radius: 9px; background: #fff; font-size: 13px; font-weight: 700; }
+.threshold-kind-options input { width: auto; margin: 0; }
+.threshold-value-field { display: grid; gap: 7px; margin-top: 10px; }
+.threshold-value-field > span { font-size: 13px; font-weight: 750; }
+.threshold-value-field small { justify-self: start; line-height: 1.45; }
 .image-editor { padding-top: 4px; }
 .image-editor-heading { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
 .image-editor-heading h3 { margin: 0; font-size: 16px; }

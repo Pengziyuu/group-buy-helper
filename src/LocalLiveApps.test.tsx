@@ -269,6 +269,52 @@ describe('local Supabase visual demo apps', () => {
     expect(repository.loadOptionalPublished).toHaveBeenCalledWith('new-campaign')
   })
 
+  it('uses the published threshold for the organizer order summary while a different draft is pending', async () => {
+    const user = userEvent.setup()
+    const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
+    const { client } = authClient(session)
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalDraft: vi.fn().mockResolvedValue({
+        ...published,
+        threshold: 1,
+        thresholdKind: 'amount',
+        amountThreshold: 9999,
+      }),
+      saveDraft: vi.fn(),
+      publish: vi.fn(),
+    }
+    const workflowRepository = ordersRepository()
+
+    render(
+      <LocalLiveAdminApp
+        client={client}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={workflowRepository}
+      />,
+    )
+
+    expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+    expect(workflowRepository.loadSummary).toHaveBeenCalledWith(
+      'campaign-1',
+      published.threshold,
+      published.thresholdKind,
+      published.amountThreshold,
+    )
+
+    await user.click(screen.getByRole('tab', { name: '訂單管理' }))
+    await user.click(screen.getByRole('button', { name: '標記 H11 已付款' }))
+    await waitFor(() => expect(workflowRepository.loadSummary).toHaveBeenCalledTimes(2))
+    expect(workflowRepository.loadSummary).toHaveBeenLastCalledWith(
+      'campaign-1',
+      published.threshold,
+      published.thresholdKind,
+      published.amountThreshold,
+    )
+  })
+
   it('uses LINE instead of email and shows a safe organizer approval code', async () => {
     const user = userEvent.setup()
     const { client } = authClient()

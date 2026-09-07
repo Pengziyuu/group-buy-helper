@@ -51,6 +51,7 @@ export type Database = {
       }
       campaign: {
         Row: {
+          amount_threshold: number | null
           announcement: string
           community_id: string
           created_at: string
@@ -62,11 +63,13 @@ export type Database = {
           slug: string
           status: string
           threshold: number
+          threshold_kind: string
           title: string
           unit_price: number
           updated_at: string
         }
         Insert: {
+          amount_threshold?: number | null
           announcement?: string
           community_id?: string
           created_at?: string
@@ -78,11 +81,13 @@ export type Database = {
           slug?: string
           status?: string
           threshold: number
+          threshold_kind?: string
           title: string
           unit_price: number
           updated_at?: string
         }
         Update: {
+          amount_threshold?: number | null
           announcement?: string
           community_id?: string
           created_at?: string
@@ -94,6 +99,7 @@ export type Database = {
           slug?: string
           status?: string
           threshold?: number
+          threshold_kind?: string
           title?: string
           unit_price?: number
           updated_at?: string
@@ -150,36 +156,42 @@ export type Database = {
       }
       campaign_draft: {
         Row: {
+          amount_threshold: number | null
           announcement: string
           campaign_id: string
           created_at: string
           images: Json
           items: Json
           threshold: number
+          threshold_kind: string
           title: string
           unit_price: number
           updated_at: string
           updated_by: string | null
         }
         Insert: {
+          amount_threshold?: number | null
           announcement?: string
           campaign_id: string
           created_at?: string
           images?: Json
           items?: Json
           threshold: number
+          threshold_kind?: string
           title: string
           unit_price: number
           updated_at?: string
           updated_by?: string | null
         }
         Update: {
+          amount_threshold?: number | null
           announcement?: string
           campaign_id?: string
           created_at?: string
           images?: Json
           items?: Json
           threshold?: number
+          threshold_kind?: string
           title?: string
           unit_price?: number
           updated_at?: string
@@ -872,6 +884,7 @@ export type Database = {
       }
       campaign_public: {
         Row: {
+          amount_threshold: number | null
           announcement: string | null
           created_at: string | null
           deadline: string | null
@@ -882,11 +895,13 @@ export type Database = {
           slug: string | null
           status: string | null
           threshold: number | null
+          threshold_kind: string | null
           title: string | null
           unit_price: number | null
           updated_at: string | null
         }
         Insert: {
+          amount_threshold?: number | null
           announcement?: string | null
           created_at?: string | null
           deadline?: string | null
@@ -897,11 +912,13 @@ export type Database = {
           slug?: string | null
           status?: string | null
           threshold?: number | null
+          threshold_kind?: string | null
           title?: string | null
           unit_price?: number | null
           updated_at?: string | null
         }
         Update: {
+          amount_threshold?: number | null
           announcement?: string | null
           created_at?: string | null
           deadline?: string | null
@@ -912,6 +929,7 @@ export type Database = {
           slug?: string | null
           status?: string | null
           threshold?: number | null
+          threshold_kind?: string | null
           title?: string | null
           unit_price?: number | null
           updated_at?: string | null
@@ -1106,6 +1124,7 @@ export type Database = {
       create_campaign_draft: {
         Args: { p_title?: string }
         Returns: {
+          amount_threshold: number | null
           announcement: string
           community_id: string
           created_at: string
@@ -1117,6 +1136,7 @@ export type Database = {
           slug: string
           status: string
           threshold: number
+          threshold_kind: string
           title: string
           unit_price: number
           updated_at: string
@@ -1261,11 +1281,14 @@ export type Database = {
       list_resident_campaigns: {
         Args: never
         Returns: {
+          amount_threshold: number
           opened_at: string
           slug: string
           status: string
           threshold: number
+          threshold_kind: string
           title: string
+          total_amount: number
           total_quantity: number
           unit_price: number
         }[]
@@ -1318,6 +1341,7 @@ export type Database = {
       publish_campaign_draft: {
         Args: { p_campaign_id: string }
         Returns: {
+          amount_threshold: number | null
           announcement: string
           community_id: string
           created_at: string
@@ -1329,6 +1353,7 @@ export type Database = {
           slug: string
           status: string
           threshold: number
+          threshold_kind: string
           title: string
           unit_price: number
           updated_at: string
@@ -1357,6 +1382,7 @@ export type Database = {
       set_campaign_status: {
         Args: { p_campaign_id: string; p_status: string }
         Returns: {
+          amount_threshold: number | null
           announcement: string
           community_id: string
           created_at: string
@@ -1368,6 +1394,7 @@ export type Database = {
           slug: string
           status: string
           threshold: number
+          threshold_kind: string
           title: string
           unit_price: number
           updated_at: string

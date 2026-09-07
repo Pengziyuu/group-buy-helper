@@ -18,10 +18,15 @@ export type CampaignSummary = {
   formed: boolean
 }
 
+export type CampaignThreshold = number | {
+  kind: 'quantity' | 'amount'
+  target: number
+}
+
 export function summarizeCampaign(
   orders: Order[],
   items: PricedCampaignItem[],
-  threshold: number,
+  thresholdConfig: CampaignThreshold,
 ): CampaignSummary {
   const itemTotals: Record<string, number> = {}
 
@@ -42,14 +47,16 @@ export function summarizeCampaign(
     if (unitPrice === undefined) throw new Error(`找不到品項 ${code} 的價格`)
     return sum + itemQuantity * unitPrice
   }, 0)
+  const threshold = typeof thresholdConfig === 'number' ? thresholdConfig : thresholdConfig.target
+  const current = typeof thresholdConfig === 'object' && thresholdConfig.kind === 'amount' ? amount : quantity
 
   return {
     itemTotals: sortedTotals,
     quantity,
     amount,
     threshold,
-    remaining: Math.max(0, threshold - quantity),
-    progressPercent: Math.min(100, Math.round((quantity / threshold) * 100)),
-    formed: quantity >= threshold,
+    remaining: Math.max(0, threshold - current),
+    progressPercent: Math.min(100, Math.round((current / threshold) * 100)),
+    formed: current >= threshold,
   }
 }

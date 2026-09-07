@@ -62,7 +62,7 @@ export type LiveAdminRepository = {
 
 export type LiveAdminOrdersRepository = {
   loadCampaignStatus(campaignId: string): Promise<CampaignStatus>
-  loadSummary(campaignId: string, threshold: number): Promise<OrganizerOrderSummary>
+  loadSummary(campaignId: string, threshold: number, thresholdKind?: 'quantity' | 'amount', amountThreshold?: number | null): Promise<OrganizerOrderSummary>
   setCampaignStatus(campaignId: string, status: CampaignStatus): Promise<void>
   setOrderFulfillment(orderId: string, update: FulfillmentUpdate): Promise<void>
 }
@@ -112,6 +112,8 @@ type CampaignRow = {
   title: unknown
   unit_price: unknown
   threshold: unknown
+  threshold_kind?: unknown
+  amount_threshold?: unknown
   announcement: unknown
   images: unknown
   items: unknown
@@ -280,6 +282,8 @@ function campaignContentFromRow(row: CampaignRow | null): CampaignContent {
     title: row.title,
     unitPrice: row.unit_price,
     threshold: row.threshold,
+    thresholdKind: row.threshold_kind === 'amount' ? 'amount' : 'quantity',
+    amountThreshold: row.threshold_kind === 'amount' && typeof row.amount_threshold === 'number' ? row.amount_threshold : null,
     announcement: row.announcement,
     images: row.images,
     items: row.items as CampaignContent['items'],
@@ -388,6 +392,7 @@ export function LocalLiveAdminApp({
   const validatedOrganizerId = useRef<string | null>(null)
   const [session, setSession] = useState<Session | null | undefined>(undefined)
   const [content, setContent] = useState<CampaignContent | null>(null)
+  const [publishedContent, setPublishedContent] = useState<CampaignContent | null>(null)
   const [orderSummary, setOrderSummary] = useState<OrganizerOrderSummary | null>(null)
   const [campaignStatus, setCampaignStatus] = useState<CampaignStatus | null>(null)
   const [campaigns, setCampaigns] = useState<CampaignListItem[] | null>(null)
@@ -605,6 +610,7 @@ export function LocalLiveAdminApp({
     setError('')
     if (!campaignId) {
       setContent(null)
+      setPublishedContent(null)
       setOrderSummary(null)
       setCampaignStatus(null)
       setResidentSlug(null)
@@ -652,10 +658,11 @@ export function LocalLiveAdminApp({
       if (!baseContent) throw new Error('找不到團購草稿')
       const editableContent = draft ? { ...draft, openedAt: published?.openedAt ?? null } : baseContent
       const summary = published
-        ? await ordersGateway.loadSummary(campaignId, editableContent.threshold)
+        ? await ordersGateway.loadSummary(campaignId, published.threshold, published.thresholdKind, published.amountThreshold)
         : null
       if (!active) return
       setContent(editableContent)
+      setPublishedContent(published)
       setOrderSummary(summary)
       setCampaignStatus(status)
       setResidentSlug(loadedResidentSlug)
@@ -836,7 +843,14 @@ export function LocalLiveAdminApp({
       }}
       onSetOrderFulfillment={async (orderId, update) => {
         await ordersGateway.setOrderFulfillment(orderId, update)
-        setOrderSummary(await ordersGateway.loadSummary(campaignId, content.threshold))
+        if (publishedContent) {
+          setOrderSummary(await ordersGateway.loadSummary(
+            campaignId,
+            publishedContent.threshold,
+            publishedContent.thresholdKind,
+            publishedContent.amountThreshold,
+          ))
+        }
       }}
       onSaveDraft={async (nextContent) => {
         await gateway.saveDraft(campaignId, nextContent)
@@ -845,8 +859,9 @@ export function LocalLiveAdminApp({
         await gateway.saveDraft(campaignId, nextContent)
         const published = await gateway.publish(campaignId)
         setContent(published)
+        setPublishedContent(published)
         setResidentSlug(await gateway.loadResidentSlug?.(campaignId) ?? null)
-        setOrderSummary(await ordersGateway.loadSummary(campaignId, published.threshold))
+        setOrderSummary(await ordersGateway.loadSummary(campaignId, published.threshold, published.thresholdKind, published.amountThreshold))
         return published
       }}
       onSignOut={async () => {
@@ -869,7 +884,7 @@ function residentCampaignListRepository(client: SupabaseClient<Database>): LiveR
       if (error) throw error
       return (data ?? []).flatMap((row) => {
         if (!row.slug || !row.title || !row.status || !row.opened_at || row.unit_price === null
-          || row.threshold === null || row.total_quantity === null) return []
+          || row.threshold === null || row.total_quantity === null || row.total_amount === null) return []
         if (!['open', 'closed', 'arrived'].includes(row.status)) return []
         return [{
           slug: row.slug,
@@ -878,7 +893,10 @@ function residentCampaignListRepository(client: SupabaseClient<Database>): LiveR
           unitPrice: Number(row.unit_price),
           openedAt: row.opened_at,
           totalQuantity: Number(row.total_quantity),
+          totalAmount: Number(row.total_amount),
           threshold: row.threshold,
+          thresholdKind: row.threshold_kind === 'amount' ? 'amount' : 'quantity',
+          amountThreshold: row.amount_threshold === null ? null : Number(row.amount_threshold),
         }]
       })
     },
@@ -991,7 +1009,7 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug }: Loca
       if (!resolvedCampaignId) throw new Error('找不到團購活動')
       const { data, error: queryError } = await client
         .from('campaign_public')
-        .select('title,unit_price,threshold,announcement,images,items,opened_at,status')
+        .select('title,unit_price,threshold,threshold_kind,amount_threshold,announcement,images,items,opened_at,status')
         .eq('id', resolvedCampaignId)
         .single()
       if (queryError) throw queryError

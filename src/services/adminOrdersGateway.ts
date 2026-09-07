@@ -68,6 +68,8 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
     async loadSummary(
       campaignId: string,
       threshold: number,
+      thresholdKind: 'quantity' | 'amount' = 'quantity',
+      amountThreshold: number | null = null,
     ): Promise<OrganizerOrderSummary> {
       const [itemResult, wallResult, statusResult] = await Promise.all([
         client
@@ -133,6 +135,8 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
         orders: [...ordersById.values()],
         items,
         threshold,
+        thresholdKind,
+        amountThreshold,
       })
     },
 

@@ -123,7 +123,7 @@ function AdminOrdersPanel({
         <article><span>參加戶數</span><strong>{summary.householdCount} 戶</strong></article>
         <article><span>總訂購量</span><strong>{summary.quantity} 個</strong></article>
         <article><span>預估總額</span><strong>{currency(summary.amount)}</strong></article>
-        <article><span>成團門檻</span><strong>{summary.threshold} 個</strong></article>
+        <article><span>成團門檻</span><strong>{summary.thresholdKind === 'amount' ? currency(summary.threshold) : `${summary.threshold} 個`}</strong></article>
       </div>
 
       {campaignStatus && (
@@ -136,7 +136,9 @@ function AdminOrdersPanel({
       )}
 
       <div className="admin-progress" aria-label="團主成團進度">
-        <div><strong>{summary.quantity} / {summary.threshold}</strong><span>{summary.progressPercent}%</span></div>
+        <div><strong>{summary.thresholdKind === 'amount'
+          ? `${currency(summary.amount)} / ${currency(summary.threshold)}`
+          : `${summary.quantity} / ${summary.threshold}`}</strong><span>{summary.progressPercent}%</span></div>
         <div className="admin-progress-track"><span style={{ width: `${summary.progressPercent}%` }} /></div>
       </div>
 

@@ -10,10 +10,14 @@ export type CampaignItem = {
   active: boolean
 }
 
+export type CampaignThresholdKind = 'quantity' | 'amount'
+
 export type CampaignContent = {
   title: string
   unitPrice: number
   threshold: number
+  thresholdKind?: CampaignThresholdKind
+  amountThreshold?: number | null
   announcement: string
   images: CampaignImage[]
   items: CampaignItem[]
@@ -37,6 +41,10 @@ function isCampaignContent(value: unknown): value is CampaignContent {
     && typeof candidate.threshold === 'number'
     && Number.isInteger(candidate.threshold)
     && candidate.threshold > 0
+    && (candidate.thresholdKind === undefined || candidate.thresholdKind === 'quantity' || candidate.thresholdKind === 'amount')
+    && (candidate.amountThreshold === undefined || candidate.amountThreshold === null
+      || (typeof candidate.amountThreshold === 'number' && Number.isFinite(candidate.amountThreshold) && candidate.amountThreshold > 0))
+    && (candidate.thresholdKind !== 'amount' || (typeof candidate.amountThreshold === 'number' && candidate.amountThreshold > 0))
     && typeof candidate.announcement === 'string'
     && candidate.announcement.length <= 20_000
     && Array.isArray(candidate.images)
@@ -96,6 +104,8 @@ export function campaignContentEquals(left: CampaignContent, right: CampaignCont
   return left.title === right.title
     && left.unitPrice === right.unitPrice
     && left.threshold === right.threshold
+    && (left.thresholdKind ?? 'quantity') === (right.thresholdKind ?? 'quantity')
+    && (left.amountThreshold ?? null) === (right.amountThreshold ?? null)
     && left.announcement === right.announcement
     && left.images.length === right.images.length
     && left.images.every((image, index) => image.src === right.images[index]?.src && image.alt === right.images[index]?.alt)

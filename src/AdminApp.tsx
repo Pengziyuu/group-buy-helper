@@ -84,6 +84,9 @@ function AdminApp({
   const [title, setTitle] = useState(initialDraft.title)
   const [threshold, setThreshold] = useState(initialDraft.threshold)
   const [thresholdInput, setThresholdInput] = useState(String(initialDraft.threshold))
+  const [thresholdKind, setThresholdKind] = useState<'quantity' | 'amount'>(initialDraft.thresholdKind ?? 'quantity')
+  const [amountThreshold, setAmountThreshold] = useState(initialDraft.amountThreshold ?? Math.max(1, initialDraft.threshold * initialDraft.unitPrice))
+  const [amountThresholdInput, setAmountThresholdInput] = useState(String(initialDraft.amountThreshold ?? Math.max(1, initialDraft.threshold * initialDraft.unitPrice)))
   const [announcement, setAnnouncement] = useState(initialDraft.announcement)
   const [images, setImages] = useState(() => [...initialDraft.images])
   const [campaignItems, setCampaignItems] = useState(() => initialDraft.items.map((item) => ({ ...item })))
@@ -122,13 +125,18 @@ function AdminApp({
   const maximumItemPrice = activeItemPrices.length > 0 ? Math.max(...activeItemPrices) : 0
   const itemPricesValid = campaignItems.every((item) => Number.isFinite(item.unitPrice) && (item.unitPrice ?? -1) >= 0)
   const thresholdInputValid = /^\d+$/.test(thresholdInput) && Number(thresholdInput) >= 1
-  const numericInputsValid = itemPricesValid && thresholdInputValid
+  const amountThresholdInputValid = /^\d+(?:\.\d{0,2})?$/.test(amountThresholdInput)
+    && Number(amountThresholdInput) > 0
+    && Number(amountThresholdInput) <= 999999999999.99
+  const numericInputsValid = itemPricesValid && (thresholdKind === 'quantity' ? thresholdInputValid : amountThresholdInputValid)
   const resolvedOrderSummary = orderSummary === undefined ? demoOrderSummary : orderSummary
 
   const currentContent = (): CampaignContent => ({
     title,
     unitPrice,
     threshold,
+    thresholdKind,
+    amountThreshold: thresholdKind === 'amount' ? amountThreshold : null,
     announcement,
     images,
     items: campaignItems,
@@ -154,6 +162,8 @@ function AdminApp({
         title,
         unitPrice,
         threshold,
+        thresholdKind,
+        amountThreshold: thresholdKind === 'amount' ? amountThreshold : null,
         announcement,
         images,
         items: campaignItems,
@@ -181,7 +191,7 @@ function AdminApp({
       })
     }, delay)
     return () => window.clearTimeout(timer)
-  }, [announcement, autoSaveCycle, campaignItems, draftRevision, editorBusy, images, numericInputsValid, onSaveDraft, openedAt, threshold, title, unitPrice])
+  }, [amountThreshold, announcement, autoSaveCycle, campaignItems, draftRevision, editorBusy, images, numericInputsValid, onSaveDraft, openedAt, threshold, thresholdKind, title, unitPrice])
 
   const retryAutoSave = () => {
     if (autoSaveFailedRevision === null || editorBusy || autoSaveInFlightRef.current) return
@@ -216,6 +226,10 @@ function AdminApp({
         setTitle(canonical.title)
         setThreshold(canonical.threshold)
         setThresholdInput(String(canonical.threshold))
+        setThresholdKind(canonical.thresholdKind ?? 'quantity')
+        const canonicalAmountThreshold = canonical.amountThreshold ?? Math.max(1, canonical.threshold * canonical.unitPrice)
+        setAmountThreshold(canonicalAmountThreshold)
+        setAmountThresholdInput(String(canonicalAmountThreshold))
         setAnnouncement(canonical.announcement)
         setImages([...canonical.images])
         setCampaignItems(canonical.items.map((item) => ({ ...item })))
@@ -370,27 +384,85 @@ function AdminApp({
               <span>團購標題</span>
               <input disabled={editorBusy} value={title} onChange={(event) => { setTitle(event.target.value); markDraft() }} />
             </label>
-            <label className="field">
-              <span>成團門檻</span>
-              <input
-                disabled={editorBusy}
-                type="number"
-                min="1"
-                inputMode="numeric"
-                value={thresholdInput}
-                onChange={(event) => {
-                  const value = event.target.value
-                  setThresholdInput(value)
-                  if (value !== '' && /^\d+$/.test(value) && Number(value) >= 1) {
-                    setThreshold(Number(value))
-                    markDraft()
-                  }
-                }}
-                onBlur={() => {
-                  if (!thresholdInputValid) setThresholdInput(String(threshold))
-                }}
-              />
-            </label>
+            <fieldset className="field threshold-fieldset">
+              <legend>成團門檻</legend>
+              <div className="threshold-kind-options">
+                <label>
+                  <input
+                    type="radio"
+                    name="threshold-kind"
+                    value="quantity"
+                    checked={thresholdKind === 'quantity'}
+                    disabled={editorBusy}
+                    onChange={() => { setThresholdKind('quantity'); markDraft() }}
+                  />
+                  數量
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="threshold-kind"
+                    value="amount"
+                    checked={thresholdKind === 'amount'}
+                    disabled={editorBusy}
+                    onChange={() => { setThresholdKind('amount'); markDraft() }}
+                  />
+                  總金額
+                </label>
+              </div>
+              {thresholdKind === 'quantity' ? (
+                <label className="threshold-value-field">
+                  <span>成團門檻</span>
+                  <input
+                    aria-label="成團門檻"
+                    disabled={editorBusy}
+                    type="number"
+                    min="1"
+                    inputMode="numeric"
+                    value={thresholdInput}
+                    onChange={(event) => {
+                      const value = event.target.value
+                      setThresholdInput(value)
+                      if (value !== '' && /^\d+$/.test(value) && Number(value) >= 1) {
+                        setThreshold(Number(value))
+                        markDraft()
+                      }
+                    }}
+                    onBlur={() => {
+                      if (!thresholdInputValid) setThresholdInput(String(threshold))
+                    }}
+                  />
+                  <small>剛好達標後自動結單，超過門檻的訂單不會送出。</small>
+                </label>
+              ) : (
+                <label className="threshold-value-field">
+                  <span>成團門檻金額</span>
+                  <input
+                    aria-label="成團門檻金額"
+                    disabled={editorBusy}
+                    type="number"
+                    min="0.01"
+                    max="999999999999.99"
+                    step="0.01"
+                    inputMode="decimal"
+                    value={amountThresholdInput}
+                    onChange={(event) => {
+                      const value = event.target.value
+                      if (value !== '' && !/^\d+(?:\.\d{0,2})?$/.test(value)) return
+                      setAmountThresholdInput(value)
+                      if (value !== '' && Number(value) > 0 && Number(value) <= 999999999999.99) {
+                        setAmountThreshold(Number(value))
+                        markDraft()
+                      }
+                    }}
+                    onBlur={() => {
+                      if (!amountThresholdInputValid) setAmountThresholdInput(String(amountThreshold))
+                    }}
+                  />
+                  <small>只顯示成團進度，達到金額後不會自動結單。</small>
+                </label>
+              )}
+            </fieldset>
             <div className="field full-field">
               <label htmlFor="campaign-announcement">開團資訊</label>
               <textarea
@@ -562,7 +634,9 @@ function AdminApp({
               <strong>{unitPrice === maximumItemPrice ? `$${unitPrice}` : `$${unitPrice}～$${maximumItemPrice}`}</strong>
             </div>
             <h2>{title || '未命名團購'}</h2>
-            <p className="preview-threshold">結單：{threshold} 個成團</p>
+            <p className="preview-threshold">{thresholdKind === 'amount'
+              ? `滿 NT$ ${amountThreshold.toLocaleString('zh-TW')} 成團`
+              : `結單：${threshold} 個成團`}</p>
             <div className="preview-images">
               {images.map((image, index) => (
                 <img key={`${image.src}-${index}`} src={image.src} alt={image.alt} />

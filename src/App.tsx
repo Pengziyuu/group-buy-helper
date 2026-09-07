@@ -117,13 +117,17 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
     return () => window.clearTimeout(timer)
   }, [notice])
 
+  const thresholdKind = publishedCampaign.thresholdKind ?? 'quantity'
+  const thresholdTarget = thresholdKind === 'amount'
+    ? (publishedCampaign.amountThreshold ?? publishedCampaign.threshold)
+    : publishedCampaign.threshold
   const summary = useMemo(
     () => summarizeCampaign(
       orders,
       publishedCampaign.items.map((item) => ({ code: item.code, unitPrice: item.unitPrice ?? publishedCampaign.unitPrice })),
-      publishedCampaign.threshold,
+      { kind: thresholdKind, target: thresholdTarget },
     ),
-    [orders, publishedCampaign],
+    [orders, publishedCampaign, thresholdKind, thresholdTarget],
   )
   const draftQuantity = orderQuantity(draft)
   const draftAmount = Object.entries(draft).reduce((sum, [code, quantity]) => {
@@ -139,13 +143,26 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
   const adjust = (code: string, delta: number) => {
     if (!editable) return
     setNotice(null)
+    const currentQuantity = draft[code] ?? 0
+    const nextQuantity = Math.max(0, Math.min(20, currentQuantity + delta))
+    const nextDraftQuantity = draftQuantity - currentQuantity + nextQuantity
+    if (thresholdKind === 'quantity' && delta > 0) {
+      const otherQuantity = Math.max(0, summary.quantity - orderQuantity(savedDraft))
+      const maxOrderQuantity = Math.max(0, publishedCampaign.threshold - otherQuantity)
+      if (nextDraftQuantity > maxOrderQuantity) {
+        setNotice({
+          tone: 'error',
+          text: `此訂單最多可保留 ${maxOrderQuantity} 個，請減少 ${nextDraftQuantity - maxOrderQuantity} 個`,
+        })
+        return
+      }
+    }
     setDraft((current) => {
-      const next = Math.max(0, Math.min(20, (current[code] ?? 0) + delta))
-      if (next === 0) {
+      if (nextQuantity === 0) {
         const { [code]: _removed, ...remaining } = current
         return remaining
       }
-      return { ...current, [code]: next }
+      return { ...current, [code]: nextQuantity }
     })
   }
 
@@ -231,10 +248,21 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
         )}
 
         <div className="progress-copy">
-          <strong>{summary.quantity} / {summary.threshold}</strong>
-          <span>{summary.formed ? '已成團' : `還差 ${summary.remaining} 個成團`}</span>
+          <strong>{thresholdKind === 'amount'
+            ? `NT$ ${summary.amount.toLocaleString('zh-TW')} / NT$ ${summary.threshold.toLocaleString('zh-TW')}`
+            : `${summary.quantity} / ${summary.threshold}`}</strong>
+          <span>{summary.formed
+            ? '已成團'
+            : thresholdKind === 'amount'
+              ? `還差 NT$ ${summary.remaining.toLocaleString('zh-TW')} 成團`
+              : `還差 ${summary.remaining} 個成團`}</span>
         </div>
-        <ProgressBar className="campaign-progress" label="成團進度" value={summary.quantity} max={publishedCampaign.threshold} />
+        <ProgressBar
+          className="campaign-progress"
+          label="成團進度"
+          value={thresholdKind === 'amount' ? summary.amount : summary.quantity}
+          max={summary.threshold}
+        />
         <p className="social-proof">已有 {orders.length} 戶參加，大家的訂單都看得到</p>
       </section>
 

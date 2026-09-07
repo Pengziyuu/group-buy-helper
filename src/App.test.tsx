@@ -32,6 +32,17 @@ describe('customer campaign app', () => {
     expect(screen.getByRole('progressbar', { name: '成團進度' })).toHaveAttribute('aria-valuemax', '1')
   })
 
+  it('shows total-amount progress without presenting it as an automatic close target', () => {
+    render(<App publishedContent={{
+      title: '金額成團', unitPrice: 45, threshold: 1, thresholdKind: 'amount', amountThreshold: 5000,
+      announcement: '公告', images: [], items, openedAt: '2026-08-14T00:05:09.000Z',
+    }} />)
+
+    expect(screen.getByText('NT$ 2,790 / NT$ 5,000')).toBeInTheDocument()
+    expect(screen.getByText('還差 NT$ 2,210 成團')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar', { name: '成團進度' })).toHaveAttribute('aria-valuenow', '2790')
+  })
+
   it('shows the organizer announcement and campaign image above ordering', () => {
     const { rerender } = render(<App />)
 
@@ -97,6 +108,20 @@ describe('customer campaign app', () => {
     expect(submitOrder).toBeEnabled()
     await user.click(screen.getByRole('button', { name: '減少 A 牛奶（招牌）' }))
     expect(submitOrder).toBeDisabled()
+  })
+
+  it('warns immediately when a quantity change would exceed the formation threshold', async () => {
+    const user = userEvent.setup()
+    render(<App publishedContent={{
+      title: '限量團購', unitPrice: 45, threshold: 63, thresholdKind: 'quantity', amountThreshold: null,
+      announcement: '公告', images: [], items, openedAt: '2026-08-14T00:05:09.000Z',
+    }} />)
+
+    await user.click(screen.getByRole('button', { name: '增加 C 抹茶' }))
+    await user.click(screen.getByRole('button', { name: '增加 C 抹茶' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('此訂單最多可保留 7 個，請減少 1 個')
+    expect(screen.getByRole('status', { name: 'C 抹茶數量' })).toHaveTextContent('1')
   })
 
   it('keeps order totals and the only submit action together', () => {

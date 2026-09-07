@@ -18,7 +18,10 @@ describe('ResidentCampaignListApp', () => {
             unitPrice: 55,
             openedAt: '2026-08-14T08:00:00.000Z',
             totalQuantity: 8,
+            totalAmount: 440,
             threshold: 10,
+            thresholdKind: 'amount',
+            amountThreshold: 1000,
           },
           {
             slug: 'abcdef0123456789abcdef0123456789abcd',
@@ -40,7 +43,7 @@ describe('ResidentCampaignListApp', () => {
     expect(screen.getByRole('link', { name: '查看早餐團購' })).toHaveAttribute('href', '/campaign/0123456789abcdef0123456789abcdef0123')
     expect(screen.getByText('收單中')).toBeInTheDocument()
     expect(screen.getByText('已結單')).toBeInTheDocument()
-    expect(screen.getByText('成團進度 8 / 10')).toBeInTheDocument()
+    expect(screen.getByText('成團進度 NT$ 440 / NT$ 1,000')).toBeInTheDocument()
     expect(screen.getAllByText('最低價')).toHaveLength(2)
     expect(screen.queryByText('單價')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '登出' }))

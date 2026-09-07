@@ -114,6 +114,19 @@ describe('organizer campaign editor', () => {
     expect(threshold.value).toBe('70')
   })
 
+  it('keeps the existing formation threshold and lets the organizer switch it to total amount', async () => {
+    const user = userEvent.setup()
+    render(<AdminApp />)
+
+    expect(screen.getByRole('group', { name: '成團門檻' })).toBeInTheDocument()
+    await user.click(screen.getByRole('radio', { name: '總金額' }))
+    const amount = screen.getByRole<HTMLInputElement>('spinbutton', { name: '成團門檻金額' })
+    await user.clear(amount)
+    await user.type(amount, '5000')
+
+    expect(within(screen.getByRole('region', { name: '住戶端預覽' })).getByText('滿 NT$ 5,000 成團')).toBeInTheDocument()
+  })
+
   it('adds and removes campaign images with accessible descriptions', async () => {
     const user = userEvent.setup()
     render(<AdminApp />)

@@ -42,6 +42,7 @@ export type OrganizerOrderSummary = {
   quantity: number
   amount: number
   threshold: number
+  thresholdKind: 'quantity' | 'amount'
   remaining: number
   progressPercent: number
   formed: boolean
@@ -54,12 +55,19 @@ export function buildOrganizerOrderSummary({
   orders,
   items,
   threshold,
+  thresholdKind = 'quantity',
+  amountThreshold = null,
 }: {
   orders: OrganizerVisibleOrder[]
   items: OrganizerCampaignItem[]
   threshold: number
+  thresholdKind?: 'quantity' | 'amount'
+  amountThreshold?: number | null
 }): OrganizerOrderSummary {
-  const campaignSummary = summarizeCampaign(orders, items, threshold)
+  const campaignSummary = summarizeCampaign(orders, items, {
+    kind: thresholdKind,
+    target: thresholdKind === 'amount' ? (amountThreshold ?? threshold) : threshold,
+  })
   const itemByCode = new Map(items.map((item, index) => [item.code, {
     ...item,
     label: itemLabel(index),
@@ -112,7 +120,8 @@ export function buildOrganizerOrderSummary({
     householdCount: orders.length,
     quantity: campaignSummary.quantity,
     amount: campaignSummary.amount,
-    threshold,
+    threshold: campaignSummary.threshold,
+    thresholdKind,
     remaining: campaignSummary.remaining,
     progressPercent: campaignSummary.progressPercent,
     formed: campaignSummary.formed,

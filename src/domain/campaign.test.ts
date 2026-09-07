@@ -44,4 +44,17 @@ describe('summarizeCampaign', () => {
       10,
     )).toMatchObject({ quantity: 5, amount: 270 })
   })
+
+  it('calculates progress from total amount for an amount threshold', () => {
+    expect(summarizeCampaign(
+      [{ customerId: '2:2K13', items: { A: 2, B: 3 } }],
+      [{ code: 'A', unitPrice: 45 }, { code: 'B', unitPrice: 60 }],
+      { kind: 'amount', target: 500 },
+    )).toMatchObject({
+      threshold: 500,
+      remaining: 230,
+      progressPercent: 54,
+      formed: false,
+    })
+  })
 })

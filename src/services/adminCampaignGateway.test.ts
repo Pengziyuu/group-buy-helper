@@ -6,6 +6,8 @@ const content: CampaignContent = {
   title: '週末冰餅團',
   unitPrice: 50,
   threshold: 80,
+  thresholdKind: 'quantity',
+  amountThreshold: null,
   announcement: '團主公告',
   images: [{ src: 'campaigns/demo/front.jpg', alt: '冰餅包裝正面' }],
   items: [
@@ -21,6 +23,8 @@ function mockClient() {
     title: content.title,
     unit_price: content.unitPrice,
     threshold: content.threshold,
+    threshold_kind: content.thresholdKind,
+    amount_threshold: content.amountThreshold,
     announcement: content.announcement,
     images: content.images,
     items: content.items,
@@ -37,6 +41,8 @@ function mockClient() {
     title: content.title,
     unit_price: content.unitPrice,
     threshold: content.threshold,
+    threshold_kind: content.thresholdKind,
+    amount_threshold: content.amountThreshold,
     announcement: content.announcement,
     images: content.images,
     items: content.items,
@@ -53,7 +59,7 @@ describe('Supabase admin campaign gateway', () => {
 
     await expect(gateway.loadDraft('campaign-1')).resolves.toEqual(content)
     expect(from).toHaveBeenCalledWith('campaign_draft')
-    expect(select).toHaveBeenCalledWith('title,unit_price,threshold,announcement,images,items')
+    expect(select).toHaveBeenCalledWith('title,unit_price,threshold,threshold_kind,amount_threshold,announcement,images,items')
     expect(eq).toHaveBeenCalledWith('campaign_id', 'campaign-1')
   })
 
@@ -67,6 +73,8 @@ describe('Supabase admin campaign gateway', () => {
       title: '週末冰餅團',
       unit_price: 50,
       threshold: 80,
+      threshold_kind: 'quantity',
+      amount_threshold: null,
       announcement: '團主公告',
       images: [{ src: 'campaigns/demo/front.jpg', alt: '冰餅包裝正面' }],
       items: content.items,
@@ -84,6 +92,22 @@ describe('Supabase admin campaign gateway', () => {
     await expect(gateway.loadPublished('campaign-1')).resolves.toEqual(content)
     expect(from).toHaveBeenCalledWith('campaign_public')
     await expect(gateway.loadOptionalDraft('campaign-1')).resolves.toBeNull()
+  })
+
+  it('persists a total-amount formation threshold in the existing threshold settings', async () => {
+    const { client, upsert } = mockClient()
+    const gateway = createAdminCampaignGateway(client)
+
+    await gateway.saveDraft('campaign-1', {
+      ...content,
+      thresholdKind: 'amount',
+      amountThreshold: 5000,
+    })
+
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({
+      threshold_kind: 'amount',
+      amount_threshold: 5000,
+    }))
   })
 
   it('returns a resident slug only after the campaign has opened', async () => {
