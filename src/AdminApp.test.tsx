@@ -213,9 +213,12 @@ describe('organizer campaign editor', () => {
     render(<AdminApp onUploadImage={vi.fn().mockResolvedValue('http://storage.test/campaign/image.png')} />)
     const file = new File(['image'], '冰餅商品照.png', { type: 'image/png' })
 
+    expect(screen.getByText('選擇圖片')).toBeInTheDocument()
+    expect(screen.getByText('尚未選擇圖片')).toBeInTheDocument()
     await user.upload(screen.getByLabelText('商品圖片檔案'), file)
 
     expect(screen.getByRole('status')).toHaveTextContent('已選擇「冰餅商品照.png」')
+    expect(screen.getByText('冰餅商品照.png')).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('請按「上傳圖片」')
     expect(screen.queryByRole('textbox', { name: '圖片說明' })).not.toBeInTheDocument()
   })

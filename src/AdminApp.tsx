@@ -562,17 +562,26 @@ function AdminApp({
               </div>
               <div className="image-inputs">
                 {onUploadImage ? (
-                  <label className="field">
+                  <div className="field">
                     <span>商品圖片檔案</span>
-                    <input
-                      ref={imageInputRef}
-                      type="file"
-                      disabled={editorBusy}
-                      accept="image/jpeg,image/png,image/webp"
-                      onInput={(event) => selectImageFile(event.currentTarget.files?.[0] ?? null)}
-                      onChange={(event) => selectImageFile(event.target.files?.[0] ?? null)}
-                    />
-                  </label>
+                    <div className="image-file-control">
+                      <label className={`image-file-trigger ${editorBusy ? 'is-disabled' : ''}`}>
+                        <input
+                          ref={imageInputRef}
+                          className="image-file-input"
+                          aria-label="商品圖片檔案"
+                          type="file"
+                          disabled={editorBusy}
+                          accept="image/jpeg,image/png,image/webp"
+                          onInput={(event) => selectImageFile(event.currentTarget.files?.[0] ?? null)}
+                          onChange={(event) => selectImageFile(event.target.files?.[0] ?? null)}
+                        />
+                        <span className="workflow-action-icon" aria-hidden="true">＋</span>
+                        選擇圖片
+                      </label>
+                      <span className="image-file-name">{imageFile?.name ?? '尚未選擇圖片'}</span>
+                    </div>
+                  </div>
                 ) : (
                   <label className="field">
                     <span>圖片網址</span>

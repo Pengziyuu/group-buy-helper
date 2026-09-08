@@ -98,6 +98,13 @@
 .image-inputs { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; }
 .image-inputs > button { min-height: 43px; border: 1px solid var(--admin-line); border-radius: 9px; padding: 0 14px; background: var(--admin-warm); color: var(--admin-ink); font-weight: 800; cursor: pointer; }
 .image-inputs > button:disabled { opacity: .45; cursor: default; }
+.image-file-control { display: flex; align-items: center; min-width: 0; min-height: 44px; overflow: hidden; border: 1px solid #d7d4cf; border-radius: 9px; background: #fff; }
+.image-file-trigger { position: relative; display: inline-flex; flex: none; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 0 14px; border-right: 1px solid var(--admin-blue); background: #e8f2fb; color: var(--admin-blue); font-size: 13px; font-weight: 800; cursor: pointer; transition: background-color .16s ease; }
+.image-file-trigger:hover:not(.is-disabled) { background: #d9ebfa; }
+.image-file-trigger:focus-within { outline: 3px solid rgb(22 119 200 / 25%); outline-offset: -3px; }
+.image-file-trigger.is-disabled { opacity: .5; cursor: default; }
+.image-file-input { position: absolute; width: 1px !important; height: 1px; padding: 0 !important; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+.image-file-name { min-width: 0; padding: 0 12px; overflow: hidden; color: var(--admin-muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .image-list { display: grid; gap: 7px; margin: 12px 0 0; padding: 0; list-style: none; }
 .image-list li { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 9px; padding: 9px; border: 1px solid var(--admin-line); border-radius: 9px; background: var(--admin-warm); }
 .image-list li > span { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 7px; background: #fff; color: var(--admin-blue); font-size: 12px; font-weight: 850; }
