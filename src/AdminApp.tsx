@@ -92,10 +92,8 @@ function AdminApp({
   const [campaignItems, setCampaignItems] = useState(() => initialDraft.items.map((item) => ({ ...item })))
   const [openedAt, setOpenedAt] = useState(initialDraft.openedAt)
   const [imageUrl, setImageUrl] = useState('')
-  const [imageAlt, setImageAlt] = useState('')
   const [imageFile, setImageFile] = useState<File | null>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
-  const imageAltInputRef = useRef<HTMLInputElement>(null)
   const settingsTabRef = useRef<HTMLButtonElement>(null)
   const ordersTabRef = useRef<HTMLButtonElement>(null)
   const handledImageFileRef = useRef<File | null>(null)
@@ -262,8 +260,8 @@ function AdminApp({
   }
 
   const addImage = async () => {
-    const alt = imageAlt.trim()
-    if (!alt || images.length >= 10 || operationLock.current) return
+    if (images.length >= 10 || operationLock.current) return
+    const alt = `${title.trim() || '商品'}第 ${images.length + 1} 張商品圖片`
     operationLock.current = true
     setNotice('')
     try {
@@ -278,7 +276,6 @@ function AdminApp({
       setImageFile(null)
       handledImageFileRef.current = null
       if (imageInputRef.current) imageInputRef.current.value = ''
-      setImageAlt('')
       if (onUploadImage) setNotice('圖片已上傳，將自動暫存')
     } catch (error) {
       setNotice(`上傳失敗：${messageFromError(error)}`)
@@ -296,8 +293,7 @@ function AdminApp({
       setNotice('')
       return
     }
-    setNotice(`已選擇「${file.name}」，請填寫圖片說明後按「上傳圖片」。`)
-    window.setTimeout(() => imageAltInputRef.current?.focus(), 0)
+    setNotice(`已選擇「${file.name}」，請按「上傳圖片」。`)
   }
 
   const itemsLocked = openedAt !== null
@@ -535,6 +531,7 @@ function AdminApp({
                 <div className="admin-workflow-actions">
                   <button
                     type="button"
+                    className="workflow-action workflow-action-primary"
                     disabled={editorBusy || campaignItems.length >= MAX_CAMPAIGN_ITEMS}
                     onClick={() => {
                       setCampaignItems((current) => [...current, {
@@ -545,16 +542,16 @@ function AdminApp({
                       }])
                       markDraft()
                     }}
-                  >增加品項</button>
+                  ><span className="workflow-action-icon" aria-hidden="true">＋</span>增加品項</button>
                   <button
                     type="button"
-                    className="secondary-action"
+                    className="workflow-action workflow-action-secondary"
                     disabled={editorBusy || campaignItems.length <= 1}
                     onClick={() => {
                       setCampaignItems((current) => current.slice(0, -1))
                       markDraft()
                     }}
-                  >減少品項</button>
+                  ><span className="workflow-action-icon" aria-hidden="true">−</span>減少品項</button>
                 </div>
               )}
             </section>
@@ -582,17 +579,12 @@ function AdminApp({
                     <input disabled={editorBusy} value={imageUrl} placeholder="https://…" onChange={(event) => setImageUrl(event.target.value)} />
                   </label>
                 )}
-                <label className="field">
-                  <span>圖片說明</span>
-                  <input ref={imageAltInputRef} disabled={editorBusy} value={imageAlt} placeholder="例如：商品包裝正面" onChange={(event) => setImageAlt(event.target.value)} />
-                </label>
                 <button
                   type="button"
                   onClick={addImage}
                   disabled={
                     editorBusy
                     || !(onUploadImage ? imageFile : imageUrl.trim())
-                    || !imageAlt.trim()
                     || images.length >= 10
                   }
                 >
@@ -603,7 +595,7 @@ function AdminApp({
                 {images.map((image, index) => (
                   <li key={`${image.src}-${index}`}>
                     <span>{index + 1}</span>
-                    <div><strong>{image.alt}</strong><small>{image.src}</small></div>
+                    <div><strong>商品圖片 {index + 1}</strong><small>{image.src}</small></div>
                     <button disabled={editorBusy} type="button" aria-label={`移除 ${image.alt}`} onClick={() => { setImages((current) => current.filter((_, currentIndex) => currentIndex !== index)); markDraft() }}>移除</button>
                   </li>
                 ))}

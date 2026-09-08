@@ -127,17 +127,18 @@ describe('organizer campaign editor', () => {
     expect(within(screen.getByRole('region', { name: '住戶端預覽' })).getByText('滿 NT$ 5,000 成團')).toBeInTheDocument()
   })
 
-  it('adds and removes campaign images with accessible descriptions', async () => {
+  it('adds and removes campaign images without requiring a visible description field', async () => {
     const user = userEvent.setup()
     render(<AdminApp />)
 
     await user.type(screen.getByRole('textbox', { name: '圖片網址' }), '/second-product.svg')
-    await user.type(screen.getByRole('textbox', { name: '圖片說明' }), '冰餅包裝與尺寸示意')
+    expect(screen.queryByRole('textbox', { name: '圖片說明' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '新增圖片' }))
 
-    expect(screen.getByRole('img', { name: '冰餅包裝與尺寸示意' })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: '移除 冰餅包裝與尺寸示意' }))
-    expect(screen.queryByRole('img', { name: '冰餅包裝與尺寸示意' })).not.toBeInTheDocument()
+    const addedImage = screen.getByRole('img', { name: /第 2 張商品圖片/ })
+    expect(addedImage).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /移除 .*第 2 張商品圖片/ }))
+    expect(addedImage).not.toBeInTheDocument()
   })
 
   it('keeps saved drafts private until the organizer publishes them', async () => {
@@ -207,7 +208,7 @@ describe('organizer campaign editor', () => {
     expect(screen.getByLabelText('住戶端預覽')).not.toHaveTextContent('● 收單中')
   })
 
-  it('confirms the selected image and guides the organizer to enter alt text', async () => {
+  it('confirms the selected image without asking for a separate description', async () => {
     const user = userEvent.setup()
     render(<AdminApp onUploadImage={vi.fn().mockResolvedValue('http://storage.test/campaign/image.png')} />)
     const file = new File(['image'], '冰餅商品照.png', { type: 'image/png' })
@@ -215,8 +216,8 @@ describe('organizer campaign editor', () => {
     await user.upload(screen.getByLabelText('商品圖片檔案'), file)
 
     expect(screen.getByRole('status')).toHaveTextContent('已選擇「冰餅商品照.png」')
-    expect(screen.getByRole('status')).toHaveTextContent('請填寫圖片說明後按「上傳圖片」')
-    await waitFor(() => expect(screen.getByRole('textbox', { name: '圖片說明' })).toHaveFocus())
+    expect(screen.getByRole('status')).toHaveTextContent('請按「上傳圖片」')
+    expect(screen.queryByRole('textbox', { name: '圖片說明' })).not.toBeInTheDocument()
   })
 
   it('accepts a mobile file picker that emits input without change', () => {
@@ -236,11 +237,10 @@ describe('organizer campaign editor', () => {
     const file = new File(['image'], '商品照.png', { type: 'image/png' })
 
     await user.upload(screen.getByLabelText('商品圖片檔案'), file)
-    await user.type(screen.getByRole('textbox', { name: '圖片說明' }), '冰餅包裝正面')
     await user.click(screen.getByRole('button', { name: '上傳圖片' }))
 
     expect(onUploadImage).toHaveBeenCalledWith(file)
-    expect(await screen.findByRole('img', { name: '冰餅包裝正面' })).toHaveAttribute(
+    expect(await screen.findByRole('img', { name: /第 2 張商品圖片/ })).toHaveAttribute(
       'src',
       'http://storage.test/campaign/image.png',
     )
@@ -260,14 +260,13 @@ describe('organizer campaign editor', () => {
       screen.getByLabelText('商品圖片檔案'),
       new File(['image'], '商品照.png', { type: 'image/png' }),
     )
-    await user.type(screen.getByRole('textbox', { name: '圖片說明' }), '等待上傳的圖片')
     await user.click(screen.getByRole('button', { name: '上傳圖片' }))
 
     expect(screen.getByRole('button', { name: '更新住戶公告' })).toBeDisabled()
     expect(screen.getByLabelText('商品圖片檔案')).toBeDisabled()
 
     finishUpload?.('http://storage.test/campaign/pending.png')
-    expect(await screen.findByRole('img', { name: '等待上傳的圖片' })).toBeInTheDocument()
+    expect(await screen.findByRole('img', { name: /第 2 張商品圖片/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '更新住戶公告' })).toBeEnabled()
   })
 
@@ -368,7 +367,13 @@ describe('organizer campaign editor', () => {
     await user.type(screen.getByRole('textbox', { name: '品項 A 商品名稱（口味）' }), '牛奶')
     await user.clear(screen.getByRole('spinbutton', { name: '品項 A 單價' }))
     await user.type(screen.getByRole('spinbutton', { name: '品項 A 單價' }), '45')
-    await user.click(screen.getByRole('button', { name: '增加品項' }))
+    const addItemButton = screen.getByRole('button', { name: '增加品項' })
+    const removeItemButton = screen.getByRole('button', { name: '減少品項' })
+    expect(addItemButton).toHaveClass('workflow-action-primary')
+    expect(removeItemButton).toHaveClass('workflow-action-secondary')
+    expect(addItemButton.querySelector('[aria-hidden="true"]')).toHaveTextContent('＋')
+    expect(removeItemButton.querySelector('[aria-hidden="true"]')).toHaveTextContent('−')
+    await user.click(addItemButton)
 
     expect(screen.getByText('AA')).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: '品項 AA 商品名稱（口味）' })).toBeInTheDocument()

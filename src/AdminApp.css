@@ -95,7 +95,7 @@
 .campaign-item-name input, .campaign-item-price input { width: 100%; min-height: 44px; padding: 9px 10px; border: 1px solid #d7d4cf; border-radius: 8px; background: #fff; color: var(--admin-ink); }
 .campaign-item-name input:focus, .campaign-item-price input:focus { border-color: var(--admin-blue); outline: 0; box-shadow: 0 0 0 3px rgba(22, 119, 200, .12); }
 .campaign-item-list input:disabled { background: #eceae6; color: var(--admin-muted); }
-.image-inputs { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end; }
+.image-inputs { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; }
 .image-inputs > button { min-height: 43px; border: 1px solid var(--admin-line); border-radius: 9px; padding: 0 14px; background: var(--admin-warm); color: var(--admin-ink); font-weight: 800; cursor: pointer; }
 .image-inputs > button:disabled { opacity: .45; cursor: default; }
 .image-list { display: grid; gap: 7px; margin: 12px 0 0; padding: 0; list-style: none; }
