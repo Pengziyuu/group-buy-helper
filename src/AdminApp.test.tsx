@@ -19,6 +19,21 @@ describe('organizer campaign editor', () => {
     expect(screen.getByRole('img', { name: '超厚三明治冰餅口味示意圖' })).toBeInTheDocument()
   })
 
+  it('prioritizes products and images before the long campaign announcement', () => {
+    render(<AdminApp />)
+
+    const itemEditor = screen.getByRole('heading', { name: '團購品項' }).closest('section')
+    const imageEditor = screen.getByRole('heading', { name: '商品圖片' }).closest('section')
+    const announcement = screen.getByRole('textbox', { name: '開團資訊' })
+
+    expect(itemEditor).not.toBeNull()
+    expect(imageEditor).not.toBeNull()
+    expect(within(itemEditor!).getByRole('list')).toHaveClass('is-locked')
+    expect(itemEditor!.compareDocumentPosition(imageEditor!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(imageEditor!.compareDocumentPosition(announcement)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(announcement).toHaveAttribute('rows', '10')
+  })
+
   it('lets the organizer expand and collapse the full resident preview', async () => {
     const user = userEvent.setup()
     render(<AdminApp />)

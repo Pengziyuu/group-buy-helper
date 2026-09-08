@@ -461,25 +461,13 @@ function AdminApp({
                 </label>
               )}
             </fieldset>
-            <div className="field full-field">
-              <label htmlFor="campaign-announcement">開團資訊</label>
-              <textarea
-                id="campaign-announcement"
-                rows={18}
-                disabled={editorBusy}
-                value={announcement}
-                aria-describedby="announcement-count"
-                onChange={(event) => { setAnnouncement(event.target.value); markDraft() }}
-              />
-              <small id="announcement-count">{announcement.length} / 20,000 字</small>
-            </div>
             <section className="item-editor full-field" aria-labelledby="item-editor-heading">
               <div className="image-editor-heading">
                 <h3 id="item-editor-heading">團購品項</h3>
                 <span>{campaignItems.length} 個品項</span>
               </div>
               <p>代碼會自動延伸為 A～Z、AA～AZ；請為每個品項設定名稱與單價。</p>
-              <ol className="campaign-item-list">
+              <ol className={`campaign-item-list ${itemsLocked ? 'is-locked' : ''}`}>
                 {campaignItems.map((item, index) => {
                   const label = itemLabel(index)
                   return (
@@ -612,6 +600,18 @@ function AdminApp({
                 ))}
               </ul>
             </section>
+            <div className="field full-field announcement-field">
+              <label htmlFor="campaign-announcement">開團資訊</label>
+              <textarea
+                id="campaign-announcement"
+                rows={10}
+                disabled={editorBusy}
+                value={announcement}
+                aria-describedby="announcement-count"
+                onChange={(event) => { setAnnouncement(event.target.value); markDraft() }}
+              />
+              <small id="announcement-count">{announcement.length} / 20,000 字</small>
+            </div>
           </div>
           <div className="editor-actions">
             <p role="status">{notice}</p>
