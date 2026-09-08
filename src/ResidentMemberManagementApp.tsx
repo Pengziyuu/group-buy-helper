@@ -144,17 +144,17 @@ export default function ResidentMemberManagementApp({ members, onSetBlocked, onU
             </div>
             <div className="resident-member-actions">
               {member.period !== null && member.unit && (
-                <button type="button" className="secondary-action" aria-label={`調整住戶資料 ${member.displayName}`} disabled={Boolean(busyCode)} onClick={() => openHouseholdEditor(member)}>
-                  調整期別／戶號
+                <button type="button" className="resident-action resident-action-secondary" aria-label={`調整住戶資料 ${member.displayName}`} disabled={Boolean(busyCode)} onClick={() => openHouseholdEditor(member)}>
+                  <span aria-hidden="true">✎</span>調整期別／戶號
                 </button>
               )}
               {member.blocked ? (
-                <button type="button" className="secondary-action" aria-label={`解除封鎖 ${member.displayName}`} disabled={Boolean(busyCode)} onClick={() => { void changeBlocked(member, false) }}>
-                  {busyCode === member.memberCode ? '處理中…' : '解除封鎖'}
+                <button type="button" className="resident-action resident-action-secondary" aria-label={`解除封鎖 ${member.displayName}`} disabled={Boolean(busyCode)} onClick={() => { void changeBlocked(member, false) }}>
+                  <span aria-hidden="true">↺</span>{busyCode === member.memberCode ? '處理中…' : '解除封鎖'}
                 </button>
               ) : (
-                <button type="button" className="danger-link" aria-label={`移除並封鎖 ${member.displayName}`} disabled={Boolean(busyCode)} onClick={() => setRemoveTarget(member)}>
-                  移除並封鎖
+                <button type="button" className="resident-action resident-action-danger" aria-label={`移除並封鎖 ${member.displayName}`} disabled={Boolean(busyCode)} onClick={() => setRemoveTarget(member)}>
+                  <span aria-hidden="true">⊘</span>移除並封鎖
                 </button>
               )}
             </div>

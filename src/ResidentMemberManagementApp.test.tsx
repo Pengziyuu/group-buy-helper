@@ -34,6 +34,12 @@ describe('ResidentMemberManagementApp', () => {
     expect(screen.getByText('陌生住戶')).toBeInTheDocument()
     expect(screen.getByText('已封鎖')).toBeInTheDocument()
     expect(document.body.textContent).not.toContain('abcdef0123456789abcdef0123456789abcd')
+    const adjustButton = screen.getByRole('button', { name: '調整住戶資料 住戶甲' })
+    const blockButton = screen.getByRole('button', { name: '移除並封鎖 住戶甲' })
+    expect(adjustButton).toHaveClass('resident-action-secondary')
+    expect(blockButton).toHaveClass('resident-action-danger')
+    expect(adjustButton.querySelector('[aria-hidden="true"]')).toHaveTextContent('✎')
+    expect(blockButton.querySelector('[aria-hidden="true"]')).toHaveTextContent('⊘')
   })
 
   it('requires confirmation before removing and blocking a resident', async () => {
