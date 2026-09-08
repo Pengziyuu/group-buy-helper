@@ -58,8 +58,8 @@ def main() -> None:
     def cleanup() -> None:
         call("PATCH", f"/rest/v1/campaign?id=eq.{CAMPAIGN_ID}", SECRET_KEY,
              body={"status": "open"}, prefer="return=minimal")
-        call("PATCH", f"/rest/v1/orders?id=eq.{ORDER_ID}", SECRET_KEY,
-             body={"pickup_status": "pending"}, prefer="return=minimal")
+        call("DELETE", f"/rest/v1/organizer_order_note?order_id=eq.{ORDER_ID}", SECRET_KEY,
+             prefer="return=minimal")
         call("DELETE", f"/rest/v1/payment?order_id=eq.{ORDER_ID}", SECRET_KEY,
              prefer="return=minimal")
         call("PATCH", f"/rest/v1/customer?id=eq.{CUSTOMER_ID}", SECRET_KEY,
@@ -89,28 +89,27 @@ def main() -> None:
     closed_blocks_order_edits = status in (400, 409, 422)
     assert closed_blocks_order_edits, status
 
-    status, _ = call("POST", "/rest/v1/rpc/set_order_fulfillment", ANON_KEY,
+    status, _ = call("POST", "/rest/v1/rpc/set_order_paid", ANON_KEY,
                      token=resident_token,
-                     body={"p_order_id": ORDER_ID, "p_paid": True,
-                           "p_pickup_status": "ready"})
-    resident_cannot_update_fulfillment = status in (401, 403)
-    assert resident_cannot_update_fulfillment, status
+                     body={"p_order_id": ORDER_ID, "p_paid": True})
+    resident_cannot_update_payment = status in (401, 403)
+    assert resident_cannot_update_payment, status
 
-    status, fulfillment = call("POST", "/rest/v1/rpc/set_order_fulfillment", ANON_KEY,
-                               token=admin_token,
-                               body={"p_order_id": ORDER_ID, "p_paid": True,
-                                     "p_pickup_status": "ready"})
-    admin_can_update_fulfillment = (
-        status == 200 and fulfillment["paid"] is True
-        and fulfillment["pickup_status"] == "ready"
-    )
-    assert admin_can_update_fulfillment, (status, fulfillment)
+    status, payment = call("POST", "/rest/v1/rpc/set_order_paid", ANON_KEY,
+                           token=admin_token,
+                           body={"p_order_id": ORDER_ID, "p_paid": True})
+    assert status == 200 and payment["paid"] is True, (status, payment)
+    status, note = call("POST", "/rest/v1/rpc/set_order_organizer_note", ANON_KEY,
+                        token=admin_token,
+                        body={"p_order_id": ORDER_ID, "p_organizer_note": "管理室"})
+    admin_can_update_payment_and_note = status == 200 and note["organizer_note"] == "管理室"
+    assert admin_can_update_payment_and_note, (status, note)
 
     status, admin_rows = call(
         "GET", f"/rest/v1/organizer_order_status?order_id=eq.{ORDER_ID}",
         ANON_KEY, token=admin_token,
     )
-    admin_can_read_status = status == 200 and admin_rows[0]["paid"] is True
+    admin_can_read_status = status == 200 and admin_rows[0]["paid"] is True and admin_rows[0]["organizer_note"] == "管理室"
     assert admin_can_read_status, (status, admin_rows)
 
     status, resident_rows = call(
@@ -125,8 +124,8 @@ def main() -> None:
         "resident_cannot_close": resident_cannot_close,
         "admin_can_close": admin_can_close,
         "closed_blocks_order_edits": closed_blocks_order_edits,
-        "resident_cannot_update_fulfillment": resident_cannot_update_fulfillment,
-        "admin_can_update_fulfillment": admin_can_update_fulfillment,
+        "resident_cannot_update_payment": resident_cannot_update_payment,
+        "admin_can_update_payment_and_note": admin_can_update_payment_and_note,
         "admin_can_read_status": admin_can_read_status,
         "resident_cannot_read_admin_view": resident_cannot_read_admin_view,
     }, ensure_ascii=False))

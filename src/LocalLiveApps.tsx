@@ -3,7 +3,6 @@ import type { Session, SupabaseClient } from '@supabase/supabase-js'
 import AdminApp from './AdminApp'
 import CampaignListApp from './CampaignListApp'
 import NotificationTestLab from './NotificationTestLab'
-import type { FulfillmentUpdate } from './AdminOrdersPanel'
 import App from './App'
 import ResidentCampaignListApp, {
   type ResidentCampaignListItem,
@@ -64,7 +63,8 @@ export type LiveAdminOrdersRepository = {
   loadCampaignStatus(campaignId: string): Promise<CampaignStatus>
   loadSummary(campaignId: string, threshold: number, thresholdKind?: 'quantity' | 'amount', amountThreshold?: number | null): Promise<OrganizerOrderSummary>
   setCampaignStatus(campaignId: string, status: CampaignStatus): Promise<void>
-  setOrderFulfillment(orderId: string, update: FulfillmentUpdate): Promise<void>
+  setOrderPaid(orderId: string, paid: boolean): Promise<void>
+  setOrderOrganizerNote(orderId: string, note: string): Promise<void>
 }
 
 export type LivePickupNotificationRepository = {
@@ -841,8 +841,19 @@ export function LocalLiveAdminApp({
         await ordersGateway.setCampaignStatus(campaignId, status)
         setCampaignStatus(await ordersGateway.loadCampaignStatus(campaignId))
       }}
-      onSetOrderFulfillment={async (orderId, update) => {
-        await ordersGateway.setOrderFulfillment(orderId, update)
+      onSetOrderPaid={async (orderId, paid) => {
+        await ordersGateway.setOrderPaid(orderId, paid)
+        if (publishedContent) {
+          setOrderSummary(await ordersGateway.loadSummary(
+            campaignId,
+            publishedContent.threshold,
+            publishedContent.thresholdKind,
+            publishedContent.amountThreshold,
+          ))
+        }
+      }}
+      onSetOrderOrganizerNote={async (orderId, note) => {
+        await ordersGateway.setOrderOrganizerNote(orderId, note)
         if (publishedContent) {
           setOrderSummary(await ordersGateway.loadSummary(
             campaignId,

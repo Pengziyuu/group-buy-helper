@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   campaignStatusAction,
   campaignStatusLabel,
-  summarizeFulfillment,
-  type OrderFulfillment,
+  summarizePayment,
+  type OrderPayment,
 } from './orderWorkflow'
 
 describe('campaign workflow', () => {
@@ -15,21 +15,18 @@ describe('campaign workflow', () => {
   })
 })
 
-describe('order fulfillment summary', () => {
-  it('counts payment and pickup states without treating ready orders as picked up', () => {
-    const orders: OrderFulfillment[] = [
-      { paid: true, pickupStatus: 'picked_up' },
-      { paid: true, pickupStatus: 'ready' },
-      { paid: false, pickupStatus: 'pending' },
+describe('order payment summary', () => {
+  it('counts paid and unpaid orders', () => {
+    const orders: OrderPayment[] = [
+      { paid: true },
+      { paid: true },
+      { paid: false },
     ]
 
-    expect(summarizeFulfillment(orders)).toEqual({
+    expect(summarizePayment(orders)).toEqual({
       total: 3,
       paid: 2,
       unpaid: 1,
-      ready: 1,
-      pickedUp: 1,
-      pendingPickup: 1,
     })
   })
 })

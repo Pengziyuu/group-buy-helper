@@ -40,7 +40,7 @@ const initialDemoOrganizerOrders: OrganizerVisibleOrder[] = initialOrders.map((o
   items: { ...order.items },
   orderId: `demo-order-${index + 1}`,
   paid: false,
-  pickupStatus: 'pending',
+  organizerNote: '',
 }))
 
 function DemoOrganizerEditor() {
@@ -57,8 +57,11 @@ function DemoOrganizerEditor() {
       orderSummary={orderSummary}
       campaignStatus={campaignStatus}
       onSetCampaignStatus={async (status) => setCampaignStatus(status)}
-      onSetOrderFulfillment={async (orderId, update) => {
-        setOrders((current) => current.map((order) => order.orderId === orderId ? { ...order, ...update } : order))
+      onSetOrderPaid={async (orderId, paid) => {
+        setOrders((current) => current.map((order) => order.orderId === orderId ? { ...order, paid } : order))
+      }}
+      onSetOrderOrganizerNote={async (orderId, organizerNote) => {
+        setOrders((current) => current.map((order) => order.orderId === orderId ? { ...order, organizerNote } : order))
       }}
       residentHref={`/campaign/${DEMO_CAMPAIGN_SLUG}`}
     />

@@ -1,5 +1,5 @@
 import { summarizeCampaign } from './campaign'
-import { summarizeFulfillment, type PickupStatus } from './orderWorkflow'
+import { summarizePayment } from './orderWorkflow'
 import { itemLabel } from './itemLabel'
 
 export type OrganizerCampaignItem = {
@@ -17,7 +17,7 @@ export type OrganizerVisibleOrder = {
   unit: string
   items: Record<string, number>
   paid?: boolean
-  pickupStatus?: PickupStatus
+  organizerNote?: string
   orderedAt?: string
   updatedAt?: string
 }
@@ -34,7 +34,7 @@ export type OrganizerOrderRow = OrganizerVisibleOrder & {
   amount: number
   itemSummary: string
   paid: boolean
-  pickupStatus: PickupStatus
+  organizerNote: string
 }
 
 export type OrganizerOrderSummary = {
@@ -48,7 +48,7 @@ export type OrganizerOrderSummary = {
   formed: boolean
   itemRows: OrganizerItemRow[]
   orderRows: OrganizerOrderRow[]
-  fulfillment: ReturnType<typeof summarizeFulfillment>
+  fulfillment: ReturnType<typeof summarizePayment>
 }
 
 export function buildOrganizerOrderSummary({
@@ -111,7 +111,7 @@ export function buildOrganizerOrderSummary({
         amount,
         itemSummary,
         paid: order.paid ?? false,
-        pickupStatus: order.pickupStatus ?? 'pending',
+        organizerNote: order.organizerNote ?? '',
       }
     })
     .sort((left, right) => left.period - right.period || left.unit.localeCompare(right.unit))
@@ -127,6 +127,6 @@ export function buildOrganizerOrderSummary({
     formed: campaignSummary.formed,
     itemRows,
     orderRows,
-    fulfillment: summarizeFulfillment(orderRows),
+    fulfillment: summarizePayment(orderRows),
   }
 }

@@ -621,7 +621,6 @@ export type Database = {
           customer_id: string
           id: string
           note: string | null
-          pickup_status: string
           updated_at: string
         }
         Insert: {
@@ -630,7 +629,6 @@ export type Database = {
           customer_id: string
           id?: string
           note?: string | null
-          pickup_status?: string
           updated_at?: string
         }
         Update: {
@@ -639,7 +637,6 @@ export type Database = {
           customer_id?: string
           id?: string
           note?: string | null
-          pickup_status?: string
           updated_at?: string
         }
         Relationships: [
@@ -670,6 +667,46 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "customer"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      organizer_order_note: {
+        Row: {
+          note: string
+          order_id: string
+          updated_at: string
+        }
+        Insert: {
+          note?: string
+          order_id: string
+          updated_at?: string
+        }
+        Update: {
+          note?: string
+          order_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organizer_order_note_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "order_wall"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "organizer_order_note_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organizer_order_note_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "organizer_order_status"
+            referencedColumns: ["order_id"]
           },
         ]
       }
@@ -993,9 +1030,9 @@ export type Database = {
           amount: number | null
           campaign_id: string | null
           order_id: string | null
+          organizer_note: string | null
           paid: boolean | null
           paid_at: string | null
-          pickup_status: string | null
         }
         Relationships: [
           {
@@ -1406,8 +1443,12 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      set_order_fulfillment: {
-        Args: { p_order_id: string; p_paid: boolean; p_pickup_status: string }
+      set_order_organizer_note: {
+        Args: { p_order_id: string; p_organizer_note: string }
+        Returns: Json
+      }
+      set_order_paid: {
+        Args: { p_order_id: string; p_paid: boolean }
         Returns: Json
       }
       set_pickup_notification_test_campaign: {
@@ -1442,12 +1483,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1471,11 +1512,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1496,11 +1537,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1521,11 +1562,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1538,11 +1579,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

@@ -9,7 +9,7 @@ function queryResult(data: unknown) {
 }
 
 describe('Supabase admin orders gateway', () => {
-  it('rebuilds resident orders and merges organizer-only fulfillment state', async () => {
+  it('rebuilds resident orders and merges organizer-only payment and note state', async () => {
     const itemQuery = queryResult([
       { code: 'A', name: '牛奶', unit_price: 45, active: true, sort_order: 1 },
       { code: 'B', name: '歷史花生', unit_price: 45, active: false, sort_order: 2 },
@@ -20,8 +20,8 @@ describe('Supabase admin orders gateway', () => {
       { order_id: 'order-2', customer_name: '佩怡', period: 1, unit: 'H11', item_code: 'B', qty: 2, ordered_at: '2026-08-14T00:15:00Z', order_updated_at: '2026-08-14T00:15:00Z' },
     ])
     const statusQuery = queryResult([
-      { order_id: 'order-1', paid: true, pickup_status: 'ready' },
-      { order_id: 'order-2', paid: false, pickup_status: 'pending' },
+      { order_id: 'order-1', paid: true, organizer_note: '請放管理室' },
+      { order_id: 'order-2', paid: false, organizer_note: null },
     ])
     const single = vi.fn().mockResolvedValue({ data: { status: 'open' }, error: null })
     const campaignQuery = { select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single }) }) }
@@ -53,7 +53,7 @@ describe('Supabase admin orders gateway', () => {
       orderedAt: '2026-08-14T00:10:00Z',
       updatedAt: '2026-08-14T00:12:00Z',
       paid: true,
-      pickupStatus: 'ready',
+      organizerNote: '請放管理室',
     })
 
     await gateway.setCampaignStatus('campaign-1', 'closed')
@@ -61,13 +61,16 @@ describe('Supabase admin orders gateway', () => {
       p_campaign_id: 'campaign-1', p_status: 'closed',
     })
 
-    await gateway.setOrderFulfillment('order-1', {
-      paid: true, pickupStatus: 'picked_up',
-    })
-    expect(rpc).toHaveBeenCalledWith('set_order_fulfillment', {
+    await gateway.setOrderPaid('order-1', true)
+    expect(rpc).toHaveBeenCalledWith('set_order_paid', {
       p_order_id: 'order-1',
       p_paid: true,
-      p_pickup_status: 'picked_up',
+    })
+
+    await gateway.setOrderOrganizerNote('order-1', '已電話確認')
+    expect(rpc).toHaveBeenCalledWith('set_order_organizer_note', {
+      p_order_id: 'order-1',
+      p_organizer_note: '已電話確認',
     })
   })
 })

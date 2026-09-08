@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { initialOrders, items } from './data/demo'
@@ -63,17 +63,18 @@ describe('organizer orders panel', () => {
     expect(screen.getByRole('heading', { name: 'LINE領取通知' })).toBeInTheDocument()
   })
 
-  it('lets the organizer close the campaign and update fulfillment by order id', async () => {
+  it('requires confirmation before changing payment and saves an organizer note explicitly', async () => {
     const user = userEvent.setup()
     const onSetCampaignStatus = vi.fn().mockResolvedValue(undefined)
-    const onSetOrderFulfillment = vi.fn().mockResolvedValue(undefined)
+    const onSetOrderPaid = vi.fn().mockResolvedValue(undefined)
+    const onSetOrderOrganizerNote = vi.fn().mockResolvedValue(undefined)
     const workflowSummary = {
       ...summary,
       orderRows: summary.orderRows.map((order, index) => ({
         ...order,
         orderId: `order-${index + 1}`,
         paid: false,
-        pickupStatus: 'pending' as const,
+        organizerNote: index === 0 ? '請放管理室' : '',
       })),
     }
 
@@ -82,7 +83,8 @@ describe('organizer orders panel', () => {
         summary={workflowSummary}
         campaignStatus="open"
         onSetCampaignStatus={onSetCampaignStatus}
-        onSetOrderFulfillment={onSetOrderFulfillment}
+        onSetOrderPaid={onSetOrderPaid}
+        onSetOrderOrganizerNote={onSetOrderOrganizerNote}
       />,
     )
 
@@ -91,43 +93,70 @@ describe('organizer orders panel', () => {
     expect(onSetCampaignStatus).toHaveBeenCalledWith('closed')
 
     await user.click(screen.getByRole('button', { name: '標記 H11 已付款' }))
-    expect(onSetOrderFulfillment).toHaveBeenCalledWith('order-1', {
-      paid: true,
-      pickupStatus: 'pending',
-    })
+    expect(screen.getByRole('dialog', { name: '確認付款狀態' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: '確認付款狀態' })).toHaveTextContent(/H11.*已付款/)
+    expect(onSetOrderPaid).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: '確認標記已付款' }))
+    expect(onSetOrderPaid).toHaveBeenCalledWith('order-1', true)
 
-    await user.selectOptions(screen.getByRole('combobox', { name: 'H11 領取狀態' }), 'ready')
-    expect(onSetOrderFulfillment).toHaveBeenCalledWith('order-1', {
-      paid: false,
-      pickupStatus: 'ready',
-    })
+    const note = screen.getByRole('textbox', { name: 'H11 備註' })
+    expect(screen.queryByRole('combobox', { name: 'H11 領取狀態' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '儲存 H11 備註' })).toBeDisabled()
+    await user.clear(note)
+    await user.type(note, '改放警衛室')
+    await user.click(screen.getByRole('button', { name: '儲存 H11 備註' }))
+    expect(onSetOrderOrganizerNote).toHaveBeenCalledWith('order-1', '改放警衛室')
+  })
+
+  it('keeps a rejected payment confirmation open with an alert and retry action', async () => {
+    const user = userEvent.setup()
+    const onSetOrderPaid = vi.fn()
+      .mockRejectedValueOnce(new Error('付款狀態更新失敗'))
+      .mockResolvedValueOnce(undefined)
+    const workflowSummary = {
+      ...summary,
+      orderRows: [{ ...summary.orderRows[0], orderId: 'order-1', paid: false, organizerNote: '' }],
+    }
+
+    render(<AdminOrdersPanel summary={workflowSummary} campaignStatus="open" onSetOrderPaid={onSetOrderPaid} />)
+    await user.click(screen.getByRole('button', { name: '標記 H11 已付款' }))
+    await user.click(screen.getByRole('button', { name: '確認標記已付款' }))
+
+    const dialog = screen.getByRole('dialog', { name: '確認付款狀態' })
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('付款狀態更新失敗')
+    expect(within(dialog).getByRole('button', { name: '確認標記已付款' })).toBeEnabled()
+
+    await user.click(within(dialog).getByRole('button', { name: '確認標記已付款' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '確認付款狀態' })).not.toBeInTheDocument())
+    expect(onSetOrderPaid).toHaveBeenCalledTimes(2)
   })
 
   it('locks only the order row being updated', async () => {
     const user = userEvent.setup()
     let resolveUpdate: (() => void) | undefined
-    const onSetOrderFulfillment = vi.fn().mockImplementation(() => new Promise<void>((resolve) => { resolveUpdate = resolve }))
+    const onSetOrderPaid = vi.fn().mockImplementation(() => new Promise<void>((resolve) => { resolveUpdate = resolve }))
     const workflowSummary = {
       ...summary,
       orderRows: summary.orderRows.slice(0, 2).map((order, index) => ({
         ...order,
         orderId: `order-${index + 1}`,
         paid: false,
-        pickupStatus: 'pending' as const,
+        organizerNote: '',
       })),
     }
 
-    render(<AdminOrdersPanel summary={workflowSummary} campaignStatus="open" onSetOrderFulfillment={onSetOrderFulfillment} />)
+    render(<AdminOrdersPanel summary={workflowSummary} campaignStatus="open" onSetOrderPaid={onSetOrderPaid} onSetOrderOrganizerNote={vi.fn()} />)
     await user.click(screen.getByRole('button', { name: '標記 H11 已付款' }))
+    await user.click(screen.getByRole('button', { name: '確認標記已付款' }))
 
     expect(screen.getByRole('button', { name: '更新 H11 中' })).toBeDisabled()
     expect(screen.getByRole('button', { name: '標記 1E7 已付款' })).toBeEnabled()
-    expect(screen.getByRole('combobox', { name: '1E7 領取狀態' })).toBeEnabled()
+    expect(screen.getByRole('textbox', { name: '1E7 備註' })).toBeEnabled()
     resolveUpdate?.()
     await waitFor(() => expect(screen.getByRole('button', { name: '標記 H11 已付款' })).toBeEnabled())
   })
 
-  it('filters resident orders to unresolved payment or pickup tasks', async () => {
+  it('filters resident orders to unpaid orders', async () => {
     const user = userEvent.setup()
     const workflowSummary = {
       ...summary,
@@ -135,10 +164,10 @@ describe('organizer orders panel', () => {
         ...order,
         orderId: `order-${index + 1}`,
         paid: index === 0,
-        pickupStatus: index === 0 ? 'picked_up' as const : 'pending' as const,
+        organizerNote: '',
       })),
     }
-    render(<AdminOrdersPanel summary={workflowSummary} campaignStatus="open" onSetOrderFulfillment={vi.fn()} />)
+    render(<AdminOrdersPanel summary={workflowSummary} campaignStatus="open" onSetOrderPaid={vi.fn()} onSetOrderOrganizerNote={vi.fn()} />)
 
     await user.click(screen.getByRole('button', { name: '待處理 1' }))
     expect(screen.queryByText('H11')).not.toBeInTheDocument()

@@ -152,15 +152,15 @@ def run_checks() -> None:
                      body={"p_campaign_id": CAMPAIGN_ID, "p_items": {"b": 1}})
     assert status in (400, 409, 422), status
     status, payload = call(
-        "POST", "/rest/v1/rpc/set_order_fulfillment", ANON_KEY, token=admin_token,
-        body={"p_order_id": ORDER_ID, "p_paid": True, "p_pickup_status": "pending"},
+        "POST", "/rest/v1/rpc/set_order_paid", ANON_KEY, token=admin_token,
+        body={"p_order_id": ORDER_ID, "p_paid": True},
     )
     assert status == 200, (status, payload)
-    status, after_fulfillment = call(
+    status, after_payment = call(
         "GET", f"/rest/v1/order_wall?order_id=eq.{ORDER_ID}&select=order_updated_at",
         ANON_KEY, token=resident_token,
     )
-    assert status == 200 and all(row["order_updated_at"] == resident_edit_time for row in after_fulfillment)
+    assert status == 200 and all(row["order_updated_at"] == resident_edit_time for row in after_payment)
 
     status, _ = call("POST", "/rest/v1/rpc/submit_customer_order", ANON_KEY,
                      token=resident_token,

@@ -40,7 +40,8 @@ const ordersRepository = (): LiveAdminOrdersRepository => ({
   loadCampaignStatus: vi.fn().mockResolvedValue('open'),
   loadSummary: vi.fn().mockResolvedValue(orderSummary),
   setCampaignStatus: vi.fn().mockResolvedValue(undefined),
-  setOrderFulfillment: vi.fn().mockResolvedValue(undefined),
+  setOrderPaid: vi.fn().mockResolvedValue(undefined),
+  setOrderOrganizerNote: vi.fn().mockResolvedValue(undefined),
 })
 
 function memoryAuthStorage(initial: Record<string, string> = {}) {
@@ -306,6 +307,7 @@ describe('local Supabase visual demo apps', () => {
 
     await user.click(screen.getByRole('tab', { name: '訂單管理' }))
     await user.click(screen.getByRole('button', { name: '標記 H11 已付款' }))
+    await user.click(screen.getByRole('button', { name: '確認標記已付款' }))
     await waitFor(() => expect(workflowRepository.loadSummary).toHaveBeenCalledTimes(2))
     expect(workflowRepository.loadSummary).toHaveBeenLastCalledWith(
       'campaign-1',

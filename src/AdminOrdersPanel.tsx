@@ -3,21 +3,16 @@ import type { OrganizerOrderSummary, OrganizerOrderRow } from './domain/adminOrd
 import type { PickupNotificationAudience } from './domain/pickupNotification'
 import type { PickupNotificationResponse } from './services/pickupNotificationGateway'
 import PickupNotificationPanel from './PickupNotificationPanel'
+import { ConfirmDialog } from './components/ui/ConfirmDialog'
 import {
   campaignStatusAction,
   campaignStatusLabel,
   type CampaignStatus,
-  type PickupStatus,
 } from './domain/orderWorkflow'
 import './AdminOrdersPanel.css'
 
 const currency = (amount: number) => `$${amount.toLocaleString('en-US')}`
 const periodLabel = (period: number) => `${period === 1 ? '一期' : period === 2 ? '二期' : `${period}期`}`
-
-export type FulfillmentUpdate = {
-  paid: boolean
-  pickupStatus: PickupStatus
-}
 
 type AdminOrdersPanelProps = {
   summary: OrganizerOrderSummary
@@ -25,7 +20,8 @@ type AdminOrdersPanelProps = {
   campaignId?: string
   campaignTitle?: string
   onSetCampaignStatus?: (status: CampaignStatus) => Promise<void>
-  onSetOrderFulfillment?: (orderId: string, update: FulfillmentUpdate) => Promise<void>
+  onSetOrderPaid?: (orderId: string, paid: boolean) => Promise<void>
+  onSetOrderOrganizerNote?: (orderId: string, note: string) => Promise<void>
   onPreviewPickupNotification?: (audience: PickupNotificationAudience, message: string) => Promise<PickupNotificationResponse>
   onSendPickupNotification?: (audience: PickupNotificationAudience, message: string, previewToken: string) => Promise<PickupNotificationResponse>
 }
@@ -36,7 +32,8 @@ function AdminOrdersPanel({
   campaignId,
   campaignTitle,
   onSetCampaignStatus,
-  onSetOrderFulfillment,
+  onSetOrderPaid,
+  onSetOrderOrganizerNote,
   onPreviewPickupNotification,
   onSendPickupNotification,
 }: AdminOrdersPanelProps) {
@@ -44,34 +41,36 @@ function AdminOrdersPanel({
   const busyKeysRef = useRef(new Set<string>())
   const [notice, setNotice] = useState('')
   const [orderFilter, setOrderFilter] = useState<'all' | 'pending'>('all')
+  const [paymentTarget, setPaymentTarget] = useState<OrganizerOrderRow | null>(null)
+  const [paymentError, setPaymentError] = useState('')
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({})
 
-  const run = async (key: string, action: () => Promise<void>) => {
-    if (busyKeysRef.current.has(key)) return
+  const run = async (key: string, action: () => Promise<void>, onError?: (message: string) => void) => {
+    if (busyKeysRef.current.has(key)) return false
     busyKeysRef.current.add(key)
     setBusyKeys(new Set(busyKeysRef.current))
     setNotice('')
     try {
       await action()
+      return true
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : String(error))
+      const message = error instanceof Error ? error.message : String(error)
+      if (onError) onError(message)
+      else setNotice(message)
+      return false
     } finally {
       busyKeysRef.current.delete(key)
       setBusyKeys(new Set(busyKeysRef.current))
     }
   }
 
-  const updateOrder = (order: OrganizerOrderRow, update: Partial<FulfillmentUpdate>) => {
-    if (!onSetOrderFulfillment) return
-    const next = {
-      paid: order.paid,
-      pickupStatus: order.pickupStatus,
-      ...update,
-    }
-    return run(`order-${order.orderId}`, () => onSetOrderFulfillment(order.orderId, next))
+  const updateOrganizerNote = (order: OrganizerOrderRow, note: string) => {
+    if (!onSetOrderOrganizerNote) return
+    return run(`order-${order.orderId}`, () => onSetOrderOrganizerNote(order.orderId, note))
   }
 
   const statusAction = campaignStatus ? campaignStatusAction(campaignStatus) : null
-  const pendingOrders = summary.orderRows.filter((order) => !order.paid || order.pickupStatus === 'ready')
+  const pendingOrders = summary.orderRows.filter((order) => !order.paid)
   const visibleOrders = orderFilter === 'pending' ? pendingOrders : summary.orderRows
 
   return (
@@ -127,11 +126,9 @@ function AdminOrdersPanel({
       </div>
 
       {campaignStatus && (
-        <div className="admin-fulfillment-metrics" aria-label="付款與領取統計">
+        <div className="admin-fulfillment-metrics" aria-label="付款統計">
           <span>已付款 <strong>{summary.fulfillment.paid}</strong></span>
           <span>未付款 <strong>{summary.fulfillment.unpaid}</strong></span>
-          <span>可領取 <strong>{summary.fulfillment.ready}</strong></span>
-          <span>已領取 <strong>{summary.fulfillment.pickedUp}</strong></span>
         </div>
       )}
 
@@ -201,7 +198,7 @@ function AdminOrdersPanel({
               <thead>
                 <tr>
                   <th>戶號</th><th>姓名</th><th>訂購內容</th><th>總數</th><th>金額</th>
-                  {campaignStatus && <><th>付款</th><th>領取</th></>}
+                  {campaignStatus && <><th>付款</th><th>備註</th></>}
                 </tr>
               </thead>
               <tbody>
@@ -221,23 +218,35 @@ function AdminOrdersPanel({
                               type="button"
                               className={order.paid ? 'status-button paid' : 'status-button'}
                               aria-label={orderBusy ? `更新 ${order.unit} 中` : `標記 ${order.unit} ${order.paid ? '未付款' : '已付款'}`}
-                              disabled={!onSetOrderFulfillment || orderBusy}
-                              onClick={() => updateOrder(order, { paid: !order.paid })}
+                              disabled={!onSetOrderPaid || orderBusy}
+                              onClick={() => {
+                                setPaymentError('')
+                                setPaymentTarget(order)
+                              }}
                             >
                               {orderBusy ? '更新中…' : order.paid ? '已付款' : '未付款'}
                             </button>
                           </td>
-                          <td data-label="領取">
-                            <select
-                              aria-label={`${order.unit} 領取狀態`}
-                              value={order.pickupStatus}
-                              disabled={!onSetOrderFulfillment || orderBusy}
-                              onChange={(event) => updateOrder(order, { pickupStatus: event.target.value as PickupStatus })}
-                            >
-                              <option value="pending">待到貨</option>
-                              <option value="ready">可領取</option>
-                              <option value="picked_up">已領取</option>
-                            </select>
+                          <td data-label="備註">
+                            <div className="order-note-control">
+                              <input
+                                type="text"
+                                aria-label={`${order.unit} 備註`}
+                                maxLength={500}
+                                value={noteDrafts[order.orderId] ?? order.organizerNote}
+                                disabled={!onSetOrderOrganizerNote || orderBusy}
+                                placeholder="輸入備註"
+                                onChange={(event) => setNoteDrafts((current) => ({ ...current, [order.orderId]: event.target.value }))}
+                              />
+                              <button
+                                type="button"
+                                aria-label={`儲存 ${order.unit} 備註`}
+                                disabled={!onSetOrderOrganizerNote || orderBusy || (noteDrafts[order.orderId] ?? order.organizerNote) === order.organizerNote}
+                                onClick={() => updateOrganizerNote(order, noteDrafts[order.orderId] ?? order.organizerNote)}
+                              >
+                                {orderBusy ? '儲存中…' : '儲存'}
+                              </button>
+                            </div>
                           </td>
                         </>
                       )}
@@ -249,6 +258,33 @@ function AdminOrdersPanel({
           </div>
         </section>
       </div>
+      {paymentTarget && (
+        <ConfirmDialog
+          title="確認付款狀態"
+          confirmLabel={`確認標記${paymentTarget.paid ? '未付款' : '已付款'}`}
+          destructive={paymentTarget.paid}
+          busy={busyKeys.has(`order-${paymentTarget.orderId}`)}
+          onCancel={() => {
+            setPaymentError('')
+            setPaymentTarget(null)
+          }}
+          onConfirm={() => {
+            void (async () => {
+              if (!onSetOrderPaid) return
+              setPaymentError('')
+              const success = await run(
+                `order-${paymentTarget.orderId}`,
+                () => onSetOrderPaid(paymentTarget.orderId, !paymentTarget.paid),
+                setPaymentError,
+              )
+              if (success) setPaymentTarget(null)
+            })()
+          }}
+        >
+          <p>確定要將「{periodLabel(paymentTarget.period)} {paymentTarget.unit}・{paymentTarget.name}」標記為<strong>{paymentTarget.paid ? '未付款' : '已付款'}</strong>嗎？</p>
+          {paymentError && <p className="admin-workflow-error" role="alert">{paymentError}</p>}
+        </ConfirmDialog>
+      )}
     </section>
   )
 }

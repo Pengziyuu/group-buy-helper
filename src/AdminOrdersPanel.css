@@ -103,9 +103,16 @@
 
 .admin-fulfillment-metrics strong { color: var(--admin-ink); }
 .admin-workflow-error { margin: 0 0 10px; color: #9f2c2c; font-size: 12px; }
-.status-button { min-width: 70px; padding: 6px 9px; border: 1px solid #e0c4c4; background: #fff5f5; color: #8f3434; font-size: 11px; }
+.status-button { min-width: 76px; min-height: 44px; padding: 6px 10px; border: 1px solid #e0c4c4; border-radius: 8px; background: #fff5f5; color: #8f3434; font: inherit; font-size: 11px; font-weight: 750; cursor: pointer; }
 .status-button.paid { border-color: #a9d6bf; background: #eaf8f0; color: #17633f; }
-.resident-order-table select { min-width: 92px; padding: 7px; border: 1px solid var(--admin-line); border-radius: 8px; background: white; font: inherit; }
+.status-button:hover:not(:disabled) { filter: brightness(.97); }
+.status-button:focus-visible, .order-note-control input:focus-visible, .order-note-control button:focus-visible { outline: 3px solid rgb(22 119 200 / 25%); outline-offset: 2px; }
+.status-button:disabled { opacity: .55; cursor: wait; }
+.order-note-control { display: flex; align-items: stretch; gap: 6px; min-width: 220px; }
+.order-note-control input { min-width: 140px; min-height: 44px; padding: 8px 10px; border: 1px solid var(--admin-line); border-radius: 8px; background: #fff; color: var(--admin-ink); font: inherit; }
+.order-note-control button { min-width: 58px; min-height: 44px; padding: 0 10px; border: 1px solid var(--admin-blue); border-radius: 8px; background: #fff; color: var(--admin-blue); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.order-note-control button:hover:not(:disabled) { background: #e8f2fb; }
+.order-note-control button:disabled { border-color: var(--admin-line); color: var(--admin-muted); opacity: .55; cursor: default; }
 
 .admin-order-metrics {
   display: grid;
@@ -185,7 +192,7 @@
   text-align: left;
 }
 
-.resident-order-table { min-width: 820px !important; }
+.resident-order-table { min-width: 980px !important; }
 .item-summary-table { min-width: 0 !important; table-layout: fixed; }
 .item-summary-quantity-column { width: 74px; }
 .item-summary-amount-column { width: 88px; }
@@ -211,9 +218,11 @@
   .resident-order-table tr { display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; border: 1px solid var(--admin-line); border-radius: 12px; background: #fff; }
   .resident-order-table td { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-top: 1px solid var(--admin-line); overflow-wrap: anywhere; }
   .resident-order-table td::before { content: attr(data-label); flex: none; color: var(--admin-muted); font-size: 10px; font-weight: 750; }
-  .resident-order-table td[data-label="戶號"], .resident-order-table td[data-label="姓名"], .resident-order-table td[data-label="訂購內容"] { grid-column: 1 / -1; }
+  .resident-order-table td[data-label="戶號"], .resident-order-table td[data-label="姓名"], .resident-order-table td[data-label="訂購內容"], .resident-order-table td[data-label="備註"] { grid-column: 1 / -1; }
   .resident-order-table td[data-label="訂購內容"] { align-items: flex-start; }
-  .resident-order-table .status-button, .resident-order-table select { min-height: 44px; }
+  .resident-order-table td[data-label="備註"] { align-items: flex-start; flex-direction: column; }
+  .order-note-control { width: 100%; min-width: 0; }
+  .order-note-control input { flex: 1; min-width: 0; }
 }
 
 @media (max-width: 420px) {

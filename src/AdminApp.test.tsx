@@ -42,7 +42,7 @@ describe('organizer campaign editor', () => {
 
     await user.click(ordersTab)
     expect(ordersTab).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByText('查看訂單進度，處理付款與領取狀態。')).toBeInTheDocument()
+    expect(screen.getByText('查看訂單進度，處理付款狀態與訂單備註。')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '訂單統計' })).toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: '團購標題' })).not.toBeInTheDocument()
 

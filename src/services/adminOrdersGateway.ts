@@ -1,7 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { FulfillmentUpdate } from '../AdminOrdersPanel'
 import { buildOrganizerOrderSummary, type OrganizerOrderSummary, type OrganizerVisibleOrder } from '../domain/adminOrders'
-import type { CampaignStatus, PickupStatus } from '../domain/orderWorkflow'
+import type { CampaignStatus } from '../domain/orderWorkflow'
 import type { Database } from '../types/database'
 
 export type AdminOrdersSupabaseClient = SupabaseClient<Database>
@@ -20,7 +19,7 @@ type WallRow = {
 type StatusRow = {
   order_id: string | null
   paid: boolean | null
-  pickup_status: string | null
+  organizer_note: string | null
 }
 
 function errorMessage(error: unknown): string {
@@ -46,7 +45,7 @@ function validateWall(data: unknown): WallRow[] {
 }
 
 function validateStatuses(data: unknown): StatusRow[] {
-  if (!Array.isArray(data)) throw new Error('Supabase 回傳的付款領取狀態格式錯誤')
+  if (!Array.isArray(data)) throw new Error('Supabase 回傳的付款與備註格式錯誤')
   return data as StatusRow[]
 }
 
@@ -84,14 +83,14 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
           .order('period'),
         client
           .from('organizer_order_status')
-          .select('order_id,paid,pickup_status')
+          .select('order_id,paid,organizer_note')
           .eq('campaign_id', campaignId)
           .order('order_id'),
       ])
 
       if (itemResult.error) throw new Error(`讀取團購品項失敗：${errorMessage(itemResult.error)}`)
       if (wallResult.error) throw new Error(`讀取住戶訂單失敗：${errorMessage(wallResult.error)}`)
-      if (statusResult.error) throw new Error(`讀取付款領取狀態失敗：${errorMessage(statusResult.error)}`)
+      if (statusResult.error) throw new Error(`讀取付款與備註失敗：${errorMessage(statusResult.error)}`)
 
       const items = validateItems(itemResult.data).map((item) => ({
         code: item.code,
@@ -121,7 +120,7 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
           unit: row.unit,
           items: {},
           paid: status?.paid ?? false,
-          pickupStatus: (status?.pickup_status ?? 'pending') as PickupStatus,
+          organizerNote: status?.organizer_note ?? '',
           orderedAt: row.ordered_at ?? undefined,
           updatedAt: row.order_updated_at ?? undefined,
         }
@@ -148,13 +147,20 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
       if (error) throw new Error(`更新活動狀態失敗：${errorMessage(error)}`)
     },
 
-    async setOrderFulfillment(orderId: string, update: FulfillmentUpdate): Promise<void> {
-      const { error } = await client.rpc('set_order_fulfillment', {
+    async setOrderPaid(orderId: string, paid: boolean): Promise<void> {
+      const { error } = await client.rpc('set_order_paid', {
         p_order_id: orderId,
-        p_paid: update.paid,
-        p_pickup_status: update.pickupStatus,
+        p_paid: paid,
       })
-      if (error) throw new Error(`更新付款領取狀態失敗：${errorMessage(error)}`)
+      if (error) throw new Error(`更新付款狀態失敗：${errorMessage(error)}`)
+    },
+
+    async setOrderOrganizerNote(orderId: string, note: string): Promise<void> {
+      const { error } = await client.rpc('set_order_organizer_note', {
+        p_order_id: orderId,
+        p_organizer_note: note,
+      })
+      if (error) throw new Error(`更新訂單備註失敗：${errorMessage(error)}`)
     },
   }
 }

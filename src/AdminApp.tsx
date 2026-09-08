@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import './AdminApp.css'
-import AdminOrdersPanel, { type FulfillmentUpdate } from './AdminOrdersPanel'
+import AdminOrdersPanel from './AdminOrdersPanel'
 import LinkifiedText from './components/LinkifiedText'
 import { campaign, initialOrders, items } from './data/demo'
 import { buildOrganizerOrderSummary, type OrganizerOrderSummary } from './domain/adminOrders'
@@ -47,7 +47,8 @@ type AdminAppProps = {
   campaignId?: string
   campaignTitle?: string
   onSetCampaignStatus?: (status: CampaignStatus) => Promise<void>
-  onSetOrderFulfillment?: (orderId: string, update: FulfillmentUpdate) => Promise<void>
+  onSetOrderPaid?: (orderId: string, paid: boolean) => Promise<void>
+  onSetOrderOrganizerNote?: (orderId: string, note: string) => Promise<void>
   onPreviewPickupNotification?: (audience: PickupNotificationAudience, message: string) => Promise<PickupNotificationResponse>
   onSendPickupNotification?: (audience: PickupNotificationAudience, message: string, previewToken: string) => Promise<PickupNotificationResponse>
   onUploadImage?: (file: File) => Promise<string>
@@ -69,7 +70,8 @@ function AdminApp({
   campaignId,
   campaignTitle,
   onSetCampaignStatus,
-  onSetOrderFulfillment,
+  onSetOrderPaid,
+  onSetOrderOrganizerNote,
   onPreviewPickupNotification,
   onSendPickupNotification,
   onUploadImage,
@@ -325,7 +327,7 @@ function AdminApp({
           <h1>團主後台</h1>
           <p>{activeWorkspace === 'settings'
             ? '編輯開團內容，右側即時確認住戶看到的畫面。'
-            : '查看訂單進度，處理付款與領取狀態。'}</p>
+            : '查看訂單進度，處理付款狀態與訂單備註。'}</p>
         </div>
         <div className="admin-header-actions">
           <a href="/admin" className="resident-link">團購列表</a>
@@ -663,7 +665,8 @@ function AdminApp({
             campaignId={campaignId}
             campaignTitle={campaignTitle}
             onSetCampaignStatus={onSetCampaignStatus}
-            onSetOrderFulfillment={onSetOrderFulfillment}
+            onSetOrderPaid={onSetOrderPaid}
+            onSetOrderOrganizerNote={onSetOrderOrganizerNote}
             onPreviewPickupNotification={onPreviewPickupNotification}
             onSendPickupNotification={onSendPickupNotification}
           />
