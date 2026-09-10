@@ -303,6 +303,7 @@ describe('local Supabase visual demo apps', () => {
       published.threshold,
       published.thresholdKind,
       published.amountThreshold,
+      published.quantityUnit,
     )
 
     await user.click(screen.getByRole('tab', { name: '訂單管理' }))
@@ -314,6 +315,7 @@ describe('local Supabase visual demo apps', () => {
       published.threshold,
       published.thresholdKind,
       published.amountThreshold,
+      published.quantityUnit,
     )
   })
 

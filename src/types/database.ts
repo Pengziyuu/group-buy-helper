@@ -60,6 +60,7 @@ export type Database = {
           images: Json
           items: Json
           opened_at: string | null
+          quantity_unit: string
           slug: string
           status: string
           threshold: number
@@ -78,6 +79,7 @@ export type Database = {
           images?: Json
           items?: Json
           opened_at?: string | null
+          quantity_unit?: string
           slug?: string
           status?: string
           threshold: number
@@ -96,6 +98,7 @@ export type Database = {
           images?: Json
           items?: Json
           opened_at?: string | null
+          quantity_unit?: string
           slug?: string
           status?: string
           threshold?: number
@@ -162,6 +165,7 @@ export type Database = {
           created_at: string
           images: Json
           items: Json
+          quantity_unit: string
           threshold: number
           threshold_kind: string
           title: string
@@ -176,6 +180,7 @@ export type Database = {
           created_at?: string
           images?: Json
           items?: Json
+          quantity_unit?: string
           threshold: number
           threshold_kind?: string
           title: string
@@ -190,6 +195,7 @@ export type Database = {
           created_at?: string
           images?: Json
           items?: Json
+          quantity_unit?: string
           threshold?: number
           threshold_kind?: string
           title?: string
@@ -929,6 +935,7 @@ export type Database = {
           images: Json | null
           items: Json | null
           opened_at: string | null
+          quantity_unit: string | null
           slug: string | null
           status: string | null
           threshold: number | null
@@ -946,6 +953,7 @@ export type Database = {
           images?: Json | null
           items?: Json | null
           opened_at?: string | null
+          quantity_unit?: string | null
           slug?: string | null
           status?: string | null
           threshold?: number | null
@@ -963,6 +971,7 @@ export type Database = {
           images?: Json | null
           items?: Json | null
           opened_at?: string | null
+          quantity_unit?: string | null
           slug?: string | null
           status?: string | null
           threshold?: number | null
@@ -1170,6 +1179,7 @@ export type Database = {
           images: Json
           items: Json
           opened_at: string | null
+          quantity_unit: string
           slug: string
           status: string
           threshold: number
@@ -1320,6 +1330,7 @@ export type Database = {
         Returns: {
           amount_threshold: number
           opened_at: string
+          quantity_unit: string
           slug: string
           status: string
           threshold: number
@@ -1387,6 +1398,7 @@ export type Database = {
           images: Json
           items: Json
           opened_at: string | null
+          quantity_unit: string
           slug: string
           status: string
           threshold: number
@@ -1428,6 +1440,7 @@ export type Database = {
           images: Json
           items: Json
           opened_at: string | null
+          quantity_unit: string
           slug: string
           status: string
           threshold: number

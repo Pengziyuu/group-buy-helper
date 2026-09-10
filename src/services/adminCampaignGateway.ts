@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database'
 import type { CampaignContent, CampaignImage, CampaignItem } from './demoCampaignStore'
+import { normalizeQuantityUnit } from '../domain/quantityUnit'
 
 export type AdminCampaignSupabaseClient = SupabaseClient<Database>
 
@@ -10,6 +11,7 @@ type DraftRow = {
   threshold: number
   threshold_kind?: string
   amount_threshold?: number | null
+  quantity_unit?: string | null
   announcement: string
   images: CampaignImage[]
   items: CampaignItem[]
@@ -46,6 +48,7 @@ function toContent(data: unknown): CampaignContent {
       : row.threshold_kind === 'quantity'
         ? { thresholdKind: 'quantity' as const, amountThreshold: null }
         : {}),
+    quantityUnit: normalizeQuantityUnit(row.quantity_unit),
     announcement: row.announcement,
     images: row.images,
     items: row.items.map((item) => ({ ...item, unitPrice: item.unitPrice ?? row.unit_price })),
@@ -53,7 +56,7 @@ function toContent(data: unknown): CampaignContent {
   }
 }
 
-const draftColumns = 'title,unit_price,threshold,threshold_kind,amount_threshold,announcement,images,items'
+const draftColumns = 'title,unit_price,threshold,threshold_kind,amount_threshold,quantity_unit,announcement,images,items'
 const publishedColumns = `${draftColumns},opened_at`
 
 export function createAdminCampaignGateway(client: AdminCampaignSupabaseClient) {
@@ -126,6 +129,7 @@ export function createAdminCampaignGateway(client: AdminCampaignSupabaseClient) 
           threshold: content.threshold,
           threshold_kind: content.thresholdKind ?? 'quantity',
           amount_threshold: content.thresholdKind === 'amount' ? content.amountThreshold : null,
+          quantity_unit: normalizeQuantityUnit(content.quantityUnit),
           announcement: content.announcement,
           images: content.images,
           items: normalizedItems,

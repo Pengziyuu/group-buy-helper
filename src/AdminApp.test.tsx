@@ -142,6 +142,22 @@ describe('organizer campaign editor', () => {
     expect(within(screen.getByRole('region', { name: '住戶端預覽' })).getByText('滿 NT$ 5,000 成團')).toBeInTheDocument()
   })
 
+  it('lets the organizer choose a common quantity unit and saves it with the draft', async () => {
+    const user = userEvent.setup()
+    const onSaveDraft = vi.fn().mockResolvedValue(undefined)
+    render(<AdminApp onSaveDraft={onSaveDraft} />)
+
+    const unit = screen.getByRole('combobox', { name: '數量單位' })
+    expect(unit).toHaveValue('個')
+    expect(within(unit).getAllByRole('option').map((option) => option.textContent)).toEqual(
+      expect.arrayContaining(['個', '盒', '包', '袋', '瓶', '罐', '組', '份', '條', '顆', '箱']),
+    )
+
+    await user.selectOptions(unit, '盒')
+    expect(screen.getByText('結單：100 盒成團')).toBeInTheDocument()
+    await waitFor(() => expect(onSaveDraft).toHaveBeenCalledWith(expect.objectContaining({ quantityUnit: '盒' })))
+  })
+
   it('adds and removes campaign images without requiring a visible description field', async () => {
     const user = userEvent.setup()
     render(<AdminApp />)

@@ -4,6 +4,7 @@ import { summarizeCampaign } from './domain/campaign'
 import { formatZhTwTimestamp, wasMeaningfullyUpdated } from './domain/timestamp'
 import { campaignStatusLabel, type CampaignStatus } from './domain/orderWorkflow'
 import { itemLabel } from './domain/itemLabel'
+import { normalizeQuantityUnit } from './domain/quantityUnit'
 import {
   formatHouseholdUnit,
   formatResidentPeriod,
@@ -118,6 +119,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
   }, [notice])
 
   const thresholdKind = publishedCampaign.thresholdKind ?? 'quantity'
+  const quantityUnit = normalizeQuantityUnit(publishedCampaign.quantityUnit)
   const thresholdTarget = thresholdKind === 'amount'
     ? (publishedCampaign.amountThreshold ?? publishedCampaign.threshold)
     : publishedCampaign.threshold
@@ -152,7 +154,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
       if (nextDraftQuantity > maxOrderQuantity) {
         setNotice({
           tone: 'error',
-          text: `此訂單最多可保留 ${maxOrderQuantity} 個，請減少 ${nextDraftQuantity - maxOrderQuantity} 個`,
+          text: `此訂單最多可保留 ${maxOrderQuantity} ${quantityUnit}，請減少 ${nextDraftQuantity - maxOrderQuantity} ${quantityUnit}`,
         })
         return
       }
@@ -250,12 +252,12 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
         <div className="progress-copy">
           <strong>{thresholdKind === 'amount'
             ? `NT$ ${summary.amount.toLocaleString('zh-TW')} / NT$ ${summary.threshold.toLocaleString('zh-TW')}`
-            : `${summary.quantity} / ${summary.threshold}`}</strong>
+            : `${summary.quantity} ${quantityUnit} / ${summary.threshold} ${quantityUnit}`}</strong>
           <span>{summary.formed
             ? '已成團'
             : thresholdKind === 'amount'
               ? `還差 NT$ ${summary.remaining.toLocaleString('zh-TW')} 成團`
-              : `還差 ${summary.remaining} 個成團`}</span>
+              : `還差 ${summary.remaining} ${quantityUnit}成團`}</span>
         </div>
         <ProgressBar
           className="campaign-progress"
@@ -307,7 +309,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
             <h2 id="order-heading">{formatResidentPeriod(currentResident.period)} {currentResident.unit}・{currentResident.name}</h2>
           </div>
           <div className="my-total">
-            <strong>我的訂單 {draftQuantity} 個</strong>
+            <strong>我的訂單 {draftQuantity} {quantityUnit}</strong>
           </div>
         </div>
 
@@ -338,7 +340,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
 
         <StickyActionBar className="resident-order-action" ariaLabel="訂單摘要與送出">
           <div className="resident-order-action-total">
-            <span>{draftQuantity} 個</span>
+            <span>{draftQuantity} {quantityUnit}</span>
             <strong>${draftAmount}</strong>
           </div>
           <Button
@@ -445,7 +447,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
                     )}
                   </p>
                 </div>
-                <strong className="wall-count">{orderQuantity(order.items)}個</strong>
+                <strong className="wall-count">{orderQuantity(order.items)}{quantityUnit}</strong>
               </article>
             ))}
         </div>

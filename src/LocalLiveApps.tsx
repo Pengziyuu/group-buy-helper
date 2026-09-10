@@ -40,6 +40,7 @@ import {
 } from './services/residentMemberManagementGateway'
 import { loadLiffIdentity, type LiffClient } from './services/liffIdentity'
 import { Button } from './components/ui/Button'
+import { normalizeQuantityUnit, type QuantityUnit } from './domain/quantityUnit'
 import { ErrorState, LoadingState } from './components/ui/AsyncState'
 import { FeedbackMessage } from './components/ui/FeedbackMessage'
 import {
@@ -61,7 +62,7 @@ export type LiveAdminRepository = {
 
 export type LiveAdminOrdersRepository = {
   loadCampaignStatus(campaignId: string): Promise<CampaignStatus>
-  loadSummary(campaignId: string, threshold: number, thresholdKind?: 'quantity' | 'amount', amountThreshold?: number | null): Promise<OrganizerOrderSummary>
+  loadSummary(campaignId: string, threshold: number, thresholdKind?: 'quantity' | 'amount', amountThreshold?: number | null, quantityUnit?: QuantityUnit): Promise<OrganizerOrderSummary>
   setCampaignStatus(campaignId: string, status: CampaignStatus): Promise<void>
   setOrderPaid(orderId: string, paid: boolean): Promise<void>
   setOrderOrganizerNote(orderId: string, note: string): Promise<void>
@@ -114,6 +115,7 @@ type CampaignRow = {
   threshold: unknown
   threshold_kind?: unknown
   amount_threshold?: unknown
+  quantity_unit?: unknown
   announcement: unknown
   images: unknown
   items: unknown
@@ -284,6 +286,7 @@ function campaignContentFromRow(row: CampaignRow | null): CampaignContent {
     threshold: row.threshold,
     thresholdKind: row.threshold_kind === 'amount' ? 'amount' : 'quantity',
     amountThreshold: row.threshold_kind === 'amount' && typeof row.amount_threshold === 'number' ? row.amount_threshold : null,
+    quantityUnit: normalizeQuantityUnit(row.quantity_unit),
     announcement: row.announcement,
     images: row.images,
     items: row.items as CampaignContent['items'],
@@ -658,7 +661,7 @@ export function LocalLiveAdminApp({
       if (!baseContent) throw new Error('找不到團購草稿')
       const editableContent = draft ? { ...draft, openedAt: published?.openedAt ?? null } : baseContent
       const summary = published
-        ? await ordersGateway.loadSummary(campaignId, published.threshold, published.thresholdKind, published.amountThreshold)
+        ? await ordersGateway.loadSummary(campaignId, published.threshold, published.thresholdKind, published.amountThreshold, published.quantityUnit)
         : null
       if (!active) return
       setContent(editableContent)
@@ -849,6 +852,7 @@ export function LocalLiveAdminApp({
             publishedContent.threshold,
             publishedContent.thresholdKind,
             publishedContent.amountThreshold,
+            publishedContent.quantityUnit,
           ))
         }
       }}
@@ -860,6 +864,7 @@ export function LocalLiveAdminApp({
             publishedContent.threshold,
             publishedContent.thresholdKind,
             publishedContent.amountThreshold,
+            publishedContent.quantityUnit,
           ))
         }
       }}
@@ -872,7 +877,7 @@ export function LocalLiveAdminApp({
         setContent(published)
         setPublishedContent(published)
         setResidentSlug(await gateway.loadResidentSlug?.(campaignId) ?? null)
-        setOrderSummary(await ordersGateway.loadSummary(campaignId, published.threshold, published.thresholdKind, published.amountThreshold))
+        setOrderSummary(await ordersGateway.loadSummary(campaignId, published.threshold, published.thresholdKind, published.amountThreshold, published.quantityUnit))
         return published
       }}
       onSignOut={async () => {
@@ -908,6 +913,7 @@ function residentCampaignListRepository(client: SupabaseClient<Database>): LiveR
           threshold: row.threshold,
           thresholdKind: row.threshold_kind === 'amount' ? 'amount' : 'quantity',
           amountThreshold: row.amount_threshold === null ? null : Number(row.amount_threshold),
+          quantityUnit: normalizeQuantityUnit(row.quantity_unit),
         }]
       })
     },
@@ -1020,7 +1026,7 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug }: Loca
       if (!resolvedCampaignId) throw new Error('找不到團購活動')
       const { data, error: queryError } = await client
         .from('campaign_public')
-        .select('title,unit_price,threshold,threshold_kind,amount_threshold,announcement,images,items,opened_at,status')
+        .select('title,unit_price,threshold,threshold_kind,amount_threshold,quantity_unit,announcement,images,items,opened_at,status')
         .eq('id', resolvedCampaignId)
         .single()
       if (queryError) throw queryError

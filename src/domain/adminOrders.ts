@@ -1,6 +1,7 @@
 import { summarizeCampaign } from './campaign'
 import { summarizePayment } from './orderWorkflow'
 import { itemLabel } from './itemLabel'
+import { normalizeQuantityUnit, type QuantityUnit } from './quantityUnit'
 
 export type OrganizerCampaignItem = {
   code: string
@@ -43,6 +44,7 @@ export type OrganizerOrderSummary = {
   amount: number
   threshold: number
   thresholdKind: 'quantity' | 'amount'
+  quantityUnit: QuantityUnit
   remaining: number
   progressPercent: number
   formed: boolean
@@ -57,12 +59,14 @@ export function buildOrganizerOrderSummary({
   threshold,
   thresholdKind = 'quantity',
   amountThreshold = null,
+  quantityUnit = '個',
 }: {
   orders: OrganizerVisibleOrder[]
   items: OrganizerCampaignItem[]
   threshold: number
   thresholdKind?: 'quantity' | 'amount'
   amountThreshold?: number | null
+  quantityUnit?: QuantityUnit
 }): OrganizerOrderSummary {
   const campaignSummary = summarizeCampaign(orders, items, {
     kind: thresholdKind,
@@ -122,6 +126,7 @@ export function buildOrganizerOrderSummary({
     amount: campaignSummary.amount,
     threshold: campaignSummary.threshold,
     thresholdKind,
+    quantityUnit: normalizeQuantityUnit(quantityUnit),
     remaining: campaignSummary.remaining,
     progressPercent: campaignSummary.progressPercent,
     formed: campaignSummary.formed,

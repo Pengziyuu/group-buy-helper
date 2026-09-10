@@ -68,9 +68,9 @@
 .field { display: grid; gap: 7px; }
 .full-field { grid-column: 1 / -1; }
 .field > span, .field > label { font-size: 13px; font-weight: 750; }
-.field input, .field textarea { width: 100%; border: 1px solid #d7d4cf; border-radius: 9px; background: #fff; color: var(--admin-ink); font: inherit; padding: 11px 12px; outline: none; }
+.field input, .field textarea, .field select { width: 100%; border: 1px solid #d7d4cf; border-radius: 9px; background: #fff; color: var(--admin-ink); font: inherit; padding: 11px 12px; outline: none; }
 .field textarea { resize: vertical; line-height: 1.6; }
-.field input:focus, .field textarea:focus { border-color: var(--admin-blue); box-shadow: 0 0 0 3px rgba(22, 119, 200, .12); }
+.field input:focus, .field textarea:focus, .field select:focus { border-color: var(--admin-blue); box-shadow: 0 0 0 3px rgba(22, 119, 200, .12); }
 .field small { justify-self: end; color: var(--admin-muted); font-size: 11px; }
 .threshold-fieldset { min-width: 0; margin: 0; padding: 12px; border: 1px solid #d7d4cf; border-radius: 10px; }
 .threshold-fieldset legend { padding: 0 5px; font-size: 13px; font-weight: 750; }

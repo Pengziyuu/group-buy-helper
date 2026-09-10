@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { buildOrganizerOrderSummary, type OrganizerOrderSummary, type OrganizerVisibleOrder } from '../domain/adminOrders'
 import type { CampaignStatus } from '../domain/orderWorkflow'
 import type { Database } from '../types/database'
+import type { QuantityUnit } from '../domain/quantityUnit'
 
 export type AdminOrdersSupabaseClient = SupabaseClient<Database>
 
@@ -69,6 +70,7 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
       threshold: number,
       thresholdKind: 'quantity' | 'amount' = 'quantity',
       amountThreshold: number | null = null,
+      quantityUnit: QuantityUnit = '個',
     ): Promise<OrganizerOrderSummary> {
       const [itemResult, wallResult, statusResult] = await Promise.all([
         client
@@ -136,6 +138,7 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
         threshold,
         thresholdKind,
         amountThreshold,
+        quantityUnit,
       })
     },
 

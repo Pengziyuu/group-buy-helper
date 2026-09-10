@@ -10,10 +10,25 @@ describe('customer campaign app', () => {
     render(<App />)
 
     expect(screen.getByRole('heading', { name: '一涼製冰所 超厚三明治冰餅' })).toBeInTheDocument()
-    expect(screen.getByText('62 / 100')).toBeInTheDocument()
+    expect(screen.getByText('62 個 / 100 個')).toBeInTheDocument()
     expect(screen.getByText('還差 38 個成團')).toBeInTheDocument()
     expect(screen.getByText('斯祈')).toBeInTheDocument()
     expect(screen.getByText('佩怡')).toBeInTheDocument()
+  })
+
+  it('uses the published quantity unit in progress, totals and capacity warnings', async () => {
+    const user = userEvent.setup()
+    render(<App publishedContent={{
+      title: '盒裝點心', unitPrice: 45, threshold: 63, quantityUnit: '盒', announcement: '公告', images: [], items,
+      openedAt: '2026-08-14T00:05:09.000Z',
+    }} />)
+
+    expect(screen.getByText('62 盒 / 63 盒')).toBeInTheDocument()
+    expect(screen.getByText('還差 1 盒成團')).toBeInTheDocument()
+    expect(screen.getByText('我的訂單 6 盒')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '增加 C 抹茶' }))
+    await user.click(screen.getByRole('button', { name: '增加 C 抹茶' }))
+    expect(screen.getByText(/此訂單最多可保留 7 盒，請減少 1 盒/)).toBeInTheDocument()
   })
 
   it('does not leak the fixed demo arrival copy into live content', () => {
@@ -93,7 +108,7 @@ describe('customer campaign app', () => {
     expect(submitOrder).toBeEnabled()
 
     await user.click(submitOrder)
-    expect(screen.getByText('63 / 100')).toBeInTheDocument()
+    expect(screen.getByText('63 個 / 100 個')).toBeInTheDocument()
     const successToast = screen.getByText('訂單已更新').closest('[role="status"]')
     expect(successToast).toHaveClass('resident-order-toast')
     expect(submitOrder).toBeDisabled()

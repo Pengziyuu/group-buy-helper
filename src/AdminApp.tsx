@@ -8,6 +8,7 @@ import type { PickupNotificationAudience } from './domain/pickupNotification'
 import type { PickupNotificationResponse } from './services/pickupNotificationGateway'
 import { campaignStatusLabel, type CampaignStatus } from './domain/orderWorkflow'
 import { itemLabel, MAX_CAMPAIGN_ITEMS } from './domain/itemLabel'
+import { normalizeQuantityUnit, QUANTITY_UNITS, type QuantityUnit } from './domain/quantityUnit'
 import {
   campaignContentEquals,
   loadDraftCampaign,
@@ -87,6 +88,7 @@ function AdminApp({
   const [threshold, setThreshold] = useState(initialDraft.threshold)
   const [thresholdInput, setThresholdInput] = useState(String(initialDraft.threshold))
   const [thresholdKind, setThresholdKind] = useState<'quantity' | 'amount'>(initialDraft.thresholdKind ?? 'quantity')
+  const [quantityUnit, setQuantityUnit] = useState<QuantityUnit>(() => normalizeQuantityUnit(initialDraft.quantityUnit))
   const [amountThreshold, setAmountThreshold] = useState(initialDraft.amountThreshold ?? Math.max(1, initialDraft.threshold * initialDraft.unitPrice))
   const [amountThresholdInput, setAmountThresholdInput] = useState(String(initialDraft.amountThreshold ?? Math.max(1, initialDraft.threshold * initialDraft.unitPrice)))
   const [announcement, setAnnouncement] = useState(initialDraft.announcement)
@@ -137,6 +139,7 @@ function AdminApp({
     threshold,
     thresholdKind,
     amountThreshold: thresholdKind === 'amount' ? amountThreshold : null,
+    quantityUnit,
     announcement,
     images,
     items: campaignItems,
@@ -164,6 +167,7 @@ function AdminApp({
         threshold,
         thresholdKind,
         amountThreshold: thresholdKind === 'amount' ? amountThreshold : null,
+    quantityUnit,
         announcement,
         images,
         items: campaignItems,
@@ -191,7 +195,7 @@ function AdminApp({
       })
     }, delay)
     return () => window.clearTimeout(timer)
-  }, [amountThreshold, announcement, autoSaveCycle, campaignItems, draftRevision, editorBusy, images, numericInputsValid, onSaveDraft, openedAt, threshold, thresholdKind, title, unitPrice])
+  }, [amountThreshold, announcement, autoSaveCycle, campaignItems, draftRevision, editorBusy, images, numericInputsValid, onSaveDraft, openedAt, quantityUnit, threshold, thresholdKind, title, unitPrice])
 
   const retryAutoSave = () => {
     if (autoSaveFailedRevision === null || editorBusy || autoSaveInFlightRef.current) return
@@ -227,6 +231,7 @@ function AdminApp({
         setThreshold(canonical.threshold)
         setThresholdInput(String(canonical.threshold))
         setThresholdKind(canonical.thresholdKind ?? 'quantity')
+        setQuantityUnit(normalizeQuantityUnit(canonical.quantityUnit))
         const canonicalAmountThreshold = canonical.amountThreshold ?? Math.max(1, canonical.threshold * canonical.unitPrice)
         setAmountThreshold(canonicalAmountThreshold)
         setAmountThresholdInput(String(canonicalAmountThreshold))
@@ -460,6 +465,21 @@ function AdminApp({
                   <small>只顯示成團進度，達到金額後不會自動結單。</small>
                 </label>
               )}
+              <label className="threshold-value-field">
+                <span>數量單位</span>
+                <select
+                  aria-label="數量單位"
+                  disabled={editorBusy}
+                  value={quantityUnit}
+                  onChange={(event) => {
+                    setQuantityUnit(normalizeQuantityUnit(event.target.value))
+                    markDraft()
+                  }}
+                >
+                  {QUANTITY_UNITS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+                </select>
+                <small>套用於成團進度、訂單總數與品項彙總。</small>
+              </label>
             </fieldset>
             <section className="item-editor full-field" aria-labelledby="item-editor-heading">
               <div className="image-editor-heading">
@@ -639,7 +659,7 @@ function AdminApp({
             <h2>{title || '未命名團購'}</h2>
             <p className="preview-threshold">{thresholdKind === 'amount'
               ? `滿 NT$ ${amountThreshold.toLocaleString('zh-TW')} 成團`
-              : `結單：${threshold} 個成團`}</p>
+              : `結單：${threshold} ${quantityUnit}成團`}</p>
             <div className="preview-images">
               {images.map((image, index) => (
                 <img key={`${image.src}-${index}`} src={image.src} alt={image.alt} />

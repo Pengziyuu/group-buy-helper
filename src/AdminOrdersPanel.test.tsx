@@ -28,6 +28,31 @@ describe('organizer orders panel', () => {
     expect(screen.getByRole('row', { name: /2K13 斯祈 B 花生（招牌）×2、D 草莓×2、E 可可×2/ })).toBeInTheDocument()
   })
 
+  it('uses the campaign quantity unit for every ordered quantity', () => {
+    const boxSummary = buildOrganizerOrderSummary({ orders: initialOrders, items, threshold: 100, quantityUnit: '盒' })
+    render(<AdminOrdersPanel summary={boxSummary} />)
+
+    expect(screen.getByText('62 盒')).toBeInTheDocument()
+    expect(screen.getByText('還差 38 盒成團')).toBeInTheDocument()
+    expect(screen.getByRole('row', { name: /B\s*花生（招牌）\s*14 盒/ })).toBeInTheDocument()
+    expect(screen.getAllByText(/6 盒/).length).toBeGreaterThan(0)
+  })
+
+  it('shows remaining money rather than the quantity unit for an amount threshold', () => {
+    const amountSummary = buildOrganizerOrderSummary({
+      orders: initialOrders,
+      items,
+      threshold: 100,
+      thresholdKind: 'amount',
+      amountThreshold: 5000,
+      quantityUnit: '盒',
+    })
+    render(<AdminOrdersPanel summary={amountSummary} />)
+
+    expect(screen.getByText('還差 $2,210 成團')).toBeInTheDocument()
+    expect(screen.queryByText(/還差 .*盒成團/)).not.toBeInTheDocument()
+  })
+
   it('offers LINE pickup notification actions only for a closed live campaign', () => {
     const onPreviewPickupNotification = vi.fn().mockResolvedValue({
       sent: false,

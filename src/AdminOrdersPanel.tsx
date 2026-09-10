@@ -81,7 +81,11 @@ function AdminOrdersPanel({
           <h2 id="admin-orders-heading">訂單統計</h2>
         </div>
         <span className={summary.formed ? 'formed' : ''}>
-          {summary.formed ? '已成團' : `還差 ${summary.remaining} 個成團`}
+          {summary.formed
+            ? '已成團'
+            : summary.thresholdKind === 'amount'
+              ? `還差 ${currency(summary.remaining)} 成團`
+              : `還差 ${summary.remaining} ${summary.quantityUnit}成團`}
         </span>
       </header>
 
@@ -120,9 +124,9 @@ function AdminOrdersPanel({
 
       <div className="admin-order-metrics">
         <article><span>參加戶數</span><strong>{summary.householdCount} 戶</strong></article>
-        <article><span>總訂購量</span><strong>{summary.quantity} 個</strong></article>
+        <article><span>總訂購量</span><strong>{summary.quantity} {summary.quantityUnit}</strong></article>
         <article><span>預估總額</span><strong>{currency(summary.amount)}</strong></article>
-        <article><span>成團門檻</span><strong>{summary.thresholdKind === 'amount' ? currency(summary.threshold) : `${summary.threshold} 個`}</strong></article>
+        <article><span>成團門檻</span><strong>{summary.thresholdKind === 'amount' ? currency(summary.threshold) : `${summary.threshold} ${summary.quantityUnit}`}</strong></article>
       </div>
 
       {campaignStatus && (
@@ -135,7 +139,7 @@ function AdminOrdersPanel({
       <div className="admin-progress" aria-label="團主成團進度">
         <div><strong>{summary.thresholdKind === 'amount'
           ? `${currency(summary.amount)} / ${currency(summary.threshold)}`
-          : `${summary.quantity} / ${summary.threshold}`}</strong><span>{summary.progressPercent}%</span></div>
+          : `${summary.quantity} ${summary.quantityUnit} / ${summary.threshold} ${summary.quantityUnit}`}</strong><span>{summary.progressPercent}%</span></div>
         <div className="admin-progress-track"><span style={{ width: `${summary.progressPercent}%` }} /></div>
       </div>
 
@@ -172,7 +176,7 @@ function AdminOrdersPanel({
                         <span className="admin-item-name">{item.name}</span>
                       </span>
                     </td>
-                    <td><strong>{item.quantity} 個</strong></td>
+                    <td><strong>{item.quantity} {summary.quantityUnit}</strong></td>
                     <td>{currency(item.amount)}</td>
                   </tr>
                 ))}
@@ -209,7 +213,7 @@ function AdminOrdersPanel({
                       <td data-label="戶號"><span className="admin-unit-period">{periodLabel(order.period)}</span>{order.unit}</td>
                       <td data-label="姓名"><strong>{order.name}</strong></td>
                       <td data-label="訂購內容">{order.itemSummary}</td>
-                      <td data-label="總數"><strong>{order.quantity} 個</strong></td>
+                      <td data-label="總數"><strong>{order.quantity} {summary.quantityUnit}</strong></td>
                       <td data-label="金額">{currency(order.amount)}</td>
                       {campaignStatus && (
                         <>

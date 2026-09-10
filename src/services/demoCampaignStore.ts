@@ -1,3 +1,5 @@
+import { normalizeQuantityUnit, type QuantityUnit } from '../domain/quantityUnit'
+
 export type CampaignImage = {
   src: string
   alt: string
@@ -18,6 +20,7 @@ export type CampaignContent = {
   threshold: number
   thresholdKind?: CampaignThresholdKind
   amountThreshold?: number | null
+  quantityUnit?: QuantityUnit
   announcement: string
   images: CampaignImage[]
   items: CampaignItem[]
@@ -106,6 +109,7 @@ export function campaignContentEquals(left: CampaignContent, right: CampaignCont
     && left.threshold === right.threshold
     && (left.thresholdKind ?? 'quantity') === (right.thresholdKind ?? 'quantity')
     && (left.amountThreshold ?? null) === (right.amountThreshold ?? null)
+    && normalizeQuantityUnit(left.quantityUnit) === normalizeQuantityUnit(right.quantityUnit)
     && left.announcement === right.announcement
     && left.images.length === right.images.length
     && left.images.every((image, index) => image.src === right.images[index]?.src && image.alt === right.images[index]?.alt)

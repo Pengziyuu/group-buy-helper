@@ -8,6 +8,7 @@ const content: CampaignContent = {
   threshold: 80,
   thresholdKind: 'quantity',
   amountThreshold: null,
+  quantityUnit: '盒',
   announcement: '團主公告',
   images: [{ src: 'campaigns/demo/front.jpg', alt: '冰餅包裝正面' }],
   items: [
@@ -25,6 +26,7 @@ function mockClient() {
     threshold: content.threshold,
     threshold_kind: content.thresholdKind,
     amount_threshold: content.amountThreshold,
+    quantity_unit: content.quantityUnit,
     announcement: content.announcement,
     images: content.images,
     items: content.items,
@@ -43,6 +45,7 @@ function mockClient() {
     threshold: content.threshold,
     threshold_kind: content.thresholdKind,
     amount_threshold: content.amountThreshold,
+    quantity_unit: content.quantityUnit,
     announcement: content.announcement,
     images: content.images,
     items: content.items,
@@ -59,7 +62,7 @@ describe('Supabase admin campaign gateway', () => {
 
     await expect(gateway.loadDraft('campaign-1')).resolves.toEqual(content)
     expect(from).toHaveBeenCalledWith('campaign_draft')
-    expect(select).toHaveBeenCalledWith('title,unit_price,threshold,threshold_kind,amount_threshold,announcement,images,items')
+    expect(select).toHaveBeenCalledWith('title,unit_price,threshold,threshold_kind,amount_threshold,quantity_unit,announcement,images,items')
     expect(eq).toHaveBeenCalledWith('campaign_id', 'campaign-1')
   })
 
@@ -75,6 +78,7 @@ describe('Supabase admin campaign gateway', () => {
       threshold: 80,
       threshold_kind: 'quantity',
       amount_threshold: null,
+      quantity_unit: '盒',
       announcement: '團主公告',
       images: [{ src: 'campaigns/demo/front.jpg', alt: '冰餅包裝正面' }],
       items: content.items,

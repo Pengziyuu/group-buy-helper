@@ -2,6 +2,7 @@ import { ProgressBar } from './components/ui/ProgressBar'
 import { StatusBadge, type StatusTone } from './components/ui/StatusBadge'
 import { campaignStatusLabel, type CampaignStatus } from './domain/orderWorkflow'
 import { formatZhTwTimestamp } from './domain/timestamp'
+import { normalizeQuantityUnit, type QuantityUnit } from './domain/quantityUnit'
 import './ResidentCampaignListApp.css'
 
 export type ResidentLineIdentity = {
@@ -20,6 +21,7 @@ export type ResidentCampaignListItem = {
   threshold: number
   thresholdKind?: 'quantity' | 'amount'
   amountThreshold?: number | null
+  quantityUnit?: QuantityUnit
 }
 
 type ResidentCampaignListAppProps = {
@@ -67,6 +69,7 @@ export default function ResidentCampaignListApp({ identity, campaigns, onLogout 
           const usesAmountThreshold = campaign.thresholdKind === 'amount'
           const progressValue = usesAmountThreshold ? (campaign.totalAmount ?? 0) : campaign.totalQuantity
           const progressTarget = usesAmountThreshold ? amountThreshold : campaign.threshold
+          const quantityUnit = normalizeQuantityUnit(campaign.quantityUnit)
           return (
           <article className="resident-campaign-card" key={campaign.slug}>
             <div className="resident-campaign-card-heading">
@@ -78,7 +81,7 @@ export default function ResidentCampaignListApp({ identity, campaigns, onLogout 
               <p><span>最低價</span><strong>NT$ {campaign.unitPrice.toLocaleString('zh-TW')}</strong></p>
               <p>成團進度 {usesAmountThreshold
                 ? `NT$ ${progressValue.toLocaleString('zh-TW')} / NT$ ${progressTarget.toLocaleString('zh-TW')}`
-                : `${progressValue} / ${progressTarget}`}</p>
+                : `${progressValue} ${quantityUnit} / ${progressTarget} ${quantityUnit}`}</p>
             </div>
             <ProgressBar label={`${campaign.title}成團進度`} value={progressValue} max={progressTarget} />
             <a href={`/campaign/${campaign.slug}`} aria-label={`查看${campaign.title}`}>查看／下單</a>
