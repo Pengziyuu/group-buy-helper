@@ -704,7 +704,8 @@ function AdminApp({
             summary={resolvedOrderSummary}
             campaignStatus={campaignStatus}
             campaignId={campaignId}
-            campaignTitle={campaignTitle}
+            campaignTitle={campaignTitle ?? title}
+            campaignOpenedAt={openedAt}
             onSetCampaignStatus={onSetCampaignStatus}
             onSetOrderPaid={onSetOrderPaid}
             onSetOrderOrganizerNote={onSetOrderOrganizerNote}

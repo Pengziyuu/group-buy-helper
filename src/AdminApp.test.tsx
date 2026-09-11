@@ -67,6 +67,14 @@ describe('organizer campaign editor', () => {
     expect(screen.queryByRole('heading', { name: '訂單統計' })).not.toBeInTheDocument()
   })
 
+  it('uses the loaded campaign title for Excel export without a duplicate title prop', async () => {
+    const user = userEvent.setup()
+    render(<AdminApp campaignStatus="closed" />)
+
+    await user.click(screen.getByRole('tab', { name: '訂單管理' }))
+    expect(screen.getByRole('button', { name: '匯出成團明細' })).toBeEnabled()
+  })
+
   it('supports keyboard navigation between organizer workspace tabs', async () => {
     const user = userEvent.setup()
     render(<AdminApp />)

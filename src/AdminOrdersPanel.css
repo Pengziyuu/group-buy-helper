@@ -77,9 +77,11 @@
 }
 .workflow-action-primary { background: var(--admin-blue); color: #fff; }
 .workflow-action-secondary { background: #fff; color: var(--admin-blue); }
+.workflow-action-export { border-color: #237554 !important; background: #237554; color: #fff; }
 .workflow-action-icon { font-size: 18px; font-weight: 800; line-height: 1; }
 .workflow-action-primary:hover:not(:disabled) { border-color: #0e65aa; background: #0e65aa; transform: translateY(-1px); }
 .workflow-action-secondary:hover:not(:disabled) { background: #e8f2fb; transform: translateY(-1px); }
+.workflow-action-export:hover:not(:disabled) { border-color: #195f43 !important; background: #195f43; transform: translateY(-1px); }
 .admin-workflow-actions .workflow-action:focus-visible {
   outline: 3px solid rgb(22 119 200 / 25%);
   outline-offset: 2px;
@@ -212,7 +214,9 @@
   .admin-orders-panel { padding: 16px; }
   .admin-order-metrics { grid-template-columns: repeat(2, 1fr); }
   .admin-workflow-bar { align-items: stretch; flex-direction: column; }
-  .admin-workflow-actions button { flex: 1; }
+  .admin-workflow-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-workflow-actions button { width: 100%; }
+  .admin-workflow-actions .workflow-action-export { grid-column: 1 / -1; }
   .admin-table-scroll:has(.resident-order-table) { overflow: visible; border: 0; }
   .resident-order-table { min-width: 0 !important; display: block; }
   .resident-order-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }

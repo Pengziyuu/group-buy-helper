@@ -4,6 +4,7 @@ import type { PickupNotificationAudience } from './domain/pickupNotification'
 import type { PickupNotificationResponse } from './services/pickupNotificationGateway'
 import PickupNotificationPanel from './PickupNotificationPanel'
 import { ConfirmDialog } from './components/ui/ConfirmDialog'
+import { buildOrderExportRows, downloadOrderExport } from './services/orderExport'
 import {
   campaignStatusAction,
   campaignStatusLabel,
@@ -19,6 +20,8 @@ type AdminOrdersPanelProps = {
   campaignStatus?: CampaignStatus
   campaignId?: string
   campaignTitle?: string
+  campaignOpenedAt?: string | null
+  onExportOrders?: () => Promise<void>
   onSetCampaignStatus?: (status: CampaignStatus) => Promise<void>
   onSetOrderPaid?: (orderId: string, paid: boolean) => Promise<void>
   onSetOrderOrganizerNote?: (orderId: string, note: string) => Promise<void>
@@ -31,6 +34,8 @@ function AdminOrdersPanel({
   campaignStatus,
   campaignId,
   campaignTitle,
+  campaignOpenedAt,
+  onExportOrders,
   onSetCampaignStatus,
   onSetOrderPaid,
   onSetOrderOrganizerNote,
@@ -72,6 +77,18 @@ function AdminOrdersPanel({
   const statusAction = campaignStatus ? campaignStatusAction(campaignStatus) : null
   const pendingOrders = summary.orderRows.filter((order) => !order.paid)
   const visibleOrders = orderFilter === 'pending' ? pendingOrders : summary.orderRows
+  const exportVisible = Boolean(
+    campaignTitle
+    && campaignOpenedAt
+    && (campaignStatus === 'closed' || campaignStatus === 'arrived'),
+  )
+  const hasExportRows = buildOrderExportRows(summary, campaignTitle ?? '').length > 0
+  const exportOrders = () => {
+    if (!campaignTitle || !campaignOpenedAt) return Promise.resolve()
+    return onExportOrders
+      ? onExportOrders()
+      : downloadOrderExport({ summary, campaignTitle, openedAt: campaignOpenedAt })
+  }
 
   return (
     <section className="admin-orders-panel" aria-labelledby="admin-orders-heading">
@@ -95,18 +112,20 @@ function AdminOrdersPanel({
             <span>活動狀態</span>
             <strong>{campaignStatusLabel(campaignStatus)}</strong>
           </div>
-          {onSetCampaignStatus && statusAction && (
+          {(onSetCampaignStatus && statusAction || exportVisible) && (
             <div className="admin-workflow-actions">
-              <button
-                type="button"
-                className="workflow-action workflow-action-secondary"
-                disabled={busyKeys.has('campaign')}
-                onClick={() => run('campaign', () => onSetCampaignStatus(statusAction.next))}
-              >
-                <span className="workflow-action-icon" aria-hidden="true">↻</span>
-                {statusAction.label}
-              </button>
-              {campaignStatus === 'closed' && (
+              {onSetCampaignStatus && statusAction && (
+                <button
+                  type="button"
+                  className="workflow-action workflow-action-secondary"
+                  disabled={busyKeys.has('campaign')}
+                  onClick={() => run('campaign', () => onSetCampaignStatus(statusAction.next))}
+                >
+                  <span className="workflow-action-icon" aria-hidden="true">↻</span>
+                  {statusAction.label}
+                </button>
+              )}
+              {onSetCampaignStatus && campaignStatus === 'closed' && (
                 <button
                   type="button"
                   className="workflow-action workflow-action-primary"
@@ -115,6 +134,19 @@ function AdminOrdersPanel({
                 >
                   <span className="workflow-action-icon" aria-hidden="true">✓</span>
                   標記到貨
+                </button>
+              )}
+              {exportVisible && (
+                <button
+                  type="button"
+                  className="workflow-action workflow-action-export"
+                  aria-label="匯出成團明細"
+                  disabled={!hasExportRows || busyKeys.has('export')}
+                  title={!hasExportRows ? '目前沒有可匯出的訂單' : undefined}
+                  onClick={() => run('export', exportOrders)}
+                >
+                  <span className="workflow-action-icon" aria-hidden="true">↓</span>
+                  {busyKeys.has('export') ? '建立Excel中…' : '匯出成團明細'}
                 </button>
               )}
             </div>

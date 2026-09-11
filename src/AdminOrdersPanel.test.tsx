@@ -98,6 +98,75 @@ describe('organizer orders panel', () => {
     expect(screen.getByRole('heading', { name: 'LINE領取通知' })).toBeInTheDocument()
   })
 
+  it('offers a read-only Excel export only after closing the campaign', async () => {
+    const user = userEvent.setup()
+    const onExportOrders = vi.fn().mockResolvedValue(undefined)
+    const { rerender } = render(
+      <AdminOrdersPanel
+        summary={summary}
+        campaignStatus="open"
+        campaignTitle="榮泉餅店"
+        campaignOpenedAt="2026-09-11T05:00:00.000Z"
+        onExportOrders={onExportOrders}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: '匯出成團明細' })).not.toBeInTheDocument()
+
+    rerender(
+      <AdminOrdersPanel
+        summary={summary}
+        campaignStatus="closed"
+        campaignTitle="榮泉餅店"
+        campaignOpenedAt="2026-09-11T05:00:00.000Z"
+        onExportOrders={onExportOrders}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: '匯出成團明細' }))
+    expect(onExportOrders).toHaveBeenCalledOnce()
+
+    rerender(
+      <AdminOrdersPanel
+        summary={summary}
+        campaignStatus="arrived"
+        campaignTitle="榮泉餅店"
+        campaignOpenedAt="2026-09-11T05:00:00.000Z"
+        onExportOrders={onExportOrders}
+      />,
+    )
+    expect(screen.getByRole('button', { name: '匯出成團明細' })).toBeEnabled()
+  })
+
+  it('disables Excel export for empty shells but enables custom-only orders', () => {
+    const emptyShell = {
+      ...summary.orderRows[0],
+      items: { A: 0 },
+      customItems: [{ id: 'blank', name: '   ', quantity: 0 }],
+    }
+    const { rerender } = render(
+      <AdminOrdersPanel
+        summary={{ ...summary, householdCount: 0, orderRows: [emptyShell] }}
+        campaignStatus="closed"
+        campaignTitle="空團"
+        campaignOpenedAt="2026-09-11T05:00:00.000Z"
+      />,
+    )
+    expect(screen.getByRole('button', { name: '匯出成團明細' })).toBeDisabled()
+
+    rerender(
+      <AdminOrdersPanel
+        summary={{
+          ...summary,
+          householdCount: 1,
+          orderRows: [{ ...emptyShell, customItems: [{ id: 'bag', name: '紙袋', quantity: 1 }] }],
+        }}
+        campaignStatus="arrived"
+        campaignTitle="額外品項團"
+        campaignOpenedAt="2026-09-11T05:00:00.000Z"
+      />,
+    )
+    expect(screen.getByRole('button', { name: '匯出成團明細' })).toBeEnabled()
+  })
+
   it('requires confirmation before changing payment and saves an organizer note explicitly', async () => {
     const user = userEvent.setup()
     const onSetCampaignStatus = vi.fn().mockResolvedValue(undefined)
