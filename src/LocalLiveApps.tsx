@@ -918,6 +918,7 @@ function residentCampaignListRepository(client: SupabaseClient<Database>): LiveR
           thresholdKind: row.threshold_kind === 'amount' ? 'amount' : 'quantity',
           amountThreshold: row.amount_threshold === null ? null : Number(row.amount_threshold),
           quantityUnit: normalizeQuantityUnit(row.quantity_unit),
+          images: Array.isArray(row.images) ? row.images.filter(isCampaignImage) : [],
         }]
       })
     },

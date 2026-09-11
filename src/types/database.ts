@@ -1344,6 +1344,7 @@ export type Database = {
         Returns: {
           allow_custom_items: boolean
           amount_threshold: number
+          images: Json
           opened_at: string
           quantity_unit: string
           slug: string

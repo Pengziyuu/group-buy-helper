@@ -156,15 +156,39 @@ export default function RuntimeApp({ config, pathname, client, liffClient }: Run
     return (
       <ResidentCampaignListApp
         identity={{ displayName: '測試住戶', pictureUrl: null }}
-        campaigns={[{
-          slug: DEMO_CAMPAIGN_SLUG,
-          title: campaign.title,
-          status: 'open',
-          unitPrice: campaign.unitPrice,
-          openedAt: campaign.openedAt,
-          totalQuantity: demoTotalQuantity,
-          threshold: campaign.threshold,
-        }]}
+        campaigns={[
+          {
+            slug: DEMO_CAMPAIGN_SLUG,
+            title: campaign.title,
+            status: 'open',
+            unitPrice: campaign.unitPrice,
+            openedAt: campaign.openedAt,
+            totalQuantity: demoTotalQuantity,
+            threshold: campaign.threshold,
+            images: campaign.images,
+          },
+          {
+            slug: 'abcdef0123456789abcdef0123456789abcd',
+            title: '台北南門市場｜雪裏紅素食點心',
+            status: 'open',
+            unitPrice: 190,
+            openedAt: '2026-09-09T05:09:00.000Z',
+            totalQuantity: 13,
+            threshold: 20,
+            quantityUnit: '袋',
+            images: campaign.images,
+          },
+          {
+            slug: 'fedcba9876543210fedcba9876543210fedc',
+            title: 'Olitalia 奧利塔食用油',
+            status: 'closed',
+            unitPrice: 220,
+            openedAt: '2026-09-09T04:49:00.000Z',
+            totalQuantity: 12,
+            threshold: 12,
+            quantityUnit: '箱',
+          },
+        ]}
       />
     )
   }

@@ -22,6 +22,10 @@ describe('ResidentCampaignListApp', () => {
             threshold: 10,
             thresholdKind: 'amount',
             amountThreshold: 1000,
+            images: [
+              { src: 'https://example.com/breakfast-cover.jpg', alt: '早餐商品照片' },
+              { src: 'https://example.com/breakfast-detail.jpg', alt: '早餐細節照片' },
+            ],
           },
           {
             slug: 'abcdef0123456789abcdef0123456789abcd',
@@ -41,11 +45,15 @@ describe('ResidentCampaignListApp', () => {
     expect(screen.getByRole('heading', { name: '全部開團' })).toBeInTheDocument()
     expect(screen.getByText('彭梓育')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: '彭梓育的LINE頭貼' })).toHaveAttribute('src', 'https://example.com/avatar.jpg')
+    expect(screen.getByRole('img', { name: '早餐商品照片' })).toHaveAttribute('src', 'https://example.com/breakfast-cover.jpg')
+    expect(screen.queryByRole('img', { name: '早餐細節照片' })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('水果團購尚未設定商品圖片')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '查看早餐團購' })).toHaveAttribute('href', '/campaign/0123456789abcdef0123456789abcdef0123')
     expect(screen.getByText('收單中')).toBeInTheDocument()
     expect(screen.getByText('已結單')).toBeInTheDocument()
-    expect(screen.getByText('成團進度 NT$ 440 / NT$ 1,000')).toBeInTheDocument()
-    expect(screen.getByText('成團進度 12 箱 / 12 箱')).toBeInTheDocument()
+    expect(screen.getByText('NT$ 440 / NT$ 1,000')).toBeInTheDocument()
+    expect(screen.getByText('12 箱 / 12 箱')).toBeInTheDocument()
+    expect(screen.getAllByText('成團進度')).toHaveLength(2)
     expect(screen.getAllByText('最低價')).toHaveLength(2)
     expect(screen.queryByText('單價')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '登出' }))
