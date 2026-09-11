@@ -135,7 +135,7 @@ export async function createOrderExportWorkbook({ summary, campaignTitle }: Orde
     row.getCell(7).numFmt = '$#,##0'
     row.getCell(8).numFmt = '$#,##0'
     row.eachCell({ includeEmpty: true }, (cell) => {
-      cell.alignment = { vertical: 'middle', wrapText: true }
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
       cell.border = { bottom: { style: 'hair', color: { argb: 'FFD9E4DF' } } }
     })
     if (item.custom) {
@@ -161,7 +161,13 @@ export async function createOrderExportWorkbook({ summary, campaignTitle }: Orde
   totalRow.getCell(8).numFmt = '$#,##0'
   totalRow.eachCell({ includeEmpty: true }, (cell) => {
     cell.border = { top: { style: 'medium', color: { argb: 'FF236B53' } } }
-    cell.alignment = { vertical: 'middle', wrapText: true }
+    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+  })
+  sheet.eachRow((row) => {
+    for (let column = 1; column <= sheet.columnCount; column += 1) {
+      const cell = row.getCell(column)
+      cell.alignment = { ...cell.alignment, horizontal: 'center', vertical: 'middle' }
+    }
   })
 
   const buffer = await workbook.xlsx.writeBuffer()

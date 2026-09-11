@@ -115,5 +115,13 @@ describe('order Excel export', () => {
     expect(sheet?.getCell('F7').value).toEqual({ formula: 'SUM(F2,F4,F5)' })
     expect(sheet?.getCell('G7').value).toBe('正式商品總金額')
     expect(sheet?.getCell('H7').value).toEqual({ formula: 'SUM(H2,H4,H5)' })
+    for (let row = 1; row <= 7; row += 1) {
+      for (let column = 1; column <= 9; column += 1) {
+        expect(sheet?.getCell(row, column).alignment).toEqual(expect.objectContaining({
+          horizontal: 'center',
+          vertical: 'middle',
+        }))
+      }
+    }
   })
 })
