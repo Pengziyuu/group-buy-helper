@@ -51,6 +51,7 @@ export type Database = {
       }
       campaign: {
         Row: {
+          allow_custom_items: boolean
           amount_threshold: number | null
           announcement: string
           community_id: string
@@ -70,6 +71,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          allow_custom_items?: boolean
           amount_threshold?: number | null
           announcement?: string
           community_id?: string
@@ -89,6 +91,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          allow_custom_items?: boolean
           amount_threshold?: number | null
           announcement?: string
           community_id?: string
@@ -159,6 +162,7 @@ export type Database = {
       }
       campaign_draft: {
         Row: {
+          allow_custom_items: boolean
           amount_threshold: number | null
           announcement: string
           campaign_id: string
@@ -174,6 +178,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          allow_custom_items?: boolean
           amount_threshold?: number | null
           announcement?: string
           campaign_id: string
@@ -189,6 +194,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          allow_custom_items?: boolean
           amount_threshold?: number | null
           announcement?: string
           campaign_id?: string
@@ -624,6 +630,7 @@ export type Database = {
         Row: {
           campaign_id: string
           created_at: string
+          custom_items: Json
           customer_id: string
           id: string
           note: string | null
@@ -632,6 +639,7 @@ export type Database = {
         Insert: {
           campaign_id: string
           created_at?: string
+          custom_items?: Json
           customer_id: string
           id?: string
           note?: string | null
@@ -640,6 +648,7 @@ export type Database = {
         Update: {
           campaign_id?: string
           created_at?: string
+          custom_items?: Json
           customer_id?: string
           id?: string
           note?: string | null
@@ -927,6 +936,7 @@ export type Database = {
       }
       campaign_public: {
         Row: {
+          allow_custom_items: boolean | null
           amount_threshold: number | null
           announcement: string | null
           created_at: string | null
@@ -945,6 +955,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          allow_custom_items?: boolean | null
           amount_threshold?: number | null
           announcement?: string | null
           created_at?: string | null
@@ -963,6 +974,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          allow_custom_items?: boolean | null
           amount_threshold?: number | null
           announcement?: string | null
           created_at?: string | null
@@ -987,6 +999,7 @@ export type Database = {
           campaign_id: string | null
           campaign_item_id: string | null
           campaign_slug: string | null
+          custom_items: Json | null
           customer_id: string | null
           customer_name: string | null
           item_active: boolean | null
@@ -1170,6 +1183,7 @@ export type Database = {
       create_campaign_draft: {
         Args: { p_title?: string }
         Returns: {
+          allow_custom_items: boolean
           amount_threshold: number | null
           announcement: string
           community_id: string
@@ -1328,6 +1342,7 @@ export type Database = {
       list_resident_campaigns: {
         Args: never
         Returns: {
+          allow_custom_items: boolean
           amount_threshold: number
           opened_at: string
           quantity_unit: string
@@ -1389,6 +1404,7 @@ export type Database = {
       publish_campaign_draft: {
         Args: { p_campaign_id: string }
         Returns: {
+          allow_custom_items: boolean
           amount_threshold: number | null
           announcement: string
           community_id: string
@@ -1431,6 +1447,7 @@ export type Database = {
       set_campaign_status: {
         Args: { p_campaign_id: string; p_status: string }
         Returns: {
+          allow_custom_items: boolean
           amount_threshold: number | null
           announcement: string
           community_id: string
@@ -1469,11 +1486,12 @@ export type Database = {
         Returns: boolean
       }
       submit_customer_order: {
-        Args: { p_campaign_id: string; p_items: Json }
+        Args: { p_campaign_id: string; p_custom_items?: Json; p_items: Json }
         Returns: Json
       }
       valid_campaign_images: { Args: { p_images: Json }; Returns: boolean }
       valid_campaign_items: { Args: { p_items: Json }; Returns: boolean }
+      valid_custom_order_items: { Args: { value: Json }; Returns: boolean }
       valid_resident_household: {
         Args: { p_period: number; p_unit: string }
         Returns: boolean

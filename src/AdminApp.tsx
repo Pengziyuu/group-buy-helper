@@ -89,6 +89,7 @@ function AdminApp({
   const [thresholdInput, setThresholdInput] = useState(String(initialDraft.threshold))
   const [thresholdKind, setThresholdKind] = useState<'quantity' | 'amount'>(initialDraft.thresholdKind ?? 'quantity')
   const [quantityUnit, setQuantityUnit] = useState<QuantityUnit>(() => normalizeQuantityUnit(initialDraft.quantityUnit))
+  const [allowCustomItems, setAllowCustomItems] = useState(initialDraft.allowCustomItems ?? false)
   const [amountThreshold, setAmountThreshold] = useState(initialDraft.amountThreshold ?? Math.max(1, initialDraft.threshold * initialDraft.unitPrice))
   const [amountThresholdInput, setAmountThresholdInput] = useState(String(initialDraft.amountThreshold ?? Math.max(1, initialDraft.threshold * initialDraft.unitPrice)))
   const [announcement, setAnnouncement] = useState(initialDraft.announcement)
@@ -140,6 +141,7 @@ function AdminApp({
     thresholdKind,
     amountThreshold: thresholdKind === 'amount' ? amountThreshold : null,
     quantityUnit,
+    allowCustomItems,
     announcement,
     images,
     items: campaignItems,
@@ -167,7 +169,8 @@ function AdminApp({
         threshold,
         thresholdKind,
         amountThreshold: thresholdKind === 'amount' ? amountThreshold : null,
-    quantityUnit,
+        quantityUnit,
+        allowCustomItems,
         announcement,
         images,
         items: campaignItems,
@@ -195,7 +198,7 @@ function AdminApp({
       })
     }, delay)
     return () => window.clearTimeout(timer)
-  }, [amountThreshold, announcement, autoSaveCycle, campaignItems, draftRevision, editorBusy, images, numericInputsValid, onSaveDraft, openedAt, quantityUnit, threshold, thresholdKind, title, unitPrice])
+  }, [allowCustomItems, amountThreshold, announcement, autoSaveCycle, campaignItems, draftRevision, editorBusy, images, numericInputsValid, onSaveDraft, openedAt, quantityUnit, threshold, thresholdKind, title, unitPrice])
 
   const retryAutoSave = () => {
     if (autoSaveFailedRevision === null || editorBusy || autoSaveInFlightRef.current) return
@@ -232,6 +235,7 @@ function AdminApp({
         setThresholdInput(String(canonical.threshold))
         setThresholdKind(canonical.thresholdKind ?? 'quantity')
         setQuantityUnit(normalizeQuantityUnit(canonical.quantityUnit))
+        setAllowCustomItems(canonical.allowCustomItems ?? false)
         const canonicalAmountThreshold = canonical.amountThreshold ?? Math.max(1, canonical.threshold * canonical.unitPrice)
         setAmountThreshold(canonicalAmountThreshold)
         setAmountThresholdInput(String(canonicalAmountThreshold))
@@ -304,6 +308,7 @@ function AdminApp({
   }
 
   const itemsLocked = openedAt !== null
+  const customItemsLocked = openedAt !== null
 
   const nextItemCode = () => {
     let suffix = 1
@@ -479,6 +484,21 @@ function AdminApp({
                   {QUANTITY_UNITS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
                 </select>
                 <small>套用於成團進度、訂單總數與品項彙總。</small>
+              </label>
+              <label className="custom-items-toggle">
+                <input
+                  type="checkbox"
+                  aria-label="允許住戶新增額外品項"
+                  checked={allowCustomItems}
+                  disabled={editorBusy || customItemsLocked}
+                  onChange={(event) => { setAllowCustomItems(event.target.checked); markDraft() }}
+                />
+                <span>
+                  <strong>允許住戶新增額外品項</strong>
+                  <small>{customItemsLocked
+                    ? '正式開團後此設定不可變更。'
+                    : '住戶可填名稱與數量，不輸入金額；額外品項不納入成團門檻。'}</small>
+                </span>
               </label>
             </fieldset>
             <section className="item-editor full-field" aria-labelledby="item-editor-heading">
@@ -660,6 +680,7 @@ function AdminApp({
             <p className="preview-threshold">{thresholdKind === 'amount'
               ? `滿 NT$ ${amountThreshold.toLocaleString('zh-TW')} 成團`
               : `結單：${threshold} ${quantityUnit}成團`}</p>
+            {allowCustomItems && <p className="preview-custom-items">可新增自訂額外品項，金額由團主另計</p>}
             <div className="preview-images">
               {images.map((image, index) => (
                 <img key={`${image.src}-${index}`} src={image.src} alt={image.alt} />

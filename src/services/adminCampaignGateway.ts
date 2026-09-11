@@ -12,6 +12,7 @@ type DraftRow = {
   threshold_kind?: string
   amount_threshold?: number | null
   quantity_unit?: string | null
+  allow_custom_items?: boolean | null
   announcement: string
   images: CampaignImage[]
   items: CampaignItem[]
@@ -49,6 +50,7 @@ function toContent(data: unknown): CampaignContent {
         ? { thresholdKind: 'quantity' as const, amountThreshold: null }
         : {}),
     quantityUnit: normalizeQuantityUnit(row.quantity_unit),
+    allowCustomItems: row.allow_custom_items ?? false,
     announcement: row.announcement,
     images: row.images,
     items: row.items.map((item) => ({ ...item, unitPrice: item.unitPrice ?? row.unit_price })),
@@ -56,7 +58,7 @@ function toContent(data: unknown): CampaignContent {
   }
 }
 
-const draftColumns = 'title,unit_price,threshold,threshold_kind,amount_threshold,quantity_unit,announcement,images,items'
+const draftColumns = 'title,unit_price,threshold,threshold_kind,amount_threshold,quantity_unit,allow_custom_items,announcement,images,items'
 const publishedColumns = `${draftColumns},opened_at`
 
 export function createAdminCampaignGateway(client: AdminCampaignSupabaseClient) {
@@ -130,6 +132,7 @@ export function createAdminCampaignGateway(client: AdminCampaignSupabaseClient) 
           threshold_kind: content.thresholdKind ?? 'quantity',
           amount_threshold: content.thresholdKind === 'amount' ? content.amountThreshold : null,
           quantity_unit: normalizeQuantityUnit(content.quantityUnit),
+          allow_custom_items: content.allowCustomItems ?? false,
           announcement: content.announcement,
           images: content.images,
           items: normalizedItems,

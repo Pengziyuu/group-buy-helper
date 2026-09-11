@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import { summarizeCampaign } from './domain/campaign'
 import { formatZhTwTimestamp, wasMeaningfullyUpdated } from './domain/timestamp'
 import { campaignStatusLabel, type CampaignStatus } from './domain/orderWorkflow'
 import { itemLabel } from './domain/itemLabel'
 import { normalizeQuantityUnit } from './domain/quantityUnit'
+import { customOrderItemsEqual, validCustomOrderItems, type CustomOrderItem } from './domain/customOrderItem'
 import {
   formatHouseholdUnit,
   formatResidentPeriod,
@@ -64,7 +65,7 @@ type AppProps = {
   residentCustomer?: ResidentCustomer | null
   verifiedResidentIdentity?: VerifiedResidentIdentity
   onBindResident?: (input: ResidentBindingInput) => Promise<ResidentCustomer>
-  onSubmitOrder?: (items: Record<string, number>) => Promise<void>
+  onSubmitOrder?: (items: Record<string, number>, customItems: CustomOrderItem[]) => Promise<void>
   syncError?: string
   onSyncRetry?: () => void
 }
@@ -99,9 +100,12 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
   const [bindingNotice, setBindingNotice] = useState('')
   const [draft, setDraft] = useState<Record<string, number>>({ ...(ownOrder?.items ?? {}) })
   const [savedDraft, setSavedDraft] = useState<Record<string, number>>({ ...(ownOrder?.items ?? {}) })
+  const [customDraft, setCustomDraft] = useState<CustomOrderItem[]>(() => ownOrder?.customItems?.map((item) => ({ ...item })) ?? [])
+  const [savedCustomDraft, setSavedCustomDraft] = useState<CustomOrderItem[]>(() => ownOrder?.customItems?.map((item) => ({ ...item })) ?? [])
+  const customItemSequence = useRef(0)
   const [notice, setNotice] = useState<{ tone: 'success' | 'error'; text: string } | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const draftDirty = !orderItemsEqual(draft, savedDraft)
+  const draftDirty = !orderItemsEqual(draft, savedDraft) || !customOrderItemsEqual(customDraft, savedCustomDraft)
   const [announcementExpanded, setAnnouncementExpanded] = useState(false)
 
   useEffect(() => {
@@ -109,6 +113,9 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
       const nextSavedDraft = { ...(ownOrder?.items ?? {}) }
       setDraft(nextSavedDraft)
       setSavedDraft(nextSavedDraft)
+      const nextCustomDraft = ownOrder?.customItems?.map((item) => ({ ...item })) ?? []
+      setCustomDraft(nextCustomDraft)
+      setSavedCustomDraft(nextCustomDraft)
     }
   }, [draftDirty, ownOrder, visibleOrders])
 
@@ -132,6 +139,9 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
     [orders, publishedCampaign, thresholdKind, thresholdTarget],
   )
   const draftQuantity = orderQuantity(draft)
+  const customDraftQuantity = customDraft.reduce((sum, item) => sum + item.quantity, 0)
+  const customDraftValid = customDraft.every((item) => item.name.trim().length > 0 && item.name.trim().length <= 100 && item.quantity >= 1 && item.quantity <= 20)
+  const hasDraftItems = draftQuantity > 0 || customDraftQuantity > 0
   const draftAmount = Object.entries(draft).reduce((sum, [code, quantity]) => {
     const item = publishedCampaign.items.find((candidate) => candidate.code === code)
     return sum + quantity * (item?.unitPrice ?? publishedCampaign.unitPrice)
@@ -140,10 +150,11 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
   const minimumPrice = activePrices.length > 0 ? Math.min(...activePrices) : 0
   const maximumPrice = activePrices.length > 0 ? Math.max(...activePrices) : 0
   const editable = campaignStatus === 'open'
+  const controlsEditable = editable && !submitting
   const hasLongAnnouncement = publishedCampaign.announcement.length > 240
 
   const adjust = (code: string, delta: number) => {
-    if (!editable) return
+    if (!controlsEditable) return
     setNotice(null)
     const currentQuantity = draft[code] ?? 0
     const nextQuantity = Math.max(0, Math.min(20, currentQuantity + delta))
@@ -166,6 +177,29 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
       }
       return { ...current, [code]: nextQuantity }
     })
+  }
+
+  const addCustomItem = () => {
+    if (!controlsEditable || customDraft.length >= 10) return
+    customItemSequence.current += 1
+    setCustomDraft((current) => [...current, {
+      id: `custom-${Date.now()}-${customItemSequence.current}`,
+      name: '',
+      quantity: 0,
+    }])
+    setNotice(null)
+  }
+
+  const updateCustomItem = (id: string, update: Partial<Pick<CustomOrderItem, 'name' | 'quantity'>>) => {
+    if (!controlsEditable) return
+    setCustomDraft((current) => current.map((item) => item.id === id ? { ...item, ...update } : item))
+    setNotice(null)
+  }
+
+  const removeCustomItem = (id: string) => {
+    if (!controlsEditable) return
+    setCustomDraft((current) => current.filter((item) => item.id !== id))
+    setNotice(null)
   }
 
   const bindResident = async () => {
@@ -193,8 +227,11 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
       setSubmitting(true)
       setNotice(null)
       try {
-        await onSubmitOrder(draft)
+        const submittedCustomItems = validCustomOrderItems(customDraft)
+        await onSubmitOrder(draft, submittedCustomItems)
         setSavedDraft({ ...draft })
+        setCustomDraft(submittedCustomItems)
+        setSavedCustomDraft(submittedCustomItems)
         setNotice({ tone: 'success', text: '訂單已更新' })
       } catch (error) {
         setNotice({ tone: 'error', text: error instanceof Error ? error.message : '訂單更新失敗' })
@@ -206,11 +243,14 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
     setLocalOrders((current) =>
       current.map((order) =>
         order.customerId === currentCustomerId
-          ? { ...order, items: { ...draft }, updatedAt: new Date().toISOString() }
+          ? { ...order, items: { ...draft }, customItems: validCustomOrderItems(customDraft), updatedAt: new Date().toISOString() }
           : order,
       ),
     )
     setSavedDraft({ ...draft })
+    const submittedCustomItems = validCustomOrderItems(customDraft)
+    setCustomDraft(submittedCustomItems)
+    setSavedCustomDraft(submittedCustomItems)
     setNotice({ tone: 'success', text: '訂單已更新' })
   }
 
@@ -329,7 +369,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
                 <QuantityControl
                   label={`${displayLabel} ${item.name}`}
                   value={quantity}
-                  disabled={!editable}
+                  disabled={!controlsEditable}
                   onDecrement={() => adjust(item.code, -1)}
                   onIncrement={() => adjust(item.code, 1)}
                 />
@@ -338,15 +378,57 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
           })}
         </div>
 
+        {publishedCampaign.allowCustomItems && (
+          <section className="custom-order-items" aria-labelledby="custom-order-items-heading">
+            <div className="custom-order-items-heading">
+              <div>
+                <h3 id="custom-order-items-heading">額外品項</h3>
+                <p>名稱由你填寫，金額由團主另計；不納入成團門檻。</p>
+              </div>
+              <Button variant="secondary" onClick={addCustomItem} disabled={!controlsEditable || customDraft.length >= 10}><span aria-hidden="true">＋</span> 新增額外品項</Button>
+            </div>
+            {customDraft.map((item, index) => (
+              <div className="custom-order-item-row" key={item.id}>
+                <label>
+                  <span>品項名稱</span>
+                  <input
+                    aria-label={`額外品項 ${index + 1} 名稱`}
+                    value={item.name}
+                    maxLength={100}
+                    disabled={!controlsEditable}
+                    placeholder="例如：限定口味"
+                    onChange={(event) => updateCustomItem(item.id, { name: event.target.value })}
+                  />
+                </label>
+                <QuantityControl
+                  label={`額外品項 ${index + 1}`}
+                  value={item.quantity}
+                  disabled={!controlsEditable}
+                  onDecrement={() => updateCustomItem(item.id, { quantity: Math.max(0, item.quantity - 1) })}
+                  onIncrement={() => updateCustomItem(item.id, { quantity: Math.min(20, item.quantity + 1) })}
+                />
+                <Button
+                  variant="tertiary"
+                  aria-label={`移除額外品項 ${index + 1}`}
+                  disabled={!controlsEditable}
+                  onClick={() => removeCustomItem(item.id)}
+                >移除</Button>
+              </div>
+            ))}
+            {customDraft.length > 0 && <p className="custom-order-items-note">金額由團主另計</p>}
+          </section>
+        )}
+
         <StickyActionBar className="resident-order-action" ariaLabel="訂單摘要與送出">
           <div className="resident-order-action-total">
             <span>{draftQuantity} {quantityUnit}</span>
             <strong>${draftAmount}</strong>
+            {customDraftQuantity > 0 && <small>另有 {customDraftQuantity} {quantityUnit}額外品項・金額另計</small>}
           </div>
           <Button
             className="submit-button"
             onClick={() => { void submit() }}
-            disabled={!editable || !draftDirty || draftQuantity === 0}
+            disabled={!controlsEditable || !draftDirty || !hasDraftItems || !customDraftValid}
             loading={submitting}
             loadingLabel="訂單送出中…"
           >送出訂單</Button>
@@ -404,7 +486,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
           <Button
             className="submit-button"
             onClick={() => { void bindResident() }}
-            disabled={!editable}
+            disabled={!controlsEditable}
             loading={binding}
             loadingLabel="住戶資料儲存中…"
           >儲存住戶資料</Button>
@@ -439,7 +521,12 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
                   <p>{Object.entries(order.items)
                     .filter(([, quantity]) => quantity > 0)
                     .map(([code, quantity]) => `${itemDisplayLabel(code)}+${quantity}`)
-                    .join('、')}</p>
+                    .join('、') || '無正式品項'}</p>
+                  {(order.customItems ?? []).length > 0 && (
+                    <p className="wall-custom-items">{order.customItems
+                      ?.map((item) => `${item.name}×${item.quantity}（另計）`)
+                      .join('、')}</p>
+                  )}
                   <p className="wall-time">
                     下單時間 {formatZhTwTimestamp(order.orderedAt)}
                     {wasMeaningfullyUpdated(order.orderedAt, order.updatedAt) && (
@@ -447,7 +534,10 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
                     )}
                   </p>
                 </div>
-                <strong className="wall-count">{orderQuantity(order.items)}{quantityUnit}</strong>
+                <div className="wall-order-totals">
+                  <strong className="wall-count">{orderQuantity(order.items)}{quantityUnit}</strong>
+                  {(order.customItems ?? []).length > 0 && <small>另有 {(order.customItems ?? []).reduce((sum, item) => sum + item.quantity, 0)} {quantityUnit}額外品項</small>}
+                </div>
               </article>
             ))}
         </div>

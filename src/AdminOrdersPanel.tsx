@@ -212,9 +212,12 @@ function AdminOrdersPanel({
                     <tr key={order.orderId} aria-busy={orderBusy || undefined}>
                       <td data-label="戶號"><span className="admin-unit-period">{periodLabel(order.period)}</span>{order.unit}</td>
                       <td data-label="姓名"><strong>{order.name}</strong></td>
-                      <td data-label="訂購內容">{order.itemSummary}</td>
+                      <td data-label="訂購內容">
+                        <span>{order.itemSummary || '無正式品項'}</span>
+                        {order.customItemSummary && <span className="admin-custom-item-summary">{order.customItemSummary}</span>}
+                      </td>
                       <td data-label="總數"><strong>{order.quantity} {summary.quantityUnit}</strong></td>
-                      <td data-label="金額">{currency(order.amount)}</td>
+                      <td data-label="金額">{currency(order.amount)}{order.customItemSummary && <small className="admin-custom-price-note">＋另計</small>}</td>
                       {campaignStatus && (
                         <>
                           <td data-label="付款">

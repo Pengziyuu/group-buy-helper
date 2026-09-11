@@ -2,6 +2,7 @@ import { summarizeCampaign } from './campaign'
 import { summarizePayment } from './orderWorkflow'
 import { itemLabel } from './itemLabel'
 import { normalizeQuantityUnit, type QuantityUnit } from './quantityUnit'
+import type { CustomOrderItem } from './customOrderItem'
 
 export type OrganizerCampaignItem = {
   code: string
@@ -17,6 +18,7 @@ export type OrganizerVisibleOrder = {
   period: number
   unit: string
   items: Record<string, number>
+  customItems?: CustomOrderItem[]
   paid?: boolean
   organizerNote?: string
   orderedAt?: string
@@ -34,6 +36,7 @@ export type OrganizerOrderRow = OrganizerVisibleOrder & {
   quantity: number
   amount: number
   itemSummary: string
+  customItemSummary: string
   paid: boolean
   organizerNote: string
 }
@@ -108,12 +111,17 @@ export function buildOrganizerOrderSummary({
           return item ? `${item.label} ${item.name}×${itemQuantity}` : `${code}×${itemQuantity}`
         })
         .join('、')
+      const customItemSummary = (order.customItems ?? [])
+        .filter((item) => item.name.trim() && item.quantity > 0)
+        .map((item) => `${item.name.trim()}×${item.quantity}（另計）`)
+        .join('、')
       return {
         ...order,
         orderId: order.orderId ?? order.customerId,
         quantity,
         amount,
         itemSummary,
+        customItemSummary,
         paid: order.paid ?? false,
         organizerNote: order.organizerNote ?? '',
       }

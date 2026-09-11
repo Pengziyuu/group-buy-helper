@@ -41,6 +41,7 @@ import {
 import { loadLiffIdentity, type LiffClient } from './services/liffIdentity'
 import { Button } from './components/ui/Button'
 import { normalizeQuantityUnit, type QuantityUnit } from './domain/quantityUnit'
+import { parseCustomOrderItems, type CustomOrderItem } from './domain/customOrderItem'
 import { ErrorState, LoadingState } from './components/ui/AsyncState'
 import { FeedbackMessage } from './components/ui/FeedbackMessage'
 import {
@@ -116,6 +117,7 @@ type CampaignRow = {
   threshold_kind?: unknown
   amount_threshold?: unknown
   quantity_unit?: unknown
+  allow_custom_items?: unknown
   announcement: unknown
   images: unknown
   items: unknown
@@ -126,7 +128,7 @@ type CampaignRow = {
 type ResidentCustomer = Pick<VisibleOrder, 'customerId' | 'name' | 'period' | 'unit'>
 type OrderWallRow = Pick<
   Database['public']['Views']['order_wall']['Row'],
-  'order_id' | 'customer_id' | 'customer_name' | 'picture_url' | 'period' | 'unit' | 'item_code' | 'qty' | 'ordered_at' | 'order_updated_at'
+  'order_id' | 'customer_id' | 'customer_name' | 'picture_url' | 'period' | 'unit' | 'item_code' | 'qty' | 'custom_items' | 'ordered_at' | 'order_updated_at'
 >
 
 function visibleOrdersFromRows(rows: OrderWallRow[]): VisibleOrder[] {
@@ -141,6 +143,7 @@ function visibleOrdersFromRows(rows: OrderWallRow[]): VisibleOrder[] {
       period: row.period,
       unit: row.unit,
       items: {},
+      customItems: parseCustomOrderItems(row.custom_items),
       orderedAt: row.ordered_at,
       updatedAt: row.order_updated_at,
     }
@@ -287,6 +290,7 @@ function campaignContentFromRow(row: CampaignRow | null): CampaignContent {
     thresholdKind: row.threshold_kind === 'amount' ? 'amount' : 'quantity',
     amountThreshold: row.threshold_kind === 'amount' && typeof row.amount_threshold === 'number' ? row.amount_threshold : null,
     quantityUnit: normalizeQuantityUnit(row.quantity_unit),
+    allowCustomItems: row.allow_custom_items === true,
     announcement: row.announcement,
     images: row.images,
     items: row.items as CampaignContent['items'],
@@ -1026,7 +1030,7 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug }: Loca
       if (!resolvedCampaignId) throw new Error('找不到團購活動')
       const { data, error: queryError } = await client
         .from('campaign_public')
-        .select('title,unit_price,threshold,threshold_kind,amount_threshold,quantity_unit,announcement,images,items,opened_at,status')
+        .select('title,unit_price,threshold,threshold_kind,amount_threshold,quantity_unit,allow_custom_items,announcement,images,items,opened_at,status')
         .eq('id', resolvedCampaignId)
         .single()
       if (queryError) throw queryError
@@ -1040,7 +1044,7 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug }: Loca
       if (!resolvedCampaignId) throw new Error('找不到團購活動')
       const [wallResult, customerResult, identityResult] = await Promise.all([
         client.from('order_wall')
-          .select('order_id,customer_id,customer_name,picture_url,period,unit,item_code,qty,ordered_at,order_updated_at')
+          .select('order_id,customer_id,customer_name,picture_url,period,unit,item_code,qty,custom_items,ordered_at,order_updated_at')
           .eq('campaign_id', resolvedCampaignId),
         client.rpc('get_customer_self'),
         client.rpc('get_line_resident_self'),
@@ -1153,14 +1157,15 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug }: Loca
         setResidentCustomer(bound)
         return bound
       }}
-      onSubmitOrder={async (items) => {
+      onSubmitOrder={async (items, customItems: CustomOrderItem[]) => {
         const { error: submitError } = await client.rpc('submit_customer_order', {
           p_campaign_id: joinedCampaignId,
           p_items: items,
+          p_custom_items: customItems,
         })
         if (submitError) throw submitError
         const { data, error: wallError } = await client.from('order_wall')
-          .select('order_id,customer_id,customer_name,picture_url,period,unit,item_code,qty,ordered_at,order_updated_at')
+          .select('order_id,customer_id,customer_name,picture_url,period,unit,item_code,qty,custom_items,ordered_at,order_updated_at')
           .eq('campaign_id', joinedCampaignId)
         if (wallError) throw wallError
         setOrders(visibleOrdersFromRows(data ?? []))

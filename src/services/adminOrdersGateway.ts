@@ -1,7 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { buildOrganizerOrderSummary, type OrganizerOrderSummary, type OrganizerVisibleOrder } from '../domain/adminOrders'
+import { parseCustomOrderItems } from '../domain/customOrderItem'
 import type { CampaignStatus } from '../domain/orderWorkflow'
-import type { Database } from '../types/database'
+import type { Database, Json } from '../types/database'
 import type { QuantityUnit } from '../domain/quantityUnit'
 
 export type AdminOrdersSupabaseClient = SupabaseClient<Database>
@@ -14,6 +15,7 @@ type WallRow = {
   unit: string | null
   item_code: string | null
   qty: number | null
+  custom_items: Json | null
   ordered_at: string | null
   order_updated_at: string | null
 }
@@ -80,7 +82,7 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
           .order('sort_order'),
         client
           .from('order_wall')
-          .select('order_id,customer_name,period,unit,item_code,qty,ordered_at,order_updated_at')
+          .select('order_id,customer_name,period,unit,item_code,qty,custom_items,ordered_at,order_updated_at')
           .eq('campaign_id', campaignId)
           .order('period'),
         client
@@ -121,6 +123,7 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
           period: row.period,
           unit: row.unit,
           items: {},
+          customItems: parseCustomOrderItems(row.custom_items),
           paid: status?.paid ?? false,
           organizerNote: status?.organizer_note ?? '',
           orderedAt: row.ordered_at ?? undefined,

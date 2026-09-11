@@ -29,13 +29,23 @@ describe('organizer orders panel', () => {
   })
 
   it('uses the campaign quantity unit for every ordered quantity', () => {
-    const boxSummary = buildOrganizerOrderSummary({ orders: initialOrders, items, threshold: 100, quantityUnit: '盒' })
+    const boxSummary = buildOrganizerOrderSummary({
+      orders: initialOrders.map((order, index) => index === 0
+        ? { ...order, customItems: [{ id: 'custom-1', name: '限定蛋糕', quantity: 2 }] }
+        : order),
+      items,
+      threshold: 100,
+      quantityUnit: '盒',
+    })
     render(<AdminOrdersPanel summary={boxSummary} />)
 
     expect(screen.getByText('62 盒')).toBeInTheDocument()
     expect(screen.getByText('還差 38 盒成團')).toBeInTheDocument()
     expect(screen.getByRole('row', { name: /B\s*花生（招牌）\s*14 盒/ })).toBeInTheDocument()
     expect(screen.getAllByText(/6 盒/).length).toBeGreaterThan(0)
+    expect(screen.getByText('限定蛋糕×2（另計）')).toBeInTheDocument()
+    expect(screen.getByText('預估總額')).toBeInTheDocument()
+    expect(screen.getByText('$2,790')).toBeInTheDocument()
   })
 
   it('shows remaining money rather than the quantity unit for an amount threshold', () => {

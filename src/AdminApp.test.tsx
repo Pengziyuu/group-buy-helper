@@ -158,6 +158,39 @@ describe('organizer campaign editor', () => {
     await waitFor(() => expect(onSaveDraft).toHaveBeenCalledWith(expect.objectContaining({ quantityUnit: '盒' })))
   })
 
+  it('lets the organizer enable resident custom items and saves the setting', async () => {
+    const user = userEvent.setup()
+    const onSaveDraft = vi.fn().mockResolvedValue(undefined)
+    const draft: CampaignContent = {
+      title: '尚未開團', unitPrice: 45, threshold: 100, allowCustomItems: false,
+      announcement: '公告', images: [], items: [{ code: 'A', name: '原味', unitPrice: 45, active: true }],
+      openedAt: null,
+    }
+    render(<AdminApp initialContent={draft} initialPublicationState="draft" onSaveDraft={onSaveDraft} />)
+
+    const toggle = screen.getByRole('checkbox', { name: '允許住戶新增額外品項' })
+    expect(toggle).not.toBeChecked()
+    expect(screen.queryByText('可新增自訂額外品項，金額由團主另計')).not.toBeInTheDocument()
+
+    await user.click(toggle)
+
+    expect(within(screen.getByRole('region', { name: '住戶端預覽' })).getByText('可新增自訂額外品項，金額由團主另計')).toBeInTheDocument()
+    await waitFor(() => expect(onSaveDraft).toHaveBeenCalled())
+    expect(onSaveDraft).toHaveBeenLastCalledWith(expect.objectContaining({ allowCustomItems: true }))
+  })
+
+  it('locks the resident custom item setting after the campaign is first published', () => {
+    const published: CampaignContent = {
+      title: '已開團', unitPrice: 45, threshold: 100, allowCustomItems: true,
+      announcement: '公告', images: [], items: [{ code: 'A', name: '原味', unitPrice: 45, active: true }],
+      openedAt: '2026-09-11T00:00:00.000Z',
+    }
+    render(<AdminApp initialContent={published} initialPublicationState="published" />)
+
+    expect(screen.getByRole('checkbox', { name: '允許住戶新增額外品項' })).toBeDisabled()
+    expect(screen.getByText('正式開團後此設定不可變更。')).toBeInTheDocument()
+  })
+
   it('adds and removes campaign images without requiring a visible description field', async () => {
     const user = userEvent.setup()
     render(<AdminApp />)

@@ -40,4 +40,26 @@ describe('organizer order summary', () => {
     }))
     expect(summary.fulfillment).toEqual({ total: 6, paid: 0, unpaid: 6 })
   })
+
+  it('counts a custom-only order as one household without inventing quantity or amount', () => {
+    const summary = buildOrganizerOrderSummary({
+      orders: [{
+        customerId: 'customer-custom-only', name: '自訂住戶', period: 1, unit: '1A1', items: {}, orderedAt: '2026-09-11T00:00:00.000Z',
+        customItems: [{ id: 'custom-1', name: '限定蛋糕', quantity: 2 }],
+      }],
+      items: pricedItems,
+      threshold: 100,
+    })
+
+    expect(summary.householdCount).toBe(1)
+    expect(summary.quantity).toBe(0)
+    expect(summary.amount).toBe(0)
+    expect(summary.itemRows.every((item) => item.quantity === 0)).toBe(true)
+    expect(summary.orderRows[0]).toEqual(expect.objectContaining({
+      quantity: 0,
+      amount: 0,
+      itemSummary: '',
+      customItemSummary: '限定蛋糕×2（另計）',
+    }))
+  })
 })

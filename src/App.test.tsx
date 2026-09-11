@@ -1,8 +1,8 @@
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import App from './App'
-import { initialOrders, items } from './data/demo'
+import { currentCustomerId, initialOrders, items } from './data/demo'
 import type { CampaignContent } from './services/demoCampaignStore'
 
 describe('customer campaign app', () => {
@@ -29,6 +29,89 @@ describe('customer campaign app', () => {
     await user.click(screen.getByRole('button', { name: '增加 C 抹茶' }))
     await user.click(screen.getByRole('button', { name: '增加 C 抹茶' }))
     expect(screen.getByText(/此訂單最多可保留 7 盒，請減少 1 盒/)).toBeInTheDocument()
+  })
+
+  it('submits resident custom items separately without changing price or threshold quantity', async () => {
+    const user = userEvent.setup()
+    const onSubmitOrder = vi.fn().mockResolvedValue(undefined)
+    render(<App onSubmitOrder={onSubmitOrder} publishedContent={{
+      title: '可自訂品項', unitPrice: 45, threshold: 100, allowCustomItems: true,
+      announcement: '公告', images: [], items, openedAt: '2026-08-14T00:05:09.000Z',
+    }} />)
+
+    expect(screen.getByText('62 個 / 100 個')).toBeInTheDocument()
+    expect(screen.getByText('$270')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '新增額外品項' }))
+    await user.type(screen.getByRole('textbox', { name: '額外品項 1 名稱' }), '限定蛋糕')
+    await user.click(screen.getByRole('button', { name: '增加 額外品項 1' }))
+    await user.click(screen.getByRole('button', { name: '增加 額外品項 1' }))
+
+    expect(screen.getByText('金額由團主另計')).toBeInTheDocument()
+    expect(screen.getByText('62 個 / 100 個')).toBeInTheDocument()
+    expect(screen.getByText('$270')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '送出訂單' }))
+    expect(onSubmitOrder).toHaveBeenCalledWith(expect.any(Object), [
+      expect.objectContaining({ name: '限定蛋糕', quantity: 2 }),
+    ])
+  })
+
+  it('locks every order control while a custom order submission is pending', async () => {
+    const user = userEvent.setup()
+    let finishSubmit!: () => void
+    const onSubmitOrder = vi.fn(() => new Promise<void>((resolve) => { finishSubmit = resolve }))
+    render(<App
+      publishedContent={{
+        title: '送出鎖定測試', unitPrice: 45, threshold: 100, allowCustomItems: true,
+        announcement: '公告', images: [], items, openedAt: '2026-09-11T00:00:00.000Z',
+      }}
+      onSubmitOrder={onSubmitOrder}
+    />)
+
+    await user.click(screen.getByRole('button', { name: '新增額外品項' }))
+    const input = screen.getByRole('textbox', { name: '額外品項 1 名稱' })
+    await user.type(input, '限定蛋糕')
+    await user.click(screen.getByRole('button', { name: '增加 額外品項 1' }))
+    await user.click(screen.getByRole('button', { name: '送出訂單' }))
+
+    expect(input).toBeDisabled()
+    expect(screen.getByRole('button', { name: '新增額外品項' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '增加 額外品項 1' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '移除額外品項 1' })).toBeDisabled()
+
+    await act(async () => { finishSubmit() })
+    await screen.findByText('訂單已更新')
+  })
+
+  it('does not let a resident remove historical custom items after closing', () => {
+    render(<App
+      publishedContent={{
+        title: '結單鎖定測試', unitPrice: 45, threshold: 100, allowCustomItems: true,
+        announcement: '公告', images: [], items, openedAt: '2026-09-11T00:00:00.000Z',
+      }}
+      campaignStatus="closed"
+      visibleOrders={initialOrders.map((order) => order.customerId === currentCustomerId
+        ? { ...order, customItems: [{ id: 'custom-closed', name: '歷史蛋糕', quantity: 2 }] }
+        : order)}
+    />)
+
+    expect(screen.getByRole('button', { name: '移除額外品項 1' })).toBeDisabled()
+    expect(screen.getByRole('textbox', { name: '額外品項 1 名稱' })).toBeDisabled()
+  })
+
+  it('shows custom items on the live order wall as unpriced additions', () => {
+    render(<App
+      publishedContent={{
+        title: '訂單牆自訂品項', unitPrice: 45, threshold: 100, allowCustomItems: true,
+        announcement: '公告', images: [], items, openedAt: '2026-08-14T00:05:09.000Z',
+      }}
+      visibleOrders={initialOrders.map((order, index) => index === 1
+        ? { ...order, customItems: [{ id: 'custom-wall', name: '隱藏版口味', quantity: 3 }] }
+        : order)}
+    />)
+
+    expect(screen.getByText(/隱藏版口味×3（另計）/)).toBeInTheDocument()
+    expect(screen.getByText(/另有 3 個額外品項/)).toBeInTheDocument()
+    expect(screen.getByText('62 個 / 100 個')).toBeInTheDocument()
   })
 
   it('does not leak the fixed demo arrival copy into live content', () => {

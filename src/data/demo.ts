@@ -1,4 +1,5 @@
 import type { Order } from '../domain/campaign'
+import type { CustomOrderItem } from '../domain/customOrderItem'
 
 export type CampaignItem = {
   code: string
@@ -8,6 +9,7 @@ export type CampaignItem = {
 }
 
 export type VisibleOrder = Order & {
+  customItems?: CustomOrderItem[]
   name: string
   pictureUrl?: string | null
   period: number

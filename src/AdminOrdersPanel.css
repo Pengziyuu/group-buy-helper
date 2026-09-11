@@ -193,6 +193,8 @@
 }
 
 .resident-order-table { min-width: 980px !important; }
+.admin-custom-item-summary { display: block; margin-top: 5px; color: #9a5b16; font-weight: 750; }
+.admin-custom-price-note { display: block; margin-top: 3px; color: #9a5b16; font-size: 11px; font-weight: 750; }
 .item-summary-table { min-width: 0 !important; table-layout: fixed; }
 .item-summary-quantity-column { width: 74px; }
 .item-summary-amount-column { width: 88px; }

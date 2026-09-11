@@ -79,7 +79,13 @@
 .threshold-kind-options input { width: auto; margin: 0; }
 .threshold-value-field { display: grid; gap: 7px; margin-top: 10px; }
 .threshold-value-field > span { font-size: 13px; font-weight: 750; }
-.threshold-value-field small { justify-self: start; line-height: 1.45; }
+.threshold-value-field small { justify-self: start; color: #77716a; line-height: 1.45; }
+.custom-items-toggle { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border: 1px solid #d7d4cf; border-radius: 10px; background: #fff; cursor: pointer; }
+.custom-items-toggle input { width: 18px; height: 18px; margin-top: 2px; accent-color: #08786e; }
+.custom-items-toggle span { display: grid; gap: 4px; }
+.custom-items-toggle strong { font-size: 14px; }
+.custom-items-toggle small { color: #77716a; line-height: 1.45; }
+.preview-custom-items { margin: 8px 0; padding: 8px 10px; border-radius: 8px; background: #eef8f5; color: #08786e; font-size: 13px; font-weight: 700; }
 .item-editor, .image-editor, .announcement-field { padding: 16px; border: 1px solid var(--admin-line); border-radius: 12px; background: #fbfaf8; }
 .item-editor, .image-editor { margin-top: 2px; }
 .announcement-field { margin-top: 2px; }
