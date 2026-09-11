@@ -49,7 +49,7 @@ describe('ResidentCampaignListApp', () => {
     expect(screen.queryByRole('img', { name: '早餐細節照片' })).not.toBeInTheDocument()
     expect(screen.getByLabelText('水果團購尚未設定商品圖片')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '查看早餐團購' })).toHaveAttribute('href', '/campaign/0123456789abcdef0123456789abcdef0123')
-    expect(screen.getByText('收單中')).toBeInTheDocument()
+    expect(screen.getByText('開團中')).toBeInTheDocument()
     expect(screen.getByText('已結單')).toBeInTheDocument()
     expect(screen.getByText('NT$ 440 / NT$ 1,000')).toBeInTheDocument()
     expect(screen.getByText('12 箱 / 12 箱')).toBeInTheDocument()

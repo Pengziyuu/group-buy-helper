@@ -192,7 +192,7 @@ describe('organizer orders panel', () => {
       />,
     )
 
-    expect(screen.getByText('收單中')).toBeInTheDocument()
+    expect(screen.getByText('開團中')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '結單' }))
     expect(onSetCampaignStatus).toHaveBeenCalledWith('closed')
 

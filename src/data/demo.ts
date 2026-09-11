@@ -22,7 +22,7 @@ export const campaign = {
   title: '一涼製冰所 超厚三明治冰餅',
   unitPrice: 45,
   threshold: 100,
-  status: '收單中' as const,
+  status: '開團中' as const,
   arrival: '貨到通知',
   openedAt: '2026-08-14T00:05:09.000Z',
   announcement: `🌞炎炎夏日 #冰品最佳首選🧊🍦

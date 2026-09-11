@@ -277,7 +277,7 @@ describe('organizer campaign editor', () => {
     render(<AdminApp campaignStatus="arrived" />)
 
     expect(screen.getByLabelText('住戶端預覽')).toHaveTextContent('已到貨')
-    expect(screen.getByLabelText('住戶端預覽')).not.toHaveTextContent('● 收單中')
+    expect(screen.getByLabelText('住戶端預覽')).not.toHaveTextContent('● 開團中')
   })
 
   it('confirms the selected image without asking for a separate description', async () => {

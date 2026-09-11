@@ -92,9 +92,9 @@ export default function ResidentCampaignListApp({ identity, campaigns, onLogout 
           <h1>全部開團</h1>
           <span>看看鄰居最近都在買什麼，選一團查看內容或直接下單。</span>
         </div>
-        <div className="resident-list-summary" aria-label={`共有${campaigns.length}個團購，${openCampaignCount}個收單中`}>
+        <div className="resident-list-summary" aria-label={`共有${campaigns.length}個團購，${openCampaignCount}個開團中`}>
           <strong>{openCampaignCount}</strong>
-          <span>個團購<br />收單中</span>
+          <span>個團購<br />開團中</span>
         </div>
       </section>
 

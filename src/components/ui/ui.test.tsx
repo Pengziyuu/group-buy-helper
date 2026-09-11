@@ -45,13 +45,13 @@ describe('shared UI primitives', () => {
 
   it('renders semantic status, progress, and feedback without relying on color alone', () => {
     render(<>
-      <StatusBadge tone="success">收單中</StatusBadge>
+      <StatusBadge tone="success">開團中</StatusBadge>
       <ProgressBar label="成團進度" value={120} max={100} />
       <FeedbackMessage tone="error">儲存失敗</FeedbackMessage>
       <FeedbackMessage tone="success">儲存成功</FeedbackMessage>
     </>)
 
-    expect(screen.getByText('收單中')).toHaveAttribute('data-tone', 'success')
+    expect(screen.getByText('開團中')).toHaveAttribute('data-tone', 'success')
     expect(screen.getByRole('progressbar', { name: '成團進度' })).toHaveAttribute('aria-valuenow', '100')
     expect(screen.getByRole('alert')).toHaveTextContent('儲存失敗')
     expect(screen.getByRole('status')).toHaveTextContent('儲存成功')

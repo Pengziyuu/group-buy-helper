@@ -5,7 +5,7 @@ export type OrderPayment = {
 }
 
 const campaignLabels: Record<CampaignStatus, string> = {
-  open: '收單中',
+  open: '開團中',
   closed: '已結單',
   arrived: '已到貨',
 }

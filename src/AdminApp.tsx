@@ -673,7 +673,7 @@ function AdminApp({
           </div>
           <article className="preview-phone">
             <div className="preview-status">
-              <span>● {campaignStatus ? campaignStatusLabel(campaignStatus) : '收單中'}</span>
+              <span>● {campaignStatus ? campaignStatusLabel(campaignStatus) : '開團中'}</span>
               <strong>{unitPrice === maximumItemPrice ? `$${unitPrice}` : `$${unitPrice}～$${maximumItemPrice}`}</strong>
             </div>
             <h2>{title || '未命名團購'}</h2>
