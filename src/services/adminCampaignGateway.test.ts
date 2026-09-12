@@ -10,11 +10,13 @@ const content: CampaignContent = {
   amountThreshold: null,
   quantityUnit: '盒',
   allowCustomItems: true,
+  baseDiscountRate: 0.9,
+  mixMatchDiscount: { name: '任選三件85折', minimumQuantity: 3, rate: 0.85 },
   announcement: '團主公告',
   images: [{ src: 'campaigns/demo/front.jpg', alt: '冰餅包裝正面' }],
   items: [
-    { code: 'MILK', name: '牛奶', unitPrice: 50, active: true },
-    { code: 'OLD', name: '停售口味', unitPrice: 50, active: false },
+    { code: 'MILK', name: '牛奶', unitPrice: 50, active: true, discountEligible: true },
+    { code: 'OLD', name: '停售口味', unitPrice: 50, active: false, discountEligible: false },
   ],
   openedAt: '2026-08-14T00:05:09.000Z',
 }
@@ -29,6 +31,10 @@ function mockClient() {
     amount_threshold: content.amountThreshold,
     quantity_unit: content.quantityUnit,
     allow_custom_items: content.allowCustomItems,
+    base_discount_rate: content.baseDiscountRate,
+    mix_match_name: content.mixMatchDiscount?.name,
+    mix_match_min_quantity: content.mixMatchDiscount?.minimumQuantity,
+    mix_match_discount_rate: content.mixMatchDiscount?.rate,
     announcement: content.announcement,
     images: content.images,
     items: content.items,
@@ -49,6 +55,10 @@ function mockClient() {
     amount_threshold: content.amountThreshold,
     quantity_unit: content.quantityUnit,
     allow_custom_items: content.allowCustomItems,
+    base_discount_rate: content.baseDiscountRate,
+    mix_match_name: content.mixMatchDiscount?.name,
+    mix_match_min_quantity: content.mixMatchDiscount?.minimumQuantity,
+    mix_match_discount_rate: content.mixMatchDiscount?.rate,
     announcement: content.announcement,
     images: content.images,
     items: content.items,
@@ -65,7 +75,7 @@ describe('Supabase admin campaign gateway', () => {
 
     await expect(gateway.loadDraft('campaign-1')).resolves.toEqual(content)
     expect(from).toHaveBeenCalledWith('campaign_draft')
-    expect(select).toHaveBeenCalledWith('title,unit_price,threshold,threshold_kind,amount_threshold,quantity_unit,allow_custom_items,announcement,images,items')
+    expect(select).toHaveBeenCalledWith(expect.stringContaining('base_discount_rate,mix_match_name,mix_match_min_quantity,mix_match_discount_rate'))
     expect(eq).toHaveBeenCalledWith('campaign_id', 'campaign-1')
   })
 
@@ -83,6 +93,10 @@ describe('Supabase admin campaign gateway', () => {
       amount_threshold: null,
       quantity_unit: '盒',
       allow_custom_items: true,
+      base_discount_rate: 0.9,
+      mix_match_name: '任選三件85折',
+      mix_match_min_quantity: 3,
+      mix_match_discount_rate: 0.85,
       announcement: '團主公告',
       images: [{ src: 'campaigns/demo/front.jpg', alt: '冰餅包裝正面' }],
       items: content.items,

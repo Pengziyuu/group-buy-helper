@@ -24,7 +24,7 @@ values (
 到貨：貨到通知$announcement$,
   '[{"src":"/ice-cream-sandwich-demo.svg","alt":"超厚三明治冰餅口味示意圖"}]'::jsonb,
   '[{"code":"A","name":"牛奶（招牌）","unitPrice":45,"active":true},{"code":"B","name":"花生（招牌）","unitPrice":45,"active":true},{"code":"C","name":"抹茶","unitPrice":45,"active":true},{"code":"D","name":"草莓","unitPrice":45,"active":true},{"code":"E","name":"可可","unitPrice":45,"active":true},{"code":"F","name":"黑芝麻","unitPrice":45,"active":true},{"code":"G","name":"OREO","unitPrice":45,"active":true},{"code":"H","name":"烏龍奶","unitPrice":45,"active":true},{"code":"I","name":"泰奶","unitPrice":45,"active":true}]'::jsonb,
-  '2026-08-12T00:00:00Z'
+  null
 );
 
 insert into public.campaign_item (id, campaign_id, code, name, unit_price, sort_order)
@@ -38,6 +38,30 @@ values
   ('20000000-0000-4000-8000-000000000007', '10000000-0000-4000-8000-000000000001', 'G', 'OREO', 45, 7),
   ('20000000-0000-4000-8000-000000000008', '10000000-0000-4000-8000-000000000001', 'H', '烏龍奶', 45, 8),
   ('20000000-0000-4000-8000-000000000009', '10000000-0000-4000-8000-000000000001', 'I', '泰奶', 45, 9);
+
+update public.campaign campaign
+set items = (
+  select jsonb_agg(jsonb_build_object(
+    'code', item.code,
+    'name', item.name,
+    'unitPrice', item.unit_price,
+    'active', item.active,
+    'discountEligible', item.discount_eligible
+  ) order by item.sort_order, item.code)
+  from public.campaign_item item
+  where item.campaign_id = campaign.id
+)
+where campaign.id = '10000000-0000-4000-8000-000000000001';
+
+update public.campaign_draft draft
+set items = campaign.items
+from public.campaign campaign
+where draft.campaign_id = campaign.id
+  and campaign.id = '10000000-0000-4000-8000-000000000001';
+
+update public.campaign
+set opened_at = '2026-08-12T00:00:00Z'
+where id = '10000000-0000-4000-8000-000000000001';
 
 insert into public.product_template (code, name, default_price, sort_order)
 values

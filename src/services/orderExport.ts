@@ -40,7 +40,7 @@ export function buildOrderExportRows(summary: OrganizerOrderSummary, campaignTit
           campaignTitle,
           itemName: `${item.label} ${item.name}`,
           quantity,
-          unitPrice: item.unitPrice,
+          unitPrice: order.itemPriceSnapshots?.[code]?.finalUnitPrice ?? item.unitPrice,
           custom: false,
         }] : []
       })

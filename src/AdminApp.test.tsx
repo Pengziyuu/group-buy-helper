@@ -199,6 +199,56 @@ describe('organizer campaign editor', () => {
     expect(screen.getByText('正式開團後此設定不可變更。')).toBeInTheDocument()
   })
 
+  it('lets the organizer configure a base discount and one mix-and-match group before publishing', async () => {
+    const user = userEvent.setup()
+    const onSaveDraft = vi.fn().mockResolvedValue(undefined)
+    const draft: CampaignContent = {
+      title: '肉品團購', unitPrice: 170, threshold: 100,
+      announcement: '公告', images: [],
+      items: [
+        { code: 'A', name: '五花肉片', unitPrice: 170, active: true },
+        { code: 'B', name: '梅花肉片', unitPrice: 180, active: true },
+      ],
+      openedAt: null,
+    }
+    render(<AdminApp initialContent={draft} initialPublicationState="draft" onSaveDraft={onSaveDraft} />)
+
+    await user.click(screen.getByRole('checkbox', { name: '啟用全團基本折扣' }))
+    await user.click(screen.getByRole('checkbox', { name: '啟用任選優惠' }))
+    await user.click(screen.getByRole('checkbox', { name: '品項 A 加入任選優惠' }))
+
+    expect(screen.getByRole('spinbutton', { name: '基本折數' })).toHaveValue(9)
+    expect(screen.getByRole('spinbutton', { name: '任選最低件數' })).toHaveValue(3)
+    expect(screen.getByRole('spinbutton', { name: '任選優惠折數' })).toHaveValue(8.5)
+    expect(screen.getByRole('textbox', { name: '任選優惠名稱' })).toHaveValue('任選三件85折')
+
+    await waitFor(() => expect(onSaveDraft).toHaveBeenCalled())
+    expect(onSaveDraft).toHaveBeenLastCalledWith(expect.objectContaining({
+      baseDiscountRate: 0.9,
+      mixMatchDiscount: { name: '任選三件85折', minimumQuantity: 3, rate: 0.85 },
+      items: [
+        expect.objectContaining({ code: 'A', discountEligible: true }),
+        expect.objectContaining({ code: 'B', discountEligible: false }),
+      ],
+    }))
+  })
+
+  it('locks discount rules and eligibility after the campaign is first published', () => {
+    const published: CampaignContent = {
+      title: '已開團', unitPrice: 170, threshold: 100,
+      baseDiscountRate: 0.9,
+      mixMatchDiscount: { name: '任選三件85折', minimumQuantity: 3, rate: 0.85 },
+      announcement: '公告', images: [],
+      items: [{ code: 'A', name: '五花肉片', unitPrice: 170, active: true, discountEligible: true }],
+      openedAt: '2026-09-12T00:00:00.000Z',
+    }
+    render(<AdminApp initialContent={published} initialPublicationState="published" />)
+
+    expect(screen.getByRole('spinbutton', { name: '基本折數' })).toBeDisabled()
+    expect(screen.getByRole('spinbutton', { name: '任選優惠折數' })).toBeDisabled()
+    expect(screen.getByRole('checkbox', { name: '品項 A 加入任選優惠' })).toBeDisabled()
+  })
+
   it('adds and removes campaign images without requiring a visible description field', async () => {
     const user = userEvent.setup()
     render(<AdminApp />)

@@ -31,6 +31,39 @@ describe('customer campaign app', () => {
     expect(screen.getByText(/此訂單最多可保留 7 盒，請減少 1 盒/)).toBeInTheDocument()
   })
 
+  it('previews base and mix-and-match prices while quantities change', async () => {
+    const user = userEvent.setup()
+    const resident = { customerId: 'resident-1', name: '住戶甲', period: 2, unit: '2A1' }
+    const content: CampaignContent = {
+      title: '肉品團購', unitPrice: 150, threshold: 100,
+      baseDiscountRate: 0.9,
+      mixMatchDiscount: { name: '任選三件85折', minimumQuantity: 3, rate: 0.85 },
+      announcement: '公告', images: [], openedAt: '2026-09-12T00:00:00.000Z',
+      items: [
+        { code: 'A', name: '五花肉片', unitPrice: 170, active: true, discountEligible: true },
+        { code: 'B', name: '高粱酒香腸', unitPrice: 299, active: true, discountEligible: true },
+        { code: 'D', name: '梅花肉片', unitPrice: 180, active: true, discountEligible: false },
+      ],
+    }
+    render(<App publishedContent={content} residentCustomer={resident} visibleOrders={[
+      { ...resident, items: {}, orderedAt: '2026-09-12T00:00:00.000Z', updatedAt: '2026-09-12T00:00:00.000Z' },
+    ]} />)
+
+    await user.click(screen.getByRole('button', { name: '增加 A 五花肉片' }))
+    await user.click(screen.getByRole('button', { name: '增加 B 高粱酒香腸' }))
+    expect(screen.getByText('再選1件即可享85折')).toBeInTheDocument()
+    expect(within(screen.getByLabelText('訂單摘要與送出')).getByText('$422')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '增加 A 五花肉片' }))
+    expect(screen.getByText('已套用任選三件85折')).toBeInTheDocument()
+    expect(within(screen.getByLabelText('訂單摘要與送出')).getByText('$544')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '增加 C 梅花肉片' }))
+    expect(within(screen.getByLabelText('訂單摘要與送出')).getByText('$706')).toBeInTheDocument()
+    expect(screen.getByText('任選價 $145')).toBeInTheDocument()
+    expect(screen.getByText('9折價 $162')).toBeInTheDocument()
+  })
+
   it('submits resident custom items separately without changing price or threshold quantity', async () => {
     const user = userEvent.setup()
     const onSubmitOrder = vi.fn().mockResolvedValue(undefined)

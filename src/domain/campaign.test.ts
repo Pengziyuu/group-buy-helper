@@ -45,6 +45,14 @@ describe('summarizeCampaign', () => {
     )).toMatchObject({ quantity: 5, amount: 270 })
   })
 
+  it('uses each order item historical final unit price for amount progress', () => {
+    expect(summarizeCampaign(
+      [{ customerId: 'resident-1', items: { A: 2, B: 1 }, itemUnitPrices: { A: 145, B: 254 } }],
+      [{ code: 'A', unitPrice: 170 }, { code: 'B', unitPrice: 299 }],
+      { kind: 'amount', target: 1000 },
+    )).toMatchObject({ quantity: 3, amount: 544, remaining: 456 })
+  })
+
   it('calculates progress from total amount for an amount threshold', () => {
     expect(summarizeCampaign(
       [{ customerId: '2:2K13', items: { A: 2, B: 3 } }],

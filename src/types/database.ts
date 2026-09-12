@@ -54,12 +54,16 @@ export type Database = {
           allow_custom_items: boolean
           amount_threshold: number | null
           announcement: string
+          base_discount_rate: number
           community_id: string
           created_at: string
           deadline: string
           id: string
           images: Json
           items: Json
+          mix_match_discount_rate: number | null
+          mix_match_min_quantity: number | null
+          mix_match_name: string | null
           opened_at: string | null
           quantity_unit: string
           slug: string
@@ -74,12 +78,16 @@ export type Database = {
           allow_custom_items?: boolean
           amount_threshold?: number | null
           announcement?: string
+          base_discount_rate?: number
           community_id?: string
           created_at?: string
           deadline: string
           id?: string
           images?: Json
           items?: Json
+          mix_match_discount_rate?: number | null
+          mix_match_min_quantity?: number | null
+          mix_match_name?: string | null
           opened_at?: string | null
           quantity_unit?: string
           slug?: string
@@ -94,12 +102,16 @@ export type Database = {
           allow_custom_items?: boolean
           amount_threshold?: number | null
           announcement?: string
+          base_discount_rate?: number
           community_id?: string
           created_at?: string
           deadline?: string
           id?: string
           images?: Json
           items?: Json
+          mix_match_discount_rate?: number | null
+          mix_match_min_quantity?: number | null
+          mix_match_name?: string | null
           opened_at?: string | null
           quantity_unit?: string
           slug?: string
@@ -165,10 +177,14 @@ export type Database = {
           allow_custom_items: boolean
           amount_threshold: number | null
           announcement: string
+          base_discount_rate: number
           campaign_id: string
           created_at: string
           images: Json
           items: Json
+          mix_match_discount_rate: number | null
+          mix_match_min_quantity: number | null
+          mix_match_name: string | null
           quantity_unit: string
           threshold: number
           threshold_kind: string
@@ -181,10 +197,14 @@ export type Database = {
           allow_custom_items?: boolean
           amount_threshold?: number | null
           announcement?: string
+          base_discount_rate?: number
           campaign_id: string
           created_at?: string
           images?: Json
           items?: Json
+          mix_match_discount_rate?: number | null
+          mix_match_min_quantity?: number | null
+          mix_match_name?: string | null
           quantity_unit?: string
           threshold: number
           threshold_kind?: string
@@ -197,10 +217,14 @@ export type Database = {
           allow_custom_items?: boolean
           amount_threshold?: number | null
           announcement?: string
+          base_discount_rate?: number
           campaign_id?: string
           created_at?: string
           images?: Json
           items?: Json
+          mix_match_discount_rate?: number | null
+          mix_match_min_quantity?: number | null
+          mix_match_name?: string | null
           quantity_unit?: string
           threshold?: number
           threshold_kind?: string
@@ -239,6 +263,7 @@ export type Database = {
           campaign_id: string
           code: string
           created_at: string
+          discount_eligible: boolean
           id: string
           name: string
           sort_order: number
@@ -250,6 +275,7 @@ export type Database = {
           campaign_id: string
           code: string
           created_at?: string
+          discount_eligible?: boolean
           id?: string
           name: string
           sort_order?: number
@@ -261,6 +287,7 @@ export type Database = {
           campaign_id?: string
           code?: string
           created_at?: string
+          discount_eligible?: boolean
           id?: string
           name?: string
           sort_order?: number
@@ -572,8 +599,13 @@ export type Database = {
           campaign_id: string
           campaign_item_id: string
           created_at: string
+          discount_rate: number
+          discount_type: string
+          final_unit_price: number
           id: string
+          list_unit_price: number
           order_id: string
+          promotion_name: string | null
           qty: number
           updated_at: string
         }
@@ -581,8 +613,13 @@ export type Database = {
           campaign_id: string
           campaign_item_id: string
           created_at?: string
+          discount_rate: number
+          discount_type: string
+          final_unit_price: number
           id?: string
+          list_unit_price: number
           order_id: string
+          promotion_name?: string | null
           qty?: number
           updated_at?: string
         }
@@ -590,8 +627,13 @@ export type Database = {
           campaign_id?: string
           campaign_item_id?: string
           created_at?: string
+          discount_rate?: number
+          discount_type?: string
+          final_unit_price?: number
           id?: string
+          list_unit_price?: number
           order_id?: string
+          promotion_name?: string | null
           qty?: number
           updated_at?: string
         }
@@ -939,11 +981,15 @@ export type Database = {
           allow_custom_items: boolean | null
           amount_threshold: number | null
           announcement: string | null
+          base_discount_rate: number | null
           created_at: string | null
           deadline: string | null
           id: string | null
           images: Json | null
           items: Json | null
+          mix_match_discount_rate: number | null
+          mix_match_min_quantity: number | null
+          mix_match_name: string | null
           opened_at: string | null
           quantity_unit: string | null
           slug: string | null
@@ -958,11 +1004,15 @@ export type Database = {
           allow_custom_items?: boolean | null
           amount_threshold?: number | null
           announcement?: string | null
+          base_discount_rate?: number | null
           created_at?: string | null
           deadline?: string | null
           id?: string | null
           images?: Json | null
           items?: Json | null
+          mix_match_discount_rate?: number | null
+          mix_match_min_quantity?: number | null
+          mix_match_name?: string | null
           opened_at?: string | null
           quantity_unit?: string | null
           slug?: string | null
@@ -977,11 +1027,15 @@ export type Database = {
           allow_custom_items?: boolean | null
           amount_threshold?: number | null
           announcement?: string | null
+          base_discount_rate?: number | null
           created_at?: string | null
           deadline?: string | null
           id?: string | null
           images?: Json | null
           items?: Json | null
+          mix_match_discount_rate?: number | null
+          mix_match_min_quantity?: number | null
+          mix_match_name?: string | null
           opened_at?: string | null
           quantity_unit?: string | null
           slug?: string | null
@@ -1002,16 +1056,21 @@ export type Database = {
           custom_items: Json | null
           customer_id: string | null
           customer_name: string | null
+          discount_rate: number | null
+          discount_type: string | null
+          final_unit_price: number | null
           item_active: boolean | null
           item_code: string | null
           item_name: string | null
           item_updated_at: string | null
+          list_unit_price: number | null
           note: string | null
           order_id: string | null
           order_updated_at: string | null
           ordered_at: string | null
           period: number | null
           picture_url: string | null
+          promotion_name: string | null
           qty: number | null
           sort_order: number | null
           unit: string | null
@@ -1186,12 +1245,16 @@ export type Database = {
           allow_custom_items: boolean
           amount_threshold: number | null
           announcement: string
+          base_discount_rate: number
           community_id: string
           created_at: string
           deadline: string
           id: string
           images: Json
           items: Json
+          mix_match_discount_rate: number | null
+          mix_match_min_quantity: number | null
+          mix_match_name: string | null
           opened_at: string | null
           quantity_unit: string
           slug: string
@@ -1408,12 +1471,16 @@ export type Database = {
           allow_custom_items: boolean
           amount_threshold: number | null
           announcement: string
+          base_discount_rate: number
           community_id: string
           created_at: string
           deadline: string
           id: string
           images: Json
           items: Json
+          mix_match_discount_rate: number | null
+          mix_match_min_quantity: number | null
+          mix_match_name: string | null
           opened_at: string | null
           quantity_unit: string
           slug: string
@@ -1451,12 +1518,16 @@ export type Database = {
           allow_custom_items: boolean
           amount_threshold: number | null
           announcement: string
+          base_discount_rate: number
           community_id: string
           created_at: string
           deadline: string
           id: string
           images: Json
           items: Json
+          mix_match_discount_rate: number | null
+          mix_match_min_quantity: number | null
+          mix_match_name: string | null
           opened_at: string | null
           quantity_unit: string
           slug: string

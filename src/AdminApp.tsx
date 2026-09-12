@@ -90,6 +90,12 @@ function AdminApp({
   const [thresholdKind, setThresholdKind] = useState<'quantity' | 'amount'>(initialDraft.thresholdKind ?? 'quantity')
   const [quantityUnit, setQuantityUnit] = useState<QuantityUnit>(() => normalizeQuantityUnit(initialDraft.quantityUnit))
   const [allowCustomItems, setAllowCustomItems] = useState(initialDraft.allowCustomItems ?? false)
+  const [baseDiscountEnabled, setBaseDiscountEnabled] = useState((initialDraft.baseDiscountRate ?? 1) < 1)
+  const [baseDiscountRate, setBaseDiscountRate] = useState(initialDraft.baseDiscountRate ?? 0.9)
+  const [mixMatchEnabled, setMixMatchEnabled] = useState(initialDraft.mixMatchDiscount !== null && initialDraft.mixMatchDiscount !== undefined)
+  const [mixMatchName, setMixMatchName] = useState(initialDraft.mixMatchDiscount?.name ?? '任選三件85折')
+  const [mixMatchMinimumQuantity, setMixMatchMinimumQuantity] = useState(initialDraft.mixMatchDiscount?.minimumQuantity ?? 3)
+  const [mixMatchDiscountRate, setMixMatchDiscountRate] = useState(initialDraft.mixMatchDiscount?.rate ?? 0.85)
   const [amountThreshold, setAmountThreshold] = useState(initialDraft.amountThreshold ?? Math.max(1, initialDraft.threshold * initialDraft.unitPrice))
   const [amountThresholdInput, setAmountThresholdInput] = useState(String(initialDraft.amountThreshold ?? Math.max(1, initialDraft.threshold * initialDraft.unitPrice)))
   const [announcement, setAnnouncement] = useState(initialDraft.announcement)
@@ -127,11 +133,19 @@ function AdminApp({
   const unitPrice = activeItemPrices.length > 0 ? Math.min(...activeItemPrices) : 0
   const maximumItemPrice = activeItemPrices.length > 0 ? Math.max(...activeItemPrices) : 0
   const itemPricesValid = campaignItems.every((item) => Number.isFinite(item.unitPrice) && (item.unitPrice ?? -1) >= 0)
+  const discountRulesValid = (!baseDiscountEnabled || (baseDiscountRate > 0 && baseDiscountRate <= 1))
+    && (!mixMatchEnabled || (mixMatchName.trim().length > 0
+      && mixMatchName.length <= 100
+      && Number.isInteger(mixMatchMinimumQuantity)
+      && mixMatchMinimumQuantity >= 2
+      && mixMatchDiscountRate > 0
+      && mixMatchDiscountRate <= (baseDiscountEnabled ? baseDiscountRate : 1)
+      && campaignItems.some((item) => item.active && item.discountEligible)))
   const thresholdInputValid = /^\d+$/.test(thresholdInput) && Number(thresholdInput) >= 1
   const amountThresholdInputValid = /^\d+(?:\.\d{0,2})?$/.test(amountThresholdInput)
     && Number(amountThresholdInput) > 0
     && Number(amountThresholdInput) <= 999999999999.99
-  const numericInputsValid = itemPricesValid && (thresholdKind === 'quantity' ? thresholdInputValid : amountThresholdInputValid)
+  const numericInputsValid = itemPricesValid && discountRulesValid && (thresholdKind === 'quantity' ? thresholdInputValid : amountThresholdInputValid)
   const resolvedOrderSummary = orderSummary === undefined ? demoOrderSummary : orderSummary
 
   const currentContent = (): CampaignContent => ({
@@ -142,6 +156,12 @@ function AdminApp({
     amountThreshold: thresholdKind === 'amount' ? amountThreshold : null,
     quantityUnit,
     allowCustomItems,
+    baseDiscountRate: baseDiscountEnabled ? baseDiscountRate : 1,
+    mixMatchDiscount: mixMatchEnabled ? {
+      name: mixMatchName.trim(),
+      minimumQuantity: mixMatchMinimumQuantity,
+      rate: mixMatchDiscountRate,
+    } : null,
     announcement,
     images,
     items: campaignItems,
@@ -171,6 +191,12 @@ function AdminApp({
         amountThreshold: thresholdKind === 'amount' ? amountThreshold : null,
         quantityUnit,
         allowCustomItems,
+        baseDiscountRate: baseDiscountEnabled ? baseDiscountRate : 1,
+        mixMatchDiscount: mixMatchEnabled ? {
+          name: mixMatchName.trim(),
+          minimumQuantity: mixMatchMinimumQuantity,
+          rate: mixMatchDiscountRate,
+        } : null,
         announcement,
         images,
         items: campaignItems,
@@ -198,7 +224,7 @@ function AdminApp({
       })
     }, delay)
     return () => window.clearTimeout(timer)
-  }, [allowCustomItems, amountThreshold, announcement, autoSaveCycle, campaignItems, draftRevision, editorBusy, images, numericInputsValid, onSaveDraft, openedAt, quantityUnit, threshold, thresholdKind, title, unitPrice])
+  }, [allowCustomItems, amountThreshold, announcement, autoSaveCycle, baseDiscountEnabled, baseDiscountRate, campaignItems, draftRevision, editorBusy, images, mixMatchDiscountRate, mixMatchEnabled, mixMatchMinimumQuantity, mixMatchName, numericInputsValid, onSaveDraft, openedAt, quantityUnit, threshold, thresholdKind, title, unitPrice])
 
   const retryAutoSave = () => {
     if (autoSaveFailedRevision === null || editorBusy || autoSaveInFlightRef.current) return
@@ -222,6 +248,9 @@ function AdminApp({
       if (!itemPricesValid) {
         throw new Error('每個品項都需要有效的單價')
       }
+      if (!discountRulesValid) {
+        throw new Error('請完成折扣優惠設定，且至少選擇一個任選品項')
+      }
       const content = currentContent()
       if (!onPublish && !content.openedAt) content.openedAt = new Date().toISOString()
       const canonical = onPublish ? await onPublish(content) : undefined
@@ -236,6 +265,12 @@ function AdminApp({
         setThresholdKind(canonical.thresholdKind ?? 'quantity')
         setQuantityUnit(normalizeQuantityUnit(canonical.quantityUnit))
         setAllowCustomItems(canonical.allowCustomItems ?? false)
+        setBaseDiscountEnabled((canonical.baseDiscountRate ?? 1) < 1)
+        setBaseDiscountRate(canonical.baseDiscountRate ?? 0.9)
+        setMixMatchEnabled(canonical.mixMatchDiscount !== null && canonical.mixMatchDiscount !== undefined)
+        setMixMatchName(canonical.mixMatchDiscount?.name ?? '任選三件85折')
+        setMixMatchMinimumQuantity(canonical.mixMatchDiscount?.minimumQuantity ?? 3)
+        setMixMatchDiscountRate(canonical.mixMatchDiscount?.rate ?? 0.85)
         const canonicalAmountThreshold = canonical.amountThreshold ?? Math.max(1, canonical.threshold * canonical.unitPrice)
         setAmountThreshold(canonicalAmountThreshold)
         setAmountThresholdInput(String(canonicalAmountThreshold))
@@ -501,6 +536,83 @@ function AdminApp({
                 </span>
               </label>
             </fieldset>
+            <section className="discount-editor full-field" aria-labelledby="discount-editor-heading">
+              <div className="image-editor-heading">
+                <h3 id="discount-editor-heading">折扣優惠</h3>
+                <span>{itemsLocked ? '已鎖定' : '首次發布前可設定'}</span>
+              </div>
+              <label className="custom-items-toggle">
+                <input
+                  type="checkbox"
+                  aria-label="啟用全團基本折扣"
+                  checked={baseDiscountEnabled}
+                  disabled={editorBusy || itemsLocked}
+                  onChange={(event) => {
+                    setBaseDiscountEnabled(event.target.checked)
+                    if (event.target.checked && baseDiscountRate >= 1) setBaseDiscountRate(0.9)
+                    markDraft()
+                  }}
+                />
+                <span><strong>啟用全團基本折扣</strong><small>所有正式品項預設套用；額外品項不計價。</small></span>
+              </label>
+              {baseDiscountEnabled && (
+                <label className="field discount-number-field">
+                  <span>基本折數</span>
+                  <input
+                    aria-label="基本折數"
+                    type="number"
+                    min="0.1"
+                    max="10"
+                    step="0.1"
+                    value={Number((baseDiscountRate * 10).toFixed(2))}
+                    disabled={editorBusy || itemsLocked}
+                    onChange={(event) => {
+                      const fold = Number(event.target.value)
+                      if (fold > 0 && fold <= 10) { setBaseDiscountRate(fold / 10); markDraft() }
+                    }}
+                  />
+                  <small>例如輸入9代表9折。</small>
+                </label>
+              )}
+              <label className="custom-items-toggle">
+                <input
+                  type="checkbox"
+                  aria-label="啟用任選優惠"
+                  checked={mixMatchEnabled}
+                  disabled={editorBusy || itemsLocked}
+                  onChange={(event) => {
+                    setMixMatchEnabled(event.target.checked)
+                    if (!event.target.checked) {
+                      setCampaignItems((current) => current.map((item) => ({ ...item, discountEligible: false })))
+                    }
+                    markDraft()
+                  }}
+                />
+                <span><strong>啟用任選優惠</strong><small>同一住戶在指定品項跨品項合計達標後，指定品項全部套用優惠折數。</small></span>
+              </label>
+              {mixMatchEnabled && (
+                <div className="discount-rule-grid">
+                  <label className="field">
+                    <span>任選優惠名稱</span>
+                    <input aria-label="任選優惠名稱" maxLength={100} value={mixMatchName} disabled={editorBusy || itemsLocked}
+                      onChange={(event) => { setMixMatchName(event.target.value); markDraft() }} />
+                  </label>
+                  <label className="field discount-number-field">
+                    <span>任選最低件數</span>
+                    <input aria-label="任選最低件數" type="number" min="2" max="100" step="1"
+                      value={mixMatchMinimumQuantity} disabled={editorBusy || itemsLocked}
+                      onChange={(event) => { const value = Number(event.target.value); if (Number.isInteger(value) && value >= 2 && value <= 100) { setMixMatchMinimumQuantity(value); markDraft() } }} />
+                  </label>
+                  <label className="field discount-number-field">
+                    <span>任選優惠折數</span>
+                    <input aria-label="任選優惠折數" type="number" min="0.1" max="10" step="0.1"
+                      value={Number((mixMatchDiscountRate * 10).toFixed(2))} disabled={editorBusy || itemsLocked}
+                      onChange={(event) => { const fold = Number(event.target.value); if (fold > 0 && fold <= 10) { setMixMatchDiscountRate(fold / 10); markDraft() } }} />
+                  </label>
+                </div>
+              )}
+              {itemsLocked && <p>正式開團後折扣規則與適用品項不可變更。</p>}
+            </section>
             <section className="item-editor full-field" aria-labelledby="item-editor-heading">
               <div className="image-editor-heading">
                 <h3 id="item-editor-heading">團購品項</h3>
@@ -551,6 +663,24 @@ function AdminApp({
                           }}
                         />
                       </label>
+                      {mixMatchEnabled && (
+                        <label className="campaign-item-discount">
+                          <input
+                            type="checkbox"
+                            aria-label={`品項 ${label} 加入任選優惠`}
+                            checked={item.discountEligible ?? false}
+                            disabled={editorBusy || itemsLocked || !item.active}
+                            onChange={(event) => {
+                              const discountEligible = event.target.checked
+                              setCampaignItems((current) => current.map((candidate) => candidate.code === item.code
+                                ? { ...candidate, discountEligible }
+                                : candidate))
+                              markDraft()
+                            }}
+                          />
+                          <span>任選優惠</span>
+                        </label>
+                      )}
                     </li>
                   )
                 })}
@@ -569,6 +699,7 @@ function AdminApp({
                         name: '新口味',
                         unitPrice,
                         active: true,
+                        discountEligible: false,
                       }])
                       markDraft()
                     }}

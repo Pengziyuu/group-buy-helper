@@ -80,6 +80,12 @@
 .product-name span { display: block; }
 .product-name strong { font-size: 15px; }
 .product-name span { color: var(--color-text-secondary); font-size: 12px; font-variant-numeric: tabular-nums; }
+.product-name small { display: block; margin-top: 2px; color: var(--color-text-muted); font-size: 11px; line-height: 1.35; }
+.product-name .product-list-price { text-decoration: line-through; }
+.resident-discount-status { display: grid; gap: 3px; margin: var(--space-3) 0; padding: 10px 12px; border: 1px solid #e1c77c; border-radius: var(--radius-md); background: #fff9e7; color: #765a12; }
+.resident-discount-status strong { font-size: 14px; }
+.resident-discount-status span { font-size: 12px; line-height: 1.45; }
+.resident-discount-status.is-applied { border-color: #86c9bd; background: #edf9f6; color: #086b62; }
 
 .resident-order-action {
   position: fixed;

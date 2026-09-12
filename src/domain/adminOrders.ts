@@ -18,6 +18,13 @@ export type OrganizerVisibleOrder = {
   period: number
   unit: string
   items: Record<string, number>
+  itemPriceSnapshots?: Record<string, {
+    listUnitPrice: number
+    appliedDiscountType: 'none' | 'base' | 'mix_match'
+    appliedDiscountRate: number
+    finalUnitPrice: number
+    promotionName?: string | null
+  }>
   customItems?: CustomOrderItem[]
   paid?: boolean
   organizerNote?: string
@@ -71,7 +78,11 @@ export function buildOrganizerOrderSummary({
   amountThreshold?: number | null
   quantityUnit?: QuantityUnit
 }): OrganizerOrderSummary {
-  const campaignSummary = summarizeCampaign(orders, items, {
+  const campaignSummary = summarizeCampaign(orders.map((order) => ({
+    ...order,
+    itemUnitPrices: Object.fromEntries(Object.entries(order.itemPriceSnapshots ?? {})
+      .map(([code, snapshot]) => [code, snapshot.finalUnitPrice])),
+  })), items, {
     kind: thresholdKind,
     target: thresholdKind === 'amount' ? (amountThreshold ?? threshold) : threshold,
   })
@@ -86,7 +97,8 @@ export function buildOrganizerOrderSummary({
       ...item,
       label: itemLabel(index),
       quantity,
-      amount: quantity * item.unitPrice,
+      amount: orders.reduce((sum, order) => sum
+        + (order.items[item.code] ?? 0) * (order.itemPriceSnapshots?.[item.code]?.finalUnitPrice ?? item.unitPrice), 0),
     }
   })
 
@@ -103,12 +115,13 @@ export function buildOrganizerOrderSummary({
       const amount = visibleItems.reduce((sum, [code, itemQuantity]) => {
         const item = itemByCode.get(code)
         if (!item) throw new Error(`找不到品項 ${code}`)
-        return sum + itemQuantity * item.unitPrice
+        return sum + itemQuantity * (order.itemPriceSnapshots?.[code]?.finalUnitPrice ?? item.unitPrice)
       }, 0)
       const itemSummary = visibleItems
         .map(([code, itemQuantity]) => {
           const item = itemByCode.get(code)
-          return item ? `${item.label} ${item.name}×${itemQuantity}` : `${code}×${itemQuantity}`
+          const finalUnitPrice = order.itemPriceSnapshots?.[code]?.finalUnitPrice ?? item?.unitPrice
+          return item ? `${item.label} ${item.name}×${itemQuantity}（$${finalUnitPrice}/件）` : `${code}×${itemQuantity}`
         })
         .join('、')
       const customItemSummary = (order.customItems ?? [])

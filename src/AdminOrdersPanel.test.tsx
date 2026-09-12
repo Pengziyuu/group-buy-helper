@@ -25,7 +25,7 @@ describe('organizer orders panel', () => {
     expect(itemRow.querySelector('.admin-item-code')).toHaveTextContent(/^B$/)
     expect(itemRow.querySelector('.admin-item-name')).toHaveTextContent('花生（招牌）')
     expect(itemRow.closest('table')).toHaveClass('item-summary-table')
-    expect(screen.getByRole('row', { name: /2K13 斯祈 B 花生（招牌）×2、D 草莓×2、E 可可×2/ })).toBeInTheDocument()
+    expect(screen.getByRole('row', { name: /2K13 斯祈 B 花生（招牌）×2（\$45\/件）、D 草莓×2（\$45\/件）、E 可可×2（\$45\/件）/ })).toBeInTheDocument()
   })
 
   it('uses the campaign quantity unit for every ordered quantity', () => {

@@ -14,9 +14,9 @@ const summary = buildOrganizerOrderSummary({
     { code: 'B', name: '小月餅', unitPrice: 180 },
   ],
   orders: [
-    { customerId: 'u14', name: '不應匯出', period: 2, unit: 'U14', items: { B: 1 }, customItems: [{ id: 'c3', name: '加購提袋', quantity: 2 }] },
+    { customerId: 'u14', name: '不應匯出', period: 2, unit: 'U14', items: { B: 1 }, itemPriceSnapshots: { B: { listUnitPrice: 180, appliedDiscountType: 'base', appliedDiscountRate: 0.9, finalUnitPrice: 162 } }, customItems: [{ id: 'c3', name: '加購提袋', quantity: 2 }] },
     { customerId: 'e10', name: '不應匯出', period: 1, unit: 'E10', items: { A: 1 } },
-    { customerId: 'e2', name: '不應匯出', period: 1, unit: 'E2', items: { B: 2 }, customItems: [{ id: 'c1', name: '  紙盒  ', quantity: 1 }] },
+    { customerId: 'e2', name: '不應匯出', period: 1, unit: 'E2', items: { B: 2 }, itemPriceSnapshots: { B: { listUnitPrice: 180, appliedDiscountType: 'mix_match', appliedDiscountRate: 0.85, finalUnitPrice: 153, promotionName: '任選三件85折' } }, customItems: [{ id: 'c1', name: '  紙盒  ', quantity: 1 }] },
   ],
   threshold: 10,
 })
@@ -24,10 +24,10 @@ const summary = buildOrganizerOrderSummary({
 describe('order Excel export', () => {
   it('creates naturally sorted formal and custom rows without resident names', () => {
     expect(buildOrderExportRows(summary, '榮泉餅店')).toEqual([
-      { period: 1, unit: 'E2', campaignTitle: '榮泉餅店', itemName: 'B 小月餅', quantity: 2, unitPrice: 180, custom: false },
+      { period: 1, unit: 'E2', campaignTitle: '榮泉餅店', itemName: 'B 小月餅', quantity: 2, unitPrice: 153, custom: false },
       { period: 1, unit: 'E2', campaignTitle: '榮泉餅店', itemName: '紙盒', quantity: 1, unitPrice: null, custom: true },
       { period: 1, unit: 'E10', campaignTitle: '榮泉餅店', itemName: 'A 蛋黃酥', quantity: 1, unitPrice: 290, custom: false },
-      { period: 2, unit: 'U14', campaignTitle: '榮泉餅店', itemName: 'B 小月餅', quantity: 1, unitPrice: 180, custom: false },
+      { period: 2, unit: 'U14', campaignTitle: '榮泉餅店', itemName: 'B 小月餅', quantity: 1, unitPrice: 162, custom: false },
       { period: 2, unit: 'U14', campaignTitle: '榮泉餅店', itemName: '加購提袋', quantity: 2, unitPrice: null, custom: true },
     ])
   })

@@ -6,6 +6,7 @@ import { campaignStatusLabel, type CampaignStatus } from './domain/orderWorkflow
 import { itemLabel } from './domain/itemLabel'
 import { normalizeQuantityUnit } from './domain/quantityUnit'
 import { customOrderItemsEqual, validCustomOrderItems, type CustomOrderItem } from './domain/customOrderItem'
+import { discountedUnitPrice, priceOrder, type DiscountPricing } from './domain/discountPricing'
 import {
   formatHouseholdUnit,
   formatResidentPeriod,
@@ -42,6 +43,11 @@ const defaultContent: CampaignContent = {
 
 const orderQuantity = (orderItems: Record<string, number>) =>
   Object.values(orderItems).reduce((sum, quantity) => sum + quantity, 0)
+
+const formatDiscountRate = (rate: number) => {
+  const tenths = Number((rate * 10).toFixed(2))
+  return `${Number.isInteger(tenths) ? tenths : Number((rate * 100).toFixed(2))}折`
+}
 
 const orderItemsEqual = (left: Record<string, number>, right: Record<string, number>) => {
   const codes = new Set([...Object.keys(left), ...Object.keys(right)])
@@ -142,11 +148,23 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
   const customDraftQuantity = customDraft.reduce((sum, item) => sum + item.quantity, 0)
   const customDraftValid = customDraft.every((item) => item.name.trim().length > 0 && item.name.trim().length <= 100 && item.quantity >= 1 && item.quantity <= 20)
   const hasDraftItems = draftQuantity > 0 || customDraftQuantity > 0
-  const draftAmount = Object.entries(draft).reduce((sum, [code, quantity]) => {
-    const item = publishedCampaign.items.find((candidate) => candidate.code === code)
-    return sum + quantity * (item?.unitPrice ?? publishedCampaign.unitPrice)
-  }, 0)
-  const activePrices = activeItems.map((item) => item.unitPrice ?? publishedCampaign.unitPrice)
+  const discountPricing: DiscountPricing = {
+    baseRate: publishedCampaign.baseDiscountRate ?? 1,
+    mixMatch: publishedCampaign.mixMatchDiscount ? {
+      ...publishedCampaign.mixMatchDiscount,
+      itemCodes: publishedCampaign.items.filter((item) => item.discountEligible).map((item) => item.code),
+    } : null,
+  }
+  const draftPricing = priceOrder(
+    draft,
+    publishedCampaign.items.map((item) => ({ code: item.code, unitPrice: item.unitPrice ?? publishedCampaign.unitPrice })),
+    discountPricing,
+  )
+  const draftAmount = draftPricing.total
+  const activePrices = activeItems.map((item) => discountedUnitPrice(
+    item.unitPrice ?? publishedCampaign.unitPrice,
+    publishedCampaign.baseDiscountRate ?? 1,
+  ))
   const minimumPrice = activePrices.length > 0 ? Math.min(...activePrices) : 0
   const maximumPrice = activePrices.length > 0 ? Math.max(...activePrices) : 0
   const editable = campaignStatus === 'open'
@@ -353,18 +371,40 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
           </div>
         </div>
 
+        {publishedCampaign.mixMatchDiscount && (
+          <div className={`resident-discount-status ${draftPricing.mixMatchApplied ? 'is-applied' : ''}`} role="status">
+            <strong>{draftPricing.mixMatchApplied
+              ? `已套用${publishedCampaign.mixMatchDiscount.name}`
+              : `再選${Math.max(0, publishedCampaign.mixMatchDiscount.minimumQuantity - draftPricing.mixMatchQuantity)}件即可享${formatDiscountRate(publishedCampaign.mixMatchDiscount.rate)}`}</strong>
+            <span>{draftPricing.mixMatchApplied
+              ? `限定區共${draftPricing.mixMatchQuantity}件，全部享優惠價`
+              : `限定區目前${draftPricing.mixMatchQuantity}件，未達標維持${formatDiscountRate(publishedCampaign.baseDiscountRate ?? 1)}`}</span>
+          </div>
+        )}
         <div className="product-list">
           {activeItems.map((item) => {
             const itemIndex = publishedCampaign.items.findIndex((candidate) => candidate.code === item.code)
             const displayLabel = itemLabel(itemIndex)
             const itemPrice = item.unitPrice ?? publishedCampaign.unitPrice
             const quantity = draft[item.code] ?? 0
+            const usesMixMatch = draftPricing.mixMatchApplied && item.discountEligible
+            const appliedRate = usesMixMatch
+              ? publishedCampaign.mixMatchDiscount?.rate ?? publishedCampaign.baseDiscountRate ?? 1
+              : publishedCampaign.baseDiscountRate ?? 1
+            const currentUnitPrice = discountedUnitPrice(itemPrice, appliedRate)
+            const discountLabel = usesMixMatch
+              ? `任選價 $${currentUnitPrice}`
+              : appliedRate < 1 ? `${formatDiscountRate(appliedRate)}價 $${currentUnitPrice}` : `$${currentUnitPrice}`
             return (
               <div className="product-row" key={item.code}>
                 <span className="product-code">{displayLabel}</span>
                 <div className="product-name">
                   <strong>{item.name}</strong>
-                  <span>${itemPrice}</span>
+                  {appliedRate < 1 && <small className="product-list-price">原價 ${itemPrice}</small>}
+                  <span>{discountLabel}</span>
+                  {item.discountEligible && publishedCampaign.mixMatchDiscount && !usesMixMatch && (
+                    <small>任選滿{publishedCampaign.mixMatchDiscount.minimumQuantity}件可享 ${discountedUnitPrice(itemPrice, publishedCampaign.mixMatchDiscount.rate)}</small>
+                  )}
                 </div>
                 <QuantityControl
                   label={`${displayLabel} ${item.name}`}

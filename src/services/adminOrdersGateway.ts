@@ -15,6 +15,11 @@ type WallRow = {
   unit: string | null
   item_code: string | null
   qty: number | null
+  list_unit_price: number | null
+  discount_type: string | null
+  discount_rate: number | null
+  final_unit_price: number | null
+  promotion_name: string | null
   custom_items: Json | null
   ordered_at: string | null
   order_updated_at: string | null
@@ -82,7 +87,7 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
           .order('sort_order'),
         client
           .from('order_wall')
-          .select('order_id,customer_name,period,unit,item_code,qty,custom_items,ordered_at,order_updated_at')
+          .select('order_id,customer_name,period,unit,item_code,qty,list_unit_price,discount_type,discount_rate,final_unit_price,promotion_name,custom_items,ordered_at,order_updated_at')
           .eq('campaign_id', campaignId)
           .order('period'),
         client
@@ -123,6 +128,7 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
           period: row.period,
           unit: row.unit,
           items: {},
+          itemPriceSnapshots: {},
           customItems: parseCustomOrderItems(row.custom_items),
           paid: status?.paid ?? false,
           organizerNote: status?.organizer_note ?? '',
@@ -131,6 +137,18 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
         }
         if (row.item_code && typeof row.qty === 'number' && row.qty > 0) {
           order.items[row.item_code] = row.qty
+          if (row.list_unit_price !== null && row.final_unit_price !== null && row.discount_rate !== null) {
+            const appliedDiscountType = row.discount_type === 'base' || row.discount_type === 'mix_match'
+              ? row.discount_type
+              : 'none'
+            order.itemPriceSnapshots![row.item_code] = {
+              listUnitPrice: row.list_unit_price,
+              appliedDiscountType,
+              appliedDiscountRate: row.discount_rate,
+              finalUnitPrice: row.final_unit_price,
+              promotionName: row.promotion_name,
+            }
+          }
         }
         ordersById.set(row.order_id, order)
       }

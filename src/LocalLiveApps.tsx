@@ -118,6 +118,10 @@ type CampaignRow = {
   amount_threshold?: unknown
   quantity_unit?: unknown
   allow_custom_items?: unknown
+  base_discount_rate?: unknown
+  mix_match_name?: unknown
+  mix_match_min_quantity?: unknown
+  mix_match_discount_rate?: unknown
   announcement: unknown
   images: unknown
   items: unknown
@@ -128,7 +132,7 @@ type CampaignRow = {
 type ResidentCustomer = Pick<VisibleOrder, 'customerId' | 'name' | 'period' | 'unit'>
 type OrderWallRow = Pick<
   Database['public']['Views']['order_wall']['Row'],
-  'order_id' | 'customer_id' | 'customer_name' | 'picture_url' | 'period' | 'unit' | 'item_code' | 'qty' | 'custom_items' | 'ordered_at' | 'order_updated_at'
+  'order_id' | 'customer_id' | 'customer_name' | 'picture_url' | 'period' | 'unit' | 'item_code' | 'qty' | 'final_unit_price' | 'custom_items' | 'ordered_at' | 'order_updated_at'
 >
 
 function visibleOrdersFromRows(rows: OrderWallRow[]): VisibleOrder[] {
@@ -143,11 +147,15 @@ function visibleOrdersFromRows(rows: OrderWallRow[]): VisibleOrder[] {
       period: row.period,
       unit: row.unit,
       items: {},
+      itemUnitPrices: {},
       customItems: parseCustomOrderItems(row.custom_items),
       orderedAt: row.ordered_at,
       updatedAt: row.order_updated_at,
     }
-    if (row.item_code && row.qty && row.qty > 0) order.items[row.item_code] = row.qty
+    if (row.item_code && row.qty && row.qty > 0) {
+      order.items[row.item_code] = row.qty
+      if (row.final_unit_price !== null) order.itemUnitPrices![row.item_code] = row.final_unit_price
+    }
     orders.set(row.order_id, order)
   }
   return [...orders.values()]
@@ -291,6 +299,12 @@ function campaignContentFromRow(row: CampaignRow | null): CampaignContent {
     amountThreshold: row.threshold_kind === 'amount' && typeof row.amount_threshold === 'number' ? row.amount_threshold : null,
     quantityUnit: normalizeQuantityUnit(row.quantity_unit),
     allowCustomItems: row.allow_custom_items === true,
+    baseDiscountRate: typeof row.base_discount_rate === 'number' ? row.base_discount_rate : 1,
+    mixMatchDiscount: typeof row.mix_match_name === 'string'
+      && typeof row.mix_match_min_quantity === 'number'
+      && typeof row.mix_match_discount_rate === 'number'
+      ? { name: row.mix_match_name, minimumQuantity: row.mix_match_min_quantity, rate: row.mix_match_discount_rate }
+      : null,
     announcement: row.announcement,
     images: row.images,
     items: row.items as CampaignContent['items'],
@@ -1031,7 +1045,7 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug }: Loca
       if (!resolvedCampaignId) throw new Error('找不到團購活動')
       const { data, error: queryError } = await client
         .from('campaign_public')
-        .select('title,unit_price,threshold,threshold_kind,amount_threshold,quantity_unit,allow_custom_items,announcement,images,items,opened_at,status')
+        .select('title,unit_price,threshold,threshold_kind,amount_threshold,quantity_unit,allow_custom_items,base_discount_rate,mix_match_name,mix_match_min_quantity,mix_match_discount_rate,announcement,images,items,opened_at,status')
         .eq('id', resolvedCampaignId)
         .single()
       if (queryError) throw queryError
@@ -1045,7 +1059,7 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug }: Loca
       if (!resolvedCampaignId) throw new Error('找不到團購活動')
       const [wallResult, customerResult, identityResult] = await Promise.all([
         client.from('order_wall')
-          .select('order_id,customer_id,customer_name,picture_url,period,unit,item_code,qty,custom_items,ordered_at,order_updated_at')
+          .select('order_id,customer_id,customer_name,picture_url,period,unit,item_code,qty,final_unit_price,custom_items,ordered_at,order_updated_at')
           .eq('campaign_id', resolvedCampaignId),
         client.rpc('get_customer_self'),
         client.rpc('get_line_resident_self'),
@@ -1166,7 +1180,7 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug }: Loca
         })
         if (submitError) throw submitError
         const { data, error: wallError } = await client.from('order_wall')
-          .select('order_id,customer_id,customer_name,picture_url,period,unit,item_code,qty,custom_items,ordered_at,order_updated_at')
+          .select('order_id,customer_id,customer_name,picture_url,period,unit,item_code,qty,final_unit_price,custom_items,ordered_at,order_updated_at')
           .eq('campaign_id', joinedCampaignId)
         if (wallError) throw wallError
         setOrders(visibleOrdersFromRows(data ?? []))

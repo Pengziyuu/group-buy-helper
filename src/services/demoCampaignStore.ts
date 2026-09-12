@@ -10,6 +10,13 @@ export type CampaignItem = {
   name: string
   unitPrice?: number
   active: boolean
+  discountEligible?: boolean
+}
+
+export type CampaignMixMatchDiscount = {
+  name: string
+  minimumQuantity: number
+  rate: number
 }
 
 export type CampaignThresholdKind = 'quantity' | 'amount'
@@ -22,6 +29,8 @@ export type CampaignContent = {
   amountThreshold?: number | null
   quantityUnit?: QuantityUnit
   allowCustomItems?: boolean
+  baseDiscountRate?: number
+  mixMatchDiscount?: CampaignMixMatchDiscount | null
   announcement: string
   images: CampaignImage[]
   items: CampaignItem[]
@@ -50,6 +59,18 @@ function isCampaignContent(value: unknown): value is CampaignContent {
       || (typeof candidate.amountThreshold === 'number' && Number.isFinite(candidate.amountThreshold) && candidate.amountThreshold > 0))
     && (candidate.thresholdKind !== 'amount' || (typeof candidate.amountThreshold === 'number' && candidate.amountThreshold > 0))
     && (candidate.allowCustomItems === undefined || typeof candidate.allowCustomItems === 'boolean')
+    && (candidate.baseDiscountRate === undefined
+      || (typeof candidate.baseDiscountRate === 'number' && candidate.baseDiscountRate > 0 && candidate.baseDiscountRate <= 1))
+    && (candidate.mixMatchDiscount === undefined || candidate.mixMatchDiscount === null
+      || (typeof candidate.mixMatchDiscount === 'object'
+        && typeof candidate.mixMatchDiscount.name === 'string'
+        && candidate.mixMatchDiscount.name.trim().length > 0
+        && candidate.mixMatchDiscount.name.length <= 100
+        && Number.isInteger(candidate.mixMatchDiscount.minimumQuantity)
+        && candidate.mixMatchDiscount.minimumQuantity >= 2
+        && typeof candidate.mixMatchDiscount.rate === 'number'
+        && candidate.mixMatchDiscount.rate > 0
+        && candidate.mixMatchDiscount.rate <= 1))
     && typeof candidate.announcement === 'string'
     && candidate.announcement.length <= 20_000
     && Array.isArray(candidate.images)
@@ -70,7 +91,8 @@ function isCampaignContent(value: unknown): value is CampaignContent {
       && item.name.length <= 200
       && (item.unitPrice === undefined
         || (typeof item.unitPrice === 'number' && Number.isFinite(item.unitPrice) && item.unitPrice >= 0))
-      && typeof item.active === 'boolean')
+      && typeof item.active === 'boolean'
+      && (item.discountEligible === undefined || typeof item.discountEligible === 'boolean'))
     && new Set(candidate.items.map((item) => item.code)).size === candidate.items.length
     && candidate.items.some((item) => item.active && item.name.trim().length > 0)
     && (candidate.openedAt === null
@@ -80,9 +102,12 @@ function isCampaignContent(value: unknown): value is CampaignContent {
 export function normalizeCampaignContent(content: CampaignContent): CampaignContent {
   return {
     ...content,
+    baseDiscountRate: content.baseDiscountRate ?? 1,
+    mixMatchDiscount: content.mixMatchDiscount ?? null,
     items: content.items.map((item) => ({
       ...item,
       unitPrice: item.unitPrice ?? content.unitPrice,
+      discountEligible: item.discountEligible ?? false,
     })),
   }
 }
@@ -113,6 +138,8 @@ export function campaignContentEquals(left: CampaignContent, right: CampaignCont
     && (left.amountThreshold ?? null) === (right.amountThreshold ?? null)
     && normalizeQuantityUnit(left.quantityUnit) === normalizeQuantityUnit(right.quantityUnit)
     && (left.allowCustomItems ?? false) === (right.allowCustomItems ?? false)
+    && (left.baseDiscountRate ?? 1) === (right.baseDiscountRate ?? 1)
+    && JSON.stringify(left.mixMatchDiscount ?? null) === JSON.stringify(right.mixMatchDiscount ?? null)
     && left.announcement === right.announcement
     && left.images.length === right.images.length
     && left.images.every((image, index) => image.src === right.images[index]?.src && image.alt === right.images[index]?.alt)
@@ -120,6 +147,7 @@ export function campaignContentEquals(left: CampaignContent, right: CampaignCont
     && left.items.every((item, index) => item.code === right.items[index]?.code
       && item.name === right.items[index]?.name
       && (item.unitPrice ?? left.unitPrice) === (right.items[index]?.unitPrice ?? right.unitPrice)
+      && (item.discountEligible ?? false) === (right.items[index]?.discountEligible ?? false)
       && item.active === right.items[index]?.active)
 }
 

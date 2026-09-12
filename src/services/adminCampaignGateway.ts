@@ -13,6 +13,10 @@ type DraftRow = {
   amount_threshold?: number | null
   quantity_unit?: string | null
   allow_custom_items?: boolean | null
+  base_discount_rate?: number | null
+  mix_match_name?: string | null
+  mix_match_min_quantity?: number | null
+  mix_match_discount_rate?: number | null
   announcement: string
   images: CampaignImage[]
   items: CampaignItem[]
@@ -51,14 +55,28 @@ function toContent(data: unknown): CampaignContent {
         : {}),
     quantityUnit: normalizeQuantityUnit(row.quantity_unit),
     allowCustomItems: row.allow_custom_items ?? false,
+    baseDiscountRate: row.base_discount_rate ?? 1,
+    mixMatchDiscount: row.mix_match_name
+      && typeof row.mix_match_min_quantity === 'number'
+      && typeof row.mix_match_discount_rate === 'number'
+      ? {
+          name: row.mix_match_name,
+          minimumQuantity: row.mix_match_min_quantity,
+          rate: row.mix_match_discount_rate,
+        }
+      : null,
     announcement: row.announcement,
     images: row.images,
-    items: row.items.map((item) => ({ ...item, unitPrice: item.unitPrice ?? row.unit_price })),
+    items: row.items.map((item) => ({
+      ...item,
+      unitPrice: item.unitPrice ?? row.unit_price,
+      discountEligible: item.discountEligible ?? false,
+    })),
     openedAt: typeof row.opened_at === 'string' ? row.opened_at : null,
   }
 }
 
-const draftColumns = 'title,unit_price,threshold,threshold_kind,amount_threshold,quantity_unit,allow_custom_items,announcement,images,items'
+const draftColumns = 'title,unit_price,threshold,threshold_kind,amount_threshold,quantity_unit,allow_custom_items,base_discount_rate,mix_match_name,mix_match_min_quantity,mix_match_discount_rate,announcement,images,items'
 const publishedColumns = `${draftColumns},opened_at`
 
 export function createAdminCampaignGateway(client: AdminCampaignSupabaseClient) {
@@ -133,6 +151,10 @@ export function createAdminCampaignGateway(client: AdminCampaignSupabaseClient) 
           amount_threshold: content.thresholdKind === 'amount' ? content.amountThreshold : null,
           quantity_unit: normalizeQuantityUnit(content.quantityUnit),
           allow_custom_items: content.allowCustomItems ?? false,
+          base_discount_rate: content.baseDiscountRate ?? 1,
+          mix_match_name: content.mixMatchDiscount?.name ?? null,
+          mix_match_min_quantity: content.mixMatchDiscount?.minimumQuantity ?? null,
+          mix_match_discount_rate: content.mixMatchDiscount?.rate ?? null,
           announcement: content.announcement,
           images: content.images,
           items: normalizedItems,
