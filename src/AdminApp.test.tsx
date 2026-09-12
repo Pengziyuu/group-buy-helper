@@ -233,6 +233,22 @@ describe('organizer campaign editor', () => {
     }))
   })
 
+  it('keeps mix-and-match item selection inside the discount section', async () => {
+    const user = userEvent.setup()
+    render(<AdminApp initialContent={{
+      title: '分區測試', unitPrice: 100, threshold: 10,
+      announcement: '', images: [], openedAt: null,
+      items: [{ code: 'A', name: '測試商品', unitPrice: 100, active: true }],
+    }} initialPublicationState="draft" />)
+
+    await user.click(screen.getByRole('checkbox', { name: '啟用任選優惠' }))
+
+    const discountSection = screen.getByRole('region', { name: '折扣優惠' })
+    const itemSection = screen.getByRole('region', { name: '團購品項' })
+    expect(within(discountSection).getByRole('checkbox', { name: '品項 A 加入任選優惠' })).toBeInTheDocument()
+    expect(within(itemSection).queryByRole('checkbox', { name: '品項 A 加入任選優惠' })).not.toBeInTheDocument()
+  })
+
   it('persists the default mix-and-match rate before enabling publication without touching the rate field', async () => {
     const user = userEvent.setup()
     const onSaveDraft = vi.fn().mockResolvedValue(undefined)

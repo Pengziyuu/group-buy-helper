@@ -592,25 +592,54 @@ function AdminApp({
                 <span><strong>啟用任選優惠</strong><small>同一住戶在指定品項跨品項合計達標後，指定品項全部套用優惠折數。</small></span>
               </label>
               {mixMatchEnabled && (
-                <div className="discount-rule-grid">
-                  <label className="field">
-                    <span>任選優惠名稱</span>
-                    <input aria-label="任選優惠名稱" maxLength={100} value={mixMatchName} disabled={editorBusy || itemsLocked}
-                      onChange={(event) => { setMixMatchName(event.target.value); markDraft() }} />
-                  </label>
-                  <label className="field discount-number-field">
-                    <span>任選最低件數</span>
-                    <input aria-label="任選最低件數" type="number" min="2" max="100" step="1"
-                      value={mixMatchMinimumQuantity} disabled={editorBusy || itemsLocked}
-                      onChange={(event) => { const value = Number(event.target.value); if (Number.isInteger(value) && value >= 2 && value <= 100) { setMixMatchMinimumQuantity(value); markDraft() } }} />
-                  </label>
-                  <label className="field discount-number-field">
-                    <span>任選優惠折數</span>
-                    <input aria-label="任選優惠折數" type="number" min="0.1" max="10" step="0.1"
-                      value={Number((mixMatchDiscountRate * 10).toFixed(2))} disabled={editorBusy || itemsLocked}
-                      onChange={(event) => { const fold = Number(event.target.value); if (fold > 0 && fold <= 10) { setMixMatchDiscountRate(fold / 10); markDraft() } }} />
-                  </label>
-                </div>
+                <>
+                  <div className="discount-rule-grid">
+                    <label className="field">
+                      <span>任選優惠名稱</span>
+                      <input aria-label="任選優惠名稱" maxLength={100} value={mixMatchName} disabled={editorBusy || itemsLocked}
+                        onChange={(event) => { setMixMatchName(event.target.value); markDraft() }} />
+                    </label>
+                    <label className="field discount-number-field">
+                      <span>任選最低件數</span>
+                      <input aria-label="任選最低件數" type="number" min="2" max="100" step="1"
+                        value={mixMatchMinimumQuantity} disabled={editorBusy || itemsLocked}
+                        onChange={(event) => { const value = Number(event.target.value); if (Number.isInteger(value) && value >= 2 && value <= 100) { setMixMatchMinimumQuantity(value); markDraft() } }} />
+                    </label>
+                    <label className="field discount-number-field">
+                      <span>任選優惠折數</span>
+                      <input aria-label="任選優惠折數" type="number" min="0.1" max="10" step="0.1"
+                        value={Number((mixMatchDiscountRate * 10).toFixed(2))} disabled={editorBusy || itemsLocked}
+                        onChange={(event) => { const fold = Number(event.target.value); if (fold > 0 && fold <= 10) { setMixMatchDiscountRate(fold / 10); markDraft() } }} />
+                    </label>
+                  </div>
+                  <fieldset className="discount-item-selector">
+                    <legend>任選優惠適用品項</legend>
+                    <p>勾選可在住戶端「任選優惠專區」共同累計件數的商品。</p>
+                    <div className="discount-item-options">
+                      {campaignItems.map((item, index) => {
+                        const label = itemLabel(index)
+                        return (
+                          <label key={item.code} className="campaign-item-discount">
+                            <input
+                              type="checkbox"
+                              aria-label={`品項 ${label} 加入任選優惠`}
+                              checked={item.discountEligible ?? false}
+                              disabled={editorBusy || itemsLocked || !item.active}
+                              onChange={(event) => {
+                                const discountEligible = event.target.checked
+                                setCampaignItems((current) => current.map((candidate) => candidate.code === item.code
+                                  ? { ...candidate, discountEligible }
+                                  : candidate))
+                                markDraft()
+                              }}
+                            />
+                            <span><strong>{label}</strong>{item.name || '未命名品項'}</span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </fieldset>
+                </>
               )}
               {itemsLocked && <p>正式開團後折扣規則與適用品項不可變更。</p>}
             </section>
@@ -664,24 +693,7 @@ function AdminApp({
                           }}
                         />
                       </label>
-                      {mixMatchEnabled && (
-                        <label className="campaign-item-discount">
-                          <input
-                            type="checkbox"
-                            aria-label={`品項 ${label} 加入任選優惠`}
-                            checked={item.discountEligible ?? false}
-                            disabled={editorBusy || itemsLocked || !item.active}
-                            onChange={(event) => {
-                              const discountEligible = event.target.checked
-                              setCampaignItems((current) => current.map((candidate) => candidate.code === item.code
-                                ? { ...candidate, discountEligible }
-                                : candidate))
-                              markDraft()
-                            }}
-                          />
-                          <span>任選優惠</span>
-                        </label>
-                      )}
+
                     </li>
                   )
                 })}

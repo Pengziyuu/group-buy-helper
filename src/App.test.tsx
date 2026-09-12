@@ -49,6 +49,13 @@ describe('customer campaign app', () => {
       { ...resident, items: {}, orderedAt: '2026-09-12T00:00:00.000Z', updatedAt: '2026-09-12T00:00:00.000Z' },
     ]} />)
 
+    const mixMatchSection = screen.getByRole('region', { name: '任選優惠專區' })
+    const regularSection = screen.getByRole('region', { name: '其他商品' })
+    expect(within(mixMatchSection).getByText('五花肉片')).toBeInTheDocument()
+    expect(within(mixMatchSection).getByText('高粱酒香腸')).toBeInTheDocument()
+    expect(within(mixMatchSection).queryByText('梅花肉片')).not.toBeInTheDocument()
+    expect(within(regularSection).getByText('梅花肉片')).toBeInTheDocument()
+
     await user.click(screen.getByRole('button', { name: '增加 A 五花肉片' }))
     await user.click(screen.getByRole('button', { name: '增加 B 高粱酒香腸' }))
     expect(screen.getByText('再選1件即可享85折')).toBeInTheDocument()

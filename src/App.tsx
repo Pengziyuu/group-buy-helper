@@ -87,6 +87,12 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
     return index >= 0 ? itemLabel(index) : code
   }
   const activeItems = publishedCampaign.items.filter((item) => item.active)
+  const mixMatchItems = publishedCampaign.mixMatchDiscount
+    ? activeItems.filter((item) => item.discountEligible)
+    : []
+  const regularItems = publishedCampaign.mixMatchDiscount
+    ? activeItems.filter((item) => !item.discountEligible)
+    : activeItems
   const [localOrders, setLocalOrders] = useState<VisibleOrder[]>(initialOrders)
   const orders = visibleOrders ?? localOrders
   const effectiveCustomer = residentCustomer === undefined
@@ -170,6 +176,41 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
   const editable = campaignStatus === 'open'
   const controlsEditable = editable && !submitting
   const hasLongAnnouncement = publishedCampaign.announcement.length > 240
+
+  const renderProductRows = (itemsToRender: typeof activeItems) => itemsToRender.map((item) => {
+    const itemIndex = publishedCampaign.items.findIndex((candidate) => candidate.code === item.code)
+    const displayLabel = itemLabel(itemIndex)
+    const itemPrice = item.unitPrice ?? publishedCampaign.unitPrice
+    const quantity = draft[item.code] ?? 0
+    const usesMixMatch = draftPricing.mixMatchApplied && item.discountEligible
+    const appliedRate = usesMixMatch
+      ? publishedCampaign.mixMatchDiscount?.rate ?? publishedCampaign.baseDiscountRate ?? 1
+      : publishedCampaign.baseDiscountRate ?? 1
+    const currentUnitPrice = discountedUnitPrice(itemPrice, appliedRate)
+    const discountLabel = usesMixMatch
+      ? `任選價 $${currentUnitPrice}`
+      : appliedRate < 1 ? `${formatDiscountRate(appliedRate)}價 $${currentUnitPrice}` : `$${currentUnitPrice}`
+    return (
+      <div className="product-row" key={item.code}>
+        <span className="product-code">{displayLabel}</span>
+        <div className="product-name">
+          <strong>{item.name}</strong>
+          {appliedRate < 1 && <small className="product-list-price">原價 ${itemPrice}</small>}
+          <span>{discountLabel}</span>
+          {item.discountEligible && publishedCampaign.mixMatchDiscount && !usesMixMatch && (
+            <small>任選滿{publishedCampaign.mixMatchDiscount.minimumQuantity}件可享 ${discountedUnitPrice(itemPrice, publishedCampaign.mixMatchDiscount.rate)}</small>
+          )}
+        </div>
+        <QuantityControl
+          label={`${displayLabel} ${item.name}`}
+          value={quantity}
+          disabled={!controlsEditable}
+          onDecrement={() => adjust(item.code, -1)}
+          onIncrement={() => adjust(item.code, 1)}
+        />
+      </div>
+    )
+  })
 
   const adjust = (code: string, delta: number) => {
     if (!controlsEditable) return
@@ -381,42 +422,26 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
               : `限定區目前${draftPricing.mixMatchQuantity}件，未達標維持${formatDiscountRate(publishedCampaign.baseDiscountRate ?? 1)}`}</span>
           </div>
         )}
-        <div className="product-list">
-          {activeItems.map((item) => {
-            const itemIndex = publishedCampaign.items.findIndex((candidate) => candidate.code === item.code)
-            const displayLabel = itemLabel(itemIndex)
-            const itemPrice = item.unitPrice ?? publishedCampaign.unitPrice
-            const quantity = draft[item.code] ?? 0
-            const usesMixMatch = draftPricing.mixMatchApplied && item.discountEligible
-            const appliedRate = usesMixMatch
-              ? publishedCampaign.mixMatchDiscount?.rate ?? publishedCampaign.baseDiscountRate ?? 1
-              : publishedCampaign.baseDiscountRate ?? 1
-            const currentUnitPrice = discountedUnitPrice(itemPrice, appliedRate)
-            const discountLabel = usesMixMatch
-              ? `任選價 $${currentUnitPrice}`
-              : appliedRate < 1 ? `${formatDiscountRate(appliedRate)}價 $${currentUnitPrice}` : `$${currentUnitPrice}`
-            return (
-              <div className="product-row" key={item.code}>
-                <span className="product-code">{displayLabel}</span>
-                <div className="product-name">
-                  <strong>{item.name}</strong>
-                  {appliedRate < 1 && <small className="product-list-price">原價 ${itemPrice}</small>}
-                  <span>{discountLabel}</span>
-                  {item.discountEligible && publishedCampaign.mixMatchDiscount && !usesMixMatch && (
-                    <small>任選滿{publishedCampaign.mixMatchDiscount.minimumQuantity}件可享 ${discountedUnitPrice(itemPrice, publishedCampaign.mixMatchDiscount.rate)}</small>
-                  )}
-                </div>
-                <QuantityControl
-                  label={`${displayLabel} ${item.name}`}
-                  value={quantity}
-                  disabled={!controlsEditable}
-                  onDecrement={() => adjust(item.code, -1)}
-                  onIncrement={() => adjust(item.code, 1)}
-                />
+        {mixMatchItems.length > 0 && publishedCampaign.mixMatchDiscount && (
+          <section className="product-section mix-match-product-section" aria-labelledby="mix-match-products-heading">
+            <div className="product-section-heading">
+              <div>
+                <p>共同累計件數</p>
+                <h3 id="mix-match-products-heading">任選優惠專區</h3>
               </div>
-            )
-          })}
-        </div>
+              <span>{publishedCampaign.mixMatchDiscount.name}</span>
+            </div>
+            <div className="product-list">{renderProductRows(mixMatchItems)}</div>
+          </section>
+        )}
+        {regularItems.length > 0 && (
+          <section className="product-section" aria-label={publishedCampaign.mixMatchDiscount ? '其他商品' : '商品選擇'}>
+            <div className="product-section-heading">
+              <h3>{publishedCampaign.mixMatchDiscount ? '其他商品' : '商品選擇'}</h3>
+            </div>
+            <div className="product-list">{renderProductRows(regularItems)}</div>
+          </section>
+        )}
 
         {publishedCampaign.allowCustomItems && (
           <section className="custom-order-items" aria-labelledby="custom-order-items-heading">

@@ -72,6 +72,13 @@
 .my-total strong { display: block; }
 
 .order-panel { scroll-margin-top: var(--space-4); }
+.product-section { margin-top: var(--space-4); }
+.product-section-heading { display: flex; justify-content: space-between; align-items: end; gap: var(--space-2); margin-bottom: 8px; }
+.product-section-heading h3, .product-section-heading p { margin: 0; }
+.product-section-heading h3 { font-size: 17px; }
+.product-section-heading p { margin-bottom: 2px; color: var(--color-muted); font-size: 11px; font-weight: 700; }
+.product-section-heading > span { padding: 4px 8px; border-radius: 999px; background: #edf9f6; color: #086b62; font-size: 12px; font-weight: 750; }
+.mix-match-product-section { padding: 12px; border: 1px solid #86c9bd; border-radius: var(--radius-md); background: #f7fcfb; }
 .product-list { border-top: 1px solid var(--color-border); }
 .product-row { min-width: 0; display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); padding: 10px 0; border-bottom: 1px solid var(--color-border); }
 .product-code { width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--radius-sm); background: var(--color-primary-subtle); color: var(--color-primary); font-size: 14px; font-weight: 750; }
