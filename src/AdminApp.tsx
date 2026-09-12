@@ -146,6 +146,7 @@ function AdminApp({
     && Number(amountThresholdInput) > 0
     && Number(amountThresholdInput) <= 999999999999.99
   const numericInputsValid = itemPricesValid && discountRulesValid && (thresholdKind === 'quantity' ? thresholdInputValid : amountThresholdInputValid)
+  const draftSavePending = draftRevision !== savedRevisionRef.current
   const resolvedOrderSummary = orderSummary === undefined ? demoOrderSummary : orderSummary
 
   const currentContent = (): CampaignContent => ({
@@ -789,7 +790,7 @@ function AdminApp({
             {autoSaveFailedRevision !== null && (
               <button type="button" className="secondary-action" onClick={retryAutoSave} disabled={editorBusy || autoSaving}>立即重試暫存</button>
             )}
-            <button type="button" onClick={publish} disabled={editorBusy || autoSaving || !numericInputsValid}>
+            <button type="button" onClick={publish} disabled={editorBusy || autoSaving || draftSavePending || !numericInputsValid}>
               {busyAction === 'publish' ? '發布中…' : itemsLocked ? '更新住戶公告' : '發布並開團'}
             </button>
           </div>

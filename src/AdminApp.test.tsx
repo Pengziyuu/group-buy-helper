@@ -233,6 +233,35 @@ describe('organizer campaign editor', () => {
     }))
   })
 
+  it('persists the default mix-and-match rate before enabling publication without touching the rate field', async () => {
+    const user = userEvent.setup()
+    const onSaveDraft = vi.fn().mockResolvedValue(undefined)
+    const onPublish = vi.fn().mockImplementation(async (content: CampaignContent) => content)
+    const draft: CampaignContent = {
+      title: '預設折數測試', unitPrice: 170, threshold: 100,
+      announcement: '', images: [],
+      items: [{ code: 'A', name: '五花肉片', unitPrice: 170, active: true }],
+      openedAt: null,
+    }
+    render(<AdminApp initialContent={draft} initialPublicationState="draft" onSaveDraft={onSaveDraft} onPublish={onPublish} />)
+
+    await user.click(screen.getByRole('checkbox', { name: '啟用全團基本折扣' }))
+    await user.click(screen.getByRole('checkbox', { name: '啟用任選優惠' }))
+    await user.click(screen.getByRole('checkbox', { name: '品項 A 加入任選優惠' }))
+
+    expect(screen.getByRole('spinbutton', { name: '任選優惠折數' })).toHaveValue(8.5)
+    expect(screen.getByRole('button', { name: '發布並開團' })).toBeDisabled()
+    await waitFor(() => expect(onSaveDraft).toHaveBeenLastCalledWith(expect.objectContaining({
+      mixMatchDiscount: { name: '任選三件85折', minimumQuantity: 3, rate: 0.85 },
+    })))
+    await waitFor(() => expect(screen.getByRole('button', { name: '發布並開團' })).toBeEnabled())
+
+    await user.click(screen.getByRole('button', { name: '發布並開團' }))
+    expect(onPublish).toHaveBeenCalledWith(expect.objectContaining({
+      mixMatchDiscount: { name: '任選三件85折', minimumQuantity: 3, rate: 0.85 },
+    }))
+  })
+
   it('locks discount rules and eligibility after the campaign is first published', () => {
     const published: CampaignContent = {
       title: '已開團', unitPrice: 170, threshold: 100,
@@ -392,7 +421,7 @@ describe('organizer campaign editor', () => {
 
     finishUpload?.('http://storage.test/campaign/pending.png')
     expect(await screen.findByRole('img', { name: /第 2 張商品圖片/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '更新住戶公告' })).toBeEnabled()
+    await waitFor(() => expect(screen.getByRole('button', { name: '更新住戶公告' })).toBeEnabled())
   })
 
   it('keeps editing available but blocks publication while autosave is pending', async () => {
