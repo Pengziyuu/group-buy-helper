@@ -107,7 +107,7 @@ describe('RuntimeApp localStorage organizer demo routing', () => {
     const campaignId = '01234567-89ab-cdef-0123-456789abcdef'
     const { rerender } = render(<RuntimeApp config={config} pathname="/admin" />)
 
-    expect(screen.getByRole('heading', { name: '我的團購' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '團主工作台' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '管理團購 一涼製冰所 超厚三明治冰餅' })).toHaveAttribute('href', `/admin/campaign/${campaignId}`)
 
     rerender(<RuntimeApp config={config} pathname={`/admin/campaign/${campaignId}`} />)

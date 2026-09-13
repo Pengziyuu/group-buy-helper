@@ -350,12 +350,12 @@ describe('local Supabase visual demo apps', () => {
       />,
     )
 
-    expect(await screen.findByRole('heading', { name: '我的團購' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '團主工作台' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '歷史冰餅團' })).toBeInTheDocument()
     expect(managementRepository.list).toHaveBeenCalledTimes(1)
     expect(residentMemberRepository.list).toHaveBeenCalledTimes(1)
-    await user.click(screen.getByRole('button', { name: '住戶管理 1' }))
-    expect(screen.getByRole('heading', { name: '住戶管理' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '住戶與戶號 1' }))
+    expect(screen.getByRole('heading', { name: '住戶名單' })).toBeInTheDocument()
     expect(screen.getByText('住戶甲')).toBeInTheDocument()
   })
 

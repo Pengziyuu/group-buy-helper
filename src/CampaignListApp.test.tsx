@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import CampaignListApp from './CampaignListApp'
@@ -34,13 +34,17 @@ describe('organizer campaign list', () => {
     )
 
     expect(screen.getByRole('region', { name: '團購列表' })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: '住戶管理' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '團主工作台' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: '工作概況' })).toHaveTextContent('開團中1')
+    expect(screen.getByRole('region', { name: '工作概況' })).toHaveTextContent('待發布1')
+    expect(screen.getByRole('region', { name: '工作概況' })).toHaveTextContent('待綁定戶號0')
+    expect(screen.queryByRole('heading', { name: '住戶名單' })).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: '住戶管理 1' }))
-    expect(screen.getByRole('heading', { name: '住戶管理' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '住戶與戶號 1' }))
+    expect(screen.getByRole('heading', { name: '住戶名單' })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: '團購列表' })).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: '團購管理 2' }))
+    await user.click(screen.getByRole('button', { name: '團購作業 2' }))
     expect(screen.getByRole('region', { name: '團購列表' })).toBeInTheDocument()
   })
 
@@ -58,11 +62,11 @@ describe('organizer campaign list', () => {
     ]
     render(<CampaignListApp campaigns={[...campaigns, ...completed]} onCreate={vi.fn()} />)
 
-    await user.click(screen.getByRole('button', { name: '草稿 1' }))
+    await user.click(screen.getByRole('button', { name: '待發布 1' }))
     expect(screen.getByRole('heading', { name: '新草稿' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: '冰餅團' })).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: '已完成 2' }))
+    await user.click(screen.getByRole('button', { name: '已結束 2' }))
     expect(screen.getByRole('heading', { name: '已結單水果團' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '已到貨麵包團' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: '新草稿' })).not.toBeInTheDocument()
@@ -90,9 +94,12 @@ describe('organizer campaign list', () => {
     const user = userEvent.setup()
     render(<CampaignListApp campaigns={campaigns} onCreate={vi.fn()} />)
 
-    expect(screen.getByRole('heading', { name: '我的團購' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '團主工作台' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '管理團購 新草稿' })).toHaveAttribute('href', '/admin/campaign/draft-id')
-    expect(screen.getByText('尚未開團')).toBeInTheDocument()
+    const draftCard = screen.getByRole('heading', { name: '新草稿' }).closest('article')
+    expect(draftCard).not.toBeNull()
+    expect(within(draftCard as HTMLElement).getByText('待發布')).toBeInTheDocument()
+    expect(screen.getByText(/最後編輯/)).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: '查看住戶頁 新草稿' })).not.toBeInTheDocument()
     await user.click(screen.getByLabelText('更多操作 冰餅團', { selector: 'summary' }))
     expect(screen.getByRole('link', { name: '查看住戶頁 冰餅團' })).toHaveAttribute('href', '/campaign/open-slug')
@@ -142,7 +149,7 @@ describe('organizer campaign list', () => {
     const onNavigate = vi.fn()
     render(<CampaignListApp campaigns={campaigns} onCreate={onCreate} onNavigate={onNavigate} />)
 
-    await user.click(screen.getByRole('button', { name: '新增團購' }))
+    await user.click(screen.getByRole('button', { name: '建立新團' }))
     await user.clear(screen.getByRole('textbox', { name: '團購標題' }))
     await user.type(screen.getByRole('textbox', { name: '團購標題' }), '週末麵包團')
     await user.click(screen.getByRole('button', { name: '建立並編輯' }))

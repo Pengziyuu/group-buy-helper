@@ -27,7 +27,7 @@ describe('ResidentMemberManagementApp', () => {
   it('shows verified LINE residents without internal identity fields', () => {
     render(<ResidentMemberManagementApp members={members} onSetBlocked={vi.fn()} onUpdateHousehold={vi.fn()} />)
 
-    expect(screen.getByRole('heading', { name: '住戶管理' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '住戶名單' })).toBeInTheDocument()
     expect(screen.getByText('住戶甲')).toBeInTheDocument()
     expect(screen.getByText('二期・2K13')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: '住戶甲的LINE頭貼' })).toBeInTheDocument()
@@ -40,6 +40,22 @@ describe('ResidentMemberManagementApp', () => {
     expect(blockButton).toHaveClass('resident-action-danger')
     expect(adjustButton.querySelector('[aria-hidden="true"]')).toHaveTextContent('✎')
     expect(blockButton.querySelector('[aria-hidden="true"]')).toHaveTextContent('⊘')
+  })
+
+  it('lets the organizer assign a household to an unbound resident', async () => {
+    const user = userEvent.setup()
+    const onUpdateHousehold = vi.fn().mockResolvedValue(undefined)
+    const unboundMember = {
+      ...members[0], memberCode: 'unbound-member', displayName: '待綁定住戶', period: null, unit: null,
+    }
+    render(<ResidentMemberManagementApp members={[unboundMember]} onSetBlocked={vi.fn()} onUpdateHousehold={onUpdateHousehold} />)
+
+    await user.click(screen.getByRole('button', { name: '設定住戶資料 待綁定住戶' }))
+    expect(screen.getByLabelText('調整待綁定住戶的住戶資料')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '儲存住戶資料 待綁定住戶' }))
+
+    expect(onUpdateHousehold).toHaveBeenCalledWith('unbound-member', { period: 2, unit: '1A1' })
+    expect(await screen.findByText('二期・1A1')).toBeInTheDocument()
   })
 
   it('requires confirmation before removing and blocking a resident', async () => {

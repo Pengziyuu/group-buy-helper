@@ -119,9 +119,9 @@ export default function ResidentMemberManagementApp({ members, onSetBlocked, onU
     <section className="resident-member-management" aria-labelledby="resident-member-heading">
       <div className="resident-member-heading">
         <div>
-          <p className="admin-eyebrow">LINE MEMBERS</p>
-          <h2 id="resident-member-heading">住戶管理</h2>
-          <p>名稱與頭貼來自LINE官方驗證；陌生住戶可移除並封鎖。</p>
+          <p className="admin-eyebrow">住戶與戶號</p>
+          <h2 id="resident-member-heading">住戶名單</h2>
+          <p>核對LINE住戶身分、設定期別與戶號；不明身分可移除並封鎖。</p>
         </div>
         <span>{visibleMembers.filter((member) => !member.blocked).length} 位住戶</span>
       </div>
@@ -143,9 +143,9 @@ export default function ResidentMemberManagementApp({ members, onSetBlocked, onU
               <small>加入時間 {formatZhTwTimestamp(member.joinedAt)}</small>
             </div>
             <div className="resident-member-actions">
-              {member.period !== null && member.unit && (
-                <button type="button" className="resident-action resident-action-secondary" aria-label={`調整住戶資料 ${member.displayName}`} disabled={Boolean(busyCode)} onClick={() => openHouseholdEditor(member)}>
-                  <span aria-hidden="true">✎</span>調整期別／戶號
+              {!member.blocked && (
+                <button type="button" className="resident-action resident-action-secondary" aria-label={`${member.period !== null && member.unit ? '調整' : '設定'}住戶資料 ${member.displayName}`} disabled={Boolean(busyCode)} onClick={() => openHouseholdEditor(member)}>
+                  <span aria-hidden="true">✎</span>{member.period !== null && member.unit ? '調整期別／戶號' : '設定期別／戶號'}
                 </button>
               )}
               {member.blocked ? (

@@ -46,6 +46,8 @@ export default function CampaignListApp({ campaigns, onCreate, onDelete, onNavig
     draft: visibleCampaigns.filter((campaign) => !campaign.openedAt).length,
     completed: visibleCampaigns.filter((campaign) => campaign.openedAt && campaign.status !== 'open').length,
   }
+  const activeResidentCount = residentMembers?.filter((member) => !member.blocked).length ?? 0
+  const unboundResidentCount = residentMembers?.filter((member) => !member.blocked && (member.period === null || !member.unit)).length ?? 0
   const filteredCampaigns = visibleCampaigns.filter((campaign) => {
     if (campaignFilter === 'open') return Boolean(campaign.openedAt) && campaign.status === 'open'
     if (campaignFilter === 'draft') return !campaign.openedAt
@@ -124,33 +126,52 @@ export default function CampaignListApp({ campaigns, onCreate, onDelete, onNavig
   return (
     <main className="campaign-list-shell">
       <header className="campaign-list-header">
-        <div>
-          <p className="admin-eyebrow">GROUP BUY HELPER</p>
-          <h1>我的團購</h1>
-          <p>建立新團、管理進行中團購，也能回看過去團購。</p>
+        <div className="campaign-list-title">
+          <p className="admin-eyebrow">團購小幫手・團主專區</p>
+          <h1>團主工作台</h1>
+          <p>掌握每一團的進度、整理住戶資料，並建立下一次團購。</p>
         </div>
         <div className="campaign-list-actions">
+          <button type="button" onClick={() => setCreating(true)}>
+            <span className="campaign-action-icon" aria-hidden="true">＋</span>
+            建立新團
+          </button>
           <a className="secondary-action" href="/admin/notification-lab">
             <span className="campaign-action-icon" aria-hidden="true">⚗</span>
             通知測試中心
           </a>
-          <button type="button" onClick={() => setCreating(true)}>新增團購</button>
-          {onSignOut && <button type="button" className="secondary-action" onClick={() => { void onSignOut() }}>登出</button>}
+          {onSignOut && <button type="button" className="secondary-action sign-out-action" onClick={() => { void onSignOut() }}>
+            <span className="campaign-action-icon" aria-hidden="true">↪</span>
+            登出
+          </button>}
         </div>
       </header>
 
       {residentMembers && onSetResidentBlocked && onUpdateResidentHousehold && (
         <nav className="campaign-section-nav" aria-label="團主後台區段">
           <button type="button" aria-current={activeSection === 'campaigns' ? 'page' : undefined} onClick={() => setActiveSection('campaigns')}>
-            團購管理 {visibleCampaigns.length}
+            團購作業 <span>{visibleCampaigns.length}</span>
           </button>
           <button type="button" aria-current={activeSection === 'residents' ? 'page' : undefined} onClick={() => setActiveSection('residents')}>
-            住戶管理 {residentMembers.length}
+            住戶與戶號 <span>{activeResidentCount}</span>
           </button>
         </nav>
       )}
 
       {activeSection === 'campaigns' && <>
+      <section className="campaign-overview" aria-label="工作概況">
+        <div className="campaign-overview-heading">
+          <p className="admin-eyebrow">工作概況</p>
+          <p>先處理進行中的團購，再確認尚未發布的草稿與住戶資料。</p>
+        </div>
+        <dl>
+          <div className="is-open"><dt>開團中</dt><dd>{campaignCounts.open}</dd></div>
+          <div className="is-draft"><dt>待發布</dt><dd>{campaignCounts.draft}</dd></div>
+          <div className="is-completed"><dt>已結束</dt><dd>{campaignCounts.completed}</dd></div>
+          {residentMembers && <div className={unboundResidentCount > 0 ? 'needs-attention' : ''}><dt>待綁定戶號</dt><dd>{unboundResidentCount}</dd></div>}
+        </dl>
+      </section>
+
       {creating && (
         <form className="campaign-create-card" onSubmit={submit}>
           <label>
@@ -184,12 +205,20 @@ export default function CampaignListApp({ campaigns, onCreate, onDelete, onNavig
         </ConfirmDialog>
       )}
 
+      <div className="campaign-workspace-heading">
+        <div>
+          <p className="admin-eyebrow">團購作業</p>
+          <h2>管理所有團購</h2>
+        </div>
+        <p>依目前處理階段篩選，進入各團後可管理設定、訂單與到貨作業。</p>
+      </div>
+
       <nav className="campaign-filter-nav" aria-label="團購狀態篩選">
         {([
-          ['all', '全部', campaignCounts.all],
-          ['open', '進行中', campaignCounts.open],
-          ['draft', '草稿', campaignCounts.draft],
-          ['completed', '已完成', campaignCounts.completed],
+          ['all', '全部團購', campaignCounts.all],
+          ['open', '開團中', campaignCounts.open],
+          ['draft', '待發布', campaignCounts.draft],
+          ['completed', '已結束', campaignCounts.completed],
         ] as const).map(([value, label, count]) => (
           <button key={value} type="button" aria-pressed={campaignFilter === value} onClick={() => setCampaignFilter(value)}>
             {label} {count}
@@ -203,9 +232,11 @@ export default function CampaignListApp({ campaigns, onCreate, onDelete, onNavig
           <article key={campaign.id} className="campaign-list-card">
             <div className="campaign-list-card-heading">
               <h2>{campaign.title}</h2>
-              <span>{campaign.openedAt ? campaignStatusLabel(campaign.status) : '尚未開團'}</span>
+              <span className={`campaign-status ${!campaign.openedAt ? 'is-draft' : campaign.status === 'open' ? 'is-open' : 'is-completed'}`}>
+                {campaign.openedAt ? campaignStatusLabel(campaign.status) : '待發布'}
+              </span>
             </div>
-            <p>{campaign.openedAt ? `開團時間 ${formatZhTwTimestamp(campaign.openedAt)}` : '草稿會自動暫存，住戶目前看不到。'}</p>
+            <p>{campaign.openedAt ? `開團時間 ${formatZhTwTimestamp(campaign.openedAt)}` : `最後編輯 ${formatZhTwTimestamp(campaign.updatedAt)}・住戶尚不可見`}</p>
             <div className="campaign-list-card-actions">
               <a className="campaign-primary-action" href={`/admin/campaign/${campaign.id}`} aria-label={`管理團購 ${campaign.title}`}>管理團購</a>
               {(campaign.openedAt || onDelete) && (
