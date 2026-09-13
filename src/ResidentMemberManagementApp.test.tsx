@@ -81,9 +81,10 @@ describe('ResidentMemberManagementApp', () => {
 
     await user.click(screen.getByRole('button', { name: '調整住戶資料 住戶甲' }))
     await user.selectOptions(screen.getByRole('combobox', { name: '住戶甲 期別' }), '3')
-    await user.selectOptions(screen.getByRole('combobox', { name: '住戶甲 前段' }), '3')
-    await user.selectOptions(screen.getByRole('combobox', { name: '住戶甲 棟別' }), 'Z')
-    await user.selectOptions(screen.getByRole('combobox', { name: '住戶甲 號碼' }), '15')
+    expect(screen.getByRole('group', { name: '戶號' })).toBeInTheDocument()
+    await user.selectOptions(screen.getByRole('combobox', { name: '住戶甲 戶號數字' }), '3')
+    await user.selectOptions(screen.getByRole('combobox', { name: '住戶甲 戶號英文字母' }), 'Z')
+    await user.selectOptions(screen.getByRole('combobox', { name: '住戶甲 樓層' }), '15')
     await user.click(screen.getByRole('button', { name: '儲存住戶資料 住戶甲' }))
 
     expect(onUpdateHousehold).toHaveBeenCalledWith(

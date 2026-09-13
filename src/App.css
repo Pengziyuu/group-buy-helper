@@ -170,8 +170,13 @@
 .verified-resident-identity > span { display: grid; place-items: center; background: var(--color-line); color: white; font-weight: 750; }
 .verified-resident-identity div { display: grid; }
 .verified-resident-identity small { color: var(--color-text-secondary); }
-.binding-fields { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: var(--space-3); }
+.binding-fields { display: grid; grid-template-columns: 110px minmax(180px, 1fr) 110px; gap: var(--space-3); }
 .binding-fields label { display: grid; gap: 6px; color: var(--color-text); font-size: 14px; font-weight: 650; }
+.binding-household-unit { min-width: 0; margin: 0; padding: 0; border: 0; }
+.binding-household-unit legend { margin-bottom: 6px; padding: 0; color: var(--color-text); font-size: 14px; font-weight: 650; }
+.binding-household-unit-parts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.binding-household-unit-parts label:only-child { grid-column: 1 / -1; }
+.binding-household-unit-parts label span { color: var(--color-text-secondary); font-size: 12px; }
 .binding-fields input,
 .binding-fields select { width: 100%; min-width: 0; min-height: 44px; padding: 9px 11px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-text); }
 .resident-binding > .submit-button { width: 100%; margin-top: var(--space-4); }

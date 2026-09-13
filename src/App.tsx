@@ -587,20 +587,25 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
                 ))}
               </select>
             </label>
-            {residentPeriod !== 1 && <label>
-              <span>前段</span>
-              <select value={residentPrefix} onChange={(event) => setResidentPrefix(Number(event.target.value))}>
-                {HOUSEHOLD_PREFIXES.map((prefix) => <option key={prefix} value={prefix}>{prefix}</option>)}
-              </select>
-            </label>}
+            <fieldset className="binding-household-unit">
+              <legend>戶號</legend>
+              <div className="binding-household-unit-parts">
+                {residentPeriod !== 1 && <label>
+                  <span>數字</span>
+                  <select aria-label="戶號數字" value={residentPrefix} onChange={(event) => setResidentPrefix(Number(event.target.value))}>
+                    {HOUSEHOLD_PREFIXES.map((prefix) => <option key={prefix} value={prefix}>{prefix}</option>)}
+                  </select>
+                </label>}
+                <label>
+                  <span>英文字母</span>
+                  <select aria-label="戶號英文字母" value={residentLetter} onChange={(event) => setResidentLetter(event.target.value)}>
+                    {HOUSEHOLD_LETTERS.map((letter) => <option key={letter} value={letter}>{letter}</option>)}
+                  </select>
+                </label>
+              </div>
+            </fieldset>
             <label>
-              <span>棟別</span>
-              <select value={residentLetter} onChange={(event) => setResidentLetter(event.target.value)}>
-                {HOUSEHOLD_LETTERS.map((letter) => <option key={letter} value={letter}>{letter}</option>)}
-              </select>
-            </label>
-            <label>
-              <span>號碼</span>
+              <span>樓層</span>
               <select value={residentNumber} onChange={(event) => setResidentNumber(Number(event.target.value))}>
                 {HOUSEHOLD_NUMBERS.map((number) => <option key={number} value={number}>{number}</option>)}
               </select>

@@ -163,13 +163,18 @@ export default function ResidentMemberManagementApp({ members, onSetBlocked, onU
                 <label><span>期別</span><select aria-label={`${member.displayName} 期別`} value={editPeriod} onChange={(event) => setEditPeriod(Number(event.target.value) as ResidentPeriod)}>
                   {RESIDENT_PERIODS.map((period) => <option key={period} value={period}>{new Intl.NumberFormat('zh-Hant-u-nu-hanidec').format(period)}期</option>)}
                 </select></label>
-                {editPeriod !== 1 && <label><span>前段</span><select aria-label={`${member.displayName} 前段`} value={editPrefix} onChange={(event) => setEditPrefix(Number(event.target.value))}>
-                  {HOUSEHOLD_PREFIXES.map((prefix) => <option key={prefix} value={prefix}>{prefix}</option>)}
-                </select></label>}
-                <label><span>棟別</span><select aria-label={`${member.displayName} 棟別`} value={editLetter} onChange={(event) => setEditLetter(event.target.value)}>
-                  {HOUSEHOLD_LETTERS.map((letter) => <option key={letter} value={letter}>{letter}</option>)}
-                </select></label>
-                <label><span>號碼</span><select aria-label={`${member.displayName} 號碼`} value={editNumber} onChange={(event) => setEditNumber(Number(event.target.value))}>
+                <fieldset className="resident-household-unit">
+                  <legend>戶號</legend>
+                  <div className="resident-household-unit-parts">
+                    {editPeriod !== 1 && <label><span>數字</span><select aria-label={`${member.displayName} 戶號數字`} value={editPrefix} onChange={(event) => setEditPrefix(Number(event.target.value))}>
+                      {HOUSEHOLD_PREFIXES.map((prefix) => <option key={prefix} value={prefix}>{prefix}</option>)}
+                    </select></label>}
+                    <label><span>英文字母</span><select aria-label={`${member.displayName} 戶號英文字母`} value={editLetter} onChange={(event) => setEditLetter(event.target.value)}>
+                      {HOUSEHOLD_LETTERS.map((letter) => <option key={letter} value={letter}>{letter}</option>)}
+                    </select></label>
+                  </div>
+                </fieldset>
+                <label><span>樓層</span><select aria-label={`${member.displayName} 樓層`} value={editNumber} onChange={(event) => setEditNumber(Number(event.target.value))}>
                   {HOUSEHOLD_NUMBERS.map((number) => <option key={number} value={number}>{number}</option>)}
                 </select></label>
                 <div className="resident-household-editor-actions">

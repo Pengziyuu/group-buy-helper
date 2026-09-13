@@ -327,9 +327,10 @@ describe('customer campaign app', () => {
     expect(screen.getByRole('img', { name: '彭梓育的LINE頭貼' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: '三期' })).toBeInTheDocument()
     await user.selectOptions(screen.getByRole('combobox', { name: '期別' }), '3')
-    await user.selectOptions(screen.getByRole('combobox', { name: '前段' }), '3')
-    await user.selectOptions(screen.getByRole('combobox', { name: '棟別' }), 'Z')
-    await user.selectOptions(screen.getByRole('combobox', { name: '號碼' }), '15')
+    expect(screen.getByRole('group', { name: '戶號' })).toBeInTheDocument()
+    await user.selectOptions(screen.getByRole('combobox', { name: '戶號數字' }), '3')
+    await user.selectOptions(screen.getByRole('combobox', { name: '戶號英文字母' }), 'Z')
+    await user.selectOptions(screen.getByRole('combobox', { name: '樓層' }), '15')
     await user.click(screen.getByRole('button', { name: '儲存住戶資料' }))
 
     expect(onBindResident).toHaveBeenCalledWith({ period: 3, unit: '3Z15' })
@@ -354,9 +355,9 @@ describe('customer campaign app', () => {
     )
 
     await user.selectOptions(screen.getByRole('combobox', { name: '期別' }), '1')
-    expect(screen.queryByRole('combobox', { name: '前段' })).not.toBeInTheDocument()
-    await user.selectOptions(screen.getByRole('combobox', { name: '棟別' }), 'Z')
-    await user.selectOptions(screen.getByRole('combobox', { name: '號碼' }), '15')
+    expect(screen.queryByRole('combobox', { name: '戶號數字' })).not.toBeInTheDocument()
+    await user.selectOptions(screen.getByRole('combobox', { name: '戶號英文字母' }), 'Z')
+    await user.selectOptions(screen.getByRole('combobox', { name: '樓層' }), '15')
     await user.click(screen.getByRole('button', { name: '儲存住戶資料' }))
 
     expect(onBindResident).toHaveBeenCalledWith({ period: 1, unit: 'Z15' })
