@@ -133,18 +133,19 @@
 .campaign-list-card-heading .campaign-status.is-open { background: var(--color-primary-subtle); color: var(--color-primary); }
 .campaign-list-card-heading .campaign-status.is-draft { background: #fff5dd; color: #825300; }
 .campaign-list-card-copy > p { margin: 0; color: var(--color-text-secondary); font-size: 12px; font-variant-numeric: tabular-nums; }
-.campaign-order-snapshot { min-width: 0; display: grid; gap: 7px; padding: 10px 12px; border-radius: var(--radius-control); background: var(--color-surface-subtle); }
-.campaign-order-snapshot dl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; margin: 0; }
-.campaign-order-snapshot dl > div { min-width: 0; }
-.campaign-order-snapshot dt { color: var(--color-text-secondary); font-size: 11px; font-weight: 650; }
-.campaign-order-snapshot dd { margin: 2px 0 0; color: var(--color-text); font-size: 15px; font-weight: 750; line-height: 1.25; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.campaign-order-snapshot > p { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0; color: var(--color-text-secondary); font-size: 12px; }
-.campaign-order-snapshot > p strong { color: var(--color-text); font-size: 14px; }
-.campaign-order-snapshot > p span { text-align: right; }
-.campaign-order-snapshot .needs-attention { justify-content: flex-start; color: #925b00; font-weight: 700; }
-.campaign-order-snapshot .needs-attention::before { content: ''; width: 7px; height: 7px; flex: none; border-radius: 50%; background: #d58a00; }
-.campaign-order-snapshot .is-complete { justify-content: flex-start; color: var(--color-primary); font-weight: 700; }
-.campaign-order-snapshot.is-draft { background: #fffaf0; }
+.campaign-formation-progress { min-width: 0; display: grid; gap: 9px; padding: 12px 14px; border-radius: var(--radius-control); background: var(--color-primary-subtle); }
+.campaign-progress-heading { min-width: 0; display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
+.campaign-progress-heading span { color: var(--color-text-secondary); font-size: 12px; font-weight: 650; }
+.campaign-progress-heading strong { color: var(--color-primary); font-size: 17px; font-weight: 780; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.campaign-formation-progress .ui-progress { height: 9px; background: color-mix(in srgb, var(--color-primary) 13%, var(--color-surface)); }
+.campaign-formation-progress .ui-progress > span { background: var(--color-primary); }
+.campaign-formation-progress > p { margin: 0; font-size: 12px; font-weight: 700; }
+.campaign-formation-progress .is-remaining { color: #825300; }
+.campaign-formation-progress .is-formed { color: var(--color-primary); }
+.campaign-formation-progress.is-draft { background: #fffaf0; }
+.campaign-progress-empty { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--color-text-secondary); }
+.campaign-progress-empty strong { color: var(--color-text); font-size: 14px; }
+.campaign-progress-empty span { text-align: right; font-weight: 500; }
 .campaign-list-card-actions { justify-content: flex-end; }
 .campaign-list-empty { margin: 0; padding: var(--space-8); color: var(--color-text-secondary); text-align: center; }
 
@@ -152,7 +153,7 @@
   .campaign-overview { grid-template-columns: 1fr; }
   .campaign-list-card { grid-template-columns: 112px minmax(0, 1fr) auto; }
   .campaign-card-cover { width: 112px; }
-  .campaign-order-snapshot { grid-column: 2; }
+  .campaign-formation-progress { grid-column: 2; }
   .campaign-list-card-actions { grid-column: 3; grid-row: 1 / span 2; max-width: 260px; }
 }
 
@@ -171,9 +172,9 @@
   .campaign-card-cover { width: 96px; }
   .campaign-list-card-heading { display: grid; gap: 6px; }
   .campaign-list-card-heading .campaign-status { width: fit-content; }
-  .campaign-order-snapshot,
+  .campaign-formation-progress,
   .campaign-list-card-actions { grid-column: 1 / -1; grid-row: auto; max-width: none; }
-  .campaign-order-snapshot dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .campaign-progress-heading { flex-wrap: wrap; row-gap: 3px; }
   .campaign-list-card-actions { justify-content: flex-start; }
   .campaign-list-card-actions > a { flex: 1 1 120px; }
 }

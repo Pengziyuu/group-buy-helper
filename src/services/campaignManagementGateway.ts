@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database'
 import type { CampaignStatus } from '../domain/orderWorkflow'
 import { normalizeQuantityUnit, type QuantityUnit } from '../domain/quantityUnit'
-import type { CampaignImage } from './demoCampaignStore'
+import type { CampaignImage, CampaignThresholdKind } from './demoCampaignStore'
 
 export type CampaignListItem = {
   id: string
@@ -18,6 +18,9 @@ export type CampaignListItem = {
   totalQuantity: number
   totalAmount: number
   paidOrderCount: number
+  thresholdKind: CampaignThresholdKind
+  threshold: number
+  amountThreshold: number | null
 }
 
 type CampaignListRow = {
@@ -34,6 +37,9 @@ type CampaignListRow = {
   total_quantity?: unknown
   total_amount?: unknown
   paid_order_count?: unknown
+  threshold_kind?: unknown
+  threshold?: unknown
+  amount_threshold?: unknown
 }
 
 function errorMessage(error: unknown): string {
@@ -59,6 +65,9 @@ function toCampaignListItem(value: unknown, requireSummary = false): CampaignLis
   const totalQuantity = toNumber(row?.total_quantity)
   const totalAmount = toNumber(row?.total_amount)
   const paidOrderCount = toNumber(row?.paid_order_count)
+  const thresholdKind = row?.threshold_kind === 'amount' ? 'amount' : row?.threshold_kind === 'quantity' ? 'quantity' : null
+  const threshold = toNumber(row?.threshold)
+  const amountThreshold = row?.amount_threshold === null ? null : toNumber(row?.amount_threshold)
   if (!row
     || typeof row.id !== 'string'
     || typeof row.slug !== 'string'
@@ -69,7 +78,9 @@ function toCampaignListItem(value: unknown, requireSummary = false): CampaignLis
     || typeof row.created_at !== 'string'
     || typeof row.updated_at !== 'string'
     || (requireSummary && (!images || orderCount === null || totalQuantity === null
-      || totalAmount === null || paidOrderCount === null || paidOrderCount > orderCount))) {
+      || totalAmount === null || paidOrderCount === null || paidOrderCount > orderCount
+      || !thresholdKind || threshold === null || threshold <= 0
+      || (thresholdKind === 'amount' && (amountThreshold === null || amountThreshold <= 0))))) {
     throw new Error('Supabase 回傳的團購列表格式錯誤')
   }
   return {
@@ -86,6 +97,9 @@ function toCampaignListItem(value: unknown, requireSummary = false): CampaignLis
     totalQuantity: totalQuantity ?? 0,
     totalAmount: totalAmount ?? 0,
     paidOrderCount: paidOrderCount ?? 0,
+    thresholdKind: thresholdKind ?? 'quantity',
+    threshold: threshold && threshold > 0 ? threshold : 1,
+    amountThreshold,
   }
 }
 

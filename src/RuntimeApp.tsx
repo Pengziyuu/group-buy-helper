@@ -37,6 +37,9 @@ const demoOrganizerCampaign = {
   totalQuantity: demoTotalQuantity,
   totalAmount: demoTotalAmount,
   paidOrderCount: 0,
+  thresholdKind: 'quantity' as const,
+  threshold: campaign.threshold,
+  amountThreshold: null,
 }
 const demoResidentMembers = [
   { memberCode: 'demo-member-a01', displayName: '測試住戶甲', pictureUrl: null, period: 2, unit: '1A1', joinedAt: campaign.openedAt, blocked: false, blockedAt: null },

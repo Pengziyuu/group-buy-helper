@@ -5,9 +5,9 @@ import NotificationTestLab from './NotificationTestLab'
 import type { CampaignListItem } from './services/campaignManagementGateway'
 
 const campaigns: CampaignListItem[] = [
-  { id: 'test-id', slug: 'test-slug', title: '既有測試團', status: 'closed', openedAt: '2026-09-01T00:00:00Z', createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-01T00:00:00Z', images: [], quantityUnit: '個', orderCount: 0, totalQuantity: 0, totalAmount: 0, paidOrderCount: 0 },
-  { id: 'candidate-id', slug: 'candidate-slug', title: '候選團', status: 'arrived', openedAt: '2026-09-01T00:00:00Z', createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-01T00:00:00Z', images: [], quantityUnit: '個', orderCount: 0, totalQuantity: 0, totalAmount: 0, paidOrderCount: 0 },
-  { id: 'open-id', slug: 'open-slug', title: '進行中團', status: 'open', openedAt: '2026-09-01T00:00:00Z', createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-01T00:00:00Z', images: [], quantityUnit: '個', orderCount: 0, totalQuantity: 0, totalAmount: 0, paidOrderCount: 0 },
+  { id: 'test-id', slug: 'test-slug', title: '既有測試團', status: 'closed', openedAt: '2026-09-01T00:00:00Z', createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-01T00:00:00Z', images: [], quantityUnit: '個', orderCount: 0, totalQuantity: 0, totalAmount: 0, paidOrderCount: 0, thresholdKind: 'quantity', threshold: 20, amountThreshold: null },
+  { id: 'candidate-id', slug: 'candidate-slug', title: '候選團', status: 'arrived', openedAt: '2026-09-01T00:00:00Z', createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-01T00:00:00Z', images: [], quantityUnit: '個', orderCount: 0, totalQuantity: 0, totalAmount: 0, paidOrderCount: 0, thresholdKind: 'quantity', threshold: 20, amountThreshold: null },
+  { id: 'open-id', slug: 'open-slug', title: '進行中團', status: 'open', openedAt: '2026-09-01T00:00:00Z', createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-01T00:00:00Z', images: [], quantityUnit: '個', orderCount: 0, totalQuantity: 0, totalAmount: 0, paidOrderCount: 0, thresholdKind: 'quantity', threshold: 20, amountThreshold: null },
 ]
 
 describe('notification test lab', () => {

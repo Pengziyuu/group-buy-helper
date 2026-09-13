@@ -6,6 +6,7 @@ import ResidentMemberManagementApp from './ResidentMemberManagementApp'
 import type { ResidentMember } from './services/residentMemberManagementGateway'
 import { ConfirmDialog } from './components/ui/ConfirmDialog'
 import { FeedbackMessage } from './components/ui/FeedbackMessage'
+import { ProgressBar } from './components/ui/ProgressBar'
 import './CampaignListApp.css'
 
 type CampaignListAppProps = {
@@ -41,6 +42,40 @@ function CampaignCardCover({ campaign }: { campaign: CampaignListItem }) {
             <small>尚未設定圖片</small>
           </div>}
     </div>
+  )
+}
+
+function CampaignFormationProgress({ campaign }: { campaign: CampaignListItem }) {
+  if (!campaign.openedAt) {
+    return (
+      <section className="campaign-formation-progress is-draft" aria-label={`${campaign.title}成團進度`}>
+        <p className="campaign-progress-empty"><strong>發布後開始接單</strong><span>先完成商品、圖片與開團設定</span></p>
+      </section>
+    )
+  }
+
+  const usesAmount = campaign.thresholdKind === 'amount'
+  const target = usesAmount ? (campaign.amountThreshold ?? campaign.threshold) : campaign.threshold
+  const current = usesAmount ? campaign.totalAmount : campaign.totalQuantity
+  const remaining = Math.max(0, target - current)
+  const formed = current >= target
+  const progressText = usesAmount
+    ? `${currencyFormatter.format(current)}／${currencyFormatter.format(target)}`
+    : `${current}／${target} ${campaign.quantityUnit}`
+  const statusText = formed
+    ? '已達成團門檻'
+    : campaign.status === 'open'
+      ? usesAmount
+        ? `還差 ${currencyFormatter.format(remaining)} 成團`
+        : `還差 ${remaining} ${campaign.quantityUnit}成團`
+      : '結單時未達成團門檻'
+
+  return (
+    <section className="campaign-formation-progress" aria-label={`${campaign.title}成團進度摘要`}>
+      <div className="campaign-progress-heading"><span>成團進度</span><strong>{progressText}</strong></div>
+      <ProgressBar label={`${campaign.title}成團進度`} value={current} max={target} />
+      <p className={formed ? 'is-formed' : 'is-remaining'}>{statusText}</p>
+    </section>
   )
 }
 
@@ -264,25 +299,7 @@ export default function CampaignListApp({ campaigns, onCreate, onDelete, onNavig
               </div>
               <p>{campaign.openedAt ? `開團時間 ${formatZhTwTimestamp(campaign.openedAt)}` : `最後編輯 ${formatZhTwTimestamp(campaign.updatedAt)}・住戶尚不可見`}</p>
             </div>
-            <section className={`campaign-order-snapshot${!campaign.openedAt ? ' is-draft' : ''}`} aria-label={`${campaign.title}訂單狀況`}>
-              {!campaign.openedAt
-                ? <p><strong>發布後開始接單</strong><span>先完成商品、圖片與開團設定</span></p>
-                : campaign.orderCount === 0
-                  ? <p><strong>尚無住戶下單</strong><span>可先分享住戶連結</span></p>
-                  : <>
-                      <dl>
-                        <div><dt>訂單</dt><dd>{campaign.orderCount} 戶</dd></div>
-                        <div><dt>正式商品</dt><dd>{campaign.totalQuantity} {campaign.quantityUnit}</dd></div>
-                        <div><dt>成交總額</dt><dd>{currencyFormatter.format(campaign.totalAmount)}</dd></div>
-                        <div><dt>已付款</dt><dd>{campaign.paidOrderCount}／{campaign.orderCount} 戶</dd></div>
-                      </dl>
-                      <p className={campaign.paidOrderCount < campaign.orderCount ? 'needs-attention' : 'is-complete'}>
-                        {campaign.paidOrderCount < campaign.orderCount
-                          ? `尚有 ${campaign.orderCount - campaign.paidOrderCount} 戶未付款`
-                          : '所有訂單皆已付款'}
-                      </p>
-                    </>}
-            </section>
+            <CampaignFormationProgress campaign={campaign} />
             <div className="campaign-list-card-actions">
               <a className="campaign-primary-action" href={`/admin/campaign/${campaign.id}`} aria-label={`管理團購 ${campaign.title}`}>管理團購</a>
               {(campaign.openedAt || onDelete) && (

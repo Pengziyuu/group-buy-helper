@@ -1412,6 +1412,9 @@ export type Database = {
           total_amount: number
           total_quantity: number
           updated_at: string
+          threshold_kind: string
+          threshold: number
+          amount_threshold: number | null
         }[]
       }
       list_pickup_notification_test_campaigns: {

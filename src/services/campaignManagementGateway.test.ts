@@ -16,6 +16,7 @@ describe('campaign management gateway', () => {
       opened_at: null, created_at: '2026-08-12T00:00:00Z', updated_at: '2026-08-12T01:00:00Z',
       images: [{ src: 'https://example.com/ice.jpg', alt: '冰餅商品照' }], quantity_unit: '盒',
       order_count: 3, total_quantity: 8, total_amount: 1080, paid_order_count: 2,
+      threshold_kind: 'amount', threshold: 20, amount_threshold: 1500,
     }]
     const from = vi.fn(() => queryResult(rows))
     const rpc = vi.fn()
@@ -28,6 +29,7 @@ describe('campaign management gateway', () => {
       openedAt: null, createdAt: '2026-08-12T00:00:00Z', updatedAt: '2026-08-12T01:00:00Z',
       images: [{ src: 'https://example.com/ice.jpg', alt: '冰餅商品照' }], quantityUnit: '盒',
       orderCount: 3, totalQuantity: 8, totalAmount: 1080, paidOrderCount: 2,
+      thresholdKind: 'amount', threshold: 20, amountThreshold: 1500,
     }])
     await expect(gateway.create('新的團購')).resolves.toEqual(expect.objectContaining({ id: 'campaign-1' }))
     expect(rpc).toHaveBeenNthCalledWith(1, 'list_admin_campaign_cards')

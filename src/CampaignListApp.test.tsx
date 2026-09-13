@@ -10,12 +10,14 @@ const campaigns: CampaignListItem[] = [
     id: 'draft-id', slug: 'draft-slug', title: '新草稿', status: 'open', openedAt: null,
     createdAt: '2026-08-12T00:00:00Z', updatedAt: '2026-08-12T01:00:00Z',
     images: [], quantityUnit: '個', orderCount: 0, totalQuantity: 0, totalAmount: 0, paidOrderCount: 0,
+    thresholdKind: 'quantity', threshold: 100, amountThreshold: null,
   },
   {
     id: 'open-id', slug: 'open-slug', title: '冰餅團', status: 'open', openedAt: '2026-08-12T02:00:00Z',
     createdAt: '2026-08-12T00:00:00Z', updatedAt: '2026-08-12T03:00:00Z',
     images: [{ src: 'https://example.com/ice.jpg', alt: '冰餅商品照' }], quantityUnit: '盒',
     orderCount: 6, totalQuantity: 18, totalAmount: 2430, paidOrderCount: 4,
+    thresholdKind: 'quantity', threshold: 30, amountThreshold: null,
   },
 ]
 
@@ -58,11 +60,13 @@ describe('organizer campaign list', () => {
         id: 'closed-id', slug: 'closed-slug', title: '已結單水果團', status: 'closed', openedAt: '2026-08-10T00:00:00Z',
         createdAt: '2026-08-09T00:00:00Z', updatedAt: '2026-08-11T00:00:00Z',
         images: [], quantityUnit: '箱', orderCount: 2, totalQuantity: 4, totalAmount: 600, paidOrderCount: 2,
+        thresholdKind: 'quantity', threshold: 4, amountThreshold: null,
       },
       {
         id: 'arrived-id', slug: 'arrived-slug', title: '已到貨麵包團', status: 'arrived', openedAt: '2026-08-08T00:00:00Z',
         createdAt: '2026-08-07T00:00:00Z', updatedAt: '2026-08-09T00:00:00Z',
         images: [], quantityUnit: '袋', orderCount: 1, totalQuantity: 3, totalAmount: 450, paidOrderCount: 1,
+        thresholdKind: 'quantity', threshold: 3, amountThreshold: null,
       },
     ]
     render(<CampaignListApp campaigns={[...campaigns, ...completed]} onCreate={vi.fn()} />)
@@ -110,20 +114,37 @@ describe('organizer campaign list', () => {
     expect(screen.getByRole('link', { name: '查看住戶頁 冰餅團' })).toHaveAttribute('href', '/campaign/open-slug')
   })
 
-  it('shows a recognizable cover and actionable order summary without opening the campaign', () => {
+  it('makes the cover and quantity formation progress the primary card information', () => {
     render(<CampaignListApp campaigns={campaigns} onCreate={vi.fn()} />)
 
     const openCard = screen.getByRole('heading', { name: '冰餅團' }).closest('article') as HTMLElement
     expect(within(openCard).getByRole('img', { name: '冰餅商品照' })).toHaveAttribute('src', 'https://example.com/ice.jpg')
-    expect(within(openCard).getByText('6 戶')).toBeInTheDocument()
-    expect(within(openCard).getByText('18 盒')).toBeInTheDocument()
-    expect(within(openCard).getByText('$2,430')).toBeInTheDocument()
-    expect(within(openCard).getByText('4／6 戶')).toBeInTheDocument()
-    expect(within(openCard).getByText('尚有 2 戶未付款')).toBeInTheDocument()
+    const progress = within(openCard).getByRole('progressbar', { name: '冰餅團成團進度' })
+    expect(progress).toHaveAttribute('aria-valuenow', '18')
+    expect(progress).toHaveAttribute('aria-valuemax', '30')
+    expect(within(openCard).getByText('18／30 盒')).toBeInTheDocument()
+    expect(within(openCard).getByText('還差 12 盒成團')).toBeInTheDocument()
+    expect(within(openCard).queryByText('成交總額')).not.toBeInTheDocument()
+    expect(within(openCard).queryByText('已付款')).not.toBeInTheDocument()
 
     const draftCard = screen.getByRole('heading', { name: '新草稿' }).closest('article') as HTMLElement
     expect(within(draftCard).getByRole('img', { name: '新草稿尚未設定圖片' })).toBeInTheDocument()
     expect(within(draftCard).getByText('發布後開始接單')).toBeInTheDocument()
+  })
+
+  it('uses the discounted amount for amount-based formation progress', () => {
+    const amountCampaign: CampaignListItem = {
+      ...campaigns[1], id: 'amount-id', slug: 'amount-slug', title: '年節禮盒團',
+      thresholdKind: 'amount', amountThreshold: 10000, totalQuantity: 36, totalAmount: 8500,
+    }
+    render(<CampaignListApp campaigns={[amountCampaign]} onCreate={vi.fn()} />)
+
+    const card = screen.getByRole('heading', { name: '年節禮盒團' }).closest('article') as HTMLElement
+    const progress = within(card).getByRole('progressbar', { name: '年節禮盒團成團進度' })
+    expect(progress).toHaveAttribute('aria-valuenow', '8500')
+    expect(progress).toHaveAttribute('aria-valuemax', '10000')
+    expect(within(card).getByText('$8,500／$10,000')).toBeInTheDocument()
+    expect(within(card).getByText('還差 $1,500 成團')).toBeInTheDocument()
   })
 
   it('requires explicit confirmation before permanently deleting a campaign', async () => {

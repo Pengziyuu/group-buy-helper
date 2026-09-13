@@ -328,6 +328,7 @@ describe('local Supabase visual demo apps', () => {
         id: 'campaign-1', slug: 'share-slug', title: '歷史冰餅團', status: 'closed',
         openedAt: '2026-08-12T00:00:00Z', createdAt: '2026-08-12T00:00:00Z', updatedAt: '2026-08-12T01:00:00Z',
         images: [], quantityUnit: '個', orderCount: 1, totalQuantity: 3, totalAmount: 135, paidOrderCount: 0,
+        thresholdKind: 'quantity', threshold: 20, amountThreshold: null,
       }]),
       create: vi.fn(),
       delete: vi.fn().mockResolvedValue({ warning: null }),
