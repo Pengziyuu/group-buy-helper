@@ -114,6 +114,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
   const [savedDraft, setSavedDraft] = useState<Record<string, number>>({ ...(ownOrder?.items ?? {}) })
   const [customDraft, setCustomDraft] = useState<CustomOrderItem[]>(() => ownOrder?.customItems?.map((item) => ({ ...item })) ?? [])
   const [savedCustomDraft, setSavedCustomDraft] = useState<CustomOrderItem[]>(() => ownOrder?.customItems?.map((item) => ({ ...item })) ?? [])
+  const [orderReviewExpanded, setOrderReviewExpanded] = useState(true)
   const customItemSequence = useRef(0)
   const [notice, setNotice] = useState<{ tone: 'success' | 'error'; text: string } | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -481,6 +482,63 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
               </div>
             ))}
             {customDraft.length > 0 && <p className="custom-order-items-note">金額由團主另計</p>}
+          </section>
+        )}
+
+        {hasDraftItems && (
+          <section className="order-review" aria-labelledby="order-review-heading">
+            <div className="order-review-heading">
+              <div>
+                <p>送出前確認</p>
+                <h3 id="order-review-heading">我的訂單明細</h3>
+              </div>
+              <button
+                type="button"
+                aria-expanded={orderReviewExpanded}
+                aria-controls="order-review-content"
+                onClick={() => setOrderReviewExpanded((current) => !current)}
+              >{orderReviewExpanded ? '收合明細' : '展開明細'}</button>
+            </div>
+            {orderReviewExpanded && (
+              <div id="order-review-content">
+                <div className="order-review-lines">
+                  {draftPricing.lines.map((line) => {
+                    const itemIndex = publishedCampaign.items.findIndex((item) => item.code === line.code)
+                    const item = publishedCampaign.items[itemIndex]
+                    const discountText = line.discountType === 'mix_match'
+                      ? line.promotionName
+                      : line.discountType === 'base' ? formatDiscountRate(line.discountRate) : '原價'
+                    return (
+                      <div className="order-review-line" key={line.code}>
+                        <span className="product-code">{itemLabel(itemIndex)}</span>
+                        <div>
+                          <strong>{item?.name ?? line.code}</strong>
+                          <small><span className="order-review-discount">{discountText}</span>{line.listUnitPrice !== line.finalUnitPrice ? `・原價 $${line.listUnitPrice}` : ''}</small>
+                        </div>
+                        <span>{line.quantity} × ${line.finalUnitPrice}</span>
+                        <strong>${line.lineTotal}</strong>
+                      </div>
+                    )
+                  })}
+                  {customDraft.filter((item) => item.quantity > 0).map((item) => (
+                    <div className="order-review-line order-review-custom-line" key={item.id}>
+                      <span className="product-code">＋</span>
+                      <div><strong>{item.name || '未命名額外品項'}</strong><small>額外品項</small></div>
+                      <span>{item.quantity} {quantityUnit}</span>
+                      <strong>金額另計</strong>
+                    </div>
+                  ))}
+                </div>
+                <div className="order-review-total">
+                  <div>
+                    <span>商品合計</span>
+                    {draftPricing.savings > 0 && <small>已省 ${draftPricing.savings}</small>}
+                    {customDraftQuantity > 0 && <small>另有 {customDraftQuantity} {quantityUnit}額外品項，金額另計</small>}
+                  </div>
+                  <strong>${draftAmount}</strong>
+                </div>
+              </div>
+            )}
           </section>
         )}
 

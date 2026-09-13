@@ -69,6 +69,22 @@ describe('customer campaign app', () => {
     expect(within(screen.getByLabelText('訂單摘要與送出')).getByText('$706')).toBeInTheDocument()
     expect(screen.getByText('任選價 $145')).toBeInTheDocument()
     expect(screen.getByText('9折價 $162')).toBeInTheDocument()
+
+    const review = screen.getByRole('region', { name: '我的訂單明細' })
+    expect(within(review).getByText('五花肉片')).toBeInTheDocument()
+    expect(within(review).getByText('2 × $145')).toBeInTheDocument()
+    expect(within(review).getByText('$290')).toBeInTheDocument()
+    expect(within(review).getAllByText('任選三件85折')).toHaveLength(2)
+    expect(within(review).getByText('梅花肉片')).toBeInTheDocument()
+    expect(within(review).getByText('1 × $162')).toBeInTheDocument()
+    expect(within(review).getByText('商品合計')).toBeInTheDocument()
+    expect(within(review).getByText('$706')).toBeInTheDocument()
+    expect(within(review).getByText('已省 $113')).toBeInTheDocument()
+
+    await user.click(within(review).getByRole('button', { name: '收合明細' }))
+    expect(within(review).queryByText('2 × $145')).not.toBeInTheDocument()
+    await user.click(within(review).getByRole('button', { name: '展開明細' }))
+    expect(within(review).getByText('2 × $145')).toBeInTheDocument()
   })
 
   it('submits resident custom items separately without changing price or threshold quantity', async () => {
@@ -80,7 +96,7 @@ describe('customer campaign app', () => {
     }} />)
 
     expect(screen.getByText('62 個 / 100 個')).toBeInTheDocument()
-    expect(screen.getByText('$270')).toBeInTheDocument()
+    expect(within(screen.getByLabelText('訂單摘要與送出')).getByText('$270')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '新增額外品項' }))
     await user.type(screen.getByRole('textbox', { name: '額外品項 1 名稱' }), '限定蛋糕')
     await user.click(screen.getByRole('button', { name: '增加 額外品項 1' }))
@@ -88,7 +104,7 @@ describe('customer campaign app', () => {
 
     expect(screen.getByText('金額由團主另計')).toBeInTheDocument()
     expect(screen.getByText('62 個 / 100 個')).toBeInTheDocument()
-    expect(screen.getByText('$270')).toBeInTheDocument()
+    expect(within(screen.getByLabelText('訂單摘要與送出')).getByText('$270')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '送出訂單' }))
     expect(onSubmitOrder).toHaveBeenCalledWith(expect.any(Object), [
       expect.objectContaining({ name: '限定蛋糕', quantity: 2 }),
@@ -227,7 +243,7 @@ describe('customer campaign app', () => {
     expect(submitOrder).toBeDisabled()
     await user.click(screen.getByRole('button', { name: '增加 A 牛奶（招牌）' }))
     expect(screen.getByText('我的訂單 7 個')).toBeInTheDocument()
-    expect(screen.getByText('$315')).toBeInTheDocument()
+    expect(within(screen.getByLabelText('訂單摘要與送出')).getByText('$315')).toBeInTheDocument()
     expect(submitOrder).toBeEnabled()
 
     await user.click(submitOrder)
@@ -398,11 +414,12 @@ describe('customer campaign app', () => {
 
     render(<App publishedContent={content} visibleOrders={visibleOrders} residentCustomer={resident} />)
 
-    expect(screen.getByText('牛奶')).toBeInTheDocument()
-    expect(screen.getByText('$45')).toBeInTheDocument()
-    expect(screen.getByText('草莓')).toBeInTheDocument()
-    expect(screen.getByText('$60')).toBeInTheDocument()
-    expect(screen.getByText('$150')).toBeInTheDocument()
+    const productSelection = screen.getByRole('region', { name: '商品選擇' })
+    expect(within(productSelection).getByText('牛奶')).toBeInTheDocument()
+    expect(within(productSelection).getByText('$45')).toBeInTheDocument()
+    expect(within(productSelection).getByText('草莓')).toBeInTheDocument()
+    expect(within(productSelection).getByText('$60')).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: '我的訂單明細' })).getByText('$150')).toBeInTheDocument()
     expect(screen.getByText('A+2、B+1')).toBeInTheDocument()
     expect(screen.getByText('三期 3Z15')).toBeInTheDocument()
     expect(screen.queryByText(/A號|B號/)).not.toBeInTheDocument()
