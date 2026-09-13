@@ -1,6 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database'
 import type { CampaignStatus } from '../domain/orderWorkflow'
+import { normalizeQuantityUnit, type QuantityUnit } from '../domain/quantityUnit'
+import type { CampaignImage } from './demoCampaignStore'
 
 export type CampaignListItem = {
   id: string
@@ -10,6 +12,12 @@ export type CampaignListItem = {
   openedAt: string | null
   createdAt: string
   updatedAt: string
+  images: CampaignImage[]
+  quantityUnit: QuantityUnit
+  orderCount: number
+  totalQuantity: number
+  totalAmount: number
+  paidOrderCount: number
 }
 
 type CampaignListRow = {
@@ -20,6 +28,12 @@ type CampaignListRow = {
   opened_at?: unknown
   created_at?: unknown
   updated_at?: unknown
+  images?: unknown
+  quantity_unit?: unknown
+  order_count?: unknown
+  total_quantity?: unknown
+  total_amount?: unknown
+  paid_order_count?: unknown
 }
 
 function errorMessage(error: unknown): string {
@@ -27,8 +41,24 @@ function errorMessage(error: unknown): string {
   return String(error)
 }
 
-function toCampaignListItem(value: unknown): CampaignListItem {
+function isCampaignImage(value: unknown): value is CampaignImage {
+  return Boolean(value && typeof value === 'object'
+    && 'src' in value && typeof value.src === 'string'
+    && 'alt' in value && typeof value.alt === 'string')
+}
+
+function toNumber(value: unknown): number | null {
+  const number = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : Number.NaN
+  return Number.isFinite(number) && number >= 0 ? number : null
+}
+
+function toCampaignListItem(value: unknown, requireSummary = false): CampaignListItem {
   const row = value as CampaignListRow | null
+  const images = Array.isArray(row?.images) && row.images.every(isCampaignImage) ? row.images : null
+  const orderCount = toNumber(row?.order_count)
+  const totalQuantity = toNumber(row?.total_quantity)
+  const totalAmount = toNumber(row?.total_amount)
+  const paidOrderCount = toNumber(row?.paid_order_count)
   if (!row
     || typeof row.id !== 'string'
     || typeof row.slug !== 'string'
@@ -37,7 +67,9 @@ function toCampaignListItem(value: unknown): CampaignListItem {
     || !['open', 'closed', 'arrived'].includes(row.status)
     || (row.opened_at !== null && typeof row.opened_at !== 'string')
     || typeof row.created_at !== 'string'
-    || typeof row.updated_at !== 'string') {
+    || typeof row.updated_at !== 'string'
+    || (requireSummary && (!images || orderCount === null || totalQuantity === null
+      || totalAmount === null || paidOrderCount === null || paidOrderCount > orderCount))) {
     throw new Error('Supabase 回傳的團購列表格式錯誤')
   }
   return {
@@ -48,18 +80,21 @@ function toCampaignListItem(value: unknown): CampaignListItem {
     openedAt: row.opened_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    images: images ?? [],
+    quantityUnit: normalizeQuantityUnit(row.quantity_unit),
+    orderCount: orderCount ?? 0,
+    totalQuantity: totalQuantity ?? 0,
+    totalAmount: totalAmount ?? 0,
+    paidOrderCount: paidOrderCount ?? 0,
   }
 }
 
 export function createCampaignManagementGateway(client: SupabaseClient<Database>) {
   return {
     async list(): Promise<CampaignListItem[]> {
-      const { data, error } = await client
-        .from('admin_campaign_list')
-        .select('id,slug,title,status,opened_at,created_at,updated_at')
-        .order('updated_at', { ascending: false })
+      const { data, error } = await client.rpc('list_admin_campaign_cards')
       if (error) throw new Error(`讀取團購列表失敗：${errorMessage(error)}`)
-      return (data ?? []).map(toCampaignListItem)
+      return (data ?? []).map((row) => toCampaignListItem(row, true))
     },
 
     async create(title: string): Promise<CampaignListItem> {

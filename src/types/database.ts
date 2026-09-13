@@ -1396,6 +1396,24 @@ export type Database = {
         }[]
       }
       line_organizer_access_token_hook: { Args: { event: Json }; Returns: Json }
+      list_admin_campaign_cards: {
+        Args: never
+        Returns: {
+          created_at: string
+          id: string
+          images: Json
+          opened_at: string | null
+          order_count: number
+          paid_order_count: number
+          quantity_unit: string
+          slug: string
+          status: string
+          title: string
+          total_amount: number
+          total_quantity: number
+          updated_at: string
+        }[]
+      }
       list_pickup_notification_test_campaigns: {
         Args: never
         Returns: {

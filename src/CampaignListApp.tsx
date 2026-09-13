@@ -20,6 +20,30 @@ type CampaignListAppProps = {
   onUpdateResidentHousehold?: (memberCode: string, household: { period: number; unit: string }) => Promise<void>
 }
 
+const currencyFormatter = new Intl.NumberFormat('zh-TW', {
+  style: 'currency',
+  currency: 'TWD',
+  maximumFractionDigits: 0,
+})
+
+function CampaignCardCover({ campaign }: { campaign: CampaignListItem }) {
+  const image = campaign.images[0]
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => setFailed(false), [image?.src])
+
+  return (
+    <div className="campaign-card-cover">
+      {image && !failed
+        ? <img src={image.src} alt={image.alt} loading="lazy" onError={() => setFailed(true)} />
+        : <div className="campaign-card-cover-fallback" role="img" aria-label={`${campaign.title}尚未設定圖片`}>
+            <span aria-hidden="true">▧</span>
+            <small>尚未設定圖片</small>
+          </div>}
+    </div>
+  )
+}
+
 export default function CampaignListApp({ campaigns, onCreate, onDelete, onNavigate, onSignOut, onCopyResidentLink, residentMembers, onSetResidentBlocked, onUpdateResidentHousehold }: CampaignListAppProps) {
   const [visibleCampaigns, setVisibleCampaigns] = useState(campaigns)
   const [creating, setCreating] = useState(false)
@@ -230,13 +254,35 @@ export default function CampaignListApp({ campaigns, onCreate, onDelete, onNavig
         {filteredCampaigns.length === 0 && <p className="campaign-list-empty">{visibleCampaigns.length === 0 ? '目前還沒有團購，建立第一團吧。' : '此分類目前沒有團購。'}</p>}
         {filteredCampaigns.map((campaign) => (
           <article key={campaign.id} className="campaign-list-card">
-            <div className="campaign-list-card-heading">
-              <h2>{campaign.title}</h2>
-              <span className={`campaign-status ${!campaign.openedAt ? 'is-draft' : campaign.status === 'open' ? 'is-open' : 'is-completed'}`}>
-                {campaign.openedAt ? campaignStatusLabel(campaign.status) : '待發布'}
-              </span>
+            <CampaignCardCover campaign={campaign} />
+            <div className="campaign-list-card-copy">
+              <div className="campaign-list-card-heading">
+                <h2>{campaign.title}</h2>
+                <span className={`campaign-status ${!campaign.openedAt ? 'is-draft' : campaign.status === 'open' ? 'is-open' : 'is-completed'}`}>
+                  {campaign.openedAt ? campaignStatusLabel(campaign.status) : '待發布'}
+                </span>
+              </div>
+              <p>{campaign.openedAt ? `開團時間 ${formatZhTwTimestamp(campaign.openedAt)}` : `最後編輯 ${formatZhTwTimestamp(campaign.updatedAt)}・住戶尚不可見`}</p>
             </div>
-            <p>{campaign.openedAt ? `開團時間 ${formatZhTwTimestamp(campaign.openedAt)}` : `最後編輯 ${formatZhTwTimestamp(campaign.updatedAt)}・住戶尚不可見`}</p>
+            <section className={`campaign-order-snapshot${!campaign.openedAt ? ' is-draft' : ''}`} aria-label={`${campaign.title}訂單狀況`}>
+              {!campaign.openedAt
+                ? <p><strong>發布後開始接單</strong><span>先完成商品、圖片與開團設定</span></p>
+                : campaign.orderCount === 0
+                  ? <p><strong>尚無住戶下單</strong><span>可先分享住戶連結</span></p>
+                  : <>
+                      <dl>
+                        <div><dt>訂單</dt><dd>{campaign.orderCount} 戶</dd></div>
+                        <div><dt>正式商品</dt><dd>{campaign.totalQuantity} {campaign.quantityUnit}</dd></div>
+                        <div><dt>成交總額</dt><dd>{currencyFormatter.format(campaign.totalAmount)}</dd></div>
+                        <div><dt>已付款</dt><dd>{campaign.paidOrderCount}／{campaign.orderCount} 戶</dd></div>
+                      </dl>
+                      <p className={campaign.paidOrderCount < campaign.orderCount ? 'needs-attention' : 'is-complete'}>
+                        {campaign.paidOrderCount < campaign.orderCount
+                          ? `尚有 ${campaign.orderCount - campaign.paidOrderCount} 戶未付款`
+                          : '所有訂單皆已付款'}
+                      </p>
+                    </>}
+            </section>
             <div className="campaign-list-card-actions">
               <a className="campaign-primary-action" href={`/admin/campaign/${campaign.id}`} aria-label={`管理團購 ${campaign.title}`}>管理團購</a>
               {(campaign.openedAt || onDelete) && (

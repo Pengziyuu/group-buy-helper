@@ -19,6 +19,10 @@ import type { LiffClient } from './services/liffIdentity'
 
 const DEMO_CAMPAIGN_SLUG = '0123456789abcdef0123456789abcdef0123'
 const DEMO_CAMPAIGN_ID = '01234567-89ab-cdef-0123-456789abcdef'
+const demoTotalQuantity = initialOrders.reduce((total, order) =>
+  total + Object.values(order.items).reduce((sum, quantity) => sum + quantity, 0), 0)
+const demoTotalAmount = initialOrders.reduce((total, order) => total + Object.entries(order.items)
+  .reduce((sum, [code, quantity]) => sum + quantity * (items.find((item) => item.code === code)?.unitPrice ?? campaign.unitPrice), 0), 0)
 const demoOrganizerCampaign = {
   id: DEMO_CAMPAIGN_ID,
   slug: DEMO_CAMPAIGN_SLUG,
@@ -27,13 +31,17 @@ const demoOrganizerCampaign = {
   openedAt: campaign.openedAt,
   createdAt: campaign.openedAt,
   updatedAt: campaign.openedAt,
+  images: campaign.images,
+  quantityUnit: '個' as const,
+  orderCount: initialOrders.length,
+  totalQuantity: demoTotalQuantity,
+  totalAmount: demoTotalAmount,
+  paidOrderCount: 0,
 }
 const demoResidentMembers = [
   { memberCode: 'demo-member-a01', displayName: '測試住戶甲', pictureUrl: null, period: 2, unit: '1A1', joinedAt: campaign.openedAt, blocked: false, blockedAt: null },
   { memberCode: 'demo-member-b08', displayName: '測試住戶乙', pictureUrl: null, period: 1, unit: 'B8', joinedAt: campaign.openedAt, blocked: true, blockedAt: campaign.openedAt },
 ]
-const demoTotalQuantity = initialOrders.reduce((total, order) =>
-  total + Object.values(order.items).reduce((sum, quantity) => sum + quantity, 0), 0)
 
 const initialDemoOrganizerOrders: OrganizerVisibleOrder[] = initialOrders.map((order, index) => ({
   ...order,

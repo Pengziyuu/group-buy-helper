@@ -14,17 +14,23 @@ describe('campaign management gateway', () => {
     const rows = [{
       id: 'campaign-1', slug: 'share-slug', title: '冰餅團', status: 'open',
       opened_at: null, created_at: '2026-08-12T00:00:00Z', updated_at: '2026-08-12T01:00:00Z',
+      images: [{ src: 'https://example.com/ice.jpg', alt: '冰餅商品照' }], quantity_unit: '盒',
+      order_count: 3, total_quantity: 8, total_amount: 1080, paid_order_count: 2,
     }]
     const from = vi.fn(() => queryResult(rows))
-    const rpc = vi.fn().mockResolvedValue({ data: rows[0], error: null })
+    const rpc = vi.fn()
+      .mockResolvedValueOnce({ data: rows, error: null })
+      .mockResolvedValueOnce({ data: rows[0], error: null })
     const gateway = createCampaignManagementGateway({ from, rpc } as never)
 
     await expect(gateway.list()).resolves.toEqual([{
       id: 'campaign-1', slug: 'share-slug', title: '冰餅團', status: 'open',
       openedAt: null, createdAt: '2026-08-12T00:00:00Z', updatedAt: '2026-08-12T01:00:00Z',
+      images: [{ src: 'https://example.com/ice.jpg', alt: '冰餅商品照' }], quantityUnit: '盒',
+      orderCount: 3, totalQuantity: 8, totalAmount: 1080, paidOrderCount: 2,
     }])
     await expect(gateway.create('新的團購')).resolves.toEqual(expect.objectContaining({ id: 'campaign-1' }))
-    expect(from).toHaveBeenCalledWith('admin_campaign_list')
+    expect(rpc).toHaveBeenNthCalledWith(1, 'list_admin_campaign_cards')
     expect(rpc).toHaveBeenCalledWith('create_campaign_draft', { p_title: '新的團購' })
   })
 
@@ -122,8 +128,7 @@ describe('campaign management gateway', () => {
 
   it('rejects malformed rows instead of guessing identifiers', async () => {
     const gateway = createCampaignManagementGateway({
-      from: vi.fn(() => queryResult([{ id: null }])),
-      rpc: vi.fn(),
+      rpc: vi.fn().mockResolvedValue({ data: [{ id: null }], error: null }),
     } as never)
 
     await expect(gateway.list()).rejects.toThrow('團購列表格式錯誤')
