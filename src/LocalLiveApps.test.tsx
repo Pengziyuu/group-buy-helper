@@ -128,6 +128,127 @@ describe('local Supabase visual demo apps', () => {
     expect(await screen.findByText('已登出，請重新開啟住戶LINE入口')).toBeInTheDocument()
   })
 
+  it('restores a verified resident session without reopening LINE OAuth', async () => {
+    const session = { access_token: 'resident-access', user: { id: 'resident-uid', is_anonymous: false } }
+    const { client } = authClient(session)
+    client.rpc = vi.fn().mockImplementation((name: string) => Promise.resolve(name === 'get_line_resident_self'
+      ? { data: [{ display_name: '彭梓育', picture_url: 'https://example.com/avatar.jpg' }], error: null }
+      : { data: null, error: null })) as never
+    const list = vi.fn().mockResolvedValue([{
+      slug: '0123456789abcdef0123456789abcdef0123',
+      title: '早餐團購', status: 'open' as const, unitPrice: 55,
+      openedAt: '2026-08-14T08:00:00.000Z', totalQuantity: 8, threshold: 10,
+    }])
+    const liffClient: LiffClient = {
+      init: vi.fn().mockResolvedValue(undefined),
+      isLoggedIn: vi.fn().mockReturnValue(false),
+      login: vi.fn(),
+      getProfile: vi.fn(),
+      getIDToken: vi.fn().mockReturnValue(null),
+    }
+    const signIn = vi.fn()
+
+    render(<LocalLiveResidentApp
+      client={client}
+      liffId="2011099887-Resident"
+      liffClient={liffClient}
+      lineResidentGateway={{ signIn }}
+      residentListRepository={{ list }}
+    />)
+
+    expect(await screen.findByRole('heading', { name: '全部開團' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: '彭梓育的LINE頭貼' })).toBeInTheDocument()
+    expect(client.auth.getUser).toHaveBeenCalledWith('resident-access')
+    expect(client.rpc).toHaveBeenCalledWith('get_line_resident_self')
+    expect(liffClient.init).not.toHaveBeenCalled()
+    expect(liffClient.login).not.toHaveBeenCalled()
+    expect(signIn).not.toHaveBeenCalled()
+  })
+
+  it('falls back to LINE after clearing an invalid cached resident session', async () => {
+    const session = { access_token: 'expired-access', user: { id: 'resident-uid', is_anonymous: false } }
+    const { client } = authClient(session, new Error('JWT expired'))
+    const signIn = vi.fn().mockResolvedValue({
+      session: { access_token: 'fresh-access', user: { id: 'resident-uid' } },
+      identity: { displayName: '彭梓育', pictureUrl: null },
+    })
+    const list = vi.fn().mockResolvedValue([])
+    const liffClient: LiffClient = {
+      init: vi.fn().mockResolvedValue(undefined),
+      isLoggedIn: vi.fn().mockReturnValue(true),
+      login: vi.fn(),
+      getProfile: vi.fn().mockResolvedValue({ userId: 'untrusted', displayName: '前端名稱' }),
+      getIDToken: vi.fn().mockReturnValue('fresh-line-token'),
+    }
+
+    render(<LocalLiveResidentApp
+      client={client}
+      liffId="2011099887-Resident"
+      liffClient={liffClient}
+      lineResidentGateway={{ signIn }}
+      residentListRepository={{ list }}
+    />)
+
+    expect(await screen.findByRole('heading', { name: '全部開團' })).toBeInTheDocument()
+    expect(client.auth.signOut).toHaveBeenCalledWith({ scope: 'local' })
+    expect(liffClient.init).toHaveBeenCalledOnce()
+    expect(signIn).toHaveBeenCalledWith('fresh-line-token')
+  })
+
+  it('falls back to LINE when the cached resident refresh token is invalid', async () => {
+    const { client } = authClient()
+    client.auth.getSession = vi.fn().mockResolvedValue({ data: { session: null }, error: new Error('Invalid Refresh Token') }) as never
+    const signIn = vi.fn().mockResolvedValue({
+      session: { access_token: 'fresh-access', user: { id: 'resident-uid' } },
+      identity: { displayName: '彭梓育', pictureUrl: null },
+    })
+    const liffClient: LiffClient = {
+      init: vi.fn().mockResolvedValue(undefined),
+      isLoggedIn: vi.fn().mockReturnValue(true),
+      login: vi.fn(),
+      getProfile: vi.fn().mockResolvedValue({ userId: 'untrusted', displayName: '前端名稱' }),
+      getIDToken: vi.fn().mockReturnValue('fresh-line-token'),
+    }
+
+    render(<LocalLiveResidentApp
+      client={client}
+      liffId="2011099887-Resident"
+      liffClient={liffClient}
+      lineResidentGateway={{ signIn }}
+      residentListRepository={{ list: vi.fn().mockResolvedValue([]) }}
+    />)
+
+    expect(await screen.findByRole('heading', { name: '全部開團' })).toBeInTheDocument()
+    expect(client.auth.signOut).toHaveBeenCalledWith({ scope: 'local' })
+    expect(signIn).toHaveBeenCalledWith('fresh-line-token')
+  })
+
+  it('does not reopen LINE OAuth for a retryable resident session verification error', async () => {
+    const session = { access_token: 'resident-access', user: { id: 'resident-uid', is_anonymous: false } }
+    const { client } = authClient(session, new TypeError('network unavailable'))
+    const liffClient: LiffClient = {
+      init: vi.fn().mockResolvedValue(undefined),
+      isLoggedIn: vi.fn().mockReturnValue(true),
+      login: vi.fn(),
+      getProfile: vi.fn(),
+      getIDToken: vi.fn().mockReturnValue('line-token'),
+    }
+    const signIn = vi.fn()
+
+    render(<LocalLiveResidentApp
+      client={client}
+      liffId="2011099887-Resident"
+      liffClient={liffClient}
+      lineResidentGateway={{ signIn }}
+      residentListRepository={{ list: vi.fn() }}
+    />)
+
+    expect(await screen.findByText('network unavailable')).toBeInTheDocument()
+    expect(client.auth.signOut).not.toHaveBeenCalled()
+    expect(liffClient.init).not.toHaveBeenCalled()
+    expect(signIn).not.toHaveBeenCalled()
+  })
+
   it('uses the production product name when the fixed resident entry is missing', async () => {
     const { client } = authClient()
     render(<LocalLiveResidentApp client={client} liffId="resident-liff" />)

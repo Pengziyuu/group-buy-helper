@@ -953,23 +953,16 @@ function LocalLiveResidentListApp({
   useEffect(() => {
     let active = true
     const initialize = async () => {
-      let trustedIdentity: ResidentLineIdentity
-      if (liffId || liffClient) {
+      let trustedIdentity = await loadRestoredResidentIdentity(client)
+      if (!trustedIdentity && (liffId || liffClient)) {
         if (!liffId || !liffClient) throw new Error('住戶LINE登入設定不完整')
         const liffIdentity = await loadLiffIdentity(liffClient, liffId)
         if (!liffIdentity) return
         const gateway = lineResidentGateway ?? createLineResidentGateway(client)
         const result = await gateway.signIn(liffIdentity.idToken)
         trustedIdentity = result.identity
-      } else {
-        const session = await ensureResidentSession(client, false)
-        const { data, error: identityError } = await client.rpc('get_line_resident_self')
-        if (identityError) throw identityError
-        const row = data?.[0]
-        if (!row?.display_name) throw new Error('請使用住戶LINE入口登入')
-        trustedIdentity = { displayName: row.display_name, pictureUrl: row.picture_url }
-        if (!session.user?.id) throw new Error('住戶登入狀態無效')
       }
+      if (!trustedIdentity) throw new Error('請使用住戶LINE入口登入')
       const nextCampaigns = await (residentListRepository ?? residentCampaignListRepository(client)).list()
       if (active) {
         setIdentity(trustedIdentity)
@@ -1003,6 +996,33 @@ function LocalLiveResidentListApp({
       }}
     />
   )
+}
+
+async function loadRestoredResidentIdentity(client: SupabaseClient<Database>): Promise<ResidentLineIdentity | null> {
+  const { data, error } = await client.auth.getSession()
+  if (error) {
+    if (isRetryableAuthError(error)) throw error
+    await client.auth.signOut({ scope: 'local' })
+    return null
+  }
+  const session = data.session
+  if (!session) return null
+
+  const { data: verified, error: verificationError } = await client.auth.getUser(session.access_token)
+  if (verificationError && isRetryableAuthError(verificationError)) throw verificationError
+  if (verificationError
+    || !verified.user
+    || verified.user.id !== session.user.id
+    || verified.user.is_anonymous === true) {
+    await client.auth.signOut({ scope: 'local' })
+    return null
+  }
+
+  const { data: identityRows, error: identityError } = await client.rpc('get_line_resident_self')
+  if (identityError) throw identityError
+  const row = identityRows?.[0]
+  if (!row?.display_name) return null
+  return { displayName: row.display_name, pictureUrl: row.picture_url }
 }
 
 async function ensureResidentSession(client: SupabaseClient<Database>, allowAnonymous = true): Promise<Session> {
