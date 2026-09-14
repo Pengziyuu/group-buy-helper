@@ -148,6 +148,7 @@
 .preview-phone h2 { margin: 16px 0 4px; font-size: 25px; line-height: 1.2; letter-spacing: -.035em; }
 .preview-threshold { margin: 0 0 16px; color: var(--admin-muted); font-size: 13px; }
 .preview-images { display: flex; gap: 8px; overflow-x: auto; overscroll-behavior-inline: contain; scroll-snap-type: x mandatory; scrollbar-width: thin; }
+.preview-images:focus-visible { outline: 3px solid rgb(22 119 200 / 30%); outline-offset: 3px; }
 .preview-image-frame { position: relative; width: 86%; min-width: 86%; aspect-ratio: 16 / 9; flex: 0 0 86%; overflow: hidden; border: 1px solid var(--admin-line); border-radius: 12px; background: var(--admin-warm); scroll-snap-align: start; }
 .preview-image-frame:only-child { width: 100%; min-width: 100%; flex-basis: 100%; }
 .preview-image-frame img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }

@@ -825,10 +825,10 @@ function AdminApp({
               ? `滿 NT$ ${amountThreshold.toLocaleString('zh-TW')} 成團`
               : `結單：${threshold} ${quantityUnit}成團`}</p>
             {allowCustomItems && <p className="preview-custom-items">可新增自訂額外品項，金額由團主另計</p>}
-            <div className="preview-images" aria-label={`住戶端圖片預覽，共 ${images.length} 張`}>
+            <div className="preview-images" role="region" tabIndex={0} aria-label={`住戶端圖片預覽，共 ${images.length} 張`}>
               {images.map((image, index) => (
                 <div className="preview-image-frame" key={`${image.src}-${index}`}>
-                  <img className="preview-image-backdrop" src={image.src} alt="" aria-hidden="true" />
+                  <img className="preview-image-backdrop" src={image.src} alt="" aria-hidden="true" loading="lazy" />
                   <img className="preview-image-foreground" src={image.src} alt={image.alt} />
                   <span className="preview-image-count" aria-hidden="true">{index + 1}／{images.length}</span>
                 </div>

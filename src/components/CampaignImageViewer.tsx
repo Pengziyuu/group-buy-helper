@@ -58,7 +58,11 @@ export function CampaignImageViewer({ images, index, onIndexChange, onClose }: C
         return
       }
       if (event.key !== 'Tab' || !dialogRef.current) return
-      const focusable = [...dialogRef.current.querySelectorAll<HTMLElement>(focusableSelector)]
+      const focusable = [...dialogRef.current.querySelectorAll<HTMLElement>(focusableSelector)].filter((element) => {
+        if (element.hidden || element.closest('[hidden]')) return false
+        const style = window.getComputedStyle(element)
+        return style.display !== 'none' && style.visibility !== 'hidden'
+      })
       if (focusable.length === 0) {
         event.preventDefault()
         dialogRef.current.focus()

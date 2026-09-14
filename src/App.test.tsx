@@ -229,6 +229,16 @@ describe('customer campaign app', () => {
     await user.tab()
     expect(closeButton).toHaveFocus()
 
+    const previousButton = screen.getByRole('button', { name: '上一張圖片' })
+    const nextButton = screen.getByRole('button', { name: '下一張圖片' })
+    previousButton.style.display = 'none'
+    nextButton.style.display = 'none'
+    closeButton.focus()
+    await user.tab()
+    expect(closeButton).toHaveFocus()
+    previousButton.style.display = ''
+    nextButton.style.display = ''
+
     const viewerStage = dialog.querySelector<HTMLElement>('.campaign-image-viewer-stage')!
     expect(within(viewerStage).getByRole('button', { name: '上一張圖片' })).toHaveClass('campaign-image-viewer-previous')
     expect(within(viewerStage).getByRole('button', { name: '下一張圖片' })).toHaveClass('campaign-image-viewer-next')
