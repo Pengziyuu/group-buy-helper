@@ -237,8 +237,16 @@ describe('customer campaign app', () => {
     expect(screen.getByRole('dialog', { name: '圖片檢視 2／2' })).toBeInTheDocument()
     fireEvent.pointerDown(viewerStage, { pointerId: 2, pointerType: 'mouse', button: 0, clientX: 80, clientY: 200 })
     fireEvent.pointerUp(viewerStage, { pointerId: 2, pointerType: 'mouse', button: 0, clientX: 280, clientY: 195 })
-    expect(screen.getByRole('dialog', { name: '圖片檢視 1／2' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: '圖片檢視 2／2' })).toBeInTheDocument()
 
+    fireEvent.pointerDown(viewerStage, { pointerId: 3, pointerType: 'touch', clientX: 280, clientY: 200 })
+    fireEvent.pointerDown(viewerStage, { pointerId: 4, pointerType: 'touch', clientX: 220, clientY: 200 })
+    fireEvent.pointerUp(viewerStage, { pointerId: 4, pointerType: 'touch', clientX: 80, clientY: 205 })
+    fireEvent.pointerUp(viewerStage, { pointerId: 3, pointerType: 'touch', clientX: 300, clientY: 200 })
+    expect(screen.getByRole('dialog', { name: '圖片檢視 2／2' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '上一張圖片' }))
+    expect(screen.getByRole('dialog', { name: '圖片檢視 1／2' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '下一張圖片' }))
     expect(screen.getByRole('dialog', { name: '圖片檢視 2／2' })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: '第二張（放大檢視）' })).toHaveAttribute('src', '/two.jpg')

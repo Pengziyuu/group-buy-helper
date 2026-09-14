@@ -121,8 +121,10 @@
 .campaign-list-grid { display: grid; gap: var(--space-3); }
 .campaign-list-card { min-width: 0; display: grid; grid-template-columns: 132px minmax(230px, .85fr) minmax(390px, 1.35fr) auto; align-items: center; gap: var(--space-4); padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-surface); background: var(--color-surface); transition: border-color .16s ease, box-shadow .16s ease; }
 .campaign-list-card:hover { border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border)); box-shadow: 0 8px 22px rgb(24 55 39 / 6%); }
-.campaign-card-cover { width: 132px; aspect-ratio: 4 / 3; overflow: hidden; border-radius: calc(var(--radius-control) + 2px); background: var(--color-surface-subtle); }
-.campaign-card-cover img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.campaign-card-cover { position: relative; width: 132px; aspect-ratio: 4 / 3; overflow: hidden; border-radius: calc(var(--radius-control) + 2px); background: var(--color-surface-subtle); }
+.campaign-card-cover img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.campaign-card-cover-backdrop { object-fit: cover; filter: blur(13px) saturate(.78) brightness(.88); opacity: .58; transform: scale(1.16); }
+.campaign-card-cover-foreground { z-index: 1; object-fit: contain; }
 .campaign-card-cover-fallback { width: 100%; height: 100%; display: grid; place-content: center; justify-items: center; gap: 5px; border: 1px dashed var(--color-border-strong); color: var(--color-text-secondary); text-align: center; }
 .campaign-card-cover-fallback span { color: var(--color-primary); font-size: 26px; line-height: 1; }
 .campaign-card-cover-fallback small { font-size: 11px; }

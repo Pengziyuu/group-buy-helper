@@ -19,6 +19,8 @@ export function CampaignImageViewer({ images, index, onIndexChange, onClose }: C
   const onCloseRef = useRef(onClose)
   const imageCountRef = useRef(images.length)
   const pointerStartRef = useRef<{ id: number; x: number; y: number } | null>(null)
+  const activePointersRef = useRef(new Set<number>())
+  const multiPointerGestureRef = useRef(false)
   const titleId = useId()
   const image = images[index]
   const imageAvailable = Boolean(image)
@@ -86,12 +88,24 @@ export function CampaignImageViewer({ images, index, onIndexChange, onClose }: C
   const previousIndex = (index - 1 + images.length) % images.length
   const nextIndex = (index + 1) % images.length
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (images.length < 2 || (event.pointerType === 'mouse' && event.button !== 0)) return
+    if (images.length < 2 || event.pointerType !== 'touch') return
     if (event.target instanceof Element && event.target.closest('button')) return
+    activePointersRef.current.add(event.pointerId)
+    if (activePointersRef.current.size > 1) {
+      multiPointerGestureRef.current = true
+      pointerStartRef.current = null
+      return
+    }
     pointerStartRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY }
     event.currentTarget.setPointerCapture?.(event.pointerId)
   }
   const handlePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    activePointersRef.current.delete(event.pointerId)
+    if (multiPointerGestureRef.current) {
+      pointerStartRef.current = null
+      if (activePointersRef.current.size === 0) multiPointerGestureRef.current = false
+      return
+    }
     const start = pointerStartRef.current
     pointerStartRef.current = null
     if (!start || start.id !== event.pointerId || images.length < 2) return
@@ -99,6 +113,11 @@ export function CampaignImageViewer({ images, index, onIndexChange, onClose }: C
     const deltaY = event.clientY - start.y
     if (Math.abs(deltaX) < 50 || Math.abs(deltaX) <= Math.abs(deltaY) * 1.2) return
     onIndexChange(deltaX < 0 ? nextIndex : previousIndex)
+  }
+  const cancelPointerGesture = (pointerId: number) => {
+    activePointersRef.current.delete(pointerId)
+    pointerStartRef.current = null
+    if (activePointersRef.current.size === 0) multiPointerGestureRef.current = false
   }
 
   return (
@@ -114,7 +133,8 @@ export function CampaignImageViewer({ images, index, onIndexChange, onClose }: C
           className="campaign-image-viewer-stage"
           onPointerDown={handlePointerDown}
           onPointerUp={handlePointerUp}
-          onPointerCancel={() => { pointerStartRef.current = null }}
+          onPointerCancel={(event) => cancelPointerGesture(event.pointerId)}
+          onLostPointerCapture={(event) => cancelPointerGesture(event.pointerId)}
         >
           {loadFailed ? (
             <p className="campaign-image-viewer-fallback" role="status">圖片暫時無法顯示</p>

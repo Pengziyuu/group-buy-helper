@@ -36,7 +36,10 @@ function CampaignCardCover({ campaign }: { campaign: CampaignListItem }) {
   return (
     <div className="campaign-card-cover">
       {image && !failed
-        ? <img src={image.src} alt={image.alt} loading="lazy" onError={() => setFailed(true)} />
+        ? <>
+            <img className="campaign-card-cover-backdrop" src={image.src} alt="" aria-hidden="true" />
+            <img className="campaign-card-cover-foreground" src={image.src} alt={image.alt} loading="lazy" onError={() => setFailed(true)} />
+          </>
         : <div className="campaign-card-cover-fallback" role="img" aria-label={`${campaign.title}尚未設定圖片`}>
             <span aria-hidden="true">▧</span>
             <small>尚未設定圖片</small>

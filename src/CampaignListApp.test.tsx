@@ -104,6 +104,10 @@ describe('organizer campaign list', () => {
     render(<CampaignListApp campaigns={campaigns} onCreate={vi.fn()} />)
 
     expect(screen.getByRole('heading', { name: '團主工作台' })).toBeInTheDocument()
+    const openCover = screen.getByRole('img', { name: '冰餅商品照' }).closest('.campaign-card-cover')
+    expect(openCover).not.toBeNull()
+    expect(openCover!.querySelector('.campaign-card-cover-backdrop')).toHaveAttribute('aria-hidden', 'true')
+    expect(openCover!.querySelector('.campaign-card-cover-foreground')).toHaveAttribute('alt', '冰餅商品照')
     expect(screen.getByRole('link', { name: '管理團購 新草稿' })).toHaveAttribute('href', '/admin/campaign/draft-id')
     const draftCard = screen.getByRole('heading', { name: '新草稿' }).closest('article')
     expect(draftCard).not.toBeNull()
