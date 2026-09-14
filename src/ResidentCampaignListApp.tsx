@@ -52,7 +52,10 @@ function CampaignCover({ campaign }: { campaign: ResidentCampaignListItem }) {
   return (
     <div className="resident-campaign-cover">
       {showImage && image
-        ? <img src={image.src} alt={image.alt || `${campaign.title}商品圖片`} onError={() => setFailed(true)} />
+        ? <>
+            <img className="resident-campaign-cover-backdrop" src={image.src} alt="" aria-hidden="true" />
+            <img className="resident-campaign-cover-foreground" src={image.src} alt={image.alt || `${campaign.title}商品圖片`} onError={() => setFailed(true)} />
+          </>
         : (
           <div className="resident-campaign-cover-fallback" role="img" aria-label={`${campaign.title}尚未設定商品圖片`}>
             <svg viewBox="0 0 24 24" aria-hidden="true">

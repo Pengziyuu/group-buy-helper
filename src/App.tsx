@@ -397,7 +397,9 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
                 aria-label={`放大檢視 第 ${index + 1} 張圖片：${image.alt}`}
                 onClick={() => setActiveImageIndex(index)}
               >
+                <img className="campaign-gallery-backdrop" src={image.src} alt="" aria-hidden="true" />
                 <img
+                  className="campaign-gallery-foreground"
                   src={image.src}
                   alt={image.alt}
                   loading="eager"

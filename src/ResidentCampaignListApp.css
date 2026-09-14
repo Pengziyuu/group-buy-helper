@@ -212,9 +212,22 @@
 }
 
 .resident-campaign-cover > img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   display: block;
+}
+
+.resident-campaign-cover-backdrop {
+  object-fit: cover;
+  filter: blur(18px) saturate(.78) brightness(.88);
+  opacity: .58;
+  transform: scale(1.12);
+}
+
+.resident-campaign-cover-foreground {
+  z-index: 1;
   object-fit: contain;
   object-position: center;
 }
@@ -223,6 +236,7 @@
   content: '';
   position: absolute;
   inset: 0;
+  z-index: 1;
   pointer-events: none;
   background: linear-gradient(to bottom, rgb(5 35 24 / 10%), transparent 42%);
 }
@@ -273,8 +287,8 @@
   font-weight: 850;
 }
 
-.resident-campaign-card[data-status='closed'] .resident-campaign-cover > img,
-.resident-campaign-card[data-status='arrived'] .resident-campaign-cover > img {
+.resident-campaign-card[data-status='closed'] .resident-campaign-cover-foreground,
+.resident-campaign-card[data-status='arrived'] .resident-campaign-cover-foreground {
   filter: saturate(.5);
   opacity: .88;
 }

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { CampaignImage } from '../services/demoCampaignStore'
 
 type CampaignImageViewerProps = {
@@ -18,6 +18,7 @@ export function CampaignImageViewer({ images, index, onIndexChange, onClose }: C
   const onIndexChangeRef = useRef(onIndexChange)
   const onCloseRef = useRef(onClose)
   const imageCountRef = useRef(images.length)
+  const pointerStartRef = useRef<{ id: number; x: number; y: number } | null>(null)
   const titleId = useId()
   const image = images[index]
   const imageAvailable = Boolean(image)
@@ -84,6 +85,21 @@ export function CampaignImageViewer({ images, index, onIndexChange, onClose }: C
 
   const previousIndex = (index - 1 + images.length) % images.length
   const nextIndex = (index + 1) % images.length
+  const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (images.length < 2 || (event.pointerType === 'mouse' && event.button !== 0)) return
+    if (event.target instanceof Element && event.target.closest('button')) return
+    pointerStartRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY }
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+  }
+  const handlePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const start = pointerStartRef.current
+    pointerStartRef.current = null
+    if (!start || start.id !== event.pointerId || images.length < 2) return
+    const deltaX = event.clientX - start.x
+    const deltaY = event.clientY - start.y
+    if (Math.abs(deltaX) < 50 || Math.abs(deltaX) <= Math.abs(deltaY) * 1.2) return
+    onIndexChange(deltaX < 0 ? nextIndex : previousIndex)
+  }
 
   return (
     <div className="campaign-image-viewer-backdrop" onClick={(event) => {
@@ -94,20 +110,22 @@ export function CampaignImageViewer({ images, index, onIndexChange, onClose }: C
           <h2 id={titleId}>圖片檢視 {index + 1}／{images.length}</h2>
           <button ref={closeRef} type="button" onClick={onClose} aria-label="關閉圖片檢視">×</button>
         </header>
-        <div className="campaign-image-viewer-stage">
+        <div
+          className="campaign-image-viewer-stage"
+          onPointerDown={handlePointerDown}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={() => { pointerStartRef.current = null }}
+        >
           {loadFailed ? (
             <p className="campaign-image-viewer-fallback" role="status">圖片暫時無法顯示</p>
           ) : (
             <img src={image.src} alt={`${image.alt}（放大檢視）`} draggable={false} onError={() => setLoadFailed(true)} />
           )}
+          {images.length > 1 && <>
+            <button className="campaign-image-viewer-arrow campaign-image-viewer-previous" type="button" onClick={() => onIndexChange(previousIndex)} aria-label="上一張圖片"><span aria-hidden="true">‹</span></button>
+            <button className="campaign-image-viewer-arrow campaign-image-viewer-next" type="button" onClick={() => onIndexChange(nextIndex)} aria-label="下一張圖片"><span aria-hidden="true">›</span></button>
+          </>}
         </div>
-        {images.length > 1 && (
-          <nav aria-label="圖片切換">
-            <button type="button" onClick={() => onIndexChange(previousIndex)} aria-label="上一張圖片"><span aria-hidden="true">←</span> 上一張</button>
-            <span>{index + 1}／{images.length}</span>
-            <button type="button" onClick={() => onIndexChange(nextIndex)} aria-label="下一張圖片">下一張 <span aria-hidden="true">→</span></button>
-          </nav>
-        )}
       </section>
     </div>
   )

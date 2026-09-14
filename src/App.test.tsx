@@ -215,6 +215,7 @@ describe('customer campaign app', () => {
     expect(screen.getByText('← 左右滑動查看 2 張圖片 →')).toBeInTheDocument()
 
     const firstImage = screen.getByRole('button', { name: '放大檢視 第 1 張圖片：第一張' })
+    expect(firstImage.querySelector('.campaign-gallery-backdrop')).toHaveAttribute('aria-hidden', 'true')
     await user.click(firstImage)
     const dialog = screen.getByRole('dialog', { name: '圖片檢視 1／2' })
     const closeButton = screen.getByRole('button', { name: '關閉圖片檢視' })
@@ -227,6 +228,16 @@ describe('customer campaign app', () => {
     expect(screen.getByRole('button', { name: '下一張圖片' })).toHaveFocus()
     await user.tab()
     expect(closeButton).toHaveFocus()
+
+    const viewerStage = dialog.querySelector<HTMLElement>('.campaign-image-viewer-stage')!
+    expect(within(viewerStage).getByRole('button', { name: '上一張圖片' })).toHaveClass('campaign-image-viewer-previous')
+    expect(within(viewerStage).getByRole('button', { name: '下一張圖片' })).toHaveClass('campaign-image-viewer-next')
+    fireEvent.pointerDown(viewerStage, { pointerId: 1, pointerType: 'touch', clientX: 280, clientY: 200 })
+    fireEvent.pointerUp(viewerStage, { pointerId: 1, pointerType: 'touch', clientX: 80, clientY: 205 })
+    expect(screen.getByRole('dialog', { name: '圖片檢視 2／2' })).toBeInTheDocument()
+    fireEvent.pointerDown(viewerStage, { pointerId: 2, pointerType: 'mouse', button: 0, clientX: 80, clientY: 200 })
+    fireEvent.pointerUp(viewerStage, { pointerId: 2, pointerType: 'mouse', button: 0, clientX: 280, clientY: 195 })
+    expect(screen.getByRole('dialog', { name: '圖片檢視 1／2' })).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '下一張圖片' }))
     expect(screen.getByRole('dialog', { name: '圖片檢視 2／2' })).toBeInTheDocument()
