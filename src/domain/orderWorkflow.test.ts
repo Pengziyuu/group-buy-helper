@@ -10,9 +10,9 @@ describe('campaign workflow', () => {
   it('provides the organizer action for each campaign state', () => {
     expect(campaignStatusAction('open')).toEqual({ next: 'closed', label: '結單' })
     expect(campaignStatusAction('closed')).toEqual({ next: 'open', label: '重新開放' })
-    expect(campaignStatusAction('arrived')).toEqual({ next: 'closed', label: '取消到貨' })
+    expect(campaignStatusAction('arrived')).toEqual({ next: 'open', label: '重新開放' })
     expect(campaignStatusLabel('open')).toBe('開團中')
-    expect(campaignStatusLabel('arrived')).toBe('已到貨')
+    expect(campaignStatusLabel('arrived')).toBe('已結單')
   })
 })
 

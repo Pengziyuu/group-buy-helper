@@ -83,7 +83,7 @@ export default function NotificationTestLab({
       )}
 
       <section className="notification-lab-list" aria-label="可測試的已完成團購">
-        {eligibleCampaigns.length === 0 && <p>目前沒有已結單或已到貨的團購可供測試。</p>}
+        {eligibleCampaigns.length === 0 && <p>目前沒有已結單的團購可供測試。</p>}
         {eligibleCampaigns.map((campaign) => (
           <article key={campaign.id} className="notification-lab-card">
             <div className="notification-lab-card-heading">

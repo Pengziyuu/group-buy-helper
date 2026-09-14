@@ -125,17 +125,7 @@ function AdminOrdersPanel({
                   {statusAction.label}
                 </button>
               )}
-              {onSetCampaignStatus && campaignStatus === 'closed' && (
-                <button
-                  type="button"
-                  className="workflow-action workflow-action-primary"
-                  disabled={busyKeys.has('campaign')}
-                  onClick={() => run('campaign', () => onSetCampaignStatus('arrived'))}
-                >
-                  <span className="workflow-action-icon" aria-hidden="true">✓</span>
-                  標記到貨
-                </button>
-              )}
+
               {exportVisible && (
                 <button
                   type="button"

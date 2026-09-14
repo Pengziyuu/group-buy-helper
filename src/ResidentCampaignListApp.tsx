@@ -33,12 +33,15 @@ type ResidentCampaignListAppProps = {
   onLogout?: () => void | Promise<void>
 }
 
-const statusPriority: Record<CampaignStatus, number> = { open: 0, closed: 1, arrived: 2 }
+const statusPriority: Record<CampaignStatus, number> = { open: 0, closed: 1, arrived: 1 }
 
 function statusTone(status: CampaignStatus): StatusTone {
   if (status === 'open') return 'success'
-  if (status === 'arrived') return 'info'
   return 'neutral'
+}
+
+function residentStatusText(status: CampaignStatus) {
+  return status === 'open' ? '開團中｜現在可以下單' : '已結單｜已停止下單'
 }
 
 function CampaignCover({ campaign }: { campaign: ResidentCampaignListItem }) {
@@ -114,6 +117,7 @@ export default function ResidentCampaignListApp({ identity, campaigns, onLogout 
             <article className="resident-campaign-card" data-status={campaign.status} key={campaign.slug}>
               <CampaignCover campaign={campaign} />
               <div className="resident-campaign-card-body">
+                <p className="resident-campaign-state"><span aria-hidden="true">●</span>{residentStatusText(campaign.status)}</p>
                 <p className="resident-campaign-time">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 8v4l2.8 1.8" /></svg>
                   {formatZhTwTimestamp(campaign.openedAt)} 開團

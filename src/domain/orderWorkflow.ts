@@ -7,7 +7,7 @@ export type OrderPayment = {
 const campaignLabels: Record<CampaignStatus, string> = {
   open: '開團中',
   closed: '已結單',
-  arrived: '已到貨',
+  arrived: '已結單',
 }
 
 export function campaignStatusLabel(status: CampaignStatus): string {
@@ -16,8 +16,7 @@ export function campaignStatusLabel(status: CampaignStatus): string {
 
 export function campaignStatusAction(status: CampaignStatus): { next: CampaignStatus; label: string } {
   if (status === 'open') return { next: 'closed', label: '結單' }
-  if (status === 'closed') return { next: 'open', label: '重新開放' }
-  return { next: 'closed', label: '取消到貨' }
+  return { next: 'open', label: '重新開放' }
 }
 
 export function summarizePayment(orders: OrderPayment[]) {

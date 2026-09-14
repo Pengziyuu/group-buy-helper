@@ -199,6 +199,11 @@
   box-shadow: 0 15px 34px rgb(35 69 56 / 13%);
 }
 
+.resident-campaign-card[data-status='open'] {
+  border-color: rgb(26 128 88 / 38%);
+  box-shadow: 0 9px 28px rgb(24 111 80 / 12%);
+}
+
 .resident-campaign-cover {
   position: relative;
   aspect-ratio: 16 / 9;
@@ -263,16 +268,19 @@
 }
 
 .resident-campaign-cover-status .ui-status-badge {
-  min-height: 30px;
-  padding-inline: 11px;
+  min-height: 38px;
+  padding-inline: 15px;
   border: 1px solid rgb(255 255 255 / 62%);
   box-shadow: 0 4px 12px rgb(17 49 37 / 13%);
   backdrop-filter: blur(8px);
+  font-size: 14px;
+  font-weight: 850;
 }
 
 .resident-campaign-card[data-status='closed'] .resident-campaign-cover > img,
 .resident-campaign-card[data-status='arrived'] .resident-campaign-cover > img {
-  filter: saturate(.7);
+  filter: saturate(.5);
+  opacity: .88;
 }
 
 .resident-campaign-card-body {
@@ -281,6 +289,34 @@
   flex: 1;
   flex-direction: column;
   padding: 17px;
+}
+
+.resident-campaign-state {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 11px;
+  padding: 8px 11px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.resident-campaign-state span { font-size: 10px; }
+
+.resident-campaign-card[data-status='open'] .resident-campaign-state {
+  border-color: rgb(24 128 87 / 20%);
+  background: #eaf8f1;
+  color: #176b4c;
+}
+
+.resident-campaign-card[data-status='closed'] .resident-campaign-state,
+.resident-campaign-card[data-status='arrived'] .resident-campaign-state {
+  border-color: rgb(71 83 77 / 14%);
+  background: #f3f5f4;
+  color: #56625d;
 }
 
 .resident-campaign-time {

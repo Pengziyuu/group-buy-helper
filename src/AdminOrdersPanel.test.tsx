@@ -98,6 +98,22 @@ describe('organizer orders panel', () => {
     expect(screen.getByRole('heading', { name: 'LINE領取通知' })).toBeInTheDocument()
   })
 
+  it('uses only open and closed organizer workflow states while preserving legacy arrived data', () => {
+    const onSetCampaignStatus = vi.fn().mockResolvedValue(undefined)
+    const { rerender } = render(
+      <AdminOrdersPanel summary={summary} campaignStatus="closed" onSetCampaignStatus={onSetCampaignStatus} />,
+    )
+
+    expect(screen.getByText('已結單')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '重新開放' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '標記到貨' })).not.toBeInTheDocument()
+
+    rerender(<AdminOrdersPanel summary={summary} campaignStatus="arrived" onSetCampaignStatus={onSetCampaignStatus} />)
+    expect(screen.getByText('已結單')).toBeInTheDocument()
+    expect(screen.queryByText('已到貨')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '標記到貨' })).not.toBeInTheDocument()
+  })
+
   it('offers a read-only Excel export only after closing the campaign', async () => {
     const user = userEvent.setup()
     const onExportOrders = vi.fn().mockResolvedValue(undefined)

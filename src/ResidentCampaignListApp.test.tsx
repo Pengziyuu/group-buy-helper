@@ -60,6 +60,23 @@ describe('ResidentCampaignListApp', () => {
     expect(onLogout).toHaveBeenCalledOnce()
   })
 
+  it('shows a prominent plain-language state for ordering and pickup', () => {
+    render(
+      <ResidentCampaignListApp
+        identity={{ displayName: '彭梓育', pictureUrl: null }}
+        campaigns={[
+          { slug: 'open', title: '早餐團', status: 'open', unitPrice: 55, openedAt: '2026-08-14T08:00:00.000Z', totalQuantity: 8, threshold: 10 },
+          { slug: 'closed', title: '水果團', status: 'closed', unitPrice: 120, openedAt: '2026-08-13T08:00:00.000Z', totalQuantity: 12, threshold: 12 },
+          { slug: 'arrived', title: '麵包團', status: 'arrived', unitPrice: 80, openedAt: '2026-08-12T08:00:00.000Z', totalQuantity: 6, threshold: 6 },
+        ]}
+      />,
+    )
+
+    expect(screen.getByText('開團中｜現在可以下單')).toBeInTheDocument()
+    expect(screen.getAllByText('已結單｜已停止下單')).toHaveLength(2)
+    expect(screen.queryByText(/已到貨/)).not.toBeInTheDocument()
+  })
+
   it('prioritizes open campaigns and exposes meaningful progress', () => {
     render(
       <ResidentCampaignListApp

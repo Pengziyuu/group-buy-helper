@@ -561,9 +561,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
         <p className="privacy-note">
           {editable
             ? '送出後仍可在結單前修改。你只能修改自己的訂單。'
-            : campaignStatus === 'arrived'
-              ? '商品已到貨，訂單已鎖定。'
-              : '本團已結單，暫停修改訂單。'}
+            : '本團已結單，暫停修改訂單。'}
         </p>
       </section> : (
         <section className="panel order-panel resident-binding" aria-labelledby="resident-binding-heading">

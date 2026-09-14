@@ -371,7 +371,8 @@ describe('organizer campaign editor', () => {
   it('shows the actual campaign workflow state in the resident preview', () => {
     render(<AdminApp campaignStatus="arrived" />)
 
-    expect(screen.getByLabelText('住戶端預覽')).toHaveTextContent('已到貨')
+    expect(screen.getByLabelText('住戶端預覽')).toHaveTextContent('已結單')
+    expect(screen.getByLabelText('住戶端預覽')).not.toHaveTextContent('已到貨')
     expect(screen.getByLabelText('住戶端預覽')).not.toHaveTextContent('● 開團中')
   })
 
