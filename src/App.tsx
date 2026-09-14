@@ -30,6 +30,7 @@ import { StickyActionBar } from './components/ui/StickyActionBar'
 import { FeedbackMessage } from './components/ui/FeedbackMessage'
 import { ProgressBar } from './components/ui/ProgressBar'
 import LinkifiedText from './components/LinkifiedText'
+import { CampaignImageViewer } from './components/CampaignImageViewer'
 
 const defaultContent: CampaignContent = {
   title: campaign.title,
@@ -120,6 +121,8 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
   const [submitting, setSubmitting] = useState(false)
   const draftDirty = !orderItemsEqual(draft, savedDraft) || !customOrderItemsEqual(customDraft, savedCustomDraft)
   const [announcementExpanded, setAnnouncementExpanded] = useState(false)
+  const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null)
+  const [failedImageSources, setFailedImageSources] = useState<Set<string>>(() => new Set())
 
   useEffect(() => {
     if (visibleOrders && !draftDirty) {
@@ -378,9 +381,25 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
         </div>
 
         <div className="campaign-gallery" aria-label="團購圖片">
-          {publishedCampaign.images.map((image) => (
-            <img key={image.src} src={image.src} alt={image.alt} loading="eager" />
-          ))}
+          {publishedCampaign.images.map((image, index) => failedImageSources.has(image.src) ? (
+            <div key={image.src} className="campaign-gallery-fallback" role="status">圖片暫時無法顯示</div>
+          ) : (
+              <button
+                key={image.src}
+                type="button"
+                className="campaign-gallery-item"
+                aria-label={`放大檢視 第 ${index + 1} 張圖片：${image.alt}`}
+                onClick={() => setActiveImageIndex(index)}
+              >
+                <img
+                  src={image.src}
+                  alt={image.alt}
+                  loading="eager"
+                  onError={() => setFailedImageSources((current) => new Set(current).add(image.src))}
+                />
+                <span aria-hidden="true">放大檢視</span>
+              </button>
+            ))}
         </div>
         {publishedCampaign.images.length > 1 && (
           <p className="campaign-gallery-hint">← 左右滑動查看 {publishedCampaign.images.length} 張圖片 →</p>
@@ -401,6 +420,15 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
           </Button>
         )}
       </article>
+
+      {activeImageIndex !== null && (
+        <CampaignImageViewer
+          images={publishedCampaign.images}
+          index={activeImageIndex}
+          onIndexChange={setActiveImageIndex}
+          onClose={() => setActiveImageIndex(null)}
+        />
+      )}
 
       {currentResident ? <section className="panel order-panel" aria-labelledby="order-heading">
         <div className="section-heading">

@@ -215,12 +215,8 @@
   width: 100%;
   height: 100%;
   display: block;
-  object-fit: cover;
-  transition: transform 300ms ease;
-}
-
-.resident-campaign-card:hover .resident-campaign-cover > img {
-  transform: scale(1.025);
+  object-fit: contain;
+  object-position: center;
 }
 
 .resident-campaign-cover::after {

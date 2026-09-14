@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import App from './App'
@@ -197,7 +197,8 @@ describe('customer campaign app', () => {
     expect(screen.getByRole('progressbar', { name: '成團進度' })).toHaveAttribute('aria-valuenow', '2790')
   })
 
-  it('shows the organizer announcement and campaign image above ordering', () => {
+  it('shows complete campaign images and opens an accessible image viewer', async () => {
+    const user = userEvent.setup()
     const { rerender } = render(<App />)
 
     expect(screen.getByText(/🌞炎炎夏日 #冰品最佳首選🧊🍦/)).toBeInTheDocument()
@@ -212,6 +213,39 @@ describe('customer campaign app', () => {
       openedAt: '2026-08-14T00:05:09.000Z',
     }} />)
     expect(screen.getByText('← 左右滑動查看 2 張圖片 →')).toBeInTheDocument()
+
+    const firstImage = screen.getByRole('button', { name: '放大檢視 第 1 張圖片：第一張' })
+    await user.click(firstImage)
+    const dialog = screen.getByRole('dialog', { name: '圖片檢視 1／2' })
+    const closeButton = screen.getByRole('button', { name: '關閉圖片檢視' })
+    expect(dialog).toBeInTheDocument()
+    expect(closeButton).toHaveFocus()
+    expect(document.body).toHaveStyle({ overflow: 'hidden' })
+    expect(screen.getByRole('img', { name: '第一張（放大檢視）' })).toHaveAttribute('src', '/one.jpg')
+
+    await user.tab({ shift: true })
+    expect(screen.getByRole('button', { name: '下一張圖片' })).toHaveFocus()
+    await user.tab()
+    expect(closeButton).toHaveFocus()
+
+    await user.click(screen.getByRole('button', { name: '下一張圖片' }))
+    expect(screen.getByRole('dialog', { name: '圖片檢視 2／2' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: '第二張（放大檢視）' })).toHaveAttribute('src', '/two.jpg')
+
+    await user.click(dialog.parentElement!)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(document.body).not.toHaveStyle({ overflow: 'hidden' })
+    expect(firstImage).toHaveFocus()
+
+    await user.click(firstImage)
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(firstImage).toHaveFocus()
+
+    const secondImage = screen.getByRole('button', { name: '放大檢視 第 2 張圖片：第二張' })
+    fireEvent.error(within(secondImage).getByRole('img', { name: '第二張' }))
+    expect(screen.queryByRole('button', { name: '放大檢視 第 2 張圖片：第二張' })).not.toBeInTheDocument()
+    expect(screen.getByRole('status', { name: '' })).toHaveTextContent('圖片暫時無法顯示')
   })
 
   it('provides in-app navigation and lets residents expand a long announcement', async () => {
