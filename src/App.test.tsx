@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import App from './App'
@@ -246,6 +246,15 @@ describe('customer campaign app', () => {
     fireEvent.error(within(secondImage).getByRole('img', { name: '第二張' }))
     expect(screen.queryByRole('button', { name: '放大檢視 第 2 張圖片：第二張' })).not.toBeInTheDocument()
     expect(screen.getByRole('status', { name: '' })).toHaveTextContent('圖片暫時無法顯示')
+
+    await user.click(firstImage)
+    expect(document.body).toHaveStyle({ overflow: 'hidden' })
+    rerender(<App publishedContent={{
+      title: '多圖團購', unitPrice: 45, threshold: 10, announcement: '多圖公告', items, images: [],
+      openedAt: '2026-08-14T00:05:09.000Z',
+    }} />)
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(document.body).not.toHaveStyle({ overflow: 'hidden' })
   })
 
   it('provides in-app navigation and lets residents expand a long announcement', async () => {

@@ -125,6 +125,12 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
   const [failedImageSources, setFailedImageSources] = useState<Set<string>>(() => new Set())
 
   useEffect(() => {
+    if (activeImageIndex !== null && !publishedCampaign.images[activeImageIndex]) {
+      setActiveImageIndex(null)
+    }
+  }, [activeImageIndex, publishedCampaign.images])
+
+  useEffect(() => {
     if (visibleOrders && !draftDirty) {
       const nextSavedDraft = { ...(ownOrder?.items ?? {}) }
       setDraft(nextSavedDraft)

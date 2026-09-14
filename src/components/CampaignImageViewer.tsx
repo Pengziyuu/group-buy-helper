@@ -17,17 +17,21 @@ export function CampaignImageViewer({ images, index, onIndexChange, onClose }: C
   const indexRef = useRef(index)
   const onIndexChangeRef = useRef(onIndexChange)
   const onCloseRef = useRef(onClose)
+  const imageCountRef = useRef(images.length)
   const titleId = useId()
   const image = images[index]
+  const imageAvailable = Boolean(image)
   const [loadFailed, setLoadFailed] = useState(false)
 
   indexRef.current = index
   onIndexChangeRef.current = onIndexChange
   onCloseRef.current = onClose
+  imageCountRef.current = images.length
 
   useEffect(() => setLoadFailed(false), [image?.src])
 
   useEffect(() => {
+    if (!imageAvailable) return
     returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
@@ -39,14 +43,15 @@ export function CampaignImageViewer({ images, index, onIndexChange, onClose }: C
         onCloseRef.current()
         return
       }
-      if (event.key === 'ArrowLeft' && images.length > 1) {
+      const imageCount = imageCountRef.current
+      if (event.key === 'ArrowLeft' && imageCount > 1) {
         event.preventDefault()
-        onIndexChangeRef.current((indexRef.current - 1 + images.length) % images.length)
+        onIndexChangeRef.current((indexRef.current - 1 + imageCount) % imageCount)
         return
       }
-      if (event.key === 'ArrowRight' && images.length > 1) {
+      if (event.key === 'ArrowRight' && imageCount > 1) {
         event.preventDefault()
-        onIndexChangeRef.current((indexRef.current + 1) % images.length)
+        onIndexChangeRef.current((indexRef.current + 1) % imageCount)
         return
       }
       if (event.key !== 'Tab' || !dialogRef.current) return
@@ -73,7 +78,7 @@ export function CampaignImageViewer({ images, index, onIndexChange, onClose }: C
       document.body.style.overflow = previousOverflow
       returnFocusRef.current?.focus()
     }
-  }, [images.length])
+  }, [imageAvailable])
 
   if (!image) return null
 
