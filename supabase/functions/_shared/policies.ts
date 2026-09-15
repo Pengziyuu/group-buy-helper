@@ -82,8 +82,8 @@ export function normalizeOrderItems(
   for (const [rawCode, rawQuantity] of Object.entries(input)) {
     const code = rawCode.toUpperCase()
     if (!allowed.has(code)) throw new Error(`不存在的品項：${code}`)
-    if (typeof rawQuantity !== 'number' || !Number.isInteger(rawQuantity) || rawQuantity < 0 || rawQuantity > 20) {
-      throw new Error(`${code} 數量必須是 0 到 20 的整數`)
+    if (typeof rawQuantity !== 'number' || !Number.isInteger(rawQuantity) || rawQuantity < 0 || rawQuantity > 32_767) {
+      throw new Error(`${code} 數量必須是系統可處理範圍內的非負整數`)
     }
     if (rawQuantity > 0) result[code] = rawQuantity
   }

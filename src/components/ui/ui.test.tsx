@@ -115,7 +115,7 @@ describe('shared UI primitives', () => {
     expect(onCancel).not.toHaveBeenCalled()
   })
 
-  it('uses accessible 0–20 quantity controls and disables reached boundaries', async () => {
+  it('leaves the upper boundary optional while honoring an explicit maximum', async () => {
     const user = userEvent.setup()
     const decrement = vi.fn()
     const increment = vi.fn()
@@ -128,7 +128,10 @@ describe('shared UI primitives', () => {
     expect(increment).toHaveBeenCalledOnce()
 
     rerender(<QuantityControl label="A 牛奶" value={20} onDecrement={decrement} onIncrement={increment} />)
-    expect(screen.getByRole('button', { name: '增加 A 牛奶' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '增加 A 牛奶' })).toBeEnabled()
+
+    rerender(<QuantityControl label="額外品項" value={20} max={20} onDecrement={decrement} onIncrement={increment} />)
+    expect(screen.getByRole('button', { name: '增加 額外品項' })).toBeDisabled()
   })
 
   it('provides lightweight app and section navigation with a sticky action container', () => {

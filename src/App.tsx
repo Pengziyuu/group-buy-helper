@@ -226,7 +226,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
     if (!controlsEditable) return
     setNotice(null)
     const currentQuantity = draft[code] ?? 0
-    const nextQuantity = Math.max(0, Math.min(20, currentQuantity + delta))
+    const nextQuantity = Math.max(0, currentQuantity + delta)
     const nextDraftQuantity = draftQuantity - currentQuantity + nextQuantity
     if (thresholdKind === 'quantity' && delta > 0) {
       const otherQuantity = Math.max(0, summary.quantity - orderQuantity(savedDraft))
@@ -505,6 +505,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
                 <QuantityControl
                   label={`額外品項 ${index + 1}`}
                   value={item.quantity}
+                  max={20}
                   disabled={!controlsEditable}
                   onDecrement={() => updateCustomItem(item.id, { quantity: Math.max(0, item.quantity - 1) })}
                   onIncrement={() => updateCustomItem(item.id, { quantity: Math.min(20, item.quantity + 1) })}

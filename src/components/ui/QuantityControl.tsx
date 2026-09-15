@@ -8,7 +8,7 @@ type QuantityControlProps = {
   onIncrement: () => void
 }
 
-export function QuantityControl({ label, value, min = 0, max = 20, disabled = false, onDecrement, onIncrement }: QuantityControlProps) {
+export function QuantityControl({ label, value, min = 0, max = Number.POSITIVE_INFINITY, disabled = false, onDecrement, onIncrement }: QuantityControlProps) {
   return (
     <div className="ui-quantity-control">
       <button type="button" aria-label={`減少 ${label}`} disabled={disabled || value <= min} onClick={onDecrement}>−</button>

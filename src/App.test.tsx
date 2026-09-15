@@ -31,6 +31,23 @@ describe('customer campaign app', () => {
     expect(screen.getByText('目前其他住戶已訂 56 盒，成團上限為 63 盒，本次最多可訂 7 盒。')).toBeInTheDocument()
   })
 
+  it('allows a formal item quantity to exceed twenty when campaign capacity remains', async () => {
+    const user = userEvent.setup()
+    const resident = { ...initialOrders[0], items: { A: 20 } }
+    render(<App
+      residentCustomer={resident}
+      visibleOrders={[resident]}
+      publishedContent={{
+        title: '大量訂購團', unitPrice: 45, threshold: 100, thresholdKind: 'quantity',
+        announcement: '公告', images: [], items, openedAt: '2026-08-14T00:05:09.000Z',
+      }}
+    />)
+
+    expect(screen.getByRole('status', { name: 'A 牛奶（招牌）數量' })).toHaveTextContent('20')
+    await user.click(screen.getByRole('button', { name: '增加 A 牛奶（招牌）' }))
+    expect(screen.getByRole('status', { name: 'A 牛奶（招牌）數量' })).toHaveTextContent('21')
+  })
+
   it('previews base and mix-and-match prices while quantities change', async () => {
     const user = userEvent.setup()
     const resident = { customerId: 'resident-1', name: '住戶甲', period: 2, unit: '2A1' }

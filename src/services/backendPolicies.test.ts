@@ -86,8 +86,12 @@ describe('normalizeOrderItems', () => {
       .toThrow('不存在的品項')
   })
 
-  it.each([-1, 1.5, 21])('rejects invalid quantity %s', (quantity) => {
+  it('accepts a formal item quantity above the former product limit', () => {
+    expect(normalizeOrderItems({ A: 21 }, ['A'])).toEqual({ A: 21 })
+  })
+
+  it.each([-1, 1.5, 32_768])('rejects invalid quantity %s', (quantity) => {
     expect(() => normalizeOrderItems({ A: quantity }, ['A']))
-      .toThrow('0 到 20 的整數')
+      .toThrow('非負整數')
   })
 })
