@@ -28,7 +28,7 @@ describe('customer campaign app', () => {
     expect(screen.getByText('我的訂單 6 盒')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '增加 C 抹茶' }))
     await user.click(screen.getByRole('button', { name: '增加 C 抹茶' }))
-    expect(screen.getByText('目前其他住戶已訂 56 盒，依成團上限，本次最多可訂 7 盒。')).toBeInTheDocument()
+    expect(screen.getByText('目前其他住戶已訂 56 盒，成團上限為 63 盒，本次最多可訂 7 盒。')).toBeInTheDocument()
   })
 
   it('previews base and mix-and-match prices while quantities change', async () => {
@@ -346,7 +346,7 @@ describe('customer campaign app', () => {
     await user.click(screen.getByRole('button', { name: '增加 C 抹茶' }))
     await user.click(screen.getByRole('button', { name: '增加 C 抹茶' }))
 
-    expect(screen.getByRole('alert')).toHaveTextContent('目前其他住戶已訂 56 個，依成團上限，本次最多可訂 7 個。')
+    expect(screen.getByRole('alert')).toHaveTextContent('目前其他住戶已訂 56 個，成團上限為 63 個，本次最多可訂 7 個。')
     expect(screen.getByRole('status', { name: 'C 抹茶數量' })).toHaveTextContent('1')
   })
 

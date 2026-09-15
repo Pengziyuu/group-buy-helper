@@ -234,7 +234,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
       if (nextDraftQuantity > maxOrderQuantity) {
         setNotice({
           tone: 'error',
-          text: `目前其他住戶已訂 ${otherQuantity} ${quantityUnit}，依成團上限，本次最多可訂 ${maxOrderQuantity} ${quantityUnit}。`,
+          text: `目前其他住戶已訂 ${otherQuantity} ${quantityUnit}，成團上限為 ${thresholdTarget} ${quantityUnit}，本次最多可訂 ${maxOrderQuantity} ${quantityUnit}。`,
         })
         return
       }
