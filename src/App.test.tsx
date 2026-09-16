@@ -467,6 +467,28 @@ describe('customer campaign app', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('這個戶號已被綁定')
   })
 
+  it('shows a safe known message from a Supabase resident binding error object', async () => {
+    const user = userEvent.setup()
+    render(
+      <App
+        visibleOrders={[]}
+        residentCustomer={null}
+        verifiedResidentIdentity={{ displayName: '富美', pictureUrl: null }}
+        onBindResident={vi.fn().mockRejectedValue({
+          code: '23505',
+          message: '此期別與戶號已由其他住戶綁定',
+          details: 'sensitive database detail',
+        })}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: '儲存住戶資料' }))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('此期別與戶號已由其他住戶綁定')
+    expect(alert).not.toHaveTextContent('sensitive database detail')
+  })
+
   it('shows a closed campaign and disables every order control', () => {
     render(<App campaignStatus="closed" />)
 

@@ -55,6 +55,36 @@ const orderItemsEqual = (left: Record<string, number>, right: Record<string, num
   return [...codes].every((code) => (left[code] ?? 0) === (right[code] ?? 0))
 }
 
+const safeResidentBindingMessages = new Set([
+  '這個戶號已被綁定',
+  '此期別與戶號已由其他住戶綁定',
+  '住戶資料已綁定，如需變更請聯絡團主',
+  '住戶期別或戶號不符合社區編碼',
+  '請先完成LINE住戶驗證',
+])
+
+const residentBindingErrorMessage = (error: unknown) => {
+  const errorRecord = error && typeof error === 'object'
+    ? error as Record<string, unknown>
+    : null
+  const message = error instanceof Error
+    ? error.message
+    : typeof errorRecord?.message === 'string'
+      ? errorRecord.message
+      : ''
+  const code = typeof errorRecord?.code === 'string' ? errorRecord.code : ''
+  const status = typeof errorRecord?.status === 'number' ? errorRecord.status : null
+
+  if (safeResidentBindingMessages.has(message)) return message
+  if (status === 401 || code === 'PGRST301' || /jwt|authentication required/i.test(message)) {
+    return '登入狀態已失效，請重新開啟LINE頁面後再試。'
+  }
+  if (error instanceof TypeError || status === 0 || /failed to fetch|network|timeout/i.test(message)) {
+    return '連線失敗，請確認網路後再試。'
+  }
+  return '住戶資料儲存失敗，請稍後再試。'
+}
+
 type ResidentCustomer = Pick<VisibleOrder, 'customerId' | 'name' | 'period' | 'unit'>
 
 type ResidentBindingInput = Pick<ResidentCustomer, 'period' | 'unit'>
@@ -285,7 +315,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
       const customer = await onBindResident({ period: residentPeriod, unit })
       setBoundResident(customer)
     } catch (error) {
-      setBindingNotice(error instanceof Error ? error.message : '住戶資料儲存失敗')
+      setBindingNotice(residentBindingErrorMessage(error))
     } finally {
       setBinding(false)
     }
