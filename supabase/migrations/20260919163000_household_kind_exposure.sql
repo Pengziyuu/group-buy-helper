@@ -25,6 +25,14 @@ left join public.campaign_item ci on ci.id = oi.campaign_item_id;
 
 revoke all on table public.order_wall from anon, authenticated;
 grant select on table public.order_wall to authenticated;
+-- security_invoker checks column privileges against the invoking role (authenticated),
+-- not the view owner, for every base-table column the view references -- the same
+-- reason 20260826_000017_line_resident_notebook.sql had to grant select (picture_url)
+-- when that view started reading it. Without this grant, order_wall's own SELECT
+-- fails outright for residents ("permission denied for table customer") the moment
+-- the view references cu.household_kind, since only postgres/service_role could
+-- read that column before now.
+grant select (household_kind) on public.customer to authenticated;
 
 -- admin_list_residents() gains a column in the middle of its result row
 -- (household_kind, next to period/unit), not at the end, so CREATE OR

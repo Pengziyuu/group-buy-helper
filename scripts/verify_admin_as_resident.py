@@ -58,9 +58,10 @@ def signup() -> tuple[str, str]:
 
 ORDER_WALL_SAFE_COLUMNS = {
     "campaign_slug", "campaign_id", "order_id", "customer_id", "customer_name",
-    "period", "unit", "note", "ordered_at", "order_updated_at",
+    "picture_url", "period", "unit", "note", "custom_items", "ordered_at", "order_updated_at",
     "campaign_item_id", "item_code", "item_name", "sort_order", "item_active",
-    "qty", "item_updated_at",
+    "qty", "list_unit_price", "discount_rate", "final_unit_price", "discount_type",
+    "promotion_name", "item_updated_at", "household_kind",
 }
 
 
