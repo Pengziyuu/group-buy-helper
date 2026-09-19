@@ -68,6 +68,10 @@ def main() -> None:
     # is ON DELETE SET NULL, not CASCADE, so the customer row must be deleted
     # explicitly before the auth user or it survives as an orphan.
     extra_account_ids: list[str] = []
+    # orders placed by those accounts. orders.customer_id is ON DELETE RESTRICT,
+    # so these must be deleted before the owning customer row, not just the
+    # auth user (order_item cascades from orders, so nothing else is needed).
+    extra_order_ids: list[str] = []
 
     def cleanup() -> None:
         call("PATCH", f"/rest/v1/campaign?id=eq.{CAMPAIGN_ID}", SECRET_KEY,
@@ -82,6 +86,9 @@ def main() -> None:
              prefer="return=minimal")
         call("DELETE", f"/rest/v1/customer?id=eq.{CANCEL_CUSTOMER_ID}", SECRET_KEY,
              prefer="return=minimal")
+        for order_id in extra_order_ids:
+            call("DELETE", f"/rest/v1/orders?id=eq.{order_id}", SECRET_KEY,
+                 prefer="return=minimal")
         for account_id in extra_account_ids:
             call("DELETE", f"/rest/v1/customer?auth_user_id=eq.{account_id}", SECRET_KEY,
                  prefer="return=minimal")
@@ -196,6 +203,16 @@ def main() -> None:
     shared_household_allows_second_account = status == 200
     assert shared_household_allows_second_account, status
 
+    # Give second_id a real order so it is a genuine phase2 pickup-notification
+    # recipient below, not just a bound-but-order-less account.
+    join_status, join_rows = call("POST", "/rest/v1/rpc/join_campaign_by_slug", ANON_KEY,
+                                  token=second_token, body={"p_slug": CAMPAIGN_SLUG})
+    assert join_status == 200 and join_rows, (join_status, join_rows)
+    status, second_order = call("POST", "/rest/v1/rpc/submit_customer_order", ANON_KEY,
+                                token=second_token, body={"p_campaign_id": CAMPAIGN_ID, "p_items": {"A": 1}})
+    assert status == 200 and second_order and second_order.get("id"), (status, second_order)
+    extra_order_ids.append(second_order["id"])
+
     other_id, other_token = signup()
     extra_account_ids.append(other_id)
     assert call("POST", "/rest/v1/community_member", SECRET_KEY, prefer="return=minimal",
@@ -207,6 +224,17 @@ def main() -> None:
                          body={"p_household_kind": "other", "p_period": None, "p_unit": None})
     other_binds_without_household = status == 200 and bound[0]["period"] is None and bound[0]["unit"] is None
     assert other_binds_without_household, (status, bound)
+
+    # Give other_id a real order too: it is the row that must be excluded from
+    # pickup notifications below. Without an order here, the household_kind
+    # filter in internal_pickup_notification_recipients has nothing to exclude.
+    join_status, join_rows = call("POST", "/rest/v1/rpc/join_campaign_by_slug", ANON_KEY,
+                                  token=other_token, body={"p_slug": CAMPAIGN_SLUG})
+    assert join_status == 200 and join_rows, (join_status, join_rows)
+    status, other_order = call("POST", "/rest/v1/rpc/submit_customer_order", ANON_KEY,
+                               token=other_token, body={"p_campaign_id": CAMPAIGN_ID, "p_items": {"C": 1}})
+    assert status == 200 and other_order and other_order.get("id"), (status, other_order)
+    extra_order_ids.append(other_order["id"])
 
     # The frontend deployed in production today only ever calls the old
     # two-argument bind_customer_self(integer, text). Task 2 rewrote it into a
@@ -233,6 +261,18 @@ def main() -> None:
         legacy_two_arg_bind_still_works = bool(legacy_rows) and legacy_rows[0]["household_kind"] == "resident"
     assert legacy_two_arg_bind_still_works, (status, legacy_bound)
 
+    # legacy_id is period 1, so give it a real order too: it makes the phase13
+    # audience genuinely non-empty below, the same way second_id does for phase2,
+    # instead of leaving phase13's eligibility-hash comparison an empty-vs-empty
+    # vacuous pass.
+    join_status, join_rows = call("POST", "/rest/v1/rpc/join_campaign_by_slug", ANON_KEY,
+                                  token=legacy_token, body={"p_slug": CAMPAIGN_SLUG})
+    assert join_status == 200 and join_rows, (join_status, join_rows)
+    status, legacy_order = call("POST", "/rest/v1/rpc/submit_customer_order", ANON_KEY,
+                                token=legacy_token, body={"p_campaign_id": CAMPAIGN_ID, "p_items": {"D": 1}})
+    assert status == 200 and legacy_order and legacy_order.get("id"), (status, legacy_order)
+    extra_order_ids.append(legacy_order["id"])
+
     # The notification RPCs require the campaign to be closed or arrived; the
     # cancel-flow checks above reopened it, so close it again before reading.
     assert call("POST", "/rest/v1/rpc/set_campaign_status", ANON_KEY, token=admin_token,
@@ -240,7 +280,12 @@ def main() -> None:
 
     status, recipients = call("POST", "/rest/v1/rpc/internal_pickup_notification_recipients", SECRET_KEY,
                               body={"p_campaign_id": CAMPAIGN_ID, "p_audience": "phase2"})
-    pickup_excludes_other = status == 200 and all(row["unit"] is not None for row in recipients)
+    # Non-empty is asserted explicitly: with the household_kind filter deleted,
+    # other_id (no unit) would leak in rather than the list going empty, but an
+    # empty list would also make this vacuously true, so both are ruled out.
+    pickup_excludes_other = status == 200 and len(recipients) > 0 and all(
+        row["unit"] is not None for row in recipients
+    )
     assert pickup_excludes_other, (status, recipients)
 
     hashes = []
@@ -249,8 +294,12 @@ def main() -> None:
                        body={"p_campaign_id": CAMPAIGN_ID, "p_audience": audience})
         _, digest = call("POST", "/rest/v1/rpc/internal_pickup_notification_eligible_hash", SECRET_KEY,
                          body={"p_campaign_id": CAMPAIGN_ID, "p_audience": audience})
+        # sorted() here is Python's Unicode-codepoint order; the SQL side orders
+        # by the database collation via `order by line_user_id`. They agree for
+        # the ASCII "verify-*" ids this script generates, but that agreement is
+        # not guaranteed once real (non-ASCII) LINE user ids flow through here.
         expected = hashlib.sha256("\n".join(sorted({row["line_user_id"] for row in rows})).encode()).hexdigest()
-        hashes.append(digest == expected)
+        hashes.append(len(rows) > 0 and digest == expected)
     recipients_match_eligibility_hash = all(hashes)
     assert recipients_match_eligibility_hash, hashes
 
