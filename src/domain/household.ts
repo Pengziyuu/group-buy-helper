@@ -23,7 +23,16 @@ export function formatResidentPeriod(period: number): string {
   return `${new Intl.NumberFormat('zh-Hant-u-nu-hanidec').format(period)}期`
 }
 
+export type HouseholdKind = 'resident' | 'other'
+
+export function formatHousehold(kind: HouseholdKind, period: number | null, unit: string | null): string {
+  if (kind === 'other') return '其他'
+  if (period === null || unit === null) throw new Error('住戶必須有期別與戶號')
+  return `${formatResidentPeriod(period)} ${unit}`
+}
+
 export type HouseholdSelection = {
+  kind: HouseholdKind
   period: ResidentPeriod
   prefix: number | null
   letter: string
@@ -31,6 +40,7 @@ export type HouseholdSelection = {
 }
 
 function assertHouseholdSelection(selection: HouseholdSelection): void {
+  if (selection.kind === 'other') return
   if (!RESIDENT_PERIODS.includes(selection.period)) throw new Error('期別只能選擇一期、二期或三期')
   if (selection.period === 1 && selection.prefix !== null) throw new Error('一期不需要前段')
   if (selection.period !== 1 && !HOUSEHOLD_PREFIXES.includes(selection.prefix as 1 | 2 | 3)) {
@@ -40,8 +50,9 @@ function assertHouseholdSelection(selection: HouseholdSelection): void {
   if (!HOUSEHOLD_NUMBERS.includes(selection.number)) throw new Error('號碼只能選擇1至15')
 }
 
-export function formatHouseholdUnit(selection: HouseholdSelection): string {
+export function formatHouseholdUnit(selection: HouseholdSelection): string | null {
   assertHouseholdSelection(selection)
+  if (selection.kind === 'other') return null
   return `${selection.period === 1 ? '' : selection.prefix}${selection.letter}${selection.number}`
 }
 
@@ -53,8 +64,8 @@ export function parseHouseholdUnit(period: number, unit: string): HouseholdSelec
     : /^([1-3])([A-Z])([1-9]|1[0-5])$/.exec(normalized)
   if (!match) throw new Error(period === 1 ? '一期戶號格式錯誤' : '二、三期戶號格式錯誤')
   return period === 1
-    ? { period: 1, prefix: null, letter: match[1], number: Number(match[2]) }
-    : { period: period as 2 | 3, prefix: Number(match[1]), letter: match[2], number: Number(match[3]) }
+    ? { kind: 'resident', period: 1, prefix: null, letter: match[1], number: Number(match[2]) }
+    : { kind: 'resident', period: period as 2 | 3, prefix: Number(match[1]), letter: match[2], number: Number(match[3]) }
 }
 
 export type HouseholdIdentity = {

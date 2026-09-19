@@ -49,16 +49,36 @@ describe('resident household options', () => {
   })
 
   it('formats phase one without a prefix and phases two and three with one', () => {
-    expect(formatHouseholdUnit({ period: 1, prefix: null, letter: 'H', number: 11 })).toBe('H11')
-    expect(formatHouseholdUnit({ period: 2, prefix: 2, letter: 'K', number: 13 })).toBe('2K13')
-    expect(formatHouseholdUnit({ period: 3, prefix: 3, letter: 'Z', number: 15 })).toBe('3Z15')
+    expect(formatHouseholdUnit({ kind: 'resident', period: 1, prefix: null, letter: 'H', number: 11 })).toBe('H11')
+    expect(formatHouseholdUnit({ kind: 'resident', period: 2, prefix: 2, letter: 'K', number: 13 })).toBe('2K13')
+    expect(formatHouseholdUnit({ kind: 'resident', period: 3, prefix: 3, letter: 'Z', number: 15 })).toBe('3Z15')
   })
 
   it('parses valid stored units and rejects combinations outside the plan', () => {
-    expect(parseHouseholdUnit(1, 'A1')).toEqual({ period: 1, prefix: null, letter: 'A', number: 1 })
-    expect(parseHouseholdUnit(3, '1Z15')).toEqual({ period: 3, prefix: 1, letter: 'Z', number: 15 })
+    expect(parseHouseholdUnit(1, 'A1')).toEqual({ kind: 'resident', period: 1, prefix: null, letter: 'A', number: 1 })
+    expect(parseHouseholdUnit(3, '1Z15')).toEqual({ kind: 'resident', period: 3, prefix: 1, letter: 'Z', number: 15 })
     expect(() => parseHouseholdUnit(1, '1A1')).toThrow('一期戶號格式錯誤')
     expect(() => parseHouseholdUnit(2, 'A1')).toThrow('二、三期戶號格式錯誤')
-    expect(() => formatHouseholdUnit({ period: 2, prefix: 4, letter: 'A', number: 1 })).toThrow('前段只能選擇1至3')
+    expect(() => formatHouseholdUnit({ kind: 'resident', period: 2, prefix: 4, letter: 'A', number: 1 })).toThrow('前段只能選擇1至3')
+  })
+})
+
+import { formatHousehold } from './household'
+
+describe('household kind formatting', () => {
+  it('labels a resident with period and unit', () => {
+    expect(formatHousehold('resident', 2, '2K13')).toBe('二期 2K13')
+  })
+
+  it('labels someone outside the community without inventing a period', () => {
+    expect(formatHousehold('other', null, null)).toBe('其他')
+  })
+
+  it('refuses a resident with no household rather than rendering NaN', () => {
+    expect(() => formatHousehold('resident', null, null)).toThrow('住戶必須有期別與戶號')
+  })
+
+  it('produces no unit string for someone outside the community', () => {
+    expect(formatHouseholdUnit({ kind: 'other', period: 1, prefix: null, letter: 'A', number: 1 })).toBeNull()
   })
 })
