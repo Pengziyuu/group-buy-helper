@@ -4,6 +4,7 @@ import { parseCustomOrderItems } from '../domain/customOrderItem'
 import type { CampaignStatus } from '../domain/orderWorkflow'
 import type { Database, Json } from '../types/database'
 import type { QuantityUnit } from '../domain/quantityUnit'
+import type { HouseholdKind } from '../domain/household'
 
 export type AdminOrdersSupabaseClient = SupabaseClient<Database>
 
@@ -13,6 +14,7 @@ type WallRow = {
   customer_name: string | null
   period: number | null
   unit: string | null
+  household_kind: string | null
   item_code: string | null
   qty: number | null
   list_unit_price: number | null
@@ -87,7 +89,7 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
           .order('sort_order'),
         client
           .from('order_wall')
-          .select('order_id,customer_name,period,unit,item_code,qty,list_unit_price,discount_type,discount_rate,final_unit_price,promotion_name,custom_items,ordered_at,order_updated_at')
+          .select('order_id,customer_name,period,unit,household_kind,item_code,qty,list_unit_price,discount_type,discount_rate,final_unit_price,promotion_name,custom_items,ordered_at,order_updated_at')
           .eq('campaign_id', campaignId)
           .order('period'),
         client
@@ -116,10 +118,10 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
       const ordersById = new Map<string, OrganizerVisibleOrder>()
 
       for (const row of wallRows) {
-        if (!row.order_id
-          || !row.customer_name
-          || typeof row.period !== 'number'
-          || !row.unit) continue
+        // An 'other' household legitimately has a null period and unit (they
+        // are outside the community), so only order_id and customer_name -
+        // the fields every order genuinely needs - gate inclusion here.
+        if (!row.order_id || !row.customer_name) continue
         const status = statuses.get(row.order_id)
         const order = ordersById.get(row.order_id) ?? {
           orderId: row.order_id,
@@ -127,6 +129,7 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
           name: row.customer_name,
           period: row.period,
           unit: row.unit,
+          householdKind: (row.household_kind ?? 'resident') as HouseholdKind,
           items: {},
           itemPriceSnapshots: {},
           customItems: parseCustomOrderItems(row.custom_items),

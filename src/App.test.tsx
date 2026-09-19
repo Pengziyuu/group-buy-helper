@@ -33,7 +33,7 @@ describe('customer campaign app', () => {
 
   it('allows a formal item quantity to exceed twenty when campaign capacity remains', async () => {
     const user = userEvent.setup()
-    const resident = { ...initialOrders[0], items: { A: 20 } }
+    const resident = { ...initialOrders[0], items: { A: 20 }, householdKind: 'resident' as const }
     render(<App
       residentCustomer={resident}
       visibleOrders={[resident]}
@@ -50,7 +50,7 @@ describe('customer campaign app', () => {
 
   it('previews base and mix-and-match prices while quantities change', async () => {
     const user = userEvent.setup()
-    const resident = { customerId: 'resident-1', name: '住戶甲', period: 2, unit: '2A1' }
+    const resident = { customerId: 'resident-1', name: '住戶甲', period: 2, unit: '2A1', householdKind: 'resident' as const }
     const content: CampaignContent = {
       title: '肉品團購', unitPrice: 150, threshold: 100,
       baseDiscountRate: 0.9,
@@ -379,7 +379,7 @@ describe('customer campaign app', () => {
 
   it('shows order submission failures as an alert and keeps the draft', async () => {
     const user = userEvent.setup()
-    const resident = initialOrders[0]
+    const resident = { ...initialOrders[0], householdKind: 'resident' as const }
     render(
       <App
         visibleOrders={initialOrders}
@@ -511,7 +511,7 @@ describe('customer campaign app', () => {
       ],
       openedAt: '2026-08-14T00:05:09.000Z',
     }
-    const resident = initialOrders[0]
+    const resident = { ...initialOrders[0], householdKind: 'resident' as const }
     const visibleOrders = [
       { ...resident, items: { A: 2, B: 1 } },
       {
@@ -547,7 +547,7 @@ describe('customer campaign app', () => {
 
   it('preserves an unsent draft when another household updates through Realtime', async () => {
     const user = userEvent.setup()
-    const resident = initialOrders[0]
+    const resident = { ...initialOrders[0], householdKind: 'resident' as const }
     const onSubmitOrder = async () => undefined
     const view = render(
       <App visibleOrders={initialOrders} residentCustomer={resident} onSubmitOrder={onSubmitOrder} />,
@@ -581,7 +581,7 @@ describe('customer campaign app', () => {
 
   it('points residents to the organizer when every quantity is cleared', async () => {
     const user = userEvent.setup()
-    const resident = { ...initialOrders[0], items: { A: 1 } }
+    const resident = { ...initialOrders[0], items: { A: 1 }, householdKind: 'resident' as const }
     render(<App residentCustomer={resident} visibleOrders={[resident]} />)
 
     expect(screen.queryByText('想整筆取消訂單，請聯繫團主協助取消。')).not.toBeInTheDocument()
@@ -593,7 +593,7 @@ describe('customer campaign app', () => {
   })
 
   it('hides the cancel hint from residents who have no order yet', () => {
-    const resident = { ...initialOrders[0], items: {} }
+    const resident = { ...initialOrders[0], items: {}, householdKind: 'resident' as const }
     render(<App residentCustomer={resident} visibleOrders={[]} />)
 
     expect(screen.getByRole('button', { name: '送出訂單' })).toBeDisabled()

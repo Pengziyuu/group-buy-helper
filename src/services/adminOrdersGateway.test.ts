@@ -15,9 +15,9 @@ describe('Supabase admin orders gateway', () => {
       { code: 'B', name: '歷史花生', unit_price: 45, active: false, sort_order: 2 },
     ])
     const wallQuery = queryResult([
-      { order_id: 'order-1', customer_name: '斯祈', period: 2, unit: '2K13', item_code: 'A', qty: 2, list_unit_price: 45, discount_type: 'base', discount_rate: 0.9, final_unit_price: 41, promotion_name: null, custom_items: [{ id: 'custom-1', name: '限定蛋糕', quantity: 2 }], ordered_at: '2026-08-14T00:10:00Z', order_updated_at: '2026-08-14T00:12:00Z' },
-      { order_id: 'order-1', customer_name: '斯祈', period: 2, unit: '2K13', item_code: 'B', qty: 1, list_unit_price: 45, discount_type: 'mix_match', discount_rate: 0.85, final_unit_price: 38, promotion_name: '任選三件85折', ordered_at: '2026-08-14T00:10:00Z', order_updated_at: '2026-08-14T00:12:00Z' },
-      { order_id: 'order-2', customer_name: '佩怡', period: 1, unit: 'H11', item_code: 'B', qty: 2, list_unit_price: 45, discount_type: 'base', discount_rate: 0.9, final_unit_price: 41, promotion_name: null, ordered_at: '2026-08-14T00:15:00Z', order_updated_at: '2026-08-14T00:15:00Z' },
+      { order_id: 'order-1', customer_name: '斯祈', period: 2, unit: '2K13', household_kind: 'resident', item_code: 'A', qty: 2, list_unit_price: 45, discount_type: 'base', discount_rate: 0.9, final_unit_price: 41, promotion_name: null, custom_items: [{ id: 'custom-1', name: '限定蛋糕', quantity: 2 }], ordered_at: '2026-08-14T00:10:00Z', order_updated_at: '2026-08-14T00:12:00Z' },
+      { order_id: 'order-1', customer_name: '斯祈', period: 2, unit: '2K13', household_kind: 'resident', item_code: 'B', qty: 1, list_unit_price: 45, discount_type: 'mix_match', discount_rate: 0.85, final_unit_price: 38, promotion_name: '任選三件85折', ordered_at: '2026-08-14T00:10:00Z', order_updated_at: '2026-08-14T00:12:00Z' },
+      { order_id: 'order-2', customer_name: '佩怡', period: 1, unit: 'H11', household_kind: 'resident', item_code: 'B', qty: 2, list_unit_price: 45, discount_type: 'base', discount_rate: 0.9, final_unit_price: 41, promotion_name: null, ordered_at: '2026-08-14T00:15:00Z', order_updated_at: '2026-08-14T00:15:00Z' },
     ])
     const statusQuery = queryResult([
       { order_id: 'order-1', paid: true, organizer_note: '請放管理室' },
@@ -95,5 +95,27 @@ describe('Supabase admin orders gateway', () => {
 
     await expect(createAdminOrdersGateway(client).cancelOrder('order-1'))
       .rejects.toThrow('取消訂單失敗：本團已結單，不能取消訂單')
+  })
+
+  it('carries the household kind through so the panel can label people outside the community', async () => {
+    const wallQuery = queryResult([
+      { order_id: 'order-9', customer_id: 'c9', customer_name: '丙', period: null, unit: null, household_kind: 'other', item_code: 'A', qty: 1, list_unit_price: 45, discount_type: 'base', discount_rate: 1, final_unit_price: 45, promotion_name: null, ordered_at: '2026-08-14T00:10:00Z', order_updated_at: '2026-08-14T00:10:00Z' },
+    ])
+    const itemQuery = queryResult([{ code: 'A', name: '牛奶', unit_price: 45, active: true, sort_order: 1 }])
+    const statusQuery = queryResult([{ order_id: 'order-9', paid: false, organizer_note: null }])
+    const single = vi.fn().mockResolvedValue({ data: { status: 'open' }, error: null })
+    const campaignQuery = { select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single }) }) }
+    const from = vi.fn((table: string) => {
+      if (table === 'campaign_item') return itemQuery
+      if (table === 'organizer_order_status') return statusQuery
+      if (table === 'campaign_public') return campaignQuery
+      return wallQuery
+    })
+    const client = { from, rpc: vi.fn() } as unknown as AdminOrdersSupabaseClient
+
+    const summary = await createAdminOrdersGateway(client).loadSummary('campaign-1', 10)
+
+    expect(summary.orderRows[0].householdKind).toBe('other')
+    expect(summary.orderRows[0].period).toBeNull()
   })
 })

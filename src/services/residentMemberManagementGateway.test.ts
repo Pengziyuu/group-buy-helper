@@ -10,6 +10,7 @@ describe('createResidentMemberManagementGateway', () => {
         picture_url: 'https://example.com/avatar.jpg',
         period: 2,
         unit: '2K13',
+        household_kind: 'resident',
         joined_at: '2026-08-14T00:00:00Z',
         blocked: false,
         blocked_at: null,
@@ -24,11 +25,42 @@ describe('createResidentMemberManagementGateway', () => {
       pictureUrl: 'https://example.com/avatar.jpg',
       period: 2,
       unit: '2K13',
+      householdKind: 'resident',
       joinedAt: '2026-08-14T00:00:00Z',
       blocked: false,
       blockedAt: null,
     }])
     expect(rpc).toHaveBeenCalledWith('admin_list_residents')
+  })
+
+  it('carries the household kind for someone outside the community', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: [{
+        member_code: 'abcdef0123456789abcdef0123456789abcd',
+        display_name: '住戶丙',
+        picture_url: null,
+        period: null,
+        unit: null,
+        household_kind: 'other',
+        joined_at: '2026-08-14T00:00:00Z',
+        blocked: false,
+        blocked_at: null,
+      }],
+      error: null,
+    })
+    const gateway = createResidentMemberManagementGateway({ rpc } as never)
+
+    await expect(gateway.list()).resolves.toEqual([{
+      memberCode: 'abcdef0123456789abcdef0123456789abcd',
+      displayName: '住戶丙',
+      pictureUrl: null,
+      period: null,
+      unit: null,
+      householdKind: 'other',
+      joinedAt: '2026-08-14T00:00:00Z',
+      blocked: false,
+      blockedAt: null,
+    }])
   })
 
   it('changes block state by opaque member code', async () => {

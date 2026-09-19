@@ -22,6 +22,7 @@ import {
 import type { Database } from './types/database'
 import type { OrganizerOrderSummary } from './domain/adminOrders'
 import type { CampaignStatus } from './domain/orderWorkflow'
+import type { HouseholdKind } from './domain/household'
 import type { VisibleOrder } from './data/demo'
 import { createAdminOrdersGateway } from './services/adminOrdersGateway'
 import { createPickupNotificationGateway, type PickupNotificationResponse } from './services/pickupNotificationGateway'
@@ -130,7 +131,11 @@ type CampaignRow = {
   status: unknown
 }
 
-type ResidentCustomer = Pick<VisibleOrder, 'customerId' | 'name' | 'period' | 'unit'>
+type ResidentCustomer = Pick<VisibleOrder, 'customerId' | 'name'> & {
+  period: number | null
+  unit: string | null
+  householdKind: HouseholdKind
+}
 type OrderWallRow = Pick<
   Database['public']['Views']['order_wall']['Row'],
   'order_id' | 'customer_id' | 'customer_name' | 'picture_url' | 'period' | 'unit' | 'item_code' | 'qty' | 'final_unit_price' | 'custom_items' | 'ordered_at' | 'order_updated_at'
@@ -1093,8 +1098,11 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug }: Loca
         if (!identity?.display_name) throw new Error('請先從住戶LINE入口登入')
         setResidentIdentity({ displayName: identity.display_name, pictureUrl: identity.picture_url })
         const customer = customerResult.data?.[0]
+        // get_customer_self() does not report household_kind yet, but a non-null
+        // period/unit pair can only come from a resident row: an 'other' bind
+        // always stores both as null (see bind_customer_self).
         setResidentCustomer(customer?.id && customer.name && customer.period !== null && customer.unit
-          ? { customerId: customer.id, name: customer.name, period: customer.period, unit: customer.unit }
+          ? { customerId: customer.id, name: customer.name, period: customer.period, unit: customer.unit, householdKind: 'resident' }
           : null)
       }
     }
@@ -1173,14 +1181,21 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug }: Loca
       onSyncRetry={() => {
         void retrySyncRef.current?.()
       }}
-      onBindResident={async ({ period, unit }) => {
+      onBindResident={async ({ kind, period, unit }) => {
+        // The generated Database type still claims p_period/p_unit are
+        // non-null (Supabase's codegen does not carry SQL nullability for
+        // function parameters), but bind_customer_self genuinely accepts
+        // null period/unit for an 'other' household - see
+        // supabase/migrations/20260919161000_household_kind_binding.sql.
         const { data, error: bindError } = await client.rpc('bind_customer_self', {
+          p_household_kind: kind,
           p_period: period,
           p_unit: unit,
-        })
+        } as unknown as { p_household_kind: string; p_period: number; p_unit: string })
         if (bindError) throw bindError
         const customer = data?.[0]
-        if (!customer?.id || !customer.name || customer.period === null || !customer.unit) {
+        if (!customer?.id || !customer.name) throw new Error('住戶資料綁定結果無效')
+        if (kind === 'resident' && (customer.period === null || !customer.unit)) {
           throw new Error('住戶資料綁定結果無效')
         }
         const bound = {
@@ -1188,6 +1203,7 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug }: Loca
           name: customer.name,
           period: customer.period,
           unit: customer.unit,
+          householdKind: kind,
         }
         setResidentCustomer(bound)
         return bound

@@ -8,12 +8,14 @@ import { normalizeQuantityUnit } from './domain/quantityUnit'
 import { customOrderItemsEqual, validCustomOrderItems, type CustomOrderItem } from './domain/customOrderItem'
 import { discountedUnitPrice, priceOrder, type DiscountPricing } from './domain/discountPricing'
 import {
+  formatHousehold,
   formatHouseholdUnit,
   formatResidentPeriod,
   HOUSEHOLD_LETTERS,
   HOUSEHOLD_NUMBERS,
   HOUSEHOLD_PREFIXES,
   RESIDENT_PERIODS,
+  type HouseholdKind,
   type ResidentPeriod,
 } from './domain/household'
 import {
@@ -85,9 +87,13 @@ const residentBindingErrorMessage = (error: unknown) => {
   return '住戶資料儲存失敗，請稍後再試。'
 }
 
-type ResidentCustomer = Pick<VisibleOrder, 'customerId' | 'name' | 'period' | 'unit'>
+type ResidentCustomer = Pick<VisibleOrder, 'customerId' | 'name'> & {
+  period: number | null
+  unit: string | null
+  householdKind: HouseholdKind
+}
 
-type ResidentBindingInput = Pick<ResidentCustomer, 'period' | 'unit'>
+type ResidentBindingInput = { kind: HouseholdKind; period: number | null; unit: string | null }
 
 type VerifiedResidentIdentity = {
   displayName: string
@@ -126,8 +132,8 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
     : activeItems
   const [localOrders, setLocalOrders] = useState<VisibleOrder[]>(initialOrders)
   const orders = visibleOrders ?? localOrders
-  const effectiveCustomer = residentCustomer === undefined
-    ? initialOrders.find((order) => order.customerId === currentCustomerId)!
+  const effectiveCustomer: ResidentCustomer | null = residentCustomer === undefined
+    ? { ...initialOrders.find((order) => order.customerId === currentCustomerId)!, householdKind: 'resident' }
     : residentCustomer
   const [boundResident, setBoundResident] = useState<ResidentCustomer | null>(effectiveCustomer)
   const currentResident = residentCustomer === null ? boundResident : effectiveCustomer
@@ -473,7 +479,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
         <div className="section-heading">
           <div>
             <p className="section-kicker">我的訂單</p>
-            <h2 id="order-heading">{formatResidentPeriod(currentResident.period)} {currentResident.unit}・{currentResident.name}</h2>
+            <h2 id="order-heading">{formatHousehold(currentResident.householdKind, currentResident.period, currentResident.unit)}・{currentResident.name}</h2>
           </div>
           <div className="my-total">
             <strong>我的訂單 {draftQuantity} {quantityUnit}</strong>

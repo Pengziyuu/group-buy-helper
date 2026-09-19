@@ -25,6 +25,36 @@ import {
   type AuthSessionStorage,
 } from './services/authStorage'
 
+// The resident binding form does not yet expose a control for choosing the
+// 'other' household kind (that lands in a later task). To exercise the real
+// bind_customer_self RPC wiring in LocalLiveApps.tsx for that path, this
+// renders the genuine App component unchanged and adds one extra, hidden
+// test-only trigger that calls the same onBindResident prop with a
+// kind: 'other' payload the real form cannot produce yet.
+vi.mock('./App', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./App')>()
+  const RealApp = actual.default
+  const StubbedApp = (props: Parameters<typeof RealApp>[0]) => {
+    const onBindResident = (props as {
+      onBindResident?: (input: { kind: string; period: number | null; unit: string | null }) => Promise<unknown>
+    }).onBindResident
+    return (
+      <>
+        <RealApp {...props} />
+        {onBindResident && (
+          <button
+            type="button"
+            onClick={() => { void onBindResident({ kind: 'other', period: null, unit: null }) }}
+          >
+            測試綁定非社區人士
+          </button>
+        )}
+      </>
+    )
+  }
+  return { ...actual, default: StubbedApp }
+})
+
 const published: CampaignContent = {
   title: 'Supabase 已發布冰餅團',
   unitPrice: 50,
@@ -1627,6 +1657,54 @@ describe('local Supabase visual demo apps', () => {
 
     expect(rpc).toHaveBeenCalledWith('bind_customer_self', {
       p_period: 2, p_unit: '1A1',
+    })
+    expect(await screen.findByRole('button', { name: '增加 A 牛奶（招牌）' })).toBeInTheDocument()
+  })
+
+  it('binds someone outside the community without inventing a household', async () => {
+    const user = userEvent.setup()
+    const session = { access_token: 'resident-token', user: { id: 'resident-uid', is_anonymous: false } }
+    const { client } = authClient(session)
+    const single = vi.fn().mockResolvedValue({
+      data: {
+        title: published.title, unit_price: published.unitPrice, threshold: published.threshold,
+        announcement: published.announcement, images: published.images, items: published.items,
+        opened_at: published.openedAt, status: 'open',
+      },
+      error: null,
+    })
+    const campaignEq = vi.fn().mockReturnValue({ single })
+    const wallEq = vi.fn().mockResolvedValue({ data: [], error: null })
+    const rpc = vi.fn((name: string) => {
+      if (name === 'join_campaign_by_slug') return Promise.resolve({ data: [{ id: 'campaign-1' }], error: null })
+      if (name === 'get_line_resident_self') return Promise.resolve({
+        data: [{ display_name: '丙', picture_url: null }], error: null,
+      })
+      if (name === 'get_customer_self') return Promise.resolve({ data: [], error: null })
+      if (name === 'bind_customer_self') return Promise.resolve({
+        data: [{ id: 'c9', name: '丙', picture_url: null, period: null, unit: null, household_kind: 'other' }], error: null,
+      })
+      throw new Error(`unexpected RPC ${name}`)
+    })
+    const on = vi.fn().mockReturnThis()
+    const subscribe = vi.fn().mockReturnThis()
+    Object.assign(client, {
+      rpc,
+      from: vi.fn((table: string) => table === 'campaign_public'
+        ? { select: vi.fn().mockReturnValue({ eq: campaignEq }) }
+        : { select: vi.fn().mockReturnValue({ eq: wallEq }) }),
+      channel: vi.fn().mockReturnValue({ on, subscribe }),
+      removeChannel: vi.fn().mockResolvedValue(undefined),
+    })
+
+    render(<LocalLiveResidentApp client={client} campaignSlug="campaign-slug" />)
+
+    await user.click(await screen.findByRole('button', { name: '測試綁定非社區人士' }))
+
+    await waitFor(() => {
+      expect(rpc).toHaveBeenCalledWith('bind_customer_self', {
+        p_household_kind: 'other', p_period: null, p_unit: null,
+      })
     })
     expect(await screen.findByRole('button', { name: '增加 A 牛奶（招牌）' })).toBeInTheDocument()
   })

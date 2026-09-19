@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database'
-import { parseHouseholdUnit } from '../domain/household'
+import { parseHouseholdUnit, type HouseholdKind } from '../domain/household'
 
 export type ResidentMember = {
   memberCode: string
@@ -8,6 +8,7 @@ export type ResidentMember = {
   pictureUrl: string | null
   period: number | null
   unit: string | null
+  householdKind?: HouseholdKind
   joinedAt: string
   blocked: boolean
   blockedAt: string | null
@@ -19,6 +20,7 @@ type ResidentMemberRow = {
   picture_url?: unknown
   period?: unknown
   unit?: unknown
+  household_kind?: unknown
   joined_at?: unknown
   blocked?: unknown
   blocked_at?: unknown
@@ -39,6 +41,7 @@ function toResidentMember(value: unknown): ResidentMember {
     || (row.picture_url !== null && typeof row.picture_url !== 'string')
     || (row.period !== null && typeof row.period !== 'number')
     || (row.unit !== null && typeof row.unit !== 'string')
+    || (row.household_kind !== null && row.household_kind !== 'resident' && row.household_kind !== 'other')
     || typeof row.joined_at !== 'string'
     || typeof row.blocked !== 'boolean'
     || (row.blocked_at !== null && typeof row.blocked_at !== 'string')) {
@@ -50,6 +53,10 @@ function toResidentMember(value: unknown): ResidentMember {
     pictureUrl: row.picture_url,
     period: row.period,
     unit: row.unit,
+    // household_kind comes from a left join onto customer: a community
+    // member who has not bound a household yet has no customer row, so this
+    // is null rather than 'resident' or 'other' until they do.
+    householdKind: row.household_kind ?? 'resident',
     joinedAt: row.joined_at,
     blocked: row.blocked,
     blockedAt: row.blocked_at,
