@@ -422,7 +422,7 @@ describe('customer campaign app', () => {
     await user.selectOptions(screen.getByRole('combobox', { name: '樓層' }), '15')
     await user.click(screen.getByRole('button', { name: '儲存住戶資料' }))
 
-    expect(onBindResident).toHaveBeenCalledWith({ period: 3, unit: '3Z15' })
+    expect(onBindResident).toHaveBeenCalledWith({ kind: 'resident', period: 3, unit: '3Z15' })
     expect(await screen.findByRole('button', { name: '增加 A 牛奶（招牌）' })).toBeInTheDocument()
   })
 
@@ -449,7 +449,7 @@ describe('customer campaign app', () => {
     await user.selectOptions(screen.getByRole('combobox', { name: '樓層' }), '15')
     await user.click(screen.getByRole('button', { name: '儲存住戶資料' }))
 
-    expect(onBindResident).toHaveBeenCalledWith({ period: 1, unit: 'Z15' })
+    expect(onBindResident).toHaveBeenCalledWith({ kind: 'resident', period: 1, unit: 'Z15' })
   })
 
   it('shows resident binding failures as an inline alert', async () => {
@@ -598,5 +598,33 @@ describe('customer campaign app', () => {
 
     expect(screen.getByRole('button', { name: '送出訂單' })).toBeDisabled()
     expect(screen.queryByText('想整筆取消訂單，請聯繫團主協助取消。')).not.toBeInTheDocument()
+  })
+
+  it('lets someone outside the community bind without a household', async () => {
+    const user = userEvent.setup()
+    const onBindResident = vi.fn().mockResolvedValue(undefined)
+    render(<App residentCustomer={null} onBindResident={onBindResident} />)
+
+    await user.selectOptions(screen.getByRole('combobox', { name: '期別' }), '其他')
+
+    expect(screen.queryByRole('combobox', { name: '戶號英文字母' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: '樓層' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '儲存住戶資料' }))
+
+    expect(onBindResident).toHaveBeenCalledWith({ kind: 'other', period: null, unit: null })
+  })
+
+  it('still requires a unit from someone who says they live here', async () => {
+    const user = userEvent.setup()
+    const onBindResident = vi.fn().mockResolvedValue(undefined)
+    render(<App residentCustomer={null} onBindResident={onBindResident} />)
+
+    await user.selectOptions(screen.getByRole('combobox', { name: '期別' }), '一期')
+    await user.selectOptions(screen.getByRole('combobox', { name: '戶號英文字母' }), 'H')
+    await user.selectOptions(screen.getByRole('combobox', { name: '樓層' }), '11')
+    await user.click(screen.getByRole('button', { name: '儲存住戶資料' }))
+
+    expect(onBindResident).toHaveBeenCalledWith({ kind: 'resident', period: 1, unit: 'H11' })
   })
 })

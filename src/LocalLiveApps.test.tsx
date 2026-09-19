@@ -1656,7 +1656,7 @@ describe('local Supabase visual demo apps', () => {
     await user.click(screen.getByRole('button', { name: '儲存住戶資料' }))
 
     expect(rpc).toHaveBeenCalledWith('bind_customer_self', {
-      p_period: 2, p_unit: '1A1',
+      p_household_kind: 'resident', p_period: 2, p_unit: '1A1',
     })
     expect(await screen.findByRole('button', { name: '增加 A 牛奶（招牌）' })).toBeInTheDocument()
   })

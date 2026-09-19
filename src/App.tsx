@@ -141,6 +141,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
     ? orders.find((order) => order.customerId === currentResident.customerId)
     : undefined
 
+  const [householdKind, setHouseholdKind] = useState<HouseholdKind>('resident')
   const [residentPeriod, setResidentPeriod] = useState<ResidentPeriod>(2)
   const [residentPrefix, setResidentPrefix] = useState(1)
   const [residentLetter, setResidentLetter] = useState('A')
@@ -310,16 +311,22 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
 
   const bindResident = async () => {
     if (!onBindResident) return
-    const unit = formatHouseholdUnit({
-      period: residentPeriod,
-      prefix: residentPeriod === 1 ? null : residentPrefix,
-      letter: residentLetter,
-      number: residentNumber,
-    })
     setBinding(true)
     setBindingNotice('')
     try {
-      const customer = await onBindResident({ period: residentPeriod, unit })
+      const customer = householdKind === 'other'
+        ? await onBindResident({ kind: 'other', period: null, unit: null })
+        : await onBindResident({
+          kind: 'resident',
+          period: residentPeriod,
+          unit: formatHouseholdUnit({
+            kind: 'resident',
+            period: residentPeriod,
+            prefix: residentPeriod === 1 ? null : residentPrefix,
+            letter: residentLetter,
+            number: residentNumber,
+          }),
+        })
       setBoundResident(customer)
     } catch (error) {
       setBindingNotice(residentBindingErrorMessage(error))
@@ -656,35 +663,49 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
           <div className="binding-fields">
             <label>
               <span>期別</span>
-              <select value={residentPeriod} onChange={(event) => setResidentPeriod(Number(event.target.value) as ResidentPeriod)}>
+              <select
+                value={householdKind === 'other' ? 'other' : residentPeriod}
+                onChange={(event) => {
+                  const value = event.target.value
+                  if (value === 'other') {
+                    setHouseholdKind('other')
+                  } else {
+                    setHouseholdKind('resident')
+                    setResidentPeriod(Number(value) as ResidentPeriod)
+                  }
+                }}
+              >
                 {RESIDENT_PERIODS.map((period) => (
                   <option key={period} value={period}>{new Intl.NumberFormat('zh-Hant-u-nu-hanidec').format(period)}期</option>
                 ))}
+                <option value="other">其他</option>
               </select>
             </label>
-            <fieldset className="binding-household-unit">
-              <legend>戶號</legend>
-              <div className="binding-household-unit-parts">
-                {residentPeriod !== 1 && <label>
-                  <span>數字</span>
-                  <select aria-label="戶號數字" value={residentPrefix} onChange={(event) => setResidentPrefix(Number(event.target.value))}>
-                    {HOUSEHOLD_PREFIXES.map((prefix) => <option key={prefix} value={prefix}>{prefix}</option>)}
-                  </select>
-                </label>}
-                <label>
-                  <span>英文字母</span>
-                  <select aria-label="戶號英文字母" value={residentLetter} onChange={(event) => setResidentLetter(event.target.value)}>
-                    {HOUSEHOLD_LETTERS.map((letter) => <option key={letter} value={letter}>{letter}</option>)}
-                  </select>
-                </label>
-              </div>
-            </fieldset>
-            <label>
-              <span>樓層</span>
-              <select value={residentNumber} onChange={(event) => setResidentNumber(Number(event.target.value))}>
-                {HOUSEHOLD_NUMBERS.map((number) => <option key={number} value={number}>{number}</option>)}
-              </select>
-            </label>
+            {householdKind === 'resident' && <>
+              <fieldset className="binding-household-unit">
+                <legend>戶號</legend>
+                <div className="binding-household-unit-parts">
+                  {residentPeriod !== 1 && <label>
+                    <span>數字</span>
+                    <select aria-label="戶號數字" value={residentPrefix} onChange={(event) => setResidentPrefix(Number(event.target.value))}>
+                      {HOUSEHOLD_PREFIXES.map((prefix) => <option key={prefix} value={prefix}>{prefix}</option>)}
+                    </select>
+                  </label>}
+                  <label>
+                    <span>英文字母</span>
+                    <select aria-label="戶號英文字母" value={residentLetter} onChange={(event) => setResidentLetter(event.target.value)}>
+                      {HOUSEHOLD_LETTERS.map((letter) => <option key={letter} value={letter}>{letter}</option>)}
+                    </select>
+                  </label>
+                </div>
+              </fieldset>
+              <label>
+                <span>樓層</span>
+                <select value={residentNumber} onChange={(event) => setResidentNumber(Number(event.target.value))}>
+                  {HOUSEHOLD_NUMBERS.map((number) => <option key={number} value={number}>{number}</option>)}
+                </select>
+              </label>
+            </>}
           </div>
           <Button
             className="submit-button"

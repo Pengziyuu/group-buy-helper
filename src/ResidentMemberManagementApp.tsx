@@ -93,11 +93,13 @@ export default function ResidentMemberManagementApp({ members, onSetBlocked, onU
   const updateHousehold = async (member: ResidentMember) => {
     if (busyCode) return
     const unit = formatHouseholdUnit({
+      kind: 'resident',
       period: editPeriod,
       prefix: editPeriod === 1 ? null : editPrefix,
       letter: editLetter,
       number: editNumber,
     })
+    if (unit === null) return
     setBusyCode(member.memberCode)
     setError('')
     setFeedback('')
