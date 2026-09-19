@@ -107,6 +107,11 @@ describe('order Excel export', () => {
     ])
     expect(sheet?.getCell('A2').numFmt).toBe('mm/dd')
     expect(sheet?.getCell('C2').numFmt).toBe('@')
+    // 戶號 must stay just the unit, not formatHousehold's merged "期別 戶號"
+    // label -- the sheet has a separate 期別 column and an autoFilter over
+    // both, which organizers use to split distribution batches by period.
+    expect(sheet?.getCell('B2').value).toBe(1)
+    expect(sheet?.getCell('C2').value).toBe('E2')
     expect(sheet?.getCell('H2').value).toEqual({ formula: 'F2*G2' })
     expect(sheet?.getCell('G3').value).toBeNull()
     expect(sheet?.getCell('H3').value).toBeNull()
@@ -138,5 +143,23 @@ describe('export ordering when a household is shared', () => {
     }, '測試團購')
 
     expect(rows.map((row) => row.name)).toEqual(['甲', '乙', '丙'])
+  })
+})
+
+describe('export of an other-household row', () => {
+  it('writes 其他 in the 戶號 column and leaves 期別 blank, not a merged label', async () => {
+    const otherSummary = {
+      ...summary,
+      orderRows: [{ ...summary.orderRows[0], name: '丙', period: null, unit: null, householdKind: 'other' as const }],
+    }
+
+    const buffer = await createOrderExportWorkbook({ summary: otherSummary, campaignTitle: '榮泉餅店' })
+    const workbook = new ExcelJS.Workbook()
+    const workbookBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer
+    await workbook.xlsx.load(workbookBuffer)
+    const sheet = workbook.getWorksheet('成團明細')
+
+    expect(sheet?.getCell('B2').value).toBeNull()
+    expect(sheet?.getCell('C2').value).toBe('其他')
   })
 })

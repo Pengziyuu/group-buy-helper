@@ -1,5 +1,5 @@
 import type { OrganizerOrderSummary } from '../domain/adminOrders'
-import { formatHousehold, type HouseholdKind } from '../domain/household'
+import type { HouseholdKind } from '../domain/household'
 
 export type OrderExportRow = {
   name: string
@@ -130,7 +130,7 @@ export async function createOrderExportWorkbook({ summary, campaignTitle }: Orde
     const row = sheet.addRow({
       arrivalDate: null,
       period: item.period,
-      unit: formatHousehold(item.householdKind, item.period, item.unit),
+      unit: item.householdKind === 'other' ? '其他' : item.unit,
       campaignTitle: item.campaignTitle,
       itemName: item.itemName,
       quantity: item.quantity,
