@@ -98,3 +98,26 @@ describe('household kind pickup notification migration', () => {
     expect(sql).toContain('revoke all on function public.internal_pickup_notification_eligible_hash(uuid, text) from public, anon, authenticated')
   })
 })
+
+const exposurePath = resolve(process.cwd(), 'supabase/migrations/20260919163000_household_kind_exposure.sql')
+
+describe('household kind exposure migration', () => {
+  it('returns the kind from the order wall without loosening how it is read', () => {
+    expect(existsSync(exposurePath)).toBe(true)
+    if (!existsSync(exposurePath)) return
+    const sql = readFileSync(exposurePath, 'utf8').toLowerCase()
+
+    expect(sql).toContain('create or replace view public.order_wall with (security_invoker = true)')
+    expect(sql).toContain('cu.household_kind')
+    expect(sql).toContain('grant select on table public.order_wall to authenticated')
+    expect(sql).toContain('revoke all on table public.order_wall from anon')
+  })
+
+  it('returns the kind in the organizer resident list', () => {
+    const sql = readFileSync(exposurePath, 'utf8').toLowerCase()
+
+    expect(sql).toContain('function public.admin_list_residents()')
+    expect(sql).toContain('household_kind text')
+    expect(sql).toContain('public.is_admin()')
+  })
+})

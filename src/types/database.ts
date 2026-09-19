@@ -439,42 +439,45 @@ export type Database = {
         Row: {
           auth_user_id: string | null
           created_at: string
+          household_kind: string
           id: string
           line_user_id: string | null
           name: string
           order_count: number
-          period: number
+          period: number | null
           picture_url: string | null
           total_spent: number
-          unit: string
+          unit: string | null
           updated_at: string
           vip_level: number
         }
         Insert: {
           auth_user_id?: string | null
           created_at?: string
+          household_kind?: string
           id?: string
           line_user_id?: string | null
           name: string
           order_count?: number
-          period?: number
+          period?: number | null
           picture_url?: string | null
           total_spent?: number
-          unit: string
+          unit?: string | null
           updated_at?: string
           vip_level?: number
         }
         Update: {
           auth_user_id?: string | null
           created_at?: string
+          household_kind?: string
           id?: string
           line_user_id?: string | null
           name?: string
           order_count?: number
-          period?: number
+          period?: number | null
           picture_url?: string | null
           total_spent?: number
-          unit?: string
+          unit?: string | null
           updated_at?: string
           vip_level?: number
         }
@@ -1059,6 +1062,7 @@ export type Database = {
           discount_rate: number | null
           discount_type: string | null
           final_unit_price: number | null
+          household_kind: string | null
           item_active: boolean | null
           item_code: string | null
           item_name: string | null
@@ -1147,6 +1151,7 @@ export type Database = {
           blocked: boolean
           blocked_at: string
           display_name: string
+          household_kind: string
           joined_at: string
           member_code: string
           period: number
@@ -1158,21 +1163,32 @@ export type Database = {
         Args: { p_blocked: boolean; p_member_code: string }
         Returns: undefined
       }
-      admin_update_resident_household: {
-        Args: { p_member_code: string; p_period: number; p_unit: string }
-        Returns: undefined
-      }
+      admin_update_resident_household:
+        | {
+            Args: {
+              p_household_kind: string
+              p_member_code: string
+              p_period: number
+              p_unit: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: { p_member_code: string; p_period: number; p_unit: string }
+            Returns: undefined
+          }
       approve_line_organizer: {
         Args: { p_auth_user_id: string; p_request_code: string }
         Returns: string
       }
       bind_customer_self:
         | {
-            Args: { p_name: string; p_period: number; p_unit: string }
+            Args: { p_household_kind: string; p_period: number; p_unit: string }
             Returns: {
               id: string
               name: string
               period: number
+              picture_url: string
               unit: string
             }[]
           }
@@ -1400,22 +1416,22 @@ export type Database = {
       list_admin_campaign_cards: {
         Args: never
         Returns: {
+          amount_threshold: number
           created_at: string
           id: string
           images: Json
-          opened_at: string | null
+          opened_at: string
           order_count: number
           paid_order_count: number
           quantity_unit: string
           slug: string
           status: string
+          threshold: number
+          threshold_kind: string
           title: string
           total_amount: number
           total_quantity: number
           updated_at: string
-          threshold_kind: string
-          threshold: number
-          amount_threshold: number | null
         }[]
       }
       list_pickup_notification_test_campaigns: {
@@ -1725,3 +1741,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
