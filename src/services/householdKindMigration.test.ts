@@ -120,4 +120,21 @@ describe('household kind exposure migration', () => {
     expect(sql).toContain('household_kind text')
     expect(sql).toContain('public.is_admin()')
   })
+
+  it('grants residents select on customer.household_kind, without which order_wall 403s for everyone', () => {
+    // This is the line that broke production during this branch: without
+    // it, security_invoker means order_wall's own SELECT is checked against
+    // the authenticated role's column privileges the moment the view reads
+    // cu.household_kind, and that role could not read the column before
+    // this grant existed.
+    const sql = readFileSync(exposurePath, 'utf8').toLowerCase()
+
+    expect(sql).toContain('grant select (household_kind) on public.customer to authenticated;')
+  })
+
+  it('never drops order_wall, since only create or replace preserves its grants and security_invoker', () => {
+    const sql = readFileSync(exposurePath, 'utf8').toLowerCase()
+
+    expect(sql).not.toContain('drop view public.order_wall')
+  })
 })
