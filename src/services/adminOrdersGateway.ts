@@ -186,5 +186,12 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
       })
       if (error) throw new Error(`更新訂單備註失敗：${errorMessage(error)}`)
     },
+
+    async cancelOrder(orderId: string): Promise<void> {
+      const { error } = await client.rpc('cancel_customer_order', {
+        p_order_id: orderId,
+      })
+      if (error) throw new Error(`取消訂單失敗：${errorMessage(error)}`)
+    },
   }
 }

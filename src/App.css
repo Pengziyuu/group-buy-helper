@@ -161,6 +161,7 @@
 }
 .resident-sync-feedback { margin-bottom: var(--space-3); }
 .privacy-note { margin: var(--space-3) 0 0; color: var(--color-text-secondary); font-size: 12px; text-align: center; }
+.resident-cancel-hint { margin: var(--space-3) 0 0; color: var(--color-text-secondary); font-size: 13px; text-align: center; }
 
 .resident-binding h2 { margin: 0; font-size: 20px; }
 .binding-intro { margin: var(--space-2) 0 var(--space-4); color: var(--color-text-secondary); font-size: 14px; }

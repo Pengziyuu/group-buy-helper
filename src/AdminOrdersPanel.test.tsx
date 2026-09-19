@@ -293,4 +293,50 @@ describe('organizer orders panel', () => {
     expect(screen.queryByText('H11')).not.toBeInTheDocument()
     expect(screen.getByText('1E7')).toBeInTheDocument()
   })
+
+  it('cancels a resident order outright after the organizer confirms', async () => {
+    const user = userEvent.setup()
+    const onCancelOrder = vi.fn().mockResolvedValue(undefined)
+    const workflowSummary = {
+      ...summary,
+      orderRows: summary.orderRows.map((order, index) => ({ ...order, orderId: `order-${index + 1}`, paid: false })),
+    }
+
+    render(<AdminOrdersPanel summary={workflowSummary} campaignStatus="open" onCancelOrder={onCancelOrder} />)
+
+    await user.click(screen.getByRole('button', { name: '取消 H11 訂單' }))
+    const dialog = screen.getByRole('dialog', { name: '確認取消訂單' })
+    expect(dialog).toHaveTextContent(/H11/)
+    expect(onCancelOrder).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: '確認取消訂單' }))
+    expect(onCancelOrder).toHaveBeenCalledWith('order-1')
+  })
+
+  it('stops organizers cancelling once the campaign is closed', () => {
+    const onCancelOrder = vi.fn().mockResolvedValue(undefined)
+    const workflowSummary = {
+      ...summary,
+      orderRows: summary.orderRows.map((order, index) => ({ ...order, orderId: `order-${index + 1}`, paid: false })),
+    }
+
+    render(<AdminOrdersPanel summary={workflowSummary} campaignStatus="closed" onCancelOrder={onCancelOrder} />)
+
+    expect(screen.getByRole('button', { name: '取消 H11 訂單' })).toBeDisabled()
+  })
+
+  it('warns that a paid order loses its payment record before cancelling', async () => {
+    const user = userEvent.setup()
+    const onCancelOrder = vi.fn().mockResolvedValue(undefined)
+    const workflowSummary = {
+      ...summary,
+      orderRows: summary.orderRows.map((order, index) => ({ ...order, orderId: `order-${index + 1}`, paid: index === 0 })),
+    }
+
+    render(<AdminOrdersPanel summary={workflowSummary} campaignStatus="open" onCancelOrder={onCancelOrder} />)
+
+    await user.click(screen.getByRole('button', { name: '取消 H11 訂單' }))
+    expect(screen.getByRole('dialog', { name: '確認取消訂單' }))
+      .toHaveTextContent('此單已標記已付款，取消後付款紀錄一併刪除，請自行完成退款。')
+  })
 })

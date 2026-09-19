@@ -79,4 +79,21 @@ describe('Supabase admin orders gateway', () => {
       p_organizer_note: '已電話確認',
     })
   })
+
+  it('cancels an entire resident order through the organizer RPC', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: {}, error: null })
+    const client = { from: vi.fn(), rpc } as unknown as AdminOrdersSupabaseClient
+
+    await createAdminOrdersGateway(client).cancelOrder('order-1')
+
+    expect(rpc).toHaveBeenCalledWith('cancel_customer_order', { p_order_id: 'order-1' })
+  })
+
+  it('surfaces a readable message when cancelling an order fails', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: { message: '本團已結單，不能取消訂單' } })
+    const client = { from: vi.fn(), rpc } as unknown as AdminOrdersSupabaseClient
+
+    await expect(createAdminOrdersGateway(client).cancelOrder('order-1'))
+      .rejects.toThrow('取消訂單失敗：本團已結單，不能取消訂單')
+  })
 })

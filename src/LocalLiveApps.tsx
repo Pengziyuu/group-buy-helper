@@ -67,6 +67,7 @@ export type LiveAdminOrdersRepository = {
   setCampaignStatus(campaignId: string, status: CampaignStatus): Promise<void>
   setOrderPaid(orderId: string, paid: boolean): Promise<void>
   setOrderOrganizerNote(orderId: string, note: string): Promise<void>
+  cancelOrder(orderId: string): Promise<void>
 }
 
 export type LivePickupNotificationRepository = {
@@ -846,6 +847,17 @@ export function LocalLiveAdminApp({
   }
   if (!content || !campaignStatus) return <LiveLoading label="載入團購草稿與訂單…" />
 
+  const reloadOrderSummary = async () => {
+    if (!publishedContent) return
+    setOrderSummary(await ordersGateway.loadSummary(
+      campaignId,
+      publishedContent.threshold,
+      publishedContent.thresholdKind,
+      publishedContent.amountThreshold,
+      publishedContent.quantityUnit,
+    ))
+  }
+
   return (
     <AdminApp
       initialContent={content}
@@ -864,27 +876,15 @@ export function LocalLiveAdminApp({
       }}
       onSetOrderPaid={async (orderId, paid) => {
         await ordersGateway.setOrderPaid(orderId, paid)
-        if (publishedContent) {
-          setOrderSummary(await ordersGateway.loadSummary(
-            campaignId,
-            publishedContent.threshold,
-            publishedContent.thresholdKind,
-            publishedContent.amountThreshold,
-            publishedContent.quantityUnit,
-          ))
-        }
+        await reloadOrderSummary()
       }}
       onSetOrderOrganizerNote={async (orderId, note) => {
         await ordersGateway.setOrderOrganizerNote(orderId, note)
-        if (publishedContent) {
-          setOrderSummary(await ordersGateway.loadSummary(
-            campaignId,
-            publishedContent.threshold,
-            publishedContent.thresholdKind,
-            publishedContent.amountThreshold,
-            publishedContent.quantityUnit,
-          ))
-        }
+        await reloadOrderSummary()
+      }}
+      onCancelOrder={async (orderId) => {
+        await ordersGateway.cancelOrder(orderId)
+        await reloadOrderSummary()
       }}
       onSaveDraft={async (nextContent) => {
         await gateway.saveDraft(campaignId, nextContent)

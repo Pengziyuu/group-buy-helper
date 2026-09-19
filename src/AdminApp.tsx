@@ -50,6 +50,7 @@ type AdminAppProps = {
   onSetCampaignStatus?: (status: CampaignStatus) => Promise<void>
   onSetOrderPaid?: (orderId: string, paid: boolean) => Promise<void>
   onSetOrderOrganizerNote?: (orderId: string, note: string) => Promise<void>
+  onCancelOrder?: (orderId: string) => Promise<void>
   onPreviewPickupNotification?: (audience: PickupNotificationAudience, message: string) => Promise<PickupNotificationResponse>
   onSendPickupNotification?: (audience: PickupNotificationAudience, message: string, previewToken: string) => Promise<PickupNotificationResponse>
   onUploadImage?: (file: File) => Promise<string>
@@ -73,6 +74,7 @@ function AdminApp({
   onSetCampaignStatus,
   onSetOrderPaid,
   onSetOrderOrganizerNote,
+  onCancelOrder,
   onPreviewPickupNotification,
   onSendPickupNotification,
   onUploadImage,
@@ -857,6 +859,7 @@ function AdminApp({
             onSetCampaignStatus={onSetCampaignStatus}
             onSetOrderPaid={onSetOrderPaid}
             onSetOrderOrganizerNote={onSetOrderOrganizerNote}
+            onCancelOrder={onCancelOrder}
             onPreviewPickupNotification={onPreviewPickupNotification}
             onSendPickupNotification={onSendPickupNotification}
           />

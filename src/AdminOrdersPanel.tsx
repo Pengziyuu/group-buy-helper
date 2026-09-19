@@ -25,6 +25,7 @@ type AdminOrdersPanelProps = {
   onSetCampaignStatus?: (status: CampaignStatus) => Promise<void>
   onSetOrderPaid?: (orderId: string, paid: boolean) => Promise<void>
   onSetOrderOrganizerNote?: (orderId: string, note: string) => Promise<void>
+  onCancelOrder?: (orderId: string) => Promise<void>
   onPreviewPickupNotification?: (audience: PickupNotificationAudience, message: string) => Promise<PickupNotificationResponse>
   onSendPickupNotification?: (audience: PickupNotificationAudience, message: string, previewToken: string) => Promise<PickupNotificationResponse>
 }
@@ -39,6 +40,7 @@ function AdminOrdersPanel({
   onSetCampaignStatus,
   onSetOrderPaid,
   onSetOrderOrganizerNote,
+  onCancelOrder,
   onPreviewPickupNotification,
   onSendPickupNotification,
 }: AdminOrdersPanelProps) {
@@ -48,6 +50,8 @@ function AdminOrdersPanel({
   const [orderFilter, setOrderFilter] = useState<'all' | 'pending'>('all')
   const [paymentTarget, setPaymentTarget] = useState<OrganizerOrderRow | null>(null)
   const [paymentError, setPaymentError] = useState('')
+  const [cancelTarget, setCancelTarget] = useState<OrganizerOrderRow | null>(null)
+  const [cancelError, setCancelError] = useState('')
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({})
 
   const run = async (key: string, action: () => Promise<void>, onError?: (message: string) => void) => {
@@ -224,7 +228,7 @@ function AdminOrdersPanel({
               <thead>
                 <tr>
                   <th>戶號</th><th>姓名</th><th>訂購內容</th><th>總數</th><th>金額</th>
-                  {campaignStatus && <><th>付款</th><th>備註</th></>}
+                  {campaignStatus && <><th>付款</th><th>備註</th><th>操作</th></>}
                 </tr>
               </thead>
               <tbody>
@@ -277,6 +281,20 @@ function AdminOrdersPanel({
                               </button>
                             </div>
                           </td>
+                          <td data-label="操作">
+                            <button
+                              type="button"
+                              className="order-cancel-button"
+                              aria-label={`取消 ${order.unit} 訂單`}
+                              disabled={!onCancelOrder || orderBusy || campaignStatus !== 'open'}
+                              onClick={() => {
+                                setCancelError('')
+                                setCancelTarget(order)
+                              }}
+                            >
+                              取消訂單
+                            </button>
+                          </td>
                         </>
                       )}
                     </tr>
@@ -312,6 +330,36 @@ function AdminOrdersPanel({
         >
           <p>確定要將「{periodLabel(paymentTarget.period)} {paymentTarget.unit}・{paymentTarget.name}」標記為<strong>{paymentTarget.paid ? '未付款' : '已付款'}</strong>嗎？</p>
           {paymentError && <p className="admin-workflow-error" role="alert">{paymentError}</p>}
+        </ConfirmDialog>
+      )}
+      {cancelTarget && (
+        <ConfirmDialog
+          title="確認取消訂單"
+          confirmLabel="確認取消訂單"
+          cancelLabel="返回"
+          destructive
+          busy={busyKeys.has(`order-${cancelTarget.orderId}`)}
+          onCancel={() => {
+            setCancelError('')
+            setCancelTarget(null)
+          }}
+          onConfirm={() => {
+            void (async () => {
+              if (!onCancelOrder) return
+              setCancelError('')
+              const success = await run(
+                `order-${cancelTarget.orderId}`,
+                () => onCancelOrder(cancelTarget.orderId),
+                setCancelError,
+              )
+              if (success) setCancelTarget(null)
+            })()
+          }}
+        >
+          <p>確定要整筆取消「{periodLabel(cancelTarget.period)} {cancelTarget.unit}・{cancelTarget.name}」的訂單嗎？共 {cancelTarget.quantity} {summary.quantityUnit}、{currency(cancelTarget.amount)}。</p>
+          <p>取消後訂單與明細直接刪除，無法復原。住戶若要重新下單，需自行再次送出。</p>
+          {cancelTarget.paid && <p className="admin-workflow-error">此單已標記已付款，取消後付款紀錄一併刪除，請自行完成退款。</p>}
+          {cancelError && <p className="admin-workflow-error" role="alert">{cancelError}</p>}
         </ConfirmDialog>
       )}
     </section>

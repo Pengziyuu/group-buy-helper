@@ -1195,6 +1195,7 @@ export type Database = {
         Returns: boolean
       }
       can_edit_order: { Args: { p_order_id: string }; Returns: boolean }
+      cancel_customer_order: { Args: { p_order_id: string }; Returns: Json }
       claim_pickup_notification_intent:
         | {
             Args: {

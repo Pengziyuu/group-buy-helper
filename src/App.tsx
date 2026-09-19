@@ -194,6 +194,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
   const customDraftQuantity = customDraft.reduce((sum, item) => sum + item.quantity, 0)
   const customDraftValid = customDraft.every((item) => item.name.trim().length > 0 && item.name.trim().length <= 100 && item.quantity >= 1 && item.quantity <= 20)
   const hasDraftItems = draftQuantity > 0 || customDraftQuantity > 0
+  const hasSubmittedOrder = orderQuantity(savedDraft) > 0 || savedCustomDraft.length > 0
   const discountPricing: DiscountPricing = {
     baseRate: publishedCampaign.baseDiscountRate ?? 1,
     mixMatch: publishedCampaign.mixMatchDiscount ? {
@@ -623,6 +624,9 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
             loadingLabel="訂單送出中…"
           >送出訂單</Button>
         </StickyActionBar>
+        {editable && !hasDraftItems && hasSubmittedOrder && (
+          <p className="resident-cancel-hint">想整筆取消訂單，請聯繫團主協助取消。</p>
+        )}
         {notice?.tone === 'error' && <FeedbackMessage className="resident-order-feedback" tone="error">{notice.text}</FeedbackMessage>}
         {notice?.tone === 'success' && <FeedbackMessage className="resident-order-toast" tone="success">{notice.text}</FeedbackMessage>}
         <p className="privacy-note">

@@ -578,4 +578,25 @@ describe('customer campaign app', () => {
     await user.click(screen.getByRole('button', { name: '重新同步' }))
     expect(onSyncRetry).toHaveBeenCalledOnce()
   })
+
+  it('points residents to the organizer when every quantity is cleared', async () => {
+    const user = userEvent.setup()
+    const resident = { ...initialOrders[0], items: { A: 1 } }
+    render(<App residentCustomer={resident} visibleOrders={[resident]} />)
+
+    expect(screen.queryByText('想整筆取消訂單，請聯繫團主協助取消。')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '減少 A 牛奶（招牌）' }))
+
+    expect(screen.getByRole('button', { name: '送出訂單' })).toBeDisabled()
+    expect(screen.getByText('想整筆取消訂單，請聯繫團主協助取消。')).toBeInTheDocument()
+  })
+
+  it('hides the cancel hint from residents who have no order yet', () => {
+    const resident = { ...initialOrders[0], items: {} }
+    render(<App residentCustomer={resident} visibleOrders={[]} />)
+
+    expect(screen.getByRole('button', { name: '送出訂單' })).toBeDisabled()
+    expect(screen.queryByText('想整筆取消訂單，請聯繫團主協助取消。')).not.toBeInTheDocument()
+  })
 })

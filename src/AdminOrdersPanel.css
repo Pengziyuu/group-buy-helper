@@ -110,6 +110,10 @@
 .status-button:hover:not(:disabled) { filter: brightness(.97); }
 .status-button:focus-visible, .order-note-control input:focus-visible, .order-note-control button:focus-visible { outline: 3px solid rgb(22 119 200 / 25%); outline-offset: 2px; }
 .status-button:disabled { opacity: .55; cursor: wait; }
+.order-cancel-button { min-width: 76px; min-height: 44px; padding: 6px 10px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); color: var(--color-text-secondary); font: inherit; font-size: 11px; font-weight: 750; cursor: pointer; }
+.order-cancel-button:hover:not(:disabled) { border-color: #e0c4c4; background: #fff5f5; color: #8f3434; }
+.order-cancel-button:focus-visible { outline: 3px solid rgb(22 119 200 / 25%); outline-offset: 2px; }
+.order-cancel-button:disabled { opacity: .55; cursor: not-allowed; }
 .order-note-control { display: flex; align-items: stretch; gap: 6px; min-width: 220px; }
 .order-note-control input { min-width: 140px; min-height: 44px; padding: 8px 10px; border: 1px solid var(--admin-line); border-radius: 8px; background: #fff; color: var(--admin-ink); font: inherit; }
 .order-note-control button { min-width: 58px; min-height: 44px; padding: 0 10px; border: 1px solid var(--admin-blue); border-radius: 8px; background: #fff; color: var(--admin-blue); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }

@@ -11,10 +11,14 @@ from typing import Any
 API_URL = os.environ["API_URL"]
 ANON_KEY = os.environ["ANON_KEY"]
 SECRET_KEY = os.environ["SECRET_KEY"]
+COMMUNITY_ID = "00000000-0000-4000-8000-000000000001"
 CAMPAIGN_ID = "10000000-0000-4000-8000-000000000001"
 CAMPAIGN_SLUG = "0123456789abcdef0123456789abcdef0123"
 ORDER_ID = "40000000-0000-4000-8000-000000000001"
 CUSTOMER_ID = "30000000-0000-4000-8000-000000000001"
+CANCEL_CUSTOMER_ID = "30000000-0000-4000-8000-0000000000f1"
+CANCEL_ORDER_ID = "40000000-0000-4000-8000-0000000000f1"
+CANCEL_ITEM_ID = "20000000-0000-4000-8000-000000000001"
 
 
 def call(method: str, path: str, key: str, *, token: str | None = None,
@@ -52,8 +56,11 @@ def main() -> None:
                 body={"user_id": admin_id}, prefer="return=minimal")[0] in (200, 201)
     assert call("PATCH", f"/rest/v1/customer?id=eq.{CUSTOMER_ID}", SECRET_KEY,
                 body={"auth_user_id": resident_id}, prefer="return=minimal")[0] in (200, 204)
-    assert call("POST", "/rest/v1/rpc/join_campaign_by_slug", ANON_KEY,
-                token=resident_token, body={"p_slug": CAMPAIGN_SLUG})[0] == 200
+    assert call("POST", "/rest/v1/community_member", SECRET_KEY, prefer="return=minimal",
+                body={"community_id": COMMUNITY_ID, "user_id": resident_id})[0] in (200, 201)
+    joined_status, joined = call("POST", "/rest/v1/rpc/join_campaign_by_slug", ANON_KEY,
+                                 token=resident_token, body={"p_slug": CAMPAIGN_SLUG})
+    assert joined_status == 200 and joined, (joined_status, joined)
 
     def cleanup() -> None:
         call("PATCH", f"/rest/v1/campaign?id=eq.{CAMPAIGN_ID}", SECRET_KEY,
@@ -64,12 +71,30 @@ def main() -> None:
              prefer="return=minimal")
         call("PATCH", f"/rest/v1/customer?id=eq.{CUSTOMER_ID}", SECRET_KEY,
              body={"auth_user_id": None}, prefer="return=minimal")
+        call("DELETE", f"/rest/v1/orders?id=eq.{CANCEL_ORDER_ID}", SECRET_KEY,
+             prefer="return=minimal")
+        call("DELETE", f"/rest/v1/customer?id=eq.{CANCEL_CUSTOMER_ID}", SECRET_KEY,
+             prefer="return=minimal")
         call("DELETE", f"/rest/v1/admin_users?user_id=eq.{admin_id}", SECRET_KEY,
              prefer="return=minimal")
         call("DELETE", f"/auth/v1/admin/users/{admin_id}", SECRET_KEY)
         call("DELETE", f"/auth/v1/admin/users/{resident_id}", SECRET_KEY)
 
     atexit.register(cleanup)
+
+    # A throwaway household and order so cancelling never destroys seed rows.
+    assert call("POST", "/rest/v1/customer", SECRET_KEY, prefer="return=minimal",
+                body={"id": CANCEL_CUSTOMER_ID, "period": 2, "unit": "3Z15",
+                      "name": "取消驗證"})[0] in (200, 201)
+    assert call("POST", "/rest/v1/orders", SECRET_KEY, prefer="return=minimal",
+                body={"id": CANCEL_ORDER_ID, "campaign_id": CAMPAIGN_ID,
+                      "customer_id": CANCEL_CUSTOMER_ID})[0] in (200, 201)
+    assert call("POST", "/rest/v1/order_item", SECRET_KEY, prefer="return=minimal",
+                body={"order_id": CANCEL_ORDER_ID, "campaign_id": CAMPAIGN_ID,
+                      "campaign_item_id": CANCEL_ITEM_ID, "qty": 2})[0] in (200, 201)
+    assert call("POST", "/rest/v1/payment", SECRET_KEY, prefer="return=minimal",
+                body={"order_id": CANCEL_ORDER_ID, "amount": 90, "paid": True,
+                      "paid_at": "2026-09-19T00:00:00Z"})[0] in (200, 201)
 
     status, _ = call("POST", "/rest/v1/rpc/set_campaign_status", ANON_KEY,
                      token=resident_token,
@@ -119,8 +144,34 @@ def main() -> None:
     resident_cannot_read_admin_view = status in (401, 403) or resident_rows == []
     assert resident_cannot_read_admin_view, (status, resident_rows)
 
+    status, _ = call("POST", "/rest/v1/rpc/cancel_customer_order", ANON_KEY,
+                     token=resident_token, body={"p_order_id": CANCEL_ORDER_ID})
+    resident_cannot_cancel = status in (401, 403)
+    assert resident_cannot_cancel, status
+
+    status, _ = call("POST", "/rest/v1/rpc/cancel_customer_order", ANON_KEY,
+                     token=admin_token, body={"p_order_id": CANCEL_ORDER_ID})
+    closed_blocks_cancel = status in (400, 409, 422)
+    assert closed_blocks_cancel, status
+
+    assert call("POST", "/rest/v1/rpc/set_campaign_status", ANON_KEY, token=admin_token,
+                body={"p_campaign_id": CAMPAIGN_ID, "p_status": "open"})[0] == 200
+
+    status, cancelled = call("POST", "/rest/v1/rpc/cancel_customer_order", ANON_KEY,
+                             token=admin_token, body={"p_order_id": CANCEL_ORDER_ID})
+    admin_can_cancel_open_order = status == 200 and cancelled["order_id"] == CANCEL_ORDER_ID
+    assert admin_can_cancel_open_order, (status, cancelled)
+
+    remaining = [
+        call("GET", f"/rest/v1/{table}?order_id=eq.{CANCEL_ORDER_ID}", SECRET_KEY)[1]
+        for table in ("order_item", "payment", "organizer_order_note")
+    ]
+    remaining.append(call("GET", f"/rest/v1/orders?id=eq.{CANCEL_ORDER_ID}", SECRET_KEY)[1])
+    cancel_removes_order_and_children = all(rows == [] for rows in remaining)
+    assert cancel_removes_order_and_children, remaining
+
     print(json.dumps({
-        "checks": 7,
+        "checks": 11,
         "resident_cannot_close": resident_cannot_close,
         "admin_can_close": admin_can_close,
         "closed_blocks_order_edits": closed_blocks_order_edits,
@@ -128,6 +179,10 @@ def main() -> None:
         "admin_can_update_payment_and_note": admin_can_update_payment_and_note,
         "admin_can_read_status": admin_can_read_status,
         "resident_cannot_read_admin_view": resident_cannot_read_admin_view,
+        "resident_cannot_cancel": resident_cannot_cancel,
+        "closed_blocks_cancel": closed_blocks_cancel,
+        "admin_can_cancel_open_order": admin_can_cancel_open_order,
+        "cancel_removes_order_and_children": cancel_removes_order_and_children,
     }, ensure_ascii=False))
 
 

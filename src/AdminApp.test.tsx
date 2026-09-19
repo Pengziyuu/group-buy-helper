@@ -620,4 +620,16 @@ describe('organizer campaign editor', () => {
     expect(screen.getByText('已正式開團，品項代碼、名稱與單價已鎖定。')).toBeInTheDocument()
     expect(screen.getByText('已發布')).toBeInTheDocument()
   })
+
+  it('lets organizers cancel a resident order from the orders workspace', async () => {
+    const user = userEvent.setup()
+    const onCancelOrder = vi.fn().mockResolvedValue(undefined)
+    render(<AdminApp campaignStatus="open" onCancelOrder={onCancelOrder} />)
+
+    await user.click(screen.getByRole('tab', { name: '訂單管理' }))
+    await user.click(screen.getByRole('button', { name: '取消 H11 訂單' }))
+    await user.click(screen.getByRole('button', { name: '確認取消訂單' }))
+
+    expect(onCancelOrder).toHaveBeenCalledOnce()
+  })
 })

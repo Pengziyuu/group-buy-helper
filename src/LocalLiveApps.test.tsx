@@ -42,6 +42,7 @@ const ordersRepository = (): LiveAdminOrdersRepository => ({
   setCampaignStatus: vi.fn().mockResolvedValue(undefined),
   setOrderPaid: vi.fn().mockResolvedValue(undefined),
   setOrderOrganizerNote: vi.fn().mockResolvedValue(undefined),
+  cancelOrder: vi.fn().mockResolvedValue(undefined),
 })
 
 function memoryAuthStorage(initial: Record<string, string> = {}) {
@@ -440,6 +441,37 @@ describe('local Supabase visual demo apps', () => {
       published.amountThreshold,
       published.quantityUnit,
     )
+  })
+
+  it('cancels a resident order through the live organizer gateway and reloads the summary', async () => {
+    const user = userEvent.setup()
+    const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
+    const { client } = authClient(session)
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      saveDraft: vi.fn(),
+      publish: vi.fn(),
+    }
+    const workflowRepository = ordersRepository()
+
+    render(
+      <LocalLiveAdminApp
+        client={client}
+        campaignId="campaign-1"
+        repository={repository}
+        ordersRepository={workflowRepository}
+      />,
+    )
+
+    expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: '訂單管理' }))
+    await user.click(screen.getByRole('button', { name: '取消 H11 訂單' }))
+    await user.click(screen.getByRole('button', { name: '確認取消訂單' }))
+
+    await waitFor(() => expect(workflowRepository.cancelOrder).toHaveBeenCalledOnce())
+    await waitFor(() => expect(workflowRepository.loadSummary).toHaveBeenCalledTimes(2))
   })
 
   it('uses LINE instead of email and shows a safe organizer approval code', async () => {
