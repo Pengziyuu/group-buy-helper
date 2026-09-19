@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import atexit
+import hashlib
 import json
 import os
 import urllib.error
@@ -62,6 +63,12 @@ def main() -> None:
                                  token=resident_token, body={"p_slug": CAMPAIGN_SLUG})
     assert joined_status == 200 and joined, (joined_status, joined)
 
+    # auth user ids for throwaway accounts created below (after atexit.register)
+    # that bind their own customer row via bind_customer_self. customer.auth_user_id
+    # is ON DELETE SET NULL, not CASCADE, so the customer row must be deleted
+    # explicitly before the auth user or it survives as an orphan.
+    extra_account_ids: list[str] = []
+
     def cleanup() -> None:
         call("PATCH", f"/rest/v1/campaign?id=eq.{CAMPAIGN_ID}", SECRET_KEY,
              body={"status": "open"}, prefer="return=minimal")
@@ -75,6 +82,10 @@ def main() -> None:
              prefer="return=minimal")
         call("DELETE", f"/rest/v1/customer?id=eq.{CANCEL_CUSTOMER_ID}", SECRET_KEY,
              prefer="return=minimal")
+        for account_id in extra_account_ids:
+            call("DELETE", f"/rest/v1/customer?auth_user_id=eq.{account_id}", SECRET_KEY,
+                 prefer="return=minimal")
+            call("DELETE", f"/auth/v1/admin/users/{account_id}", SECRET_KEY)
         call("DELETE", f"/rest/v1/admin_users?user_id=eq.{admin_id}", SECRET_KEY,
              prefer="return=minimal")
         call("DELETE", f"/auth/v1/admin/users/{admin_id}", SECRET_KEY)
@@ -170,8 +181,81 @@ def main() -> None:
     cancel_removes_order_and_children = all(rows == [] for rows in remaining)
     assert cancel_removes_order_and_children, remaining
 
+    # A real LINE-verified resident (line_resident_identity row present) may
+    # share one household with another verified account; bind_customer_self
+    # rejects only mismatched period/unit, not a second occupant of the same one.
+    second_id, second_token = signup()
+    extra_account_ids.append(second_id)
+    assert call("POST", "/rest/v1/community_member", SECRET_KEY, prefer="return=minimal",
+                body={"community_id": COMMUNITY_ID, "user_id": second_id})[0] in (200, 201)
+    assert call("POST", "/rest/v1/line_resident_identity", SECRET_KEY, prefer="return=minimal",
+                body={"line_user_id": f"verify-second-{second_id}", "auth_user_id": second_id,
+                      "display_name": "共戶驗證帳號"})[0] in (200, 201)
+    status, _ = call("POST", "/rest/v1/rpc/bind_customer_self", ANON_KEY, token=second_token,
+                     body={"p_household_kind": "resident", "p_period": 2, "p_unit": "2K13"})
+    shared_household_allows_second_account = status == 200
+    assert shared_household_allows_second_account, status
+
+    other_id, other_token = signup()
+    extra_account_ids.append(other_id)
+    assert call("POST", "/rest/v1/community_member", SECRET_KEY, prefer="return=minimal",
+                body={"community_id": COMMUNITY_ID, "user_id": other_id})[0] in (200, 201)
+    assert call("POST", "/rest/v1/line_resident_identity", SECRET_KEY, prefer="return=minimal",
+                body={"line_user_id": f"verify-other-{other_id}", "auth_user_id": other_id,
+                      "display_name": "社區外驗證帳號"})[0] in (200, 201)
+    status, bound = call("POST", "/rest/v1/rpc/bind_customer_self", ANON_KEY, token=other_token,
+                         body={"p_household_kind": "other", "p_period": None, "p_unit": None})
+    other_binds_without_household = status == 200 and bound[0]["period"] is None and bound[0]["unit"] is None
+    assert other_binds_without_household, (status, bound)
+
+    # The frontend deployed in production today only ever calls the old
+    # two-argument bind_customer_self(integer, text). Task 2 rewrote it into a
+    # thin SQL wrapper that delegates to the three-argument version with
+    # p_household_kind fixed to 'resident'. Prove that delegation end-to-end
+    # with the exact call shape production makes: no kind argument at all.
+    legacy_id, legacy_token = signup()
+    extra_account_ids.append(legacy_id)
+    assert call("POST", "/rest/v1/community_member", SECRET_KEY, prefer="return=minimal",
+                body={"community_id": COMMUNITY_ID, "user_id": legacy_id})[0] in (200, 201)
+    assert call("POST", "/rest/v1/line_resident_identity", SECRET_KEY, prefer="return=minimal",
+                body={"line_user_id": f"verify-legacy-{legacy_id}", "auth_user_id": legacy_id,
+                      "display_name": "舊版綁定驗證帳號"})[0] in (200, 201)
+    status, legacy_bound = call("POST", "/rest/v1/rpc/bind_customer_self", ANON_KEY, token=legacy_token,
+                                body={"p_period": 1, "p_unit": "A3"})
+    legacy_two_arg_bind_still_works = (
+        status == 200 and bool(legacy_bound)
+        and legacy_bound[0]["period"] == 1 and legacy_bound[0]["unit"] == "A3"
+    )
+    if legacy_two_arg_bind_still_works:
+        _, legacy_rows = call(
+            "GET", f"/rest/v1/customer?id=eq.{legacy_bound[0]['id']}&select=household_kind", SECRET_KEY,
+        )
+        legacy_two_arg_bind_still_works = bool(legacy_rows) and legacy_rows[0]["household_kind"] == "resident"
+    assert legacy_two_arg_bind_still_works, (status, legacy_bound)
+
+    # The notification RPCs require the campaign to be closed or arrived; the
+    # cancel-flow checks above reopened it, so close it again before reading.
+    assert call("POST", "/rest/v1/rpc/set_campaign_status", ANON_KEY, token=admin_token,
+                body={"p_campaign_id": CAMPAIGN_ID, "p_status": "closed"})[0] == 200
+
+    status, recipients = call("POST", "/rest/v1/rpc/internal_pickup_notification_recipients", SECRET_KEY,
+                              body={"p_campaign_id": CAMPAIGN_ID, "p_audience": "phase2"})
+    pickup_excludes_other = status == 200 and all(row["unit"] is not None for row in recipients)
+    assert pickup_excludes_other, (status, recipients)
+
+    hashes = []
+    for audience in ("phase13", "phase2"):
+        _, rows = call("POST", "/rest/v1/rpc/internal_pickup_notification_recipients", SECRET_KEY,
+                       body={"p_campaign_id": CAMPAIGN_ID, "p_audience": audience})
+        _, digest = call("POST", "/rest/v1/rpc/internal_pickup_notification_eligible_hash", SECRET_KEY,
+                         body={"p_campaign_id": CAMPAIGN_ID, "p_audience": audience})
+        expected = hashlib.sha256("\n".join(sorted({row["line_user_id"] for row in rows})).encode()).hexdigest()
+        hashes.append(digest == expected)
+    recipients_match_eligibility_hash = all(hashes)
+    assert recipients_match_eligibility_hash, hashes
+
     print(json.dumps({
-        "checks": 11,
+        "checks": 16,
         "resident_cannot_close": resident_cannot_close,
         "admin_can_close": admin_can_close,
         "closed_blocks_order_edits": closed_blocks_order_edits,
@@ -183,6 +267,11 @@ def main() -> None:
         "closed_blocks_cancel": closed_blocks_cancel,
         "admin_can_cancel_open_order": admin_can_cancel_open_order,
         "cancel_removes_order_and_children": cancel_removes_order_and_children,
+        "shared_household_allows_second_account": shared_household_allows_second_account,
+        "other_binds_without_household": other_binds_without_household,
+        "legacy_two_arg_bind_still_works": legacy_two_arg_bind_still_works,
+        "pickup_excludes_other": pickup_excludes_other,
+        "recipients_match_eligibility_hash": recipients_match_eligibility_hash,
     }, ensure_ascii=False))
 
 
