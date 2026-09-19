@@ -643,4 +643,11 @@ describe('customer campaign app', () => {
 
     expect(onBindResident).toHaveBeenCalledWith({ kind: 'resident', period: 1, unit: 'H11' })
   })
+
+  it('gives every demo order its own identity so one household can hold two of them', () => {
+    const ids = initialOrders.map((order) => order.customerId)
+
+    expect(new Set(ids).size).toBe(ids.length)
+    expect(initialOrders.every((order) => order.householdKind === 'resident')).toBe(true)
+  })
 })

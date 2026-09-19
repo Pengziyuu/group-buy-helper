@@ -85,13 +85,13 @@ export const items: CampaignItem[] = [
   { code: 'I', name: '泰奶', unitPrice: 45, active: true },
 ]
 
-export const currentCustomerId = '2:2K13'
+export const currentCustomerId = 'demo-customer-1'
 
 export const initialOrders: VisibleOrder[] = [
-  { customerId: '2:2K13', name: '斯祈', period: 2, unit: '2K13', items: { B: 2, D: 2, E: 2 }, orderedAt: '2026-08-14T00:10:00Z', updatedAt: '2026-08-14T00:12:00Z' },
-  { customerId: '1:H11', name: '佩怡', period: 1, unit: 'H11', items: { B: 1, C: 1, D: 1, F: 1 }, orderedAt: '2026-08-14T00:15:00Z', updatedAt: '2026-08-14T00:15:00Z' },
-  { customerId: '2:3H15', name: 'Lena', period: 2, unit: '3H15', items: { C: 2, E: 1, F: 1, H: 2 }, orderedAt: '2026-08-14T00:20:00Z', updatedAt: '2026-08-14T00:20:00Z' },
-  { customerId: '2:2I7', name: 'Sophie', period: 2, unit: '2I7', items: { A: 2, B: 2, C: 2, D: 2, E: 2, F: 2, G: 2, H: 2, I: 2 }, orderedAt: '2026-08-14T00:25:00Z', updatedAt: '2026-08-14T00:25:00Z' },
-  { customerId: '2:1E7', name: 'Ashley Hsieh', period: 2, unit: '1E7', items: { B: 4, F: 2, G: 2, H: 2, I: 2 }, orderedAt: '2026-08-14T00:30:00Z', updatedAt: '2026-08-14T00:30:00Z' },
-  { customerId: '2:3E9', name: '黃百后', period: 2, unit: '3E9', items: { B: 5, C: 3, D: 5, E: 3 }, orderedAt: '2026-08-14T00:35:00Z', updatedAt: '2026-08-14T00:35:00Z' },
+  { customerId: 'demo-customer-1', name: '斯祈', period: 2, unit: '2K13', householdKind: 'resident', items: { B: 2, D: 2, E: 2 }, orderedAt: '2026-08-14T00:10:00Z', updatedAt: '2026-08-14T00:12:00Z' },
+  { customerId: 'demo-customer-2', name: '佩怡', period: 1, unit: 'H11', householdKind: 'resident', items: { B: 1, C: 1, D: 1, F: 1 }, orderedAt: '2026-08-14T00:15:00Z', updatedAt: '2026-08-14T00:15:00Z' },
+  { customerId: 'demo-customer-3', name: 'Lena', period: 2, unit: '3H15', householdKind: 'resident', items: { C: 2, E: 1, F: 1, H: 2 }, orderedAt: '2026-08-14T00:20:00Z', updatedAt: '2026-08-14T00:20:00Z' },
+  { customerId: 'demo-customer-4', name: 'Sophie', period: 2, unit: '2I7', householdKind: 'resident', items: { A: 2, B: 2, C: 2, D: 2, E: 2, F: 2, G: 2, H: 2, I: 2 }, orderedAt: '2026-08-14T00:25:00Z', updatedAt: '2026-08-14T00:25:00Z' },
+  { customerId: 'demo-customer-5', name: 'Ashley Hsieh', period: 2, unit: '1E7', householdKind: 'resident', items: { B: 4, F: 2, G: 2, H: 2, I: 2 }, orderedAt: '2026-08-14T00:30:00Z', updatedAt: '2026-08-14T00:30:00Z' },
+  { customerId: 'demo-customer-6', name: '黃百后', period: 2, unit: '3E9', householdKind: 'resident', items: { B: 5, C: 3, D: 5, E: 3 }, orderedAt: '2026-08-14T00:35:00Z', updatedAt: '2026-08-14T00:35:00Z' },
 ]
