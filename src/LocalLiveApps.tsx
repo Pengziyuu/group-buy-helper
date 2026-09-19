@@ -138,13 +138,17 @@ type ResidentCustomer = Pick<VisibleOrder, 'customerId' | 'name'> & {
 }
 type OrderWallRow = Pick<
   Database['public']['Views']['order_wall']['Row'],
-  'order_id' | 'customer_id' | 'customer_name' | 'picture_url' | 'period' | 'unit' | 'item_code' | 'qty' | 'final_unit_price' | 'custom_items' | 'ordered_at' | 'order_updated_at'
+  'order_id' | 'customer_id' | 'customer_name' | 'picture_url' | 'period' | 'unit' | 'household_kind' | 'item_code' | 'qty' | 'final_unit_price' | 'custom_items' | 'ordered_at' | 'order_updated_at'
 >
 
 function visibleOrdersFromRows(rows: OrderWallRow[]): VisibleOrder[] {
   const orders = new Map<string, VisibleOrder>()
   for (const row of rows) {
-    if (!row.order_id || !row.customer_id || !row.customer_name || row.period === null || !row.unit
+    // An 'other' household legitimately has a null period and unit (they are
+    // outside the community), so only the fields every order genuinely
+    // needs gate inclusion here - the same fix as adminOrdersGateway.ts
+    // applies on the organizer side.
+    if (!row.order_id || !row.customer_id || !row.customer_name
       || !row.ordered_at || !row.order_updated_at) continue
     const order = orders.get(row.order_id) ?? {
       customerId: row.customer_id,
@@ -152,6 +156,7 @@ function visibleOrdersFromRows(rows: OrderWallRow[]): VisibleOrder[] {
       pictureUrl: row.picture_url,
       period: row.period,
       unit: row.unit,
+      householdKind: (row.household_kind ?? 'resident') as HouseholdKind,
       items: {},
       itemUnitPrices: {},
       customItems: parseCustomOrderItems(row.custom_items),
@@ -1084,7 +1089,7 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug }: Loca
       if (!resolvedCampaignId) throw new Error('找不到團購活動')
       const [wallResult, customerResult, identityResult] = await Promise.all([
         client.from('order_wall')
-          .select('order_id,customer_id,customer_name,picture_url,period,unit,item_code,qty,final_unit_price,custom_items,ordered_at,order_updated_at')
+          .select('order_id,customer_id,customer_name,picture_url,period,unit,household_kind,item_code,qty,final_unit_price,custom_items,ordered_at,order_updated_at')
           .eq('campaign_id', resolvedCampaignId),
         client.rpc('get_customer_self'),
         client.rpc('get_line_resident_self'),
@@ -1225,7 +1230,7 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug }: Loca
         })
         if (submitError) throw submitError
         const { data, error: wallError } = await client.from('order_wall')
-          .select('order_id,customer_id,customer_name,picture_url,period,unit,item_code,qty,final_unit_price,custom_items,ordered_at,order_updated_at')
+          .select('order_id,customer_id,customer_name,picture_url,period,unit,household_kind,item_code,qty,final_unit_price,custom_items,ordered_at,order_updated_at')
           .eq('campaign_id', joinedCampaignId)
         if (wallError) throw wallError
         setOrders(visibleOrdersFromRows(data ?? []))

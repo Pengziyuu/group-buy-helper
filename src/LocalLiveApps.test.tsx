@@ -1820,6 +1820,58 @@ describe('local Supabase visual demo apps', () => {
     expect(screen.queryByRole('button', { name: '儲存住戶資料' })).not.toBeInTheDocument()
   })
 
+  it('shows an outside-the-community order on the live wall and prefills its own draft instead of hiding it', async () => {
+    const session = { access_token: 'resident-token', user: { id: 'resident-uid', is_anonymous: false } }
+    const { client } = authClient(session)
+    const single = vi.fn().mockResolvedValue({
+      data: {
+        title: published.title, unit_price: published.unitPrice, threshold: published.threshold,
+        announcement: published.announcement, images: published.images, items: published.items,
+        opened_at: published.openedAt, status: 'open',
+      },
+      error: null,
+    })
+    const campaignEq = vi.fn().mockReturnValue({ single })
+    const wallEq = vi.fn().mockResolvedValue({
+      data: [{
+        order_id: 'order-other-1', customer_id: 'customer-other-1', customer_name: '丙',
+        picture_url: null, period: null, unit: null, household_kind: 'other',
+        item_code: published.items[0].code, qty: 3,
+        ordered_at: '2026-08-14T01:00:00Z', order_updated_at: '2026-08-14T01:05:00Z',
+      }],
+      error: null,
+    })
+    const rpc = vi.fn((name: string) => {
+      if (name === 'join_campaign_by_slug') return Promise.resolve({ data: [{ id: 'campaign-1' }], error: null })
+      if (name === 'get_line_resident_self') return Promise.resolve({
+        data: [{ display_name: '丙', picture_url: null }], error: null,
+      })
+      if (name === 'get_customer_self') return Promise.resolve({
+        data: [{ id: 'customer-other-1', name: '丙', period: null, unit: null }], error: null,
+      })
+      throw new Error(`unexpected RPC ${name}`)
+    })
+    const on = vi.fn().mockReturnThis()
+    const subscribe = vi.fn().mockReturnThis()
+    Object.assign(client, {
+      rpc,
+      from: vi.fn((table: string) => table === 'campaign_public'
+        ? { select: vi.fn().mockReturnValue({ eq: campaignEq }) }
+        : { select: vi.fn().mockReturnValue({ eq: wallEq }) }),
+      channel: vi.fn().mockReturnValue({ on, subscribe }),
+      removeChannel: vi.fn().mockResolvedValue(undefined),
+    })
+
+    render(<LocalLiveResidentApp client={client} campaignSlug="campaign-slug" />)
+
+    // The order wall keeps the 'other' household's order instead of dropping
+    // it for a null period/unit.
+    expect(await screen.findByText('其他')).toBeInTheDocument()
+    // Their own draft is prefilled from that same order rather than showing
+    // an empty draft they could accidentally resubmit.
+    expect(screen.getByText('我的訂單 3 個')).toBeInTheDocument()
+  })
+
   it('resolves a resident share slug to its campaign id before loading data', async () => {
     const session = { access_token: 'resident-token', user: { id: 'resident-user', is_anonymous: false } }
     const { client } = authClient(session)

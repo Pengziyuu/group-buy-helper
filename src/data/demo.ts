@@ -1,5 +1,6 @@
 import type { Order } from '../domain/campaign'
 import type { CustomOrderItem } from '../domain/customOrderItem'
+import type { HouseholdKind } from '../domain/household'
 
 export type CampaignItem = {
   code: string
@@ -12,8 +13,9 @@ export type VisibleOrder = Order & {
   customItems?: CustomOrderItem[]
   name: string
   pictureUrl?: string | null
-  period: number
-  unit: string
+  period: number | null
+  unit: string | null
+  householdKind?: HouseholdKind
   orderedAt: string
   updatedAt: string
 }
