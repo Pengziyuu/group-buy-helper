@@ -17,5 +17,8 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test/setup.ts',
+    // Agent worktrees under .claude/ hold a second copy of every test file,
+    // which silently doubles the suite and reports stale code as passing.
+    exclude: ['node_modules/**', 'dist/**', '.claude/**'],
   },
 })
