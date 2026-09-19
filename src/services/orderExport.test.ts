@@ -133,12 +133,18 @@ describe('order Excel export', () => {
 
 describe('export ordering when a household is shared', () => {
   it('keeps two accounts in one household in a stable name order and puts others last', () => {
+    // Each override carries a single formal item and no custom items, so
+    // every household yields exactly one export row regardless of which
+    // order summary.orderRows[0] happens to be -- buildOrganizerOrderSummary
+    // orders that array by the same numeric-aware comparator this test does
+    // not otherwise exercise, so its identity should not matter here.
+    const template = { ...summary.orderRows[0], items: { A: 1 }, customItems: [] }
     const rows = buildOrderExportRows({
       ...summary,
       orderRows: [
-        { ...summary.orderRows[0], orderId: 'o3', name: '丙', period: null, unit: null, householdKind: 'other' },
-        { ...summary.orderRows[0], orderId: 'o2', name: '乙', period: 2, unit: '2K13', householdKind: 'resident' },
-        { ...summary.orderRows[0], orderId: 'o1', name: '甲', period: 2, unit: '2K13', householdKind: 'resident' },
+        { ...template, orderId: 'o3', name: '丙', period: null, unit: null, householdKind: 'other' },
+        { ...template, orderId: 'o2', name: '乙', period: 2, unit: '2K13', householdKind: 'resident' },
+        { ...template, orderId: 'o1', name: '甲', period: 2, unit: '2K13', householdKind: 'resident' },
       ],
     }, '測試團購')
 

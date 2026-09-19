@@ -31,6 +31,24 @@ export function formatHousehold(kind: HouseholdKind, period: number | null, unit
   return `${formatResidentPeriod(period)} ${unit}`
 }
 
+export type HouseholdSortKey = {
+  householdKind: HouseholdKind
+  period: number | null
+  unit: string | null
+}
+
+const householdUnitCollator = new Intl.Collator('zh-TW', { numeric: true, sensitivity: 'base' })
+
+// Residents sort before people outside the community, then by period, then
+// by unit -- numerically, so 2A9 sorts before 2A10 as a human expects. Used
+// wherever household order and the exported spreadsheet's order need to
+// agree, since organizers cross-reference the two while handing out goods.
+export function compareHousehold(left: HouseholdSortKey, right: HouseholdSortKey): number {
+  if (left.householdKind !== right.householdKind) return left.householdKind === 'resident' ? -1 : 1
+  if (left.householdKind === 'other') return 0
+  return (left.period ?? 0) - (right.period ?? 0) || householdUnitCollator.compare(left.unit ?? '', right.unit ?? '')
+}
+
 export type HouseholdSelection = {
   kind: HouseholdKind
   period: ResidentPeriod

@@ -1,5 +1,5 @@
 import type { OrganizerOrderSummary } from '../domain/adminOrders'
-import type { HouseholdKind } from '../domain/household'
+import { compareHousehold, type HouseholdKind } from '../domain/household'
 
 export type OrderExportRow = {
   name: string
@@ -23,10 +23,7 @@ const unitCollator = new Intl.Collator('zh-TW', { numeric: true, sensitivity: 'b
 export function buildOrderExportRows(summary: OrganizerOrderSummary, campaignTitle: string): OrderExportRow[] {
   const itemByCode = new Map(summary.itemRows.map((item, index) => [item.code, { ...item, index }]))
   const orders = [...summary.orderRows].sort((left, right) => (
-    (left.householdKind === right.householdKind ? 0 : left.householdKind === 'resident' ? -1 : 1)
-      || (left.period ?? 0) - (right.period ?? 0)
-      || unitCollator.compare(left.unit ?? '', right.unit ?? '')
-      || left.name.localeCompare(right.name, 'zh-TW-u-co-pinyin')
+    compareHousehold(left, right) || left.name.localeCompare(right.name, 'zh-TW-u-co-pinyin')
   ))
 
   return orders.flatMap((order) => {

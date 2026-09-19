@@ -3,7 +3,7 @@ import { summarizePayment } from './orderWorkflow'
 import { itemLabel } from './itemLabel'
 import { normalizeQuantityUnit, type QuantityUnit } from './quantityUnit'
 import type { CustomOrderItem } from './customOrderItem'
-import type { HouseholdKind } from './household'
+import { compareHousehold, type HouseholdKind } from './household'
 
 export type OrganizerCampaignItem = {
   code: string
@@ -159,13 +159,4 @@ export function buildOrganizerOrderSummary({
     orderRows,
     fulfillment: summarizePayment(orderRows),
   }
-}
-
-function compareHousehold(
-  left: { householdKind: HouseholdKind; period: number | null; unit: string | null },
-  right: { householdKind: HouseholdKind; period: number | null; unit: string | null },
-): number {
-  if (left.householdKind !== right.householdKind) return left.householdKind === 'resident' ? -1 : 1
-  if (left.householdKind === 'other') return 0
-  return (left.period ?? 0) - (right.period ?? 0) || (left.unit ?? '').localeCompare(right.unit ?? '')
 }

@@ -4,6 +4,7 @@ import {
   HOUSEHOLD_NUMBERS,
   HOUSEHOLD_PREFIXES,
   RESIDENT_PERIODS,
+  compareHousehold,
   formatHouseholdUnit,
   parseHouseholdLabel,
   parseHouseholdUnit,
@@ -80,5 +81,30 @@ describe('household kind formatting', () => {
 
   it('produces no unit string for someone outside the community', () => {
     expect(formatHouseholdUnit({ kind: 'other', period: 1, prefix: null, letter: 'A', number: 1 })).toBeNull()
+  })
+})
+
+describe('compareHousehold', () => {
+  it('sorts residents before people outside the community regardless of period or unit', () => {
+    const other = { householdKind: 'other' as const, period: null, unit: null }
+    const resident = { householdKind: 'resident' as const, period: 1, unit: 'A1' }
+
+    expect(compareHousehold(resident, other)).toBeLessThan(0)
+    expect(compareHousehold(other, resident)).toBeGreaterThan(0)
+    expect(compareHousehold(other, { ...other })).toBe(0)
+  })
+
+  it('breaks a tie by period, then by unit numerically so 2A9 sorts before 2A10', () => {
+    const period1 = { householdKind: 'resident' as const, period: 1, unit: 'A1' }
+    const period2 = { householdKind: 'resident' as const, period: 2, unit: 'A1' }
+    expect(compareHousehold(period1, period2)).toBeLessThan(0)
+
+    const unitA9 = { householdKind: 'resident' as const, period: 2, unit: '2A9' }
+    const unitA10 = { householdKind: 'resident' as const, period: 2, unit: '2A10' }
+    expect(compareHousehold(unitA9, unitA10)).toBeLessThan(0)
+    // A plain localeCompare would order these the other way ('2A10' < '2A9'
+    // lexicographically), which is exactly the discrepancy the two
+    // duplicated comparators had before they were unified on this one.
+    expect('2A10'.localeCompare('2A9')).toBeLessThan(0)
   })
 })
