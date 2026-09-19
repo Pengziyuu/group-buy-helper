@@ -85,6 +85,7 @@ export function createResidentMemberManagementGateway(client: SupabaseClient<Dat
       const normalized = parseHouseholdUnit(household.period, household.unit)
       const { error } = await client.rpc('admin_update_resident_household', {
         p_member_code: memberCode,
+        p_household_kind: 'resident',
         p_period: normalized.period,
         p_unit: household.unit.trim().toUpperCase(),
       })

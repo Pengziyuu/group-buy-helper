@@ -23,6 +23,18 @@ const members = [{
   blockedAt: '2026-08-14T01:00:00Z',
 }]
 
+const otherMember = {
+  memberCode: 'fedcba9876543210fedcba9876543210fedc',
+  displayName: '住戶丙',
+  pictureUrl: null,
+  period: null,
+  unit: null,
+  householdKind: 'other' as const,
+  joinedAt: '2026-08-15T00:00:00Z',
+  blocked: false,
+  blockedAt: null,
+}
+
 describe('ResidentMemberManagementApp', () => {
   it('shows verified LINE residents without internal identity fields', () => {
     render(<ResidentMemberManagementApp members={members} onSetBlocked={vi.fn()} onUpdateHousehold={vi.fn()} />)
@@ -93,5 +105,33 @@ describe('ResidentMemberManagementApp', () => {
     )
     expect(await screen.findByText('已更新住戶甲的期別／戶號')).toBeInTheDocument()
     expect(screen.getByText('三期 3Z15')).toBeInTheDocument()
+  })
+
+  it('lets the organizer repair an other member who was mis-clicked into that kind', async () => {
+    const user = userEvent.setup()
+    const onUpdateHousehold = vi.fn().mockResolvedValue(undefined)
+    render(
+      <ResidentMemberManagementApp
+        members={[otherMember]}
+        onSetBlocked={vi.fn()}
+        onUpdateHousehold={onUpdateHousehold}
+      />,
+    )
+
+    expect(screen.getByText('其他')).toBeInTheDocument()
+    const adjustButton = screen.getByRole('button', { name: '調整住戶資料 住戶丙' })
+    expect(adjustButton).toBeInTheDocument()
+
+    await user.click(adjustButton)
+    await user.selectOptions(screen.getByRole('combobox', { name: '住戶丙 期別' }), '1')
+    await user.selectOptions(screen.getByRole('combobox', { name: '住戶丙 戶號英文字母' }), 'A')
+    await user.selectOptions(screen.getByRole('combobox', { name: '住戶丙 樓層' }), '1')
+    await user.click(screen.getByRole('button', { name: '儲存住戶資料 住戶丙' }))
+
+    expect(onUpdateHousehold).toHaveBeenCalledWith(
+      'fedcba9876543210fedcba9876543210fedc',
+      { period: 1, unit: 'A1' },
+    )
+    expect(await screen.findByText('已更新住戶丙的期別／戶號')).toBeInTheDocument()
   })
 })

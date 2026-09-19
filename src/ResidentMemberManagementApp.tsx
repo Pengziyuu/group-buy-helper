@@ -146,7 +146,7 @@ export default function ResidentMemberManagementApp({ members, onSetBlocked, onU
               <small>加入時間 {formatZhTwTimestamp(member.joinedAt)}</small>
             </div>
             <div className="resident-member-actions">
-              {!member.blocked && member.period !== null && member.unit && (
+              {!member.blocked && (member.householdKind === 'other' || (member.period !== null && member.unit)) && (
                 <button type="button" className="resident-action resident-action-secondary" aria-label={`調整住戶資料 ${member.displayName}`} disabled={Boolean(busyCode)} onClick={() => openHouseholdEditor(member)}>
                   <span aria-hidden="true">✎</span>調整期別／戶號
                 </button>
