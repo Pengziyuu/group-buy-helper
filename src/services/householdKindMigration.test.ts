@@ -70,3 +70,31 @@ describe('household kind binding migration', () => {
     expect(sql).toContain('from public, anon, authenticated, service_role')
   })
 })
+
+const pickupPath = resolve(process.cwd(), 'supabase/migrations/20260919162000_household_kind_pickup.sql')
+
+describe('household kind pickup notification migration', () => {
+  it('excludes non-residents from both the recipient list and its eligibility hash', () => {
+    expect(existsSync(pickupPath)).toBe(true)
+    if (!existsSync(pickupPath)) return
+    const sql = readFileSync(pickupPath, 'utf8').toLowerCase()
+
+    expect(sql).toContain('function public.internal_pickup_notification_recipients')
+    expect(sql).toContain('function public.internal_pickup_notification_eligible_hash')
+    expect(sql.match(/customer\.household_kind = 'resident'/g) ?? []).toHaveLength(2)
+  })
+
+  it('keeps the audience predicate identical in both functions', () => {
+    const sql = readFileSync(pickupPath, 'utf8').toLowerCase()
+
+    expect(sql.match(/customer\.period in \(1, 3\)/g) ?? []).toHaveLength(2)
+    expect(sql.match(/customer\.period = 2/g) ?? []).toHaveLength(2)
+  })
+
+  it('keeps both functions away from browser roles', () => {
+    const sql = readFileSync(pickupPath, 'utf8').toLowerCase()
+
+    expect(sql).toContain('revoke all on function public.internal_pickup_notification_recipients(uuid, text) from public, anon, authenticated')
+    expect(sql).toContain('revoke all on function public.internal_pickup_notification_eligible_hash(uuid, text) from public, anon, authenticated')
+  })
+})
