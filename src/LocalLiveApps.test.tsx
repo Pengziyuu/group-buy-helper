@@ -1872,6 +1872,58 @@ describe('local Supabase visual demo apps', () => {
     expect(screen.getByText('我的訂單 3 個')).toBeInTheDocument()
   })
 
+  it('infers other instead of throwing when a wall row has no household_kind at all', async () => {
+    // A raw PostgREST row can come back with household_kind missing (not
+    // just 'other'). Defaulting that blindly to 'resident' would combine
+    // with this row's null period/unit to make formatHousehold throw at
+    // render. Infer from period instead, the same total mapping the
+    // customer_household_format CHECK guarantees.
+    const session = { access_token: 'resident-token', user: { id: 'resident-uid', is_anonymous: false } }
+    const { client } = authClient(session)
+    const single = vi.fn().mockResolvedValue({
+      data: {
+        title: published.title, unit_price: published.unitPrice, threshold: published.threshold,
+        announcement: published.announcement, images: published.images, items: published.items,
+        opened_at: published.openedAt, status: 'open',
+      },
+      error: null,
+    })
+    const campaignEq = vi.fn().mockReturnValue({ single })
+    const wallEq = vi.fn().mockResolvedValue({
+      data: [{
+        order_id: 'order-other-2', customer_id: 'customer-other-2', customer_name: '丁',
+        picture_url: null, period: null, unit: null,
+        item_code: published.items[0].code, qty: 1,
+        ordered_at: '2026-08-14T01:00:00Z', order_updated_at: '2026-08-14T01:05:00Z',
+      }],
+      error: null,
+    })
+    const rpc = vi.fn((name: string) => {
+      if (name === 'join_campaign_by_slug') return Promise.resolve({ data: [{ id: 'campaign-1' }], error: null })
+      if (name === 'get_line_resident_self') return Promise.resolve({
+        data: [{ display_name: '丁', picture_url: null }], error: null,
+      })
+      if (name === 'get_customer_self') return Promise.resolve({
+        data: [{ id: 'customer-other-2', name: '丁', period: null, unit: null }], error: null,
+      })
+      throw new Error(`unexpected RPC ${name}`)
+    })
+    const on = vi.fn().mockReturnThis()
+    const subscribe = vi.fn().mockReturnThis()
+    Object.assign(client, {
+      rpc,
+      from: vi.fn((table: string) => table === 'campaign_public'
+        ? { select: vi.fn().mockReturnValue({ eq: campaignEq }) }
+        : { select: vi.fn().mockReturnValue({ eq: wallEq }) }),
+      channel: vi.fn().mockReturnValue({ on, subscribe }),
+      removeChannel: vi.fn().mockResolvedValue(undefined),
+    })
+
+    render(<LocalLiveResidentApp client={client} campaignSlug="campaign-slug" />)
+
+    expect(await screen.findByText('其他')).toBeInTheDocument()
+  })
+
   it('resolves a resident share slug to its campaign id before loading data', async () => {
     const session = { access_token: 'resident-token', user: { id: 'resident-user', is_anonymous: false } }
     const { client } = authClient(session)

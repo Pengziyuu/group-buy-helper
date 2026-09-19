@@ -129,7 +129,7 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
           name: row.customer_name,
           period: row.period,
           unit: row.unit,
-          householdKind: (row.household_kind ?? 'resident') as HouseholdKind,
+          householdKind: (row.household_kind ?? (row.period === null ? 'other' : 'resident')) as HouseholdKind,
           items: {},
           itemPriceSnapshots: {},
           customItems: parseCustomOrderItems(row.custom_items),

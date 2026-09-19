@@ -140,7 +140,7 @@ export function buildOrganizerOrderSummary({
         customItemSummary,
         paid: order.paid ?? false,
         organizerNote: order.organizerNote ?? '',
-        householdKind: order.householdKind ?? 'resident',
+        householdKind: order.householdKind ?? (order.period === null ? 'other' : 'resident'),
       }
     })
     .sort((left, right) => compareHousehold(left, right) || left.name.localeCompare(right.name, 'zh-TW-u-co-pinyin'))

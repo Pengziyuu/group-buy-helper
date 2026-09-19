@@ -160,7 +160,7 @@ function visibleOrdersFromRows(rows: OrderWallRow[]): VisibleOrder[] {
       pictureUrl: row.picture_url,
       period: row.period,
       unit: row.unit,
-      householdKind: (row.household_kind ?? 'resident') as HouseholdKind,
+      householdKind: (row.household_kind ?? (row.period === null ? 'other' : 'resident')) as HouseholdKind,
       items: {},
       itemUnitPrices: {},
       customItems: parseCustomOrderItems(row.custom_items),

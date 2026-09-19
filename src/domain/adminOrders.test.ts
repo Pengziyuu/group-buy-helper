@@ -93,6 +93,24 @@ describe('ordering when a household is shared', () => {
     expect(summary.orderRows.map((row) => row.name)).toEqual(['甲', '丙'])
   })
 
+  it('infers other from a null period instead of defaulting to resident when householdKind is missing', () => {
+    // householdKind is optional on OrganizerVisibleOrder (it comes from a
+    // left join and can be absent). Defaulting that gap to 'resident'
+    // blindly would combine with a null period/unit to make formatHousehold
+    // throw at render, so it must be inferred from period instead.
+    const summary = buildOrganizerOrderSummary({
+      orders: [
+        { ...base, customerId: 'c4', orderId: 'o4', name: '丁', period: null, unit: null },
+        { ...base, customerId: 'c5', orderId: 'o5', name: '戊', period: 2, unit: '2K13' },
+      ],
+      items: [{ code: 'A', name: '測試品項', unitPrice: 45 }],
+      threshold: 10,
+    })
+
+    expect(summary.orderRows.find((row) => row.name === '丁')?.householdKind).toBe('other')
+    expect(summary.orderRows.find((row) => row.name === '戊')?.householdKind).toBe('resident')
+  })
+
   it('counts orders rather than households now that a household can hold several', () => {
     const summary = buildOrganizerOrderSummary({
       orders: [
