@@ -17,6 +17,14 @@ const preview = {
   messageCount: 1,
 }
 
+const baseProps = {
+  campaignId: 'campaign-1',
+  campaignTitle: '神農包子',
+  campaignStatus: 'closed' as const,
+  onPreview: vi.fn(),
+  onSend: vi.fn(),
+}
+
 describe('pickup notification panel', () => {
   it('is hidden before closing and offers two audience actions after closing', () => {
     const props = { campaignId: 'campaign-1', campaignTitle: '神農包子', onPreview: vi.fn(), onSend: vi.fn() }
@@ -171,5 +179,17 @@ describe('pickup notification panel', () => {
     resolveSend?.({ ...preview, sent: true })
     expect(await screen.findByText('LINE領取通知已發送。')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '關閉' })).toHaveFocus()
+  })
+
+  it('warns that people outside the community will not be notified', () => {
+    render(<PickupNotificationPanel {...baseProps} excludedOtherCount={2} />)
+
+    expect(screen.getByText('本團另有 2 位「其他」身分的訂購者不會收到通知，請自行聯繫。')).toBeInTheDocument()
+  })
+
+  it('says nothing when every buyer is a resident', () => {
+    render(<PickupNotificationPanel {...baseProps} excludedOtherCount={0} />)
+
+    expect(screen.queryByText(/不會收到通知/)).not.toBeInTheDocument()
   })
 })

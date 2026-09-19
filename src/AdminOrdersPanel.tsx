@@ -5,6 +5,7 @@ import type { PickupNotificationResponse } from './services/pickupNotificationGa
 import PickupNotificationPanel from './PickupNotificationPanel'
 import { ConfirmDialog } from './components/ui/ConfirmDialog'
 import { buildOrderExportRows, downloadOrderExport } from './services/orderExport'
+import { formatHousehold } from './domain/household'
 import {
   campaignStatusAction,
   campaignStatusLabel,
@@ -13,7 +14,6 @@ import {
 import './AdminOrdersPanel.css'
 
 const currency = (amount: number) => `$${amount.toLocaleString('en-US')}`
-const periodLabel = (period: number) => `${period === 1 ? '一期' : period === 2 ? '二期' : `${period}期`}`
 
 type AdminOrdersPanelProps = {
   summary: OrganizerOrderSummary
@@ -149,7 +149,7 @@ function AdminOrdersPanel({
       )}
 
       <div className="admin-order-metrics">
-        <article><span>參加戶數</span><strong>{summary.householdCount} 戶</strong></article>
+        <article><span>參加筆數</span><strong>{summary.orderCount} 筆</strong></article>
         <article><span>總訂購量</span><strong>{summary.quantity} {summary.quantityUnit}</strong></article>
         <article><span>預估總額</span><strong>{currency(summary.amount)}</strong></article>
         <article><span>成團門檻</span><strong>{summary.thresholdKind === 'amount' ? currency(summary.threshold) : `${summary.threshold} ${summary.quantityUnit}`}</strong></article>
@@ -174,6 +174,7 @@ function AdminOrdersPanel({
           campaignId={campaignId}
           campaignTitle={campaignTitle}
           campaignStatus={campaignStatus}
+          excludedOtherCount={summary.orderRows.filter((row) => row.householdKind === 'other').length}
           onPreview={onPreviewPickupNotification}
           onSend={onSendPickupNotification}
         />
@@ -236,7 +237,7 @@ function AdminOrdersPanel({
                   const orderBusy = busyKeys.has(`order-${order.orderId}`)
                   return (
                     <tr key={order.orderId} aria-busy={orderBusy || undefined}>
-                      <td data-label="戶號"><span className="admin-unit-period">{periodLabel(order.period)}</span>{order.unit}</td>
+                      <td data-label="戶號"><span className="admin-unit-period">{formatHousehold(order.householdKind, order.period, order.unit)}</span></td>
                       <td data-label="姓名"><strong>{order.name}</strong></td>
                       <td data-label="訂購內容">
                         <span>{order.itemSummary || '無正式品項'}</span>
@@ -328,7 +329,7 @@ function AdminOrdersPanel({
             })()
           }}
         >
-          <p>確定要將「{periodLabel(paymentTarget.period)} {paymentTarget.unit}・{paymentTarget.name}」標記為<strong>{paymentTarget.paid ? '未付款' : '已付款'}</strong>嗎？</p>
+          <p>確定要將「{formatHousehold(paymentTarget.householdKind, paymentTarget.period, paymentTarget.unit)}・{paymentTarget.name}」標記為<strong>{paymentTarget.paid ? '未付款' : '已付款'}</strong>嗎？</p>
           {paymentError && <p className="admin-workflow-error" role="alert">{paymentError}</p>}
         </ConfirmDialog>
       )}
@@ -356,7 +357,7 @@ function AdminOrdersPanel({
             })()
           }}
         >
-          <p>確定要整筆取消「{periodLabel(cancelTarget.period)} {cancelTarget.unit}・{cancelTarget.name}」的訂單嗎？共 {cancelTarget.quantity} {summary.quantityUnit}、{currency(cancelTarget.amount)}。</p>
+          <p>確定要整筆取消「{formatHousehold(cancelTarget.householdKind, cancelTarget.period, cancelTarget.unit)}・{cancelTarget.name}」的訂單嗎？共 {cancelTarget.quantity} {summary.quantityUnit}、{currency(cancelTarget.amount)}。</p>
           <p>取消後訂單與明細直接刪除，無法復原。住戶若要重新下單，需自行再次送出。</p>
           {cancelTarget.paid && <p className="admin-workflow-error">此單已標記已付款，取消後付款紀錄一併刪除，請自行完成退款。</p>}
           {cancelError && <p className="admin-workflow-error" role="alert">{cancelError}</p>}

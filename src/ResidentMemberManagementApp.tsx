@@ -4,8 +4,8 @@ import type { ResidentMember } from './services/residentMemberManagementGateway'
 import { ConfirmDialog } from './components/ui/ConfirmDialog'
 import { FeedbackMessage } from './components/ui/FeedbackMessage'
 import {
+  formatHousehold,
   formatHouseholdUnit,
-  formatResidentPeriod,
   HOUSEHOLD_LETTERS,
   HOUSEHOLD_NUMBERS,
   HOUSEHOLD_PREFIXES,
@@ -22,8 +22,9 @@ type Props = {
 }
 
 function householdLabel(member: ResidentMember): string {
-  if (member.period === null || !member.unit) return '尚未綁定期別／戶號'
-  return `${formatResidentPeriod(member.period)}・${member.unit}`
+  const kind = member.householdKind ?? 'resident'
+  if (kind === 'resident' && (member.period === null || !member.unit)) return '尚未綁定期別／戶號'
+  return formatHousehold(kind, member.period, member.unit)
 }
 
 function Avatar({ member }: { member: ResidentMember }) {

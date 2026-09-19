@@ -29,7 +29,7 @@ describe('ResidentMemberManagementApp', () => {
 
     expect(screen.getByRole('heading', { name: '住戶名單' })).toBeInTheDocument()
     expect(screen.getByText('住戶甲')).toBeInTheDocument()
-    expect(screen.getByText('二期・2K13')).toBeInTheDocument()
+    expect(screen.getByText('二期 2K13')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: '住戶甲的LINE頭貼' })).toBeInTheDocument()
     expect(screen.getByText('陌生住戶')).toBeInTheDocument()
     expect(screen.getByText('已封鎖')).toBeInTheDocument()
@@ -92,6 +92,6 @@ describe('ResidentMemberManagementApp', () => {
       { period: 3, unit: '3Z15' },
     )
     expect(await screen.findByText('已更新住戶甲的期別／戶號')).toBeInTheDocument()
-    expect(screen.getByText('三期・3Z15')).toBeInTheDocument()
+    expect(screen.getByText('三期 3Z15')).toBeInTheDocument()
   })
 })

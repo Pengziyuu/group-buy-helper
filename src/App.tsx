@@ -10,7 +10,6 @@ import { discountedUnitPrice, priceOrder, type DiscountPricing } from './domain/
 import {
   formatHousehold,
   formatHouseholdUnit,
-  formatResidentPeriod,
   HOUSEHOLD_LETTERS,
   HOUSEHOLD_NUMBERS,
   HOUSEHOLD_PREFIXES,
@@ -740,7 +739,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
                 <div className="wall-main">
                   <div className="wall-name">
                     <strong>{order.name}</strong>
-                    <span>{formatResidentPeriod(order.period)} {order.unit}</span>
+                    <span>{formatHousehold(order.householdKind ?? 'resident', order.period, order.unit)}</span>
                   </div>
                   <p>{Object.entries(order.items)
                     .filter(([, quantity]) => quantity > 0)

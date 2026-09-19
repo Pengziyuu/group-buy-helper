@@ -15,6 +15,7 @@ type PickupNotificationPanelProps = {
   campaignTitle: string
   campaignStatus: CampaignStatus
   mode?: 'production' | 'test'
+  excludedOtherCount?: number
   onPreview: (audience: PickupNotificationAudience, message: string) => Promise<PickupNotificationResponse>
   onSend: (audience: PickupNotificationAudience, message: string, previewToken: string) => Promise<PickupNotificationResponse>
 }
@@ -46,6 +47,7 @@ function PickupNotificationPanel({
   campaignTitle,
   campaignStatus,
   mode = 'production',
+  excludedOtherCount,
   onPreview,
   onSend,
 }: PickupNotificationPanelProps) {
@@ -178,6 +180,9 @@ function PickupNotificationPanel({
         <h3 id={panelHeadingId}>{isTest ? `LINE通知測試：${campaignTitle}` : 'LINE領取通知'}</h3>
         <p>{isTest ? '發送目的地：測試群組' : '發送目的地：正式社區群組'}</p>
       </div>
+      {Boolean(excludedOtherCount) && (
+        <p className="pickup-notification-excluded">本團另有 {excludedOtherCount} 位「其他」身分的訂購者不會收到通知，請自行聯繫。</p>
+      )}
       <div className="pickup-notification-actions" aria-busy={busy === 'preview'}>
         <button type="button" aria-label={isTest ? `預覽${campaignTitle}一期、三期測試通知` : undefined} disabled={busy !== null} onClick={(event) => { void openPreview('phase13', event.currentTarget) }}>
           {busy === 'preview' && busyAudience === 'phase13' ? '讀取一期、三期名單中…' : `預覽一期、三期${isTest ? '測試' : ''}通知`}

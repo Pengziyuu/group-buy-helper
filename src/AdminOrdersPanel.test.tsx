@@ -16,7 +16,7 @@ describe('organizer orders panel', () => {
     render(<AdminOrdersPanel summary={summary} />)
 
     expect(screen.getByRole('heading', { name: '訂單統計' })).toBeInTheDocument()
-    expect(screen.getByText('6 戶')).toBeInTheDocument()
+    expect(screen.getByText('6 筆')).toBeInTheDocument()
     expect(screen.getByText('62 個')).toBeInTheDocument()
     expect(screen.getByText('$2,790')).toBeInTheDocument()
     expect(screen.getByText('還差 38 個成團')).toBeInTheDocument()
@@ -160,7 +160,7 @@ describe('organizer orders panel', () => {
     }
     const { rerender } = render(
       <AdminOrdersPanel
-        summary={{ ...summary, householdCount: 0, orderRows: [emptyShell] }}
+        summary={{ ...summary, orderCount: 0, orderRows: [emptyShell] }}
         campaignStatus="closed"
         campaignTitle="空團"
         campaignOpenedAt="2026-09-11T05:00:00.000Z"
@@ -172,7 +172,7 @@ describe('organizer orders panel', () => {
       <AdminOrdersPanel
         summary={{
           ...summary,
-          householdCount: 1,
+          orderCount: 1,
           orderRows: [{ ...emptyShell, customItems: [{ id: 'bag', name: '紙袋', quantity: 1 }] }],
         }}
         campaignStatus="arrived"
@@ -290,8 +290,8 @@ describe('organizer orders panel', () => {
     render(<AdminOrdersPanel summary={workflowSummary} campaignStatus="open" onSetOrderPaid={vi.fn()} onSetOrderOrganizerNote={vi.fn()} />)
 
     await user.click(screen.getByRole('button', { name: '待處理 1' }))
-    expect(screen.queryByText('H11')).not.toBeInTheDocument()
-    expect(screen.getByText('1E7')).toBeInTheDocument()
+    expect(screen.queryByText(/H11/)).not.toBeInTheDocument()
+    expect(screen.getByText(/1E7/)).toBeInTheDocument()
   })
 
   it('cancels a resident order outright after the organizer confirms', async () => {
@@ -338,5 +338,22 @@ describe('organizer orders panel', () => {
     await user.click(screen.getByRole('button', { name: '取消 H11 訂單' }))
     expect(screen.getByRole('dialog', { name: '確認取消訂單' }))
       .toHaveTextContent('此單已標記已付款，取消後付款紀錄一併刪除，請自行完成退款。')
+  })
+
+  it('labels an order from outside the community and counts orders rather than households', () => {
+    const mixed = {
+      ...summary,
+      orderCount: 2,
+      orderRows: [
+        { ...summary.orderRows[0], orderId: 'o1', name: '甲', period: 2, unit: '2K13', householdKind: 'resident' as const },
+        { ...summary.orderRows[0], orderId: 'o2', name: '丙', period: null, unit: null, householdKind: 'other' as const },
+      ],
+    }
+
+    render(<AdminOrdersPanel summary={mixed} campaignStatus="open" />)
+
+    expect(screen.getByText('2 筆')).toBeInTheDocument()
+    expect(screen.getByRole('row', { name: /其他\s*丙/ })).toBeInTheDocument()
+    expect(screen.queryByText('NaN期')).not.toBeInTheDocument()
   })
 })
