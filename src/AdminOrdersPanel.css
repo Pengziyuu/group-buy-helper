@@ -212,7 +212,6 @@
 .admin-item-name { min-width: 0; padding-top: 5px; color: var(--admin-ink); font-weight: 700; line-height: 1.4; overflow-wrap: break-word; }
 .item-summary-table th:nth-child(n + 2),
 .item-summary-table td:nth-child(n + 2) { white-space: nowrap; }
-.admin-unit-period { display: block; margin-bottom: 2px; color: var(--admin-muted); font-size: 10px; }
 
 @media (max-width: 720px) {
   .admin-orders-panel { padding: 16px; }

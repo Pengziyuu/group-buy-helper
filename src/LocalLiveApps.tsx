@@ -147,7 +147,11 @@ function visibleOrdersFromRows(rows: OrderWallRow[]): VisibleOrder[] {
     // An 'other' household legitimately has a null period and unit (they are
     // outside the community), so only the fields every order genuinely
     // needs gate inclusion here - the same fix as adminOrdersGateway.ts
-    // applies on the organizer side.
+    // applies on the organizer side. The customer_household_format CHECK
+    // constraint (supabase/migrations/20260919160000_household_kind.sql)
+    // guarantees this is a total mapping - a 'resident' row always has both
+    // period and unit, an 'other' row has neither - so there is no third
+    // state this filter needs to account for.
     if (!row.order_id || !row.customer_id || !row.customer_name
       || !row.ordered_at || !row.order_updated_at) continue
     const order = orders.get(row.order_id) ?? {

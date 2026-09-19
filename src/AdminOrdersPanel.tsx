@@ -237,7 +237,7 @@ function AdminOrdersPanel({
                   const orderBusy = busyKeys.has(`order-${order.orderId}`)
                   return (
                     <tr key={order.orderId} aria-busy={orderBusy || undefined}>
-                      <td data-label="戶號"><span className="admin-unit-period">{formatHousehold(order.householdKind, order.period, order.unit)}</span></td>
+                      <td data-label="戶號">{formatHousehold(order.householdKind, order.period, order.unit)}</td>
                       <td data-label="姓名"><strong>{order.name}</strong></td>
                       <td data-label="訂購內容">
                         <span>{order.itemSummary || '無正式品項'}</span>
