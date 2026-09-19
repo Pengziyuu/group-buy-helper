@@ -109,7 +109,7 @@ export default function CampaignListApp({ campaigns, onCreate, onDelete, onNavig
     completed: visibleCampaigns.filter((campaign) => campaign.openedAt && campaign.status !== 'open').length,
   }
   const activeResidentCount = residentMembers?.filter((member) => !member.blocked).length ?? 0
-  const unboundResidentCount = residentMembers?.filter((member) => !member.blocked && (member.period === null || !member.unit)).length ?? 0
+  const unboundResidentCount = residentMembers?.filter((member) => !member.blocked && member.householdKind !== 'other' && (member.period === null || !member.unit)).length ?? 0
   const filteredCampaigns = visibleCampaigns.filter((campaign) => {
     if (campaignFilter === 'open') return Boolean(campaign.openedAt) && campaign.status === 'open'
     if (campaignFilter === 'draft') return !campaign.openedAt

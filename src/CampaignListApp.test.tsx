@@ -53,6 +53,31 @@ describe('organizer campaign list', () => {
     expect(screen.getByRole('region', { name: '團購列表' })).toBeInTheDocument()
   })
 
+  it('never counts an other member as pending a household, but still counts a genuinely unbound resident', () => {
+    const members: ResidentMember[] = [{
+      memberCode: 'member-other', displayName: '住戶丙', pictureUrl: null,
+      period: null, unit: null, householdKind: 'other',
+      joinedAt: '2026-08-14T00:00:00Z', blocked: false, blockedAt: null,
+    }, {
+      memberCode: 'member-unbound', displayName: '住戶丁', pictureUrl: null,
+      period: null, unit: null,
+      joinedAt: '2026-08-14T00:00:00Z', blocked: false, blockedAt: null,
+    }]
+    render(
+      <CampaignListApp
+        campaigns={campaigns}
+        onCreate={vi.fn()}
+        residentMembers={members}
+        onSetResidentBlocked={vi.fn().mockResolvedValue(undefined)}
+        onUpdateResidentHousehold={vi.fn().mockResolvedValue(undefined)}
+      />,
+    )
+
+    const overview = screen.getByRole('region', { name: '工作概況' })
+    expect(overview).toHaveTextContent('待綁定戶號1')
+    expect(overview.querySelector('.needs-attention')).not.toBeNull()
+  })
+
   it('filters campaigns by operational state without changing repository data', async () => {
     const user = userEvent.setup()
     const completed: CampaignListItem[] = [
