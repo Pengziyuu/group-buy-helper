@@ -1776,6 +1776,50 @@ describe('local Supabase visual demo apps', () => {
     expect(screen.queryByText('斯祈')).not.toBeInTheDocument()
   })
 
+  it('restores an already-bound resident outside the community without showing the binding form again', async () => {
+    const session = { access_token: 'resident-token', user: { id: 'resident-uid', is_anonymous: false } }
+    const { client } = authClient(session)
+    const single = vi.fn().mockResolvedValue({
+      data: {
+        title: published.title, unit_price: published.unitPrice, threshold: published.threshold,
+        announcement: published.announcement, images: published.images, items: published.items,
+        opened_at: published.openedAt, status: 'open',
+      },
+      error: null,
+    })
+    const campaignEq = vi.fn().mockReturnValue({ single })
+    const wallEq = vi.fn().mockResolvedValue({ data: [], error: null })
+    const rpc = vi.fn((name: string) => {
+      if (name === 'join_campaign_by_slug') return Promise.resolve({ data: [{ id: 'campaign-1' }], error: null })
+      if (name === 'get_line_resident_self') return Promise.resolve({
+        data: [{ display_name: '丙', picture_url: null }], error: null,
+      })
+      // get_customer_self() never reports household_kind, but a bound 'other'
+      // customer's period and unit are both null - same as an unbound one.
+      if (name === 'get_customer_self') return Promise.resolve({
+        data: [{ id: 'customer-other-1', name: '丙', picture_url: null, period: null, unit: null }], error: null,
+      })
+      throw new Error(`unexpected RPC ${name}`)
+    })
+    const on = vi.fn().mockReturnThis()
+    const subscribe = vi.fn().mockReturnThis()
+    Object.assign(client, {
+      rpc,
+      from: vi.fn((table: string) => table === 'campaign_public'
+        ? { select: vi.fn().mockReturnValue({ eq: campaignEq }) }
+        : { select: vi.fn().mockReturnValue({ eq: wallEq }) }),
+      channel: vi.fn().mockReturnValue({ on, subscribe }),
+      removeChannel: vi.fn().mockResolvedValue(undefined),
+    })
+
+    render(<LocalLiveResidentApp client={client} campaignSlug="campaign-slug" />)
+
+    expect(await screen.findByRole('button', { name: '增加 A 牛奶（招牌）' })).toBeInTheDocument()
+    expect(screen.getByText('其他・丙')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '首次填寫住戶資料' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '儲存住戶資料' })).not.toBeInTheDocument()
+  })
+
   it('resolves a resident share slug to its campaign id before loading data', async () => {
     const session = { access_token: 'resident-token', user: { id: 'resident-user', is_anonymous: false } }
     const { client } = authClient(session)

@@ -1098,11 +1098,20 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug }: Loca
         if (!identity?.display_name) throw new Error('請先從住戶LINE入口登入')
         setResidentIdentity({ displayName: identity.display_name, pictureUrl: identity.picture_url })
         const customer = customerResult.data?.[0]
-        // get_customer_self() does not report household_kind yet, but a non-null
-        // period/unit pair can only come from a resident row: an 'other' bind
-        // always stores both as null (see bind_customer_self).
-        setResidentCustomer(customer?.id && customer.name && customer.period !== null && customer.unit
-          ? { customerId: customer.id, name: customer.name, period: customer.period, unit: customer.unit, householdKind: 'resident' }
+        // get_customer_self() does not report household_kind directly, but it
+        // is still derivable without a migration: the customer_household_format
+        // CHECK constraint (supabase/migrations/20260919160000_household_kind.sql)
+        // guarantees a total mapping - a 'resident' row always has both period
+        // and unit, an 'other' row has neither, with no third state. So a bound
+        // customer with a null period is 'other', not "not yet bound".
+        setResidentCustomer(customer?.id && customer.name
+          ? {
+              customerId: customer.id,
+              name: customer.name,
+              period: customer.period,
+              unit: customer.unit,
+              householdKind: customer.period === null ? 'other' : 'resident',
+            }
           : null)
       }
     }
