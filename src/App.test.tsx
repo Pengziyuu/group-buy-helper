@@ -615,6 +615,22 @@ describe('customer campaign app', () => {
     expect(onBindResident).toHaveBeenCalledWith({ kind: 'other', period: null, unit: null })
   })
 
+  it('brings the household selects back when someone changes their mind after picking 其他', async () => {
+    const user = userEvent.setup()
+    render(<App residentCustomer={null} onBindResident={vi.fn().mockResolvedValue(undefined)} />)
+
+    await user.selectOptions(screen.getByRole('combobox', { name: '期別' }), '其他')
+    expect(screen.queryByRole('combobox', { name: '戶號數字' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: '戶號英文字母' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: '樓層' })).not.toBeInTheDocument()
+
+    await user.selectOptions(screen.getByRole('combobox', { name: '期別' }), '二期')
+
+    expect(screen.getByRole('combobox', { name: '戶號數字' })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: '戶號英文字母' })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: '樓層' })).toBeInTheDocument()
+  })
+
   it('still requires a unit from someone who says they live here', async () => {
     const user = userEvent.setup()
     const onBindResident = vi.fn().mockResolvedValue(undefined)
