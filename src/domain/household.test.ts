@@ -86,8 +86,8 @@ describe('household kind formatting', () => {
 
 describe('compareHousehold', () => {
   it('sorts residents before people outside the community regardless of period or unit', () => {
-    const other = { householdKind: 'other' as const, period: null, unit: null }
-    const resident = { householdKind: 'resident' as const, period: 1, unit: 'A1' }
+    const other = { householdKind: 'other' as const, period: null, unit: null, name: '同名' }
+    const resident = { householdKind: 'resident' as const, period: 1, unit: 'A1', name: '同名' }
 
     expect(compareHousehold(resident, other)).toBeLessThan(0)
     expect(compareHousehold(other, resident)).toBeGreaterThan(0)
@@ -95,16 +95,42 @@ describe('compareHousehold', () => {
   })
 
   it('breaks a tie by period, then by unit numerically so 2A9 sorts before 2A10', () => {
-    const period1 = { householdKind: 'resident' as const, period: 1, unit: 'A1' }
-    const period2 = { householdKind: 'resident' as const, period: 2, unit: 'A1' }
+    const period1 = { householdKind: 'resident' as const, period: 1, unit: 'A1', name: '同名' }
+    const period2 = { householdKind: 'resident' as const, period: 2, unit: 'A1', name: '同名' }
     expect(compareHousehold(period1, period2)).toBeLessThan(0)
 
-    const unitA9 = { householdKind: 'resident' as const, period: 2, unit: '2A9' }
-    const unitA10 = { householdKind: 'resident' as const, period: 2, unit: '2A10' }
+    const unitA9 = { householdKind: 'resident' as const, period: 2, unit: '2A9', name: '同名' }
+    const unitA10 = { householdKind: 'resident' as const, period: 2, unit: '2A10', name: '同名' }
     expect(compareHousehold(unitA9, unitA10)).toBeLessThan(0)
     // A plain localeCompare would order these the other way ('2A10' < '2A9'
     // lexicographically), which is exactly the discrepancy the two
     // duplicated comparators had before they were unified on this one.
     expect('2A10'.localeCompare('2A9')).toBeLessThan(0)
+  })
+})
+
+describe('household name collation', () => {
+  const resident = (name: string) => ({ householdKind: 'resident' as const, period: 2, unit: '2K13', name })
+
+  it('orders names by stroke count, the convention Taiwanese directories use', () => {
+    const sorted = ['甲', '丙', '乙'].map(resident).sort(compareHousehold).map((row) => row.name)
+
+    expect(sorted).toEqual(['乙', '丙', '甲'])
+  })
+
+  it('does not order names by pinyin', () => {
+    const pinyin = ['甲', '丙', '乙'].sort((left, right) => left.localeCompare(right, 'zh-TW-u-co-pinyin'))
+
+    expect(pinyin).not.toEqual(['乙', '丙', '甲'])
+  })
+
+  it('sorts two accounts in one household by name, and people outside the community last', () => {
+    const rows = [
+      { householdKind: 'other' as const, period: null, unit: null, name: '丙' },
+      resident('甲'),
+      resident('乙'),
+    ].sort(compareHousehold).map((row) => row.name)
+
+    expect(rows).toEqual(['乙', '甲', '丙'])
   })
 })

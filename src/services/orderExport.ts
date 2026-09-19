@@ -23,7 +23,7 @@ const unitCollator = new Intl.Collator('zh-TW', { numeric: true, sensitivity: 'b
 export function buildOrderExportRows(summary: OrganizerOrderSummary, campaignTitle: string): OrderExportRow[] {
   const itemByCode = new Map(summary.itemRows.map((item, index) => [item.code, { ...item, index }]))
   const orders = [...summary.orderRows].sort((left, right) => (
-    compareHousehold(left, right) || left.name.localeCompare(right.name, 'zh-TW-u-co-pinyin')
+    compareHousehold(left, right)
   ))
 
   return orders.flatMap((order) => {

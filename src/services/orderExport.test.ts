@@ -148,7 +148,7 @@ describe('export ordering when a household is shared', () => {
       ],
     }, '測試團購')
 
-    expect(rows.map((row) => row.name)).toEqual(['甲', '乙', '丙'])
+    expect(rows.map((row) => row.name)).toEqual(['乙', '甲', '丙'])
   })
 })
 

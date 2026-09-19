@@ -143,7 +143,7 @@ export function buildOrganizerOrderSummary({
         householdKind: order.householdKind ?? (order.period === null ? 'other' : 'resident'),
       }
     })
-    .sort((left, right) => compareHousehold(left, right) || left.name.localeCompare(right.name, 'zh-TW-u-co-pinyin'))
+    .sort((left, right) => compareHousehold(left, right))
 
   return {
     orderCount: orders.length,

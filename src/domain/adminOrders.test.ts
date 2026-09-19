@@ -77,7 +77,7 @@ describe('ordering when a household is shared', () => {
       threshold: 10,
     })
 
-    expect(summary.orderRows.map((row) => row.name)).toEqual(['甲', '乙'])
+    expect(summary.orderRows.map((row) => row.name)).toEqual(['乙', '甲'])
   })
 
   it('puts people outside the community last instead of sorting on a null period', () => {

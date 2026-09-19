@@ -35,18 +35,25 @@ export type HouseholdSortKey = {
   householdKind: HouseholdKind
   period: number | null
   unit: string | null
+  name: string
 }
 
 const householdUnitCollator = new Intl.Collator('zh-TW', { numeric: true, sensitivity: 'base' })
+// Stroke-count order, which is what Taiwanese directories and registries use.
+// Plain 'zh-TW' collates Han characters this way by default.
+const householdNameCollator = new Intl.Collator('zh-TW')
 
-// Residents sort before people outside the community, then by period, then
-// by unit -- numerically, so 2A9 sorts before 2A10 as a human expects. Used
-// wherever household order and the exported spreadsheet's order need to
-// agree, since organizers cross-reference the two while handing out goods.
+// Residents sort before people outside the community, then by period, then by
+// unit -- numerically, so 2A9 sorts before 2A10 as a human expects -- and
+// finally by name, which is what separates two accounts sharing one household.
+// Used wherever the on-screen order and the exported spreadsheet's order need
+// to agree, since organizers cross-reference the two while handing out goods.
 export function compareHousehold(left: HouseholdSortKey, right: HouseholdSortKey): number {
   if (left.householdKind !== right.householdKind) return left.householdKind === 'resident' ? -1 : 1
-  if (left.householdKind === 'other') return 0
-  return (left.period ?? 0) - (right.period ?? 0) || householdUnitCollator.compare(left.unit ?? '', right.unit ?? '')
+  if (left.householdKind === 'other') return householdNameCollator.compare(left.name, right.name)
+  return (left.period ?? 0) - (right.period ?? 0)
+    || householdUnitCollator.compare(left.unit ?? '', right.unit ?? '')
+    || householdNameCollator.compare(left.name, right.name)
 }
 
 export type HouseholdSelection = {
