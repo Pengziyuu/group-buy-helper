@@ -33,3 +33,40 @@ describe('household kind schema migration', () => {
     expect(sql).not.toContain('drop constraint customer_line_user_id_key')
   })
 })
+
+const bindingPath = resolve(process.cwd(), 'supabase/migrations/20260919161000_household_kind_binding.sql')
+
+describe('household kind binding migration', () => {
+  it('adds a kind-aware signature while the old one keeps working for the deployed frontend', () => {
+    expect(existsSync(bindingPath)).toBe(true)
+    if (!existsSync(bindingPath)) return
+    const sql = readFileSync(bindingPath, 'utf8').toLowerCase()
+
+    expect(sql).toContain('function public.bind_customer_self(p_household_kind text, p_period integer, p_unit text)')
+    expect(sql).toContain('function public.bind_customer_self(p_period integer, p_unit text)')
+    expect(sql).toContain("public.bind_customer_self('resident', p_period, p_unit)")
+    expect(sql).toContain("public.admin_update_resident_household(p_member_code, 'resident', p_period, p_unit)")
+  })
+
+  it('drops the household collision error that can no longer happen', () => {
+    const sql = readFileSync(bindingPath, 'utf8')
+
+    expect(sql).not.toContain('此期別與戶號已由其他住戶綁定')
+    expect(sql).toContain('住戶資料已綁定，如需變更請聯絡團主')
+  })
+
+  it('compares the kind as well as the household when refusing a silent switch', () => {
+    const sql = readFileSync(bindingPath, 'utf8').toLowerCase()
+
+    expect(sql).toContain('v_existing.household_kind <> p_household_kind')
+  })
+
+  it('keeps every signature off anon and locked to the usual search path', () => {
+    const sql = readFileSync(bindingPath, 'utf8').toLowerCase()
+
+    expect(sql).toContain('set search_path = public, pg_temp')
+    expect(sql).toContain('revoke all on function public.bind_customer_self(text, integer, text)')
+    expect(sql).toContain('revoke all on function public.admin_update_resident_household(text, text, integer, text)')
+    expect(sql).toContain('from public, anon, authenticated, service_role')
+  })
+})
