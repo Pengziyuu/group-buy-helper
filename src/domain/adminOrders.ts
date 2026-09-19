@@ -3,6 +3,7 @@ import { summarizePayment } from './orderWorkflow'
 import { itemLabel } from './itemLabel'
 import { normalizeQuantityUnit, type QuantityUnit } from './quantityUnit'
 import type { CustomOrderItem } from './customOrderItem'
+import type { HouseholdKind } from './household'
 
 export type OrganizerCampaignItem = {
   code: string
@@ -15,8 +16,9 @@ export type OrganizerVisibleOrder = {
   orderId?: string
   customerId: string
   name: string
-  period: number
-  unit: string
+  period: number | null
+  unit: string | null
+  householdKind?: HouseholdKind
   items: Record<string, number>
   itemPriceSnapshots?: Record<string, {
     listUnitPrice: number
@@ -46,10 +48,11 @@ export type OrganizerOrderRow = OrganizerVisibleOrder & {
   customItemSummary: string
   paid: boolean
   organizerNote: string
+  householdKind: HouseholdKind
 }
 
 export type OrganizerOrderSummary = {
-  householdCount: number
+  orderCount: number
   quantity: number
   amount: number
   threshold: number
@@ -137,12 +140,13 @@ export function buildOrganizerOrderSummary({
         customItemSummary,
         paid: order.paid ?? false,
         organizerNote: order.organizerNote ?? '',
+        householdKind: order.householdKind ?? 'resident',
       }
     })
-    .sort((left, right) => left.period - right.period || left.unit.localeCompare(right.unit))
+    .sort((left, right) => compareHousehold(left, right) || left.name.localeCompare(right.name, 'zh-TW-u-co-pinyin'))
 
   return {
-    householdCount: orders.length,
+    orderCount: orders.length,
     quantity: campaignSummary.quantity,
     amount: campaignSummary.amount,
     threshold: campaignSummary.threshold,
@@ -155,4 +159,13 @@ export function buildOrganizerOrderSummary({
     orderRows,
     fulfillment: summarizePayment(orderRows),
   }
+}
+
+function compareHousehold(
+  left: { householdKind: HouseholdKind; period: number | null; unit: string | null },
+  right: { householdKind: HouseholdKind; period: number | null; unit: string | null },
+): number {
+  if (left.householdKind !== right.householdKind) return left.householdKind === 'resident' ? -1 : 1
+  if (left.householdKind === 'other') return 0
+  return (left.period ?? 0) - (right.period ?? 0) || (left.unit ?? '').localeCompare(right.unit ?? '')
 }

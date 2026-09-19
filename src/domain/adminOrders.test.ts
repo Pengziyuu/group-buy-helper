@@ -15,7 +15,7 @@ describe('organizer order summary', () => {
       threshold: 100,
     })
 
-    expect(summary.householdCount).toBe(6)
+    expect(summary.orderCount).toBe(6)
     expect(summary.quantity).toBe(62)
     expect(summary.amount).toBe(3000)
     expect(summary.remaining).toBe(38)
@@ -51,7 +51,7 @@ describe('organizer order summary', () => {
       threshold: 100,
     })
 
-    expect(summary.householdCount).toBe(1)
+    expect(summary.orderCount).toBe(1)
     expect(summary.quantity).toBe(0)
     expect(summary.amount).toBe(0)
     expect(summary.itemRows.every((item) => item.quantity === 0)).toBe(true)
@@ -61,5 +61,48 @@ describe('organizer order summary', () => {
       itemSummary: '',
       customItemSummary: '限定蛋糕×2（另計）',
     }))
+  })
+})
+
+describe('ordering when a household is shared', () => {
+  const base = { items: { A: 1 }, orderedAt: '2026-08-14T00:10:00Z', updatedAt: '2026-08-14T00:10:00Z' }
+
+  it('breaks a tie between two accounts in one household by name', () => {
+    const summary = buildOrganizerOrderSummary({
+      orders: [
+        { ...base, customerId: 'c2', orderId: 'o2', name: '乙', period: 2, unit: '2K13', householdKind: 'resident' },
+        { ...base, customerId: 'c1', orderId: 'o1', name: '甲', period: 2, unit: '2K13', householdKind: 'resident' },
+      ],
+      items: [{ code: 'A', name: '測試品項', unitPrice: 45 }],
+      threshold: 10,
+    })
+
+    expect(summary.orderRows.map((row) => row.name)).toEqual(['甲', '乙'])
+  })
+
+  it('puts people outside the community last instead of sorting on a null period', () => {
+    const summary = buildOrganizerOrderSummary({
+      orders: [
+        { ...base, customerId: 'c3', orderId: 'o3', name: '丙', period: null, unit: null, householdKind: 'other' },
+        { ...base, customerId: 'c1', orderId: 'o1', name: '甲', period: 2, unit: '2K13', householdKind: 'resident' },
+      ],
+      items: [{ code: 'A', name: '測試品項', unitPrice: 45 }],
+      threshold: 10,
+    })
+
+    expect(summary.orderRows.map((row) => row.name)).toEqual(['甲', '丙'])
+  })
+
+  it('counts orders rather than households now that a household can hold several', () => {
+    const summary = buildOrganizerOrderSummary({
+      orders: [
+        { ...base, customerId: 'c1', orderId: 'o1', name: '甲', period: 2, unit: '2K13', householdKind: 'resident' },
+        { ...base, customerId: 'c2', orderId: 'o2', name: '乙', period: 2, unit: '2K13', householdKind: 'resident' },
+      ],
+      items: [{ code: 'A', name: '測試品項', unitPrice: 45 }],
+      threshold: 10,
+    })
+
+    expect(summary.orderCount).toBe(2)
   })
 })

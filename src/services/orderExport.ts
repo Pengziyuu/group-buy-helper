@@ -1,8 +1,11 @@
 import type { OrganizerOrderSummary } from '../domain/adminOrders'
+import { formatHousehold, type HouseholdKind } from '../domain/household'
 
 export type OrderExportRow = {
-  period: number
-  unit: string
+  name: string
+  householdKind: HouseholdKind
+  period: number | null
+  unit: string | null
   campaignTitle: string
   itemName: string
   quantity: number
@@ -20,7 +23,10 @@ const unitCollator = new Intl.Collator('zh-TW', { numeric: true, sensitivity: 'b
 export function buildOrderExportRows(summary: OrganizerOrderSummary, campaignTitle: string): OrderExportRow[] {
   const itemByCode = new Map(summary.itemRows.map((item, index) => [item.code, { ...item, index }]))
   const orders = [...summary.orderRows].sort((left, right) => (
-    left.period - right.period || unitCollator.compare(left.unit, right.unit)
+    (left.householdKind === right.householdKind ? 0 : left.householdKind === 'resident' ? -1 : 1)
+      || (left.period ?? 0) - (right.period ?? 0)
+      || unitCollator.compare(left.unit ?? '', right.unit ?? '')
+      || left.name.localeCompare(right.name, 'zh-TW-u-co-pinyin')
   ))
 
   return orders.flatMap((order) => {
@@ -35,6 +41,8 @@ export function buildOrderExportRows(summary: OrganizerOrderSummary, campaignTit
       .flatMap(([code, quantity]) => {
         const item = itemByCode.get(code)
         return item ? [{
+          name: order.name,
+          householdKind: order.householdKind,
           period: order.period,
           unit: order.unit,
           campaignTitle,
@@ -47,6 +55,8 @@ export function buildOrderExportRows(summary: OrganizerOrderSummary, campaignTit
     const customRows = (order.customItems ?? [])
       .filter((item) => item.name.trim() && item.quantity > 0)
       .map((item) => ({
+        name: order.name,
+        householdKind: order.householdKind,
         period: order.period,
         unit: order.unit,
         campaignTitle,
@@ -120,7 +130,7 @@ export async function createOrderExportWorkbook({ summary, campaignTitle }: Orde
     const row = sheet.addRow({
       arrivalDate: null,
       period: item.period,
-      unit: item.unit,
+      unit: formatHousehold(item.householdKind, item.period, item.unit),
       campaignTitle: item.campaignTitle,
       itemName: item.itemName,
       quantity: item.quantity,

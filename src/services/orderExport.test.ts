@@ -24,11 +24,11 @@ const summary = buildOrganizerOrderSummary({
 describe('order Excel export', () => {
   it('creates naturally sorted formal and custom rows without resident names', () => {
     expect(buildOrderExportRows(summary, '榮泉餅店')).toEqual([
-      { period: 1, unit: 'E2', campaignTitle: '榮泉餅店', itemName: 'B 小月餅', quantity: 2, unitPrice: 153, custom: false },
-      { period: 1, unit: 'E2', campaignTitle: '榮泉餅店', itemName: '紙盒', quantity: 1, unitPrice: null, custom: true },
-      { period: 1, unit: 'E10', campaignTitle: '榮泉餅店', itemName: 'A 蛋黃酥', quantity: 1, unitPrice: 290, custom: false },
-      { period: 2, unit: 'U14', campaignTitle: '榮泉餅店', itemName: 'B 小月餅', quantity: 1, unitPrice: 162, custom: false },
-      { period: 2, unit: 'U14', campaignTitle: '榮泉餅店', itemName: '加購提袋', quantity: 2, unitPrice: null, custom: true },
+      { name: '不應匯出', householdKind: 'resident', period: 1, unit: 'E2', campaignTitle: '榮泉餅店', itemName: 'B 小月餅', quantity: 2, unitPrice: 153, custom: false },
+      { name: '不應匯出', householdKind: 'resident', period: 1, unit: 'E2', campaignTitle: '榮泉餅店', itemName: '紙盒', quantity: 1, unitPrice: null, custom: true },
+      { name: '不應匯出', householdKind: 'resident', period: 1, unit: 'E10', campaignTitle: '榮泉餅店', itemName: 'A 蛋黃酥', quantity: 1, unitPrice: 290, custom: false },
+      { name: '不應匯出', householdKind: 'resident', period: 2, unit: 'U14', campaignTitle: '榮泉餅店', itemName: 'B 小月餅', quantity: 1, unitPrice: 162, custom: false },
+      { name: '不應匯出', householdKind: 'resident', period: 2, unit: 'U14', campaignTitle: '榮泉餅店', itemName: '加購提袋', quantity: 2, unitPrice: null, custom: true },
     ])
   })
 
@@ -123,5 +123,20 @@ describe('order Excel export', () => {
         }))
       }
     }
+  })
+})
+
+describe('export ordering when a household is shared', () => {
+  it('keeps two accounts in one household in a stable name order and puts others last', () => {
+    const rows = buildOrderExportRows({
+      ...summary,
+      orderRows: [
+        { ...summary.orderRows[0], orderId: 'o3', name: '丙', period: null, unit: null, householdKind: 'other' },
+        { ...summary.orderRows[0], orderId: 'o2', name: '乙', period: 2, unit: '2K13', householdKind: 'resident' },
+        { ...summary.orderRows[0], orderId: 'o1', name: '甲', period: 2, unit: '2K13', householdKind: 'resident' },
+      ],
+    }, '測試團購')
+
+    expect(rows.map((row) => row.name)).toEqual(['甲', '乙', '丙'])
   })
 })

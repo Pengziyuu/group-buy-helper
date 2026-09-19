@@ -40,7 +40,7 @@ describe('Supabase admin orders gateway', () => {
     const summary = await gateway.loadSummary('campaign-1', 10)
 
     expect(from).toHaveBeenCalledWith('organizer_order_status')
-    expect(summary.householdCount).toBe(2)
+    expect(summary.orderCount).toBe(2)
     expect(summary.quantity).toBe(5)
     expect(summary.amount).toBe(202)
     expect(summary.itemRows.map(({ code, quantity }) => ({ code, quantity }))).toEqual([
