@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { campaignStatusLabel } from './domain/orderWorkflow'
 import { formatZhTwTimestamp } from './domain/timestamp'
+import { formatArrivalLabel, formatAutoCloseReminder } from './domain/campaignSchedule'
 import type { CampaignListItem } from './services/campaignManagementGateway'
 import type { HouseholdKind } from './domain/household'
 import ResidentMemberManagementApp from './ResidentMemberManagementApp'
@@ -302,6 +303,10 @@ export default function CampaignListApp({ campaigns, onCreate, onDelete, onNavig
                 </span>
               </div>
               <p>{campaign.openedAt ? `開團時間 ${formatZhTwTimestamp(campaign.openedAt)}` : `最後編輯 ${formatZhTwTimestamp(campaign.updatedAt)}・住戶尚不可見`}</p>
+              <div className="campaign-card-schedule">
+                <span>{formatArrivalLabel(campaign.arrivalLabel)}</span>
+                {campaign.autoCloseAt && <span>{formatAutoCloseReminder(campaign.autoCloseAt)}</span>}
+              </div>
             </div>
             <CampaignFormationProgress campaign={campaign} />
             <div className="campaign-list-card-actions">

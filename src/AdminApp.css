@@ -74,6 +74,15 @@
 .field small { justify-self: end; color: var(--admin-muted); font-size: 11px; }
 .threshold-fieldset { min-width: 0; margin: 0; padding: 12px; border: 1px solid #d7d4cf; border-radius: 10px; }
 .threshold-fieldset legend { padding: 0 5px; font-size: 13px; font-weight: 750; }
+.schedule-fieldset { min-width: 0; margin: 0; padding: 14px; border: 1px solid #d7d4cf; border-radius: 10px; display: grid; gap: 14px; }
+.schedule-fieldset legend { padding: 0 5px; font-size: 13px; font-weight: 750; }
+.schedule-group { display: grid; gap: 9px; }
+.schedule-group > strong { font-size: 13px; }
+.schedule-group > small { color: var(--admin-muted); font-size: 12px; }
+.schedule-input-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.schedule-input-row label { display: grid; gap: 5px; color: var(--admin-muted); font-size: 12px; }
+.preview-schedule { margin: 8px 0 2px; color: #195f72; font-weight: 800; }
+.preview-close-reminder { margin: 0 0 6px; padding: 7px 9px; border-radius: 8px; background: #fff4d6; color: #805b00; font-size: 12px; font-weight: 800; }
 .threshold-kind-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .threshold-kind-options label { display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 8px 10px; border: 1px solid #d7d4cf; border-radius: 9px; background: #fff; font-size: 13px; font-weight: 700; }
 .threshold-kind-options input { width: auto; margin: 0; }

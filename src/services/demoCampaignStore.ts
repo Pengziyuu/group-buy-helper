@@ -1,4 +1,5 @@
 import { normalizeQuantityUnit, type QuantityUnit } from '../domain/quantityUnit'
+import { normalizeArrivalLabel, validArrivalLabel } from '../domain/campaignSchedule'
 
 export type CampaignImage = {
   src: string
@@ -31,6 +32,8 @@ export type CampaignContent = {
   allowCustomItems?: boolean
   baseDiscountRate?: number
   mixMatchDiscount?: CampaignMixMatchDiscount | null
+  arrivalLabel?: string
+  autoCloseAt?: string | null
   announcement: string
   images: CampaignImage[]
   items: CampaignItem[]
@@ -71,6 +74,9 @@ function isCampaignContent(value: unknown): value is CampaignContent {
         && typeof candidate.mixMatchDiscount.rate === 'number'
         && candidate.mixMatchDiscount.rate > 0
         && candidate.mixMatchDiscount.rate <= 1))
+    && (candidate.arrivalLabel === undefined || validArrivalLabel(candidate.arrivalLabel))
+    && (candidate.autoCloseAt === undefined || candidate.autoCloseAt === null
+      || (typeof candidate.autoCloseAt === 'string' && Number.isFinite(Date.parse(candidate.autoCloseAt))))
     && typeof candidate.announcement === 'string'
     && candidate.announcement.length <= 20_000
     && Array.isArray(candidate.images)
@@ -104,6 +110,8 @@ export function normalizeCampaignContent(content: CampaignContent): CampaignCont
     ...content,
     baseDiscountRate: content.baseDiscountRate ?? 1,
     mixMatchDiscount: content.mixMatchDiscount ?? null,
+    arrivalLabel: normalizeArrivalLabel(content.arrivalLabel),
+    autoCloseAt: content.autoCloseAt ?? null,
     items: content.items.map((item) => ({
       ...item,
       unitPrice: item.unitPrice ?? content.unitPrice,
@@ -140,6 +148,8 @@ export function campaignContentEquals(left: CampaignContent, right: CampaignCont
     && (left.allowCustomItems ?? false) === (right.allowCustomItems ?? false)
     && (left.baseDiscountRate ?? 1) === (right.baseDiscountRate ?? 1)
     && JSON.stringify(left.mixMatchDiscount ?? null) === JSON.stringify(right.mixMatchDiscount ?? null)
+    && normalizeArrivalLabel(left.arrivalLabel) === normalizeArrivalLabel(right.arrivalLabel)
+    && (left.autoCloseAt ?? null) === (right.autoCloseAt ?? null)
     && left.announcement === right.announcement
     && left.images.length === right.images.length
     && left.images.every((image, index) => image.src === right.images[index]?.src && image.alt === right.images[index]?.alt)

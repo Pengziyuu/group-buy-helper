@@ -711,4 +711,18 @@ describe('customer campaign app', () => {
     expect(new Set(ids).size).toBe(ids.length)
     expect(initialOrders.every((order) => order.householdKind === 'resident')).toBe(true)
   })
+
+  it('shows the published arrival and optional automatic closing reminder', () => {
+    render(<App visibleOrders={[]} publishedContent={{
+      title: '時程測試團', unitPrice: 50, threshold: 10,
+      announcement: '', images: [],
+      items: [{ code: 'A', name: '商品', unitPrice: 50, active: true }],
+      openedAt: '2026-09-20T00:00:00.000Z',
+      arrivalLabel: '10月中',
+      autoCloseAt: '2027-10-15T04:00:00.000Z',
+    }} />)
+
+    expect(screen.getByText(/預計到貨：10月中/)).toBeInTheDocument()
+    expect(screen.getByText(/提醒：.*10\/15 12:00 自動結單/)).toBeInTheDocument()
+  })
 })

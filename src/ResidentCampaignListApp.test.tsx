@@ -22,6 +22,8 @@ describe('ResidentCampaignListApp', () => {
             threshold: 10,
             thresholdKind: 'amount',
             amountThreshold: 1000,
+            arrivalLabel: '03/08',
+            autoCloseAt: '2027-03-05T04:00:00.000Z',
             images: [
               { src: 'https://example.com/breakfast-cover.jpg', alt: '早餐商品照片' },
               { src: 'https://example.com/breakfast-detail.jpg', alt: '早餐細節照片' },
@@ -36,6 +38,8 @@ describe('ResidentCampaignListApp', () => {
             totalQuantity: 12,
             threshold: 12,
             quantityUnit: '箱',
+            arrivalLabel: '貨到通知',
+            autoCloseAt: null,
           },
         ]}
         onLogout={onLogout}
@@ -55,6 +59,9 @@ describe('ResidentCampaignListApp', () => {
     expect(screen.getByText('12 箱 / 12 箱')).toBeInTheDocument()
     expect(screen.getAllByText('成團進度')).toHaveLength(2)
     expect(screen.getAllByText('最低價')).toHaveLength(2)
+    expect(screen.getByText('預計到貨：03/08')).toBeInTheDocument()
+    expect(screen.getByText('03/05 12:00 自動結單')).toBeInTheDocument()
+    expect(screen.getByText('預計到貨：貨到通知')).toBeInTheDocument()
     expect(screen.queryByText('單價')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '登出' }))
     expect(onLogout).toHaveBeenCalledOnce()

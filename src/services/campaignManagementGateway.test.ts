@@ -30,6 +30,8 @@ describe('campaign management gateway', () => {
       images: [{ src: 'https://example.com/ice.jpg', alt: '冰餅商品照' }], quantityUnit: '盒',
       orderCount: 3, totalQuantity: 8, totalAmount: 1080, paidOrderCount: 2,
       thresholdKind: 'amount', threshold: 20, amountThreshold: 1500,
+      arrivalLabel: '貨到通知',
+      autoCloseAt: null,
     }])
     await expect(gateway.create('新的團購')).resolves.toEqual(expect.objectContaining({ id: 'campaign-1' }))
     expect(rpc).toHaveBeenNthCalledWith(1, 'list_admin_campaign_cards')

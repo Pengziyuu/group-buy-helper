@@ -10,6 +10,19 @@ import { campaignStatusLabel, type CampaignStatus } from './domain/orderWorkflow
 import { itemLabel, MAX_CAMPAIGN_ITEMS } from './domain/itemLabel'
 import { normalizeQuantityUnit, QUANTITY_UNITS, type QuantityUnit } from './domain/quantityUnit'
 import {
+  buildArrivalLabel,
+  daysInMonth,
+  formatArrivalLabel,
+  formatAutoCloseReminder,
+  parseArrivalLabel,
+  taipeiDateInputFromIso,
+  taipeiNoonIso,
+  todayInTaipei,
+  validDateInput,
+  type ArrivalMode,
+  type ArrivalPeriod,
+} from './domain/campaignSchedule'
+import {
   campaignContentEquals,
   loadDraftCampaign,
   loadPublishedCampaign,
@@ -101,6 +114,13 @@ function AdminApp({
   const [amountThreshold, setAmountThreshold] = useState(initialDraft.amountThreshold ?? Math.max(1, initialDraft.threshold * initialDraft.unitPrice))
   const [amountThresholdInput, setAmountThresholdInput] = useState(String(initialDraft.amountThreshold ?? Math.max(1, initialDraft.threshold * initialDraft.unitPrice)))
   const [announcement, setAnnouncement] = useState(initialDraft.announcement)
+  const initialArrival = parseArrivalLabel(initialDraft.arrivalLabel)
+  const [arrivalMode, setArrivalMode] = useState<ArrivalMode>(initialArrival.mode)
+  const [arrivalMonth, setArrivalMonth] = useState(initialArrival.month)
+  const [arrivalDay, setArrivalDay] = useState(initialArrival.day)
+  const [arrivalPeriod, setArrivalPeriod] = useState<ArrivalPeriod>(initialArrival.period)
+  const [autoCloseEnabled, setAutoCloseEnabled] = useState(Boolean(initialDraft.autoCloseAt))
+  const [autoCloseDate, setAutoCloseDate] = useState(() => taipeiDateInputFromIso(initialDraft.autoCloseAt))
   const [images, setImages] = useState(() => [...initialDraft.images])
   const [campaignItems, setCampaignItems] = useState(() => initialDraft.items.map((item) => ({ ...item })))
   const [openedAt, setOpenedAt] = useState(initialDraft.openedAt)
@@ -148,6 +168,9 @@ function AdminApp({
     && Number(amountThresholdInput) > 0
     && Number(amountThresholdInput) <= 999999999999.99
   const numericInputsValid = itemPricesValid && discountRulesValid && (thresholdKind === 'quantity' ? thresholdInputValid : amountThresholdInputValid)
+  const scheduleInputsValid = !autoCloseEnabled || (validDateInput(autoCloseDate) && autoCloseDate >= todayInTaipei())
+  const arrivalLabel = buildArrivalLabel(arrivalMode, arrivalMonth, arrivalDay, arrivalPeriod)
+  const autoCloseAt = autoCloseEnabled && scheduleInputsValid ? taipeiNoonIso(autoCloseDate) : null
   const draftSavePending = draftRevision !== savedRevisionRef.current
   const resolvedOrderSummary = orderSummary === undefined ? demoOrderSummary : orderSummary
 
@@ -165,6 +188,8 @@ function AdminApp({
       minimumQuantity: mixMatchMinimumQuantity,
       rate: mixMatchDiscountRate,
     } : null,
+    arrivalLabel,
+    autoCloseAt,
     announcement,
     images,
     items: campaignItems,
@@ -179,7 +204,7 @@ function AdminApp({
   }
 
   useEffect(() => {
-    if (draftRevision === savedRevisionRef.current || editorBusy || autoSaveInFlightRef.current || !numericInputsValid) return
+    if (draftRevision === savedRevisionRef.current || editorBusy || autoSaveInFlightRef.current || !numericInputsValid || !scheduleInputsValid) return
     const revision = draftRevision
     const delay = flushAutoSaveImmediatelyRef.current ? 0 : 500
     flushAutoSaveImmediatelyRef.current = false
@@ -200,6 +225,8 @@ function AdminApp({
           minimumQuantity: mixMatchMinimumQuantity,
           rate: mixMatchDiscountRate,
         } : null,
+        arrivalLabel,
+        autoCloseAt,
         announcement,
         images,
         items: campaignItems,
@@ -227,7 +254,7 @@ function AdminApp({
       })
     }, delay)
     return () => window.clearTimeout(timer)
-  }, [allowCustomItems, amountThreshold, announcement, autoSaveCycle, baseDiscountEnabled, baseDiscountRate, campaignItems, draftRevision, editorBusy, images, mixMatchDiscountRate, mixMatchEnabled, mixMatchMinimumQuantity, mixMatchName, numericInputsValid, onSaveDraft, openedAt, quantityUnit, threshold, thresholdKind, title, unitPrice])
+  }, [allowCustomItems, amountThreshold, announcement, arrivalLabel, autoCloseAt, autoSaveCycle, baseDiscountEnabled, baseDiscountRate, campaignItems, draftRevision, editorBusy, images, mixMatchDiscountRate, mixMatchEnabled, mixMatchMinimumQuantity, mixMatchName, numericInputsValid, onSaveDraft, openedAt, quantityUnit, scheduleInputsValid, threshold, thresholdKind, title, unitPrice])
 
   const retryAutoSave = () => {
     if (autoSaveFailedRevision === null || editorBusy || autoSaveInFlightRef.current) return
@@ -274,6 +301,13 @@ function AdminApp({
         setMixMatchName(canonical.mixMatchDiscount?.name ?? '任選三件85折')
         setMixMatchMinimumQuantity(canonical.mixMatchDiscount?.minimumQuantity ?? 3)
         setMixMatchDiscountRate(canonical.mixMatchDiscount?.rate ?? 0.85)
+        const canonicalArrival = parseArrivalLabel(canonical.arrivalLabel)
+        setArrivalMode(canonicalArrival.mode)
+        setArrivalMonth(canonicalArrival.month)
+        setArrivalDay(canonicalArrival.day)
+        setArrivalPeriod(canonicalArrival.period)
+        setAutoCloseEnabled(Boolean(canonical.autoCloseAt))
+        setAutoCloseDate(taipeiDateInputFromIso(canonical.autoCloseAt))
         const canonicalAmountThreshold = canonical.amountThreshold ?? Math.max(1, canonical.threshold * canonical.unitPrice)
         setAmountThreshold(canonicalAmountThreshold)
         setAmountThresholdInput(String(canonicalAmountThreshold))
@@ -430,6 +464,48 @@ function AdminApp({
               <span>團購標題</span>
               <input disabled={editorBusy} value={title} onChange={(event) => { setTitle(event.target.value); markDraft() }} />
             </label>
+            <fieldset className="field full-field schedule-fieldset">
+              <legend>團購時程</legend>
+              <div className="schedule-group">
+                <strong>預計到貨</strong>
+                <div className="threshold-kind-options">
+                  <label><input type="radio" name="arrival-mode" checked={arrivalMode === 'notice'} disabled={editorBusy} onChange={() => { setArrivalMode('notice'); markDraft() }} />貨到通知</label>
+                  <label><input type="radio" name="arrival-mode" checked={arrivalMode === 'date'} disabled={editorBusy} onChange={() => { setArrivalMode('date'); markDraft() }} />指定日期</label>
+                  <label><input type="radio" name="arrival-mode" checked={arrivalMode === 'month-period'} disabled={editorBusy} onChange={() => { setArrivalMode('month-period'); markDraft() }} />月份時段</label>
+                </div>
+                {arrivalMode !== 'notice' && (
+                  <div className="schedule-input-row">
+                    <label><span>月份</span><select aria-label="到貨月份" value={arrivalMonth} disabled={editorBusy} onChange={(event) => {
+                      const month = Number(event.target.value)
+                      setArrivalMonth(month)
+                      setArrivalDay((current) => Math.min(current, daysInMonth(month)))
+                      markDraft()
+                    }}>{Array.from({ length: 12 }, (_, index) => index + 1).map((month) => <option key={month} value={month}>{month}月</option>)}</select></label>
+                    {arrivalMode === 'date' ? (
+                      <label><span>日期</span><select aria-label="到貨日期" value={arrivalDay} disabled={editorBusy} onChange={(event) => { setArrivalDay(Number(event.target.value)); markDraft() }}>
+                        {Array.from({ length: daysInMonth(arrivalMonth) }, (_, index) => index + 1).map((day) => <option key={day} value={day}>{day}日</option>)}
+                      </select></label>
+                    ) : (
+                      <label><span>時段</span><select aria-label="到貨時段" value={arrivalPeriod} disabled={editorBusy} onChange={(event) => { setArrivalPeriod(event.target.value as ArrivalPeriod); markDraft() }}>
+                        <option value="初">月初</option><option value="中">月中</option><option value="底">月底</option>
+                      </select></label>
+                    )}
+                  </div>
+                )}
+                <small>{formatArrivalLabel(arrivalLabel)}</small>
+              </div>
+              <div className="schedule-group">
+                <label className="custom-items-toggle">
+                  <input type="checkbox" aria-label="設定結單日期" checked={autoCloseEnabled} disabled={editorBusy} onChange={(event) => {
+                    setAutoCloseEnabled(event.target.checked)
+                    if (event.target.checked && !autoCloseDate) setAutoCloseDate(todayInTaipei())
+                    markDraft()
+                  }} />
+                  <span><strong>設定結單日期（選填）</strong><small>台灣時間當日中午12:00自動結單；若數量先達門檻，會提前結單。</small></span>
+                </label>
+                {autoCloseEnabled && <label className="threshold-value-field"><span>結單日期</span><input aria-label="結單日期" type="date" min={todayInTaipei()} value={autoCloseDate} disabled={editorBusy} onChange={(event) => { setAutoCloseDate(event.target.value); markDraft() }} /></label>}
+              </div>
+            </fieldset>
             <fieldset className="field threshold-fieldset">
               <legend>成團門檻</legend>
               <div className="threshold-kind-options">
@@ -804,7 +880,7 @@ function AdminApp({
             {autoSaveFailedRevision !== null && (
               <button type="button" className="secondary-action" onClick={retryAutoSave} disabled={editorBusy || autoSaving}>立即重試暫存</button>
             )}
-            <button type="button" onClick={publish} disabled={editorBusy || autoSaving || draftSavePending || !numericInputsValid}>
+            <button type="button" onClick={publish} disabled={editorBusy || autoSaving || draftSavePending || !numericInputsValid || !scheduleInputsValid}>
               {busyAction === 'publish' ? '發布中…' : itemsLocked ? '更新住戶公告' : '發布並開團'}
             </button>
           </div>
@@ -823,6 +899,8 @@ function AdminApp({
               <strong>{unitPrice === maximumItemPrice ? `$${unitPrice}` : `$${unitPrice}～$${maximumItemPrice}`}</strong>
             </div>
             <h2>{title || '未命名團購'}</h2>
+            <p className="preview-schedule">{formatArrivalLabel(arrivalLabel)}</p>
+            {autoCloseAt && <p className="preview-close-reminder">{formatAutoCloseReminder(autoCloseAt)}</p>}
             <p className="preview-threshold">{thresholdKind === 'amount'
               ? `滿 NT$ ${amountThreshold.toLocaleString('zh-TW')} 成團`
               : `結單：${threshold} ${quantityUnit}成團`}</p>

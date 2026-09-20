@@ -352,12 +352,16 @@
 .resident-campaign-card h2 {
   min-width: 0;
   min-height: 2.7em;
-  margin: 0 0 16px;
+  margin: 0 0 10px;
   font-size: 19px;
   line-height: 1.35;
   letter-spacing: -.01em;
   overflow-wrap: anywhere;
 }
+
+.resident-campaign-schedule { display: grid; gap: 5px; margin: 0 0 15px; }
+.resident-campaign-schedule p { margin: 0; color: #195f72; font-size: 12px; font-weight: 800; }
+.resident-campaign-schedule .is-close-reminder { width: fit-content; padding: 6px 8px; border-radius: 8px; background: #fff4d6; color: #805b00; }
 
 .resident-campaign-facts {
   display: grid;

@@ -59,6 +59,8 @@ export type Database = {
           allow_custom_items: boolean
           amount_threshold: number | null
           announcement: string
+          arrival_label: string
+          auto_close_at: string | null
           base_discount_rate: number
           community_id: string
           created_at: string
@@ -83,6 +85,8 @@ export type Database = {
           allow_custom_items?: boolean
           amount_threshold?: number | null
           announcement?: string
+          arrival_label?: string
+          auto_close_at?: string | null
           base_discount_rate?: number
           community_id?: string
           created_at?: string
@@ -107,6 +111,8 @@ export type Database = {
           allow_custom_items?: boolean
           amount_threshold?: number | null
           announcement?: string
+          arrival_label?: string
+          auto_close_at?: string | null
           base_discount_rate?: number
           community_id?: string
           created_at?: string
@@ -182,6 +188,8 @@ export type Database = {
           allow_custom_items: boolean
           amount_threshold: number | null
           announcement: string
+          arrival_label: string
+          auto_close_at: string | null
           base_discount_rate: number
           campaign_id: string
           created_at: string
@@ -202,6 +210,8 @@ export type Database = {
           allow_custom_items?: boolean
           amount_threshold?: number | null
           announcement?: string
+          arrival_label?: string
+          auto_close_at?: string | null
           base_discount_rate?: number
           campaign_id: string
           created_at?: string
@@ -222,6 +232,8 @@ export type Database = {
           allow_custom_items?: boolean
           amount_threshold?: number | null
           announcement?: string
+          arrival_label?: string
+          auto_close_at?: string | null
           base_discount_rate?: number
           campaign_id?: string
           created_at?: string
@@ -995,6 +1007,8 @@ export type Database = {
     Views: {
       admin_campaign_list: {
         Row: {
+          arrival_label: string | null
+          auto_close_at: string | null
           created_at: string | null
           id: string | null
           opened_at: string | null
@@ -1010,6 +1024,8 @@ export type Database = {
           allow_custom_items: boolean | null
           amount_threshold: number | null
           announcement: string | null
+          arrival_label: string | null
+          auto_close_at: string | null
           base_discount_rate: number | null
           created_at: string | null
           deadline: string | null
@@ -1033,6 +1049,8 @@ export type Database = {
           allow_custom_items?: boolean | null
           amount_threshold?: number | null
           announcement?: string | null
+          arrival_label?: string | null
+          auto_close_at?: string | null
           base_discount_rate?: number | null
           created_at?: string | null
           deadline?: string | null
@@ -1056,6 +1074,8 @@ export type Database = {
           allow_custom_items?: boolean | null
           amount_threshold?: number | null
           announcement?: string | null
+          arrival_label?: string | null
+          auto_close_at?: string | null
           base_discount_rate?: number | null
           created_at?: string | null
           deadline?: string | null
@@ -1337,6 +1357,7 @@ export type Database = {
               recipient_count: number
             }[]
           }
+      close_due_campaigns: { Args: never; Returns: number }
       consume_line_login_rate_limit: {
         Args: { p_key_hash: string; p_limit: number; p_window_seconds: number }
         Returns: boolean
@@ -1347,6 +1368,8 @@ export type Database = {
           allow_custom_items: boolean
           amount_threshold: number | null
           announcement: string
+          arrival_label: string
+          auto_close_at: string | null
           base_discount_rate: number
           community_id: string
           created_at: string
@@ -1483,6 +1506,8 @@ export type Database = {
         Args: { p_slug: string }
         Returns: {
           announcement: string
+          arrival_label: string
+          auto_close_at: string
           created_at: string
           deadline: string
           id: string
@@ -1502,6 +1527,8 @@ export type Database = {
         Args: never
         Returns: {
           amount_threshold: number
+          arrival_label: string
+          auto_close_at: string
           created_at: string
           id: string
           images: Json
@@ -1530,6 +1557,8 @@ export type Database = {
         Returns: {
           allow_custom_items: boolean
           amount_threshold: number
+          arrival_label: string
+          auto_close_at: string
           images: Json
           opened_at: string
           quantity_unit: string
@@ -1594,6 +1623,8 @@ export type Database = {
           allow_custom_items: boolean
           amount_threshold: number | null
           announcement: string
+          arrival_label: string
+          auto_close_at: string | null
           base_discount_rate: number
           community_id: string
           created_at: string
@@ -1641,6 +1672,8 @@ export type Database = {
           allow_custom_items: boolean
           amount_threshold: number | null
           announcement: string
+          arrival_label: string
+          auto_close_at: string | null
           base_discount_rate: number
           community_id: string
           created_at: string

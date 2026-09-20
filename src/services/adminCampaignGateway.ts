@@ -17,6 +17,8 @@ type DraftRow = {
   mix_match_name?: string | null
   mix_match_min_quantity?: number | null
   mix_match_discount_rate?: number | null
+  arrival_label?: string | null
+  auto_close_at?: string | null
   announcement: string
   images: CampaignImage[]
   items: CampaignItem[]
@@ -65,6 +67,8 @@ function toContent(data: unknown): CampaignContent {
           rate: row.mix_match_discount_rate,
         }
       : null,
+    arrivalLabel: row.arrival_label ?? '貨到通知',
+    autoCloseAt: row.auto_close_at ?? null,
     announcement: row.announcement,
     images: row.images,
     items: row.items.map((item) => ({
@@ -76,7 +80,7 @@ function toContent(data: unknown): CampaignContent {
   }
 }
 
-const draftColumns = 'title,unit_price,threshold,threshold_kind,amount_threshold,quantity_unit,allow_custom_items,base_discount_rate,mix_match_name,mix_match_min_quantity,mix_match_discount_rate,announcement,images,items'
+const draftColumns = 'title,unit_price,threshold,threshold_kind,amount_threshold,quantity_unit,allow_custom_items,base_discount_rate,mix_match_name,mix_match_min_quantity,mix_match_discount_rate,arrival_label,auto_close_at,announcement,images,items'
 const publishedColumns = `${draftColumns},opened_at`
 
 export function createAdminCampaignGateway(client: AdminCampaignSupabaseClient) {
@@ -155,6 +159,8 @@ export function createAdminCampaignGateway(client: AdminCampaignSupabaseClient) 
           mix_match_name: content.mixMatchDiscount?.name ?? null,
           mix_match_min_quantity: content.mixMatchDiscount?.minimumQuantity ?? null,
           mix_match_discount_rate: content.mixMatchDiscount?.rate ?? null,
+          arrival_label: content.arrivalLabel ?? '貨到通知',
+          auto_close_at: content.autoCloseAt ?? null,
           announcement: content.announcement,
           images: content.images,
           items: normalizedItems,

@@ -5,6 +5,7 @@ import { formatZhTwTimestamp, wasMeaningfullyUpdated } from './domain/timestamp'
 import { campaignStatusLabel, type CampaignStatus } from './domain/orderWorkflow'
 import { itemLabel } from './domain/itemLabel'
 import { normalizeQuantityUnit } from './domain/quantityUnit'
+import { formatArrivalLabel, formatAutoCloseReminder } from './domain/campaignSchedule'
 import { customOrderItemsEqual, validCustomOrderItems, type CustomOrderItem } from './domain/customOrderItem'
 import { discountedUnitPrice, priceOrder, type DiscountPricing } from './domain/discountPricing'
 import {
@@ -396,7 +397,10 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
           <span className="price">{minimumPrice === maximumPrice ? `$${minimumPrice}` : `$${minimumPrice}～$${maximumPrice}`}</span>
         </div>
         <h1>{publishedCampaign.title}</h1>
-        {!liveDemo && <p className="arrival">🧊 {campaign.arrival}</p>}
+        <p className="arrival">📦 {formatArrivalLabel(publishedCampaign.arrivalLabel)}</p>
+        {publishedCampaign.autoCloseAt && (
+          <p className="campaign-close-reminder">{campaignStatus === 'open' ? '提醒：' : '原訂：'}{formatAutoCloseReminder(publishedCampaign.autoCloseAt)}</p>
+        )}
         {publishedCampaign.openedAt && (
           <p className="campaign-time">開團時間 {formatZhTwTimestamp(publishedCampaign.openedAt)}</p>
         )}

@@ -124,6 +124,8 @@ type CampaignRow = {
   mix_match_name?: unknown
   mix_match_min_quantity?: unknown
   mix_match_discount_rate?: unknown
+  arrival_label?: unknown
+  auto_close_at?: unknown
   announcement: unknown
   images: unknown
   items: unknown
@@ -320,6 +322,8 @@ function campaignContentFromRow(row: CampaignRow | null): CampaignContent {
       && typeof row.mix_match_discount_rate === 'number'
       ? { name: row.mix_match_name, minimumQuantity: row.mix_match_min_quantity, rate: row.mix_match_discount_rate }
       : null,
+    arrivalLabel: typeof row.arrival_label === 'string' ? row.arrival_label : '貨到通知',
+    autoCloseAt: typeof row.auto_close_at === 'string' ? row.auto_close_at : null,
     announcement: row.announcement,
     images: row.images,
     items: row.items as CampaignContent['items'],
@@ -947,6 +951,8 @@ function residentCampaignListRepository(client: SupabaseClient<Database>): LiveR
           amountThreshold: row.amount_threshold === null ? null : Number(row.amount_threshold),
           quantityUnit: normalizeQuantityUnit(row.quantity_unit),
           images: Array.isArray(row.images) ? row.images.filter(isCampaignImage) : [],
+          arrivalLabel: row.arrival_label ?? '貨到通知',
+          autoCloseAt: row.auto_close_at ?? null,
         }]
       })
     },
@@ -1079,7 +1085,7 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug }: Loca
       if (!resolvedCampaignId) throw new Error('找不到團購活動')
       const { data, error: queryError } = await client
         .from('campaign_public')
-        .select('title,unit_price,threshold,threshold_kind,amount_threshold,quantity_unit,allow_custom_items,base_discount_rate,mix_match_name,mix_match_min_quantity,mix_match_discount_rate,announcement,images,items,opened_at,status')
+        .select('title,unit_price,threshold,threshold_kind,amount_threshold,quantity_unit,allow_custom_items,base_discount_rate,mix_match_name,mix_match_min_quantity,mix_match_discount_rate,arrival_label,auto_close_at,announcement,images,items,opened_at,status')
         .eq('id', resolvedCampaignId)
         .single()
       if (queryError) throw queryError

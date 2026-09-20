@@ -632,4 +632,32 @@ describe('organizer campaign editor', () => {
 
     expect(onCancelOrder).toHaveBeenCalledOnce()
   })
+
+  it('configures arrival choices and an optional noon closing date', async () => {
+    const user = userEvent.setup()
+    const onSaveDraft = vi.fn().mockResolvedValue(undefined)
+    const content: CampaignContent = {
+      title: '時程設定團', unitPrice: 50, threshold: 10,
+      announcement: '', images: [],
+      items: [{ code: 'A', name: '商品', unitPrice: 50, active: true }],
+      openedAt: null,
+      arrivalLabel: '貨到通知',
+      autoCloseAt: null,
+    }
+    render(<AdminApp initialContent={content} orderSummary={null} onSaveDraft={onSaveDraft} />)
+
+    await user.click(screen.getByRole('radio', { name: '指定日期' }))
+    await user.selectOptions(screen.getByRole('combobox', { name: '到貨月份' }), '3')
+    await user.selectOptions(screen.getByRole('combobox', { name: '到貨日期' }), '8')
+    expect(within(screen.getByRole('region', { name: '住戶端預覽' })).getByText('預計到貨：03/08')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('checkbox', { name: '設定結單日期' }))
+    fireEvent.change(screen.getByLabelText('結單日期'), { target: { value: '2027-10-15' } })
+    expect(within(screen.getByRole('region', { name: '住戶端預覽' })).getByText('10/15 12:00 自動結單')).toBeInTheDocument()
+
+    await waitFor(() => expect(onSaveDraft).toHaveBeenLastCalledWith(expect.objectContaining({
+      arrivalLabel: '03/08',
+      autoCloseAt: '2027-10-15T04:00:00.000Z',
+    })))
+  })
 })

@@ -4,6 +4,7 @@ import { StatusBadge, type StatusTone } from './components/ui/StatusBadge'
 import { campaignStatusLabel, type CampaignStatus } from './domain/orderWorkflow'
 import { formatZhTwTimestamp } from './domain/timestamp'
 import { normalizeQuantityUnit, type QuantityUnit } from './domain/quantityUnit'
+import { formatArrivalLabel, formatAutoCloseReminder } from './domain/campaignSchedule'
 import type { CampaignImage } from './services/demoCampaignStore'
 import './ResidentCampaignListApp.css'
 
@@ -25,6 +26,8 @@ export type ResidentCampaignListItem = {
   amountThreshold?: number | null
   quantityUnit?: QuantityUnit
   images?: CampaignImage[]
+  arrivalLabel?: string
+  autoCloseAt?: string | null
 }
 
 type ResidentCampaignListAppProps = {
@@ -126,6 +129,10 @@ export default function ResidentCampaignListApp({ identity, campaigns, onLogout 
                   {formatZhTwTimestamp(campaign.openedAt)} 開團
                 </p>
                 <h2>{campaign.title}</h2>
+                <div className="resident-campaign-schedule">
+                  <p>{formatArrivalLabel(campaign.arrivalLabel)}</p>
+                  {campaign.status === 'open' && campaign.autoCloseAt && <p className="is-close-reminder">{formatAutoCloseReminder(campaign.autoCloseAt)}</p>}
+                </div>
                 <div className="resident-campaign-facts">
                   <p><span>最低價</span><strong><small>NT$</small> {campaign.unitPrice.toLocaleString('zh-TW')}</strong></p>
                   <p><span>成團進度</span><strong>{progressText}</strong></p>

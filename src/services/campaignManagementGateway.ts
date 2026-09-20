@@ -21,6 +21,8 @@ export type CampaignListItem = {
   thresholdKind: CampaignThresholdKind
   threshold: number
   amountThreshold: number | null
+  arrivalLabel?: string
+  autoCloseAt?: string | null
 }
 
 type CampaignListRow = {
@@ -40,6 +42,8 @@ type CampaignListRow = {
   threshold_kind?: unknown
   threshold?: unknown
   amount_threshold?: unknown
+  arrival_label?: unknown
+  auto_close_at?: unknown
 }
 
 function errorMessage(error: unknown): string {
@@ -100,6 +104,8 @@ function toCampaignListItem(value: unknown, requireSummary = false): CampaignLis
     thresholdKind: thresholdKind ?? 'quantity',
     threshold: threshold && threshold > 0 ? threshold : 1,
     amountThreshold,
+    arrivalLabel: typeof row.arrival_label === 'string' ? row.arrival_label : '貨到通知',
+    autoCloseAt: typeof row.auto_close_at === 'string' ? row.auto_close_at : null,
   }
 }
 

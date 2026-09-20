@@ -35,15 +35,15 @@ describe('demo campaign draft and publishing store', () => {
   it('keeps a saved draft separate from the resident published version', () => {
     saveDraftCampaign(edited)
 
-    expect(loadDraftCampaign(original)).toEqual(edited)
-    expect(loadPublishedCampaign(original)).toEqual(original)
+    expect(loadDraftCampaign(original)).toEqual({ ...edited, arrivalLabel: '貨到通知', autoCloseAt: null })
+    expect(loadPublishedCampaign(original)).toEqual({ ...original, arrivalLabel: '貨到通知', autoCloseAt: null })
   })
 
   it('changes the resident version only after publishing', () => {
     saveDraftCampaign(edited)
     publishCampaign(edited)
 
-    expect(loadPublishedCampaign(original)).toEqual(edited)
+    expect(loadPublishedCampaign(original)).toEqual({ ...edited, arrivalLabel: '貨到通知', autoCloseAt: null })
   })
 
   it('persists ordered item state and includes it in draft equality', () => {
@@ -77,6 +77,12 @@ describe('demo campaign draft and publishing store', () => {
 
   it('normalizes legacy campaigns to no discount', () => {
     expect(loadDraftCampaign(original)).toMatchObject({ baseDiscountRate: 1, mixMatchDiscount: null })
+  })
+
+  it('includes arrival and automatic closing settings in draft equality', () => {
+    expect(campaignContentEquals(original, { ...original, arrivalLabel: '3月初' })).toBe(false)
+    expect(campaignContentEquals(original, { ...original, autoCloseAt: '2027-03-05T04:00:00.000Z' })).toBe(false)
+    expect(loadDraftCampaign(original)).toMatchObject({ arrivalLabel: '貨到通知', autoCloseAt: null })
   })
 
   it('ignores the server-owned opened timestamp when comparing editable draft content', () => {
