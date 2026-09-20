@@ -12,6 +12,9 @@ ANON_KEY = os.environ["ANON_KEY"]
 SECRET_KEY = os.environ["SECRET_KEY"]
 
 
+COMMUNITY_ID = "00000000-0000-4000-8000-000000000001"
+
+
 def call(method: str, path: str, key: str, *, token: str | None = None,
          body: Any = None, prefer: str | None = None) -> tuple[int, Any]:
     headers = {"apikey": key, "Content-Type": "application/json"}
@@ -70,13 +73,25 @@ def main() -> None:
             ANON_KEY,
             token=admin_token,
         )
+        # create_campaign_draft seeds a single item named "A" carrying a unitPrice
+        # (20260901_000020_item_names_and_prices.sql), not the older bare "A號".
         assert status == 200 and drafts == [{
             "title": "API 新團購",
             "unit_price": 0,
             "threshold": 1,
-            "items": [{"code": "ITEM1", "name": "A號", "active": True}],
+            "items": [{"code": "ITEM1", "name": "A", "unitPrice": 0, "active": True}],
         }], (status, drafts)
 
+        # has_campaign_access requires a campaign_access row AND community membership
+        # AND a published campaign. Without the membership the resident is denied by
+        # two independent conditions at once, and the checks below would pass whether
+        # or not publication state is honoured. Granting membership leaves publication
+        # as the only differentiator, which is what they are meant to be testing.
+        status, payload = call(
+            "POST", "/rest/v1/community_member", SECRET_KEY,
+            body={"community_id": COMMUNITY_ID, "user_id": resident_id}, prefer="return=minimal",
+        )
+        assert status in (200, 201), (status, payload)
         status, payload = call(
             "POST", "/rest/v1/campaign_access", SECRET_KEY,
             body={"campaign_id": campaign_id, "user_id": resident_id}, prefer="return=minimal",
@@ -109,9 +124,13 @@ def main() -> None:
         listed = next((item for item in listing if item["id"] == campaign_id), None)
         assert status == 200 and listed and listed["title"] == "API 新團購（已暫存）", (status, listing)
 
+        # join_campaign_by_slug matches only campaigns whose opened_at is set, and it
+        # returns a table: for an unpublished slug it answers 200 with no rows rather
+        # than an error status. Asserting on the rows keeps the check load-bearing --
+        # drop that guard and the function hands back the campaign, failing here.
         status, payload = call("POST", "/rest/v1/rpc/join_campaign_by_slug", ANON_KEY,
                                token=resident_token, body={"p_slug": slug})
-        assert status in (400, 403, 404), (status, payload)
+        assert status == 200 and payload == [], (status, payload)
 
         print(json.dumps({
             "checks": 9,

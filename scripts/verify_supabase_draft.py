@@ -8,13 +8,17 @@ from __future__ import annotations
 import atexit
 import json
 import os
+import re
+import subprocess
 import urllib.error
 import urllib.request
+from pathlib import Path
 from typing import Any
 
 API_URL = os.environ["API_URL"]
 ANON_KEY = os.environ["ANON_KEY"]
 SECRET_KEY = os.environ["SECRET_KEY"]
+COMMUNITY_ID = "00000000-0000-4000-8000-000000000001"
 CAMPAIGN_ID = "10000000-0000-4000-8000-000000000001"
 CAMPAIGN_SLUG = "0123456789abcdef0123456789abcdef0123"
 
@@ -56,6 +60,30 @@ def signup() -> tuple[str, str]:
     return payload["user"]["id"], payload["access_token"]
 
 
+def local_db_container() -> str:
+    config = (Path(__file__).resolve().parent.parent / "supabase/config.toml").read_text(encoding="utf-8")
+    match = re.search(r'^project_id\s*=\s*"([^"]+)"', config, re.MULTILINE)
+    if not match:
+        raise RuntimeError("找不到 supabase/config.toml 的 project_id，無法清理開團草稿")
+    return f"supabase_db_{match.group(1)}"
+
+
+def run_local_sql(statement: str) -> None:
+    """Delete fixture rows the API refuses to touch.
+
+    lock_published_draft_delete blocks removing a campaign_draft for every role,
+    including service_role, once the campaign has opened, and the seed campaign
+    is open. Cleanup therefore goes straight at the local database with triggers
+    suppressed for a single session.
+    """
+    subprocess.run(
+        ["docker", "exec", "-i", local_db_container(),
+         "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1",
+         "-c", f"set session_replication_role = replica; {statement}"],
+        check=True, stdout=subprocess.DEVNULL,
+    )
+
+
 def main() -> None:
     admin_id, admin_token = signup()
     resident_id, resident_token = signup()
@@ -69,6 +97,19 @@ def main() -> None:
     )
     assert status in (200, 201), (status, payload)
 
+    # join_campaign_by_slug only grants campaign_access to a community_member, and
+    # it returns a table: for a non-member it answers 200 with an empty set, so a
+    # status-only assertion below would pass while granting nothing and the real
+    # failure would surface several steps later.
+    status, payload = call(
+        "POST",
+        "/rest/v1/community_member",
+        SECRET_KEY,
+        body={"community_id": COMMUNITY_ID, "user_id": resident_id},
+        prefer="return=minimal",
+    )
+    assert status in (200, 201), (status, payload)
+
     status, payload = call(
         "POST",
         "/rest/v1/rpc/join_campaign_by_slug",
@@ -76,7 +117,7 @@ def main() -> None:
         token=resident_token,
         body={"p_slug": CAMPAIGN_SLUG},
     )
-    assert status == 200, (status, payload)
+    assert status == 200 and payload, (status, payload)
 
     status, before = call(
         "GET",
@@ -101,11 +142,8 @@ def main() -> None:
             SECRET_KEY,
             prefer="return=minimal",
         )
-        call(
-            "DELETE",
-            f"/rest/v1/campaign_draft?campaign_id=eq.{CAMPAIGN_ID}",
-            SECRET_KEY,
-            prefer="return=minimal",
+        run_local_sql(
+            f"delete from public.campaign_draft where campaign_id = '{CAMPAIGN_ID}';"
         )
         call(
             "DELETE",
@@ -196,7 +234,13 @@ def main() -> None:
         and after[0]["opened_at"] == before[0]["opened_at"]
     ), (status, after)
 
-    locked_price = {**draft, "unit_price": before[0]["unit_price"] + 1}
+    # Prices live per item now, and the post-opening lock compares the whole items
+    # array (publish_campaign_draft: v_draft.items is distinct from
+    # v_campaign.items), so raising the campaign-level unit_price no longer trips
+    # it -- the price has to change where the campaign actually keeps it.
+    locked_price = {**draft, "items": [
+        {**item, "unitPrice": item["unitPrice"] + 1} for item in before[0]["items"]
+    ]}
     status, _ = call(
         "POST", "/rest/v1/campaign_draft?on_conflict=campaign_id", ANON_KEY,
         token=admin_token, body=locked_price,
@@ -211,7 +255,10 @@ def main() -> None:
 
     locked_items = {
         **draft,
-        "items": [*before[0]["items"], {"code": "J", "name": "10號", "active": True}],
+        # valid_campaign_items requires unitPrice on every item, so the draft write
+        # itself is rejected without it and the publish lock never gets exercised.
+        "items": [*before[0]["items"],
+                  {"code": "J", "name": "10號", "unitPrice": 45, "active": True}],
     }
     status, _ = call(
         "POST", "/rest/v1/campaign_draft?on_conflict=campaign_id", ANON_KEY,
