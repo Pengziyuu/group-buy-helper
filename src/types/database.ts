@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -669,6 +674,13 @@ export type Database = {
             referencedRelation: "organizer_order_status"
             referencedColumns: ["order_id", "campaign_id"]
           },
+          {
+            foreignKeyName: "order_item_order_id_campaign_id_fkey"
+            columns: ["order_id", "campaign_id"]
+            isOneToOne: false
+            referencedRelation: "organizer_order_wall"
+            referencedColumns: ["order_id", "campaign_id"]
+          },
         ]
       }
       orders: {
@@ -768,6 +780,13 @@ export type Database = {
             referencedRelation: "organizer_order_status"
             referencedColumns: ["order_id"]
           },
+          {
+            foreignKeyName: "organizer_order_note_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "organizer_order_wall"
+            referencedColumns: ["order_id"]
+          },
         ]
       }
       payment: {
@@ -818,6 +837,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: true
             referencedRelation: "organizer_order_status"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "payment_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "organizer_order_wall"
             referencedColumns: ["order_id"]
           },
         ]
@@ -1139,6 +1165,65 @@ export type Database = {
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "campaign_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organizer_order_wall: {
+        Row: {
+          campaign_id: string | null
+          campaign_item_id: string | null
+          campaign_slug: string | null
+          custom_items: Json | null
+          customer_id: string | null
+          customer_name: string | null
+          discount_rate: number | null
+          discount_type: string | null
+          final_unit_price: number | null
+          household_kind: string | null
+          item_active: boolean | null
+          item_code: string | null
+          item_name: string | null
+          item_updated_at: string | null
+          list_unit_price: number | null
+          note: string | null
+          order_id: string | null
+          order_updated_at: string | null
+          ordered_at: string | null
+          period: number | null
+          picture_url: string | null
+          promotion_name: string | null
+          qty: number | null
+          sort_order: number | null
+          unit: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "admin_campaign_list"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer"
             referencedColumns: ["id"]
           },
         ]
@@ -1741,4 +1826,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

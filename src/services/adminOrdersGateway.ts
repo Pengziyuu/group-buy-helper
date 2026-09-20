@@ -88,7 +88,7 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
           .eq('campaign_id', campaignId)
           .order('sort_order'),
         client
-          .from('order_wall')
+          .from('organizer_order_wall')
           .select('order_id,customer_name,period,unit,household_kind,item_code,qty,list_unit_price,discount_type,discount_rate,final_unit_price,promotion_name,custom_items,ordered_at,order_updated_at')
           .eq('campaign_id', campaignId)
           .order('period'),
