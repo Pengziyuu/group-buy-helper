@@ -101,6 +101,7 @@ export async function createOrderExportWorkbook({ summary, campaignTitle }: Orde
     { header: '到貨日期', key: 'arrivalDate', width: 13 },
     { header: '期別', key: 'period', width: 9 },
     { header: '戶號', key: 'unit', width: 13 },
+    { header: 'LINE名稱', key: 'lineName', width: 18 },
     { header: '團購名', key: 'campaignTitle', width: 24 },
     { header: '品項／口味', key: 'itemName', width: 32 },
     { header: '數量', key: 'quantity', width: 10 },
@@ -108,7 +109,7 @@ export async function createOrderExportWorkbook({ summary, campaignTitle }: Orde
     { header: '總價', key: 'total', width: 15 },
     { header: '備註', key: 'note', width: 24 },
   ]
-  sheet.autoFilter = 'A1:I1'
+  sheet.autoFilter = 'A1:J1'
   sheet.getRow(1).height = 25
   sheet.getRow(1).eachCell((cell) => {
     cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }
@@ -128,19 +129,20 @@ export async function createOrderExportWorkbook({ summary, campaignTitle }: Orde
       arrivalDate: null,
       period: item.period,
       unit: item.householdKind === 'other' ? '其他' : item.unit,
+      lineName: item.name,
       campaignTitle: item.campaignTitle,
       itemName: item.itemName,
       quantity: item.quantity,
       unitPrice: item.unitPrice,
-      total: item.custom ? null : { formula: `F${excelRowNumber}*G${excelRowNumber}` },
+      total: item.custom ? null : { formula: `G${excelRowNumber}*H${excelRowNumber}` },
       note: item.custom ? '額外品項，金額另計' : '',
     })
     row.height = 22
     row.getCell(1).numFmt = 'mm/dd'
     row.getCell(3).numFmt = '@'
-    row.getCell(6).numFmt = '0'
-    row.getCell(7).numFmt = '$#,##0'
-    row.getCell(8).numFmt = '$#,##0'
+    row.getCell(7).numFmt = '0'
+    row.getCell(8).numFmt = '#,##0'
+    row.getCell(9).numFmt = '#,##0'
     row.eachCell({ includeEmpty: true }, (cell) => {
       cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
       cell.border = { bottom: { style: 'hair', color: { argb: 'FFD9E4DF' } } }
@@ -150,8 +152,8 @@ export async function createOrderExportWorkbook({ summary, campaignTitle }: Orde
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF4D6' } }
       })
     } else {
-      formalQuantityCells.push(`F${excelRowNumber}`)
-      formalTotalCells.push(`H${excelRowNumber}`)
+      formalQuantityCells.push(`G${excelRowNumber}`)
+      formalTotalCells.push(`I${excelRowNumber}`)
     }
   })
 
@@ -164,8 +166,8 @@ export async function createOrderExportWorkbook({ summary, campaignTitle }: Orde
   totalRow.height = 25
   totalRow.font = { bold: true, color: { argb: 'FF174D3D' } }
   totalRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2F1EA' } }
-  totalRow.getCell(6).numFmt = '0'
-  totalRow.getCell(8).numFmt = '$#,##0'
+  totalRow.getCell(7).numFmt = '0'
+  totalRow.getCell(9).numFmt = '#,##0'
   totalRow.eachCell({ includeEmpty: true }, (cell) => {
     cell.border = { top: { style: 'medium', color: { argb: 'FF236B53' } } }
     cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }

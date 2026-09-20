@@ -356,4 +356,36 @@ describe('organizer orders panel', () => {
     expect(screen.getByRole('row', { name: /其他\s*丙/ })).toBeInTheDocument()
     expect(screen.queryByText('NaN期')).not.toBeInTheDocument()
   })
+
+  it('uses 其他 instead of null in accessible order controls', () => {
+    const otherSummary = {
+      ...summary,
+      orderRows: [{
+        ...summary.orderRows[0],
+        orderId: 'other-order',
+        name: '社區朋友',
+        period: null,
+        unit: null,
+        householdKind: 'other' as const,
+        paid: false,
+        organizerNote: '',
+      }],
+    }
+
+    render(
+      <AdminOrdersPanel
+        summary={otherSummary}
+        campaignStatus="open"
+        onSetOrderPaid={vi.fn()}
+        onSetOrderOrganizerNote={vi.fn()}
+        onCancelOrder={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: '標記 其他 已付款' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: '其他 備註' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '儲存 其他 備註' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '取消 其他 訂單' })).toBeInTheDocument()
+    expect(screen.queryByLabelText(/null/)).not.toBeInTheDocument()
+  })
 })

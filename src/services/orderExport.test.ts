@@ -22,7 +22,7 @@ const summary = buildOrganizerOrderSummary({
 })
 
 describe('order Excel export', () => {
-  it('creates naturally sorted formal and custom rows without resident names', () => {
+  it('creates naturally sorted formal and custom rows with LINE names', () => {
     expect(buildOrderExportRows(summary, '榮泉餅店')).toEqual([
       { name: '不應匯出', householdKind: 'resident', period: 1, unit: 'E2', campaignTitle: '榮泉餅店', itemName: 'B 小月餅', quantity: 2, unitPrice: 153, custom: false },
       { name: '不應匯出', householdKind: 'resident', period: 1, unit: 'E2', campaignTitle: '榮泉餅店', itemName: '紙盒', quantity: 1, unitPrice: null, custom: true },
@@ -101,9 +101,9 @@ describe('order Excel export', () => {
 
     expect(sheet).toBeDefined()
     expect(sheet?.views).toEqual(expect.arrayContaining([expect.objectContaining({ state: 'frozen', ySplit: 1 })]))
-    expect(sheet?.autoFilter).toBe('A1:I1')
+    expect(sheet?.autoFilter).toBe('A1:J1')
     expect(sheet?.getRow(1).values).toEqual([
-      undefined, '到貨日期', '期別', '戶號', '團購名', '品項／口味', '數量', '單價', '總價', '備註',
+      undefined, '到貨日期', '期別', '戶號', 'LINE名稱', '團購名', '品項／口味', '數量', '單價', '總價', '備註',
     ])
     expect(sheet?.getCell('A2').numFmt).toBe('mm/dd')
     expect(sheet?.getCell('C2').numFmt).toBe('@')
@@ -112,16 +112,20 @@ describe('order Excel export', () => {
     // both, which organizers use to split distribution batches by period.
     expect(sheet?.getCell('B2').value).toBe(1)
     expect(sheet?.getCell('C2').value).toBe('E2')
-    expect(sheet?.getCell('H2').value).toEqual({ formula: 'F2*G2' })
-    expect(sheet?.getCell('G3').value).toBeNull()
+    expect(sheet?.getCell('D2').value).toBe('不應匯出')
+    expect(sheet?.getCell('I2').value).toEqual({ formula: 'G2*H2' })
     expect(sheet?.getCell('H3').value).toBeNull()
-    expect(sheet?.getCell('I3').value).toBe('額外品項，金額另計')
-    expect(sheet?.getCell('E7').value).toBe('正式品項數量合計')
-    expect(sheet?.getCell('F7').value).toEqual({ formula: 'SUM(F2,F4,F5)' })
-    expect(sheet?.getCell('G7').value).toBe('正式商品總金額')
-    expect(sheet?.getCell('H7').value).toEqual({ formula: 'SUM(H2,H4,H5)' })
+    expect(sheet?.getCell('I3').value).toBeNull()
+    expect(sheet?.getCell('J3').value).toBe('額外品項，金額另計')
+    expect(sheet?.getCell('F7').value).toBe('正式品項數量合計')
+    expect(sheet?.getCell('G7').value).toEqual({ formula: 'SUM(G2,G4,G5)' })
+    expect(sheet?.getCell('H7').value).toBe('正式商品總金額')
+    expect(sheet?.getCell('I7').value).toEqual({ formula: 'SUM(I2,I4,I5)' })
+    expect(sheet?.getCell('H2').numFmt).toBe('#,##0')
+    expect(sheet?.getCell('I2').numFmt).toBe('#,##0')
+    expect(sheet?.getCell('I7').numFmt).toBe('#,##0')
     for (let row = 1; row <= 7; row += 1) {
-      for (let column = 1; column <= 9; column += 1) {
+      for (let column = 1; column <= 10; column += 1) {
         expect(sheet?.getCell(row, column).alignment).toEqual(expect.objectContaining({
           horizontal: 'center',
           vertical: 'middle',
@@ -167,5 +171,6 @@ describe('export of an other-household row', () => {
 
     expect(sheet?.getCell('B2').value).toBeNull()
     expect(sheet?.getCell('C2').value).toBe('其他')
+    expect(sheet?.getCell('D2').value).toBe('丙')
   })
 })

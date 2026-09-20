@@ -14,6 +14,8 @@ describe('customer campaign app', () => {
     expect(screen.getByRole('heading', { name: '一涼製冰所 超厚三明治冰餅' })).toBeInTheDocument()
     expect(screen.getByText('62 個 / 100 個')).toBeInTheDocument()
     expect(screen.getByText('還差 38 個成團')).toBeInTheDocument()
+    expect(screen.getByText('已有 6 筆訂單，大家的訂單都看得到')).toBeInTheDocument()
+    expect(screen.queryByText(/戶參加/)).not.toBeInTheDocument()
     expect(screen.getByText('斯祈')).toBeInTheDocument()
     expect(screen.getByText('佩怡')).toBeInTheDocument()
   })
@@ -513,6 +515,19 @@ describe('customer campaign app', () => {
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('此期別與戶號已由其他住戶綁定')
     expect(alert).not.toHaveTextContent('sensitive database detail')
+  })
+
+  it('explains that one household can use several LINE accounts', () => {
+    render(
+      <App
+        visibleOrders={[]}
+        residentCustomer={null}
+        verifiedResidentIdentity={{ displayName: '富美', pictureUrl: null }}
+      />,
+    )
+
+    expect(screen.getByText('住戶資料只用於辨識訂單；同一戶號可由多個LINE帳號各自下單。')).toBeInTheDocument()
+    expect(screen.queryByText(/只能綁定一個帳號/)).not.toBeInTheDocument()
   })
 
   it('shows a closed campaign and disables every order control', () => {

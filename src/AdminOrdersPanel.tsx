@@ -235,9 +235,11 @@ function AdminOrdersPanel({
               <tbody>
                 {visibleOrders.map((order) => {
                   const orderBusy = busyKeys.has(`order-${order.orderId}`)
+                  const householdLabel = formatHousehold(order.householdKind, order.period, order.unit)
+                  const controlLabel = order.householdKind === 'other' ? householdLabel : order.unit ?? householdLabel
                   return (
                     <tr key={order.orderId} aria-busy={orderBusy || undefined}>
-                      <td data-label="戶號">{formatHousehold(order.householdKind, order.period, order.unit)}</td>
+                      <td data-label="戶號">{householdLabel}</td>
                       <td data-label="姓名"><strong>{order.name}</strong></td>
                       <td data-label="訂購內容">
                         <span>{order.itemSummary || '無正式品項'}</span>
@@ -251,7 +253,7 @@ function AdminOrdersPanel({
                             <button
                               type="button"
                               className={order.paid ? 'status-button paid' : 'status-button'}
-                              aria-label={orderBusy ? `更新 ${order.unit} 中` : `標記 ${order.unit} ${order.paid ? '未付款' : '已付款'}`}
+                              aria-label={orderBusy ? `更新 ${controlLabel} 中` : `標記 ${controlLabel} ${order.paid ? '未付款' : '已付款'}`}
                               disabled={!onSetOrderPaid || orderBusy}
                               onClick={() => {
                                 setPaymentError('')
@@ -265,7 +267,7 @@ function AdminOrdersPanel({
                             <div className="order-note-control">
                               <input
                                 type="text"
-                                aria-label={`${order.unit} 備註`}
+                                aria-label={`${controlLabel} 備註`}
                                 maxLength={500}
                                 value={noteDrafts[order.orderId] ?? order.organizerNote}
                                 disabled={!onSetOrderOrganizerNote || orderBusy}
@@ -274,7 +276,7 @@ function AdminOrdersPanel({
                               />
                               <button
                                 type="button"
-                                aria-label={`儲存 ${order.unit} 備註`}
+                                aria-label={`儲存 ${controlLabel} 備註`}
                                 disabled={!onSetOrderOrganizerNote || orderBusy || (noteDrafts[order.orderId] ?? order.organizerNote) === order.organizerNote}
                                 onClick={() => updateOrganizerNote(order, noteDrafts[order.orderId] ?? order.organizerNote)}
                               >
@@ -286,7 +288,7 @@ function AdminOrdersPanel({
                             <button
                               type="button"
                               className="order-cancel-button"
-                              aria-label={`取消 ${order.unit} 訂單`}
+                              aria-label={`取消 ${controlLabel} 訂單`}
                               disabled={!onCancelOrder || orderBusy || campaignStatus !== 'open'}
                               onClick={() => {
                                 setCancelError('')

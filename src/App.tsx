@@ -417,7 +417,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
           value={thresholdKind === 'amount' ? summary.amount : summary.quantity}
           max={summary.threshold}
         />
-        <p className="social-proof">已有 {orders.length} 戶參加，大家的訂單都看得到</p>
+        <p className="social-proof">已有 {orders.length} 筆訂單，大家的訂單都看得到</p>
       </section>
 
       <article className="panel campaign-post" aria-labelledby="campaign-post-heading">
@@ -714,7 +714,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
             loadingLabel="住戶資料儲存中…"
           >儲存住戶資料</Button>
           {bindingNotice && <FeedbackMessage className="resident-binding-feedback" tone="error">{bindingNotice}</FeedbackMessage>}
-          <p className="privacy-note">住戶資料只用於辨識訂單；每個期別與戶號只能綁定一個帳號。</p>
+          <p className="privacy-note">住戶資料只用於辨識訂單；同一戶號可由多個LINE帳號各自下單。</p>
         </section>
       )}
 
