@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import {
@@ -1820,7 +1820,7 @@ describe('local Supabase visual demo apps', () => {
     expect(screen.queryByRole('button', { name: '儲存住戶資料' })).not.toBeInTheDocument()
   })
 
-  it('shows an outside-the-community order on the live wall and prefills its own draft instead of hiding it', async () => {
+  it('shows an outside-the-community order without household details and prefills its own draft', async () => {
     const session = { access_token: 'resident-token', user: { id: 'resident-uid', is_anonymous: false } }
     const { client } = authClient(session)
     const single = vi.fn().mockResolvedValue({
@@ -1864,9 +1864,11 @@ describe('local Supabase visual demo apps', () => {
 
     render(<LocalLiveResidentApp client={client} campaignSlug="campaign-slug" />)
 
-    // The order wall keeps the 'other' household's order instead of dropping
-    // it for a null period/unit.
-    expect(await screen.findByText('其他')).toBeInTheDocument()
+    // The order wall keeps the order but does not expose its household kind.
+    const wall = await screen.findByRole('region', { name: '目前訂單' })
+    expect(within(wall).getByText('丙', { selector: 'strong' })).toBeInTheDocument()
+    expect(within(wall).queryByText('其他')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '其他・丙' })).toBeInTheDocument()
     // Their own draft is prefilled from that same order rather than showing
     // an empty draft they could accidentally resubmit.
     expect(screen.getByText('我的訂單 3 個')).toBeInTheDocument()
@@ -1921,7 +1923,10 @@ describe('local Supabase visual demo apps', () => {
 
     render(<LocalLiveResidentApp client={client} campaignSlug="campaign-slug" />)
 
-    expect(await screen.findByText('其他')).toBeInTheDocument()
+    const wall = await screen.findByRole('region', { name: '目前訂單' })
+    expect(within(wall).getByText('丁', { selector: 'strong' })).toBeInTheDocument()
+    expect(within(wall).queryByText('其他')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '其他・丁' })).toBeInTheDocument()
   })
 
   it('resolves a resident share slug to its campaign id before loading data', async () => {

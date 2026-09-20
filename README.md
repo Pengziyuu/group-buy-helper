@@ -30,7 +30,7 @@
 - 結單後可匯出成團明細 `.xlsx`；包含 LINE 名稱，單價與總價保留數字及千分位但不顯示 `$` 符號
 - 商品圖片以 `{src, alt}` JSON 保存，資料庫驗證替代文字及最多 10 張限制
 - 團主可上傳 JPG、PNG、WebP 到 Supabase Storage；單檔最多 5 MB，住戶只能公開讀取
-- 406 個前端／領域自動測試
+- 409 個前端／領域自動測試
 - 可重建的本機 Supabase migration、seed 與產生型別
 
 ## 本機執行
@@ -161,6 +161,7 @@ python scripts/approve_line_organizer.py <request-code>
 - `line_user_id` 不出現在公開 view 或前端一般查詢。
 - LINE subject 經官方驗證後只保存在 service-role-only 資料表，不出現在列表、訂單牆或前端權限資料。
 - 住戶名稱與頭貼只從LINE官方驗證回應同步；首次社區住戶只填期別與戶號，社區以外人士選擇「其他」則不必填。
+- 住戶端即時成團牆不回傳也不顯示任何人的期別／戶號；自己的期別／戶號只顯示在「我的訂單」。
 - 住戶列表只由安全RPC回傳其community內已發布團購的最小欄位；草稿與其他community永不回傳。
 - 團主管理住戶只使用安全隨機member code；LINE subject、Auth UID與community UUID不回傳前端。
 - 客人只能更新綁定到自己 `auth.uid()` 的訂單。

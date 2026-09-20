@@ -739,7 +739,6 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
                 <div className="wall-main">
                   <div className="wall-name">
                     <strong>{order.name}</strong>
-                    <span>{formatHousehold(order.householdKind, order.period, order.unit)}</span>
                   </div>
                   <p>{Object.entries(order.items)
                     .filter(([, quantity]) => quantity > 0)

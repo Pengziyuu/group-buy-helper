@@ -191,6 +191,26 @@ describe('customer campaign app', () => {
     expect(screen.getByText('62 個 / 100 個')).toBeInTheDocument()
   })
 
+  it('hides every household from the live wall while keeping the current household in my order', () => {
+    const resident = { ...initialOrders[0], householdKind: 'resident' as const }
+    const neighbor = {
+      ...initialOrders[1],
+      customerId: 'neighbor-customer',
+      name: '鄰居住戶',
+      period: 2,
+      unit: '9Z9',
+      householdKind: 'resident' as const,
+    }
+    render(<App residentCustomer={resident} visibleOrders={[resident, neighbor]} />)
+
+    const wall = screen.getByRole('region', { name: '目前訂單' })
+    expect(within(wall).queryByText('二期 2K13')).not.toBeInTheDocument()
+    expect(within(wall).queryByText('二期 9Z9')).not.toBeInTheDocument()
+    expect(within(wall).getByText('斯祈')).toBeInTheDocument()
+    expect(within(wall).getByText('鄰居住戶')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '二期 2K13・斯祈' })).toBeInTheDocument()
+  })
+
   it('does not leak the fixed demo arrival copy into live content', () => {
     render(<App liveDemo />)
 
@@ -574,7 +594,7 @@ describe('customer campaign app', () => {
     expect(within(productSelection).getByText('$60')).toBeInTheDocument()
     expect(within(screen.getByRole('region', { name: '我的訂單明細' })).getByText('$150')).toBeInTheDocument()
     expect(screen.getByText('A+2、B+1')).toBeInTheDocument()
-    expect(screen.getByText('三期 3Z15')).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: '目前訂單' })).queryByText('三期 3Z15')).not.toBeInTheDocument()
     expect(screen.queryByText(/A號|B號/)).not.toBeInTheDocument()
   })
 
