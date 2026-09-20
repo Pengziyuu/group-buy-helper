@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import urllib.error
@@ -14,6 +15,7 @@ API_URL = os.environ["API_URL"]
 ANON_KEY = os.environ["ANON_KEY"]
 SECRET_KEY = os.environ["SECRET_KEY"]
 CAMPAIGN_ID = "10000000-0000-4000-8000-000000000001"
+COMMUNITY_ID = "00000000-0000-4000-8000-000000000001"
 CAMPAIGN_SLUG = "0123456789abcdef0123456789abcdef0123"
 CUSTOMER_ID = "30000000-0000-4000-8000-000000000001"
 ORDER_ID = "40000000-0000-4000-8000-000000000001"
@@ -55,8 +57,11 @@ def run_checks() -> None:
     status, self_after_binding = call("POST", "/rest/v1/rpc/get_customer_self", ANON_KEY,
                                       token=resident_token, body={})
     assert status == 200 and len(self_after_binding) == 1 and self_after_binding[0]["id"] == CUSTOMER_ID
-    assert call("POST", "/rest/v1/rpc/join_campaign_by_slug", ANON_KEY,
-                token=resident_token, body={"p_slug": CAMPAIGN_SLUG})[0] == 200
+    assert call("POST", "/rest/v1/community_member", SECRET_KEY, prefer="return=minimal",
+                body={"community_id": COMMUNITY_ID, "user_id": resident_id})[0] in (200, 201)
+    joined_status, joined = call("POST", "/rest/v1/rpc/join_campaign_by_slug", ANON_KEY,
+                                 token=resident_token, body={"p_slug": CAMPAIGN_SLUG})
+    assert joined_status == 200 and joined, (joined_status, joined)
     status, _ = call(
         "POST", "/rest/v1/campaign_item", ANON_KEY, token=admin_token,
         body={"campaign_id": CAMPAIGN_ID, "code": "BYPASS", "name": "不可直接新增", "sort_order": 99},
@@ -91,7 +96,7 @@ def run_checks() -> None:
         "threshold": campaign["threshold"], "announcement": campaign["announcement"],
         "images": campaign["images"],
     }
-    with_j = [*campaign["items"], {"code": "J", "name": "10號", "active": True}]
+    with_j = [*campaign["items"], {"code": "J", "name": "10號", "unitPrice": 45, "active": True, "discountEligible": False}]
     status, _ = call("POST", "/rest/v1/campaign_draft?on_conflict=campaign_id", ANON_KEY,
                      token=admin_token, body={**async_fields, "items": with_j},
                      prefer="resolution=merge-duplicates,return=minimal")
@@ -109,8 +114,8 @@ def run_checks() -> None:
     ]
     assert call("PATCH", f"/rest/v1/campaign?id=eq.{CAMPAIGN_ID}", SECRET_KEY,
                 body={"items": retired_snapshot}, prefer="return=minimal")[0] in (200, 204)
-    assert call("PATCH", f"/rest/v1/campaign_item?campaign_id=eq.{CAMPAIGN_ID}&code=eq.B", SECRET_KEY,
-                body={"active": False}, prefer="return=minimal")[0] in (200, 204)
+    run_local_sql("update public.campaign_item set active = false "
+                  f"where campaign_id = '{CAMPAIGN_ID}' and code = 'B';")
     assert call("POST", "/rest/v1/campaign_draft?on_conflict=campaign_id", SECRET_KEY,
                 body={**async_fields, "items": retired_snapshot},
                 prefer="resolution=merge-duplicates,return=minimal")[0] in (200, 201)
@@ -198,6 +203,31 @@ def run_checks() -> None:
         "opened_at_stable": True,
         "published_items_updated": True,
     }, ensure_ascii=False))
+
+
+def local_db_container() -> str:
+    config = (Path(__file__).resolve().parent.parent / "supabase/config.toml").read_text(encoding="utf-8")
+    match = re.search(r'^project_id\s*=\s*"([^"]+)"', config, re.MULTILINE)
+    if not match:
+        raise RuntimeError("找不到 supabase/config.toml 的 project_id，無法建立舊資料樣本")
+    return f"supabase_db_{match.group(1)}"
+
+
+def run_local_sql(statement: str) -> None:
+    """Write fixture state that the API can no longer produce.
+
+    lock_published_campaign_items freezes campaign_item for every role, including
+    service_role, once a campaign is open, and clearing opened_at is blocked in
+    turn by lock_published_campaign_custom_items. Retired items with existing
+    orders are therefore legacy-only rows now, so the fixture is forged directly
+    in the local database with triggers suppressed for a single session.
+    """
+    subprocess.run(
+        ["docker", "exec", "-i", local_db_container(),
+         "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1",
+         "-c", f"set session_replication_role = replica; {statement}"],
+        check=True, stdout=subprocess.DEVNULL,
+    )
 
 
 def find_supabase_cli() -> str:

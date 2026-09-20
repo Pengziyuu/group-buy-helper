@@ -17,6 +17,7 @@ from typing import Any
 API_URL = os.environ["API_URL"]
 ANON_KEY = os.environ["ANON_KEY"]
 SECRET_KEY = os.environ["SECRET_KEY"]
+COMMUNITY_ID = "00000000-0000-4000-8000-000000000001"
 
 
 def call(
@@ -58,10 +59,11 @@ def signup() -> tuple[str, str]:
 
 ORDER_WALL_SAFE_COLUMNS = {
     "campaign_slug", "campaign_id", "order_id", "customer_id", "customer_name",
-    "picture_url", "period", "unit", "note", "custom_items", "ordered_at", "order_updated_at",
+    "picture_url", "period", "unit", "note", "custom_items",
+    "ordered_at", "order_updated_at",
     "campaign_item_id", "item_code", "item_name", "sort_order", "item_active",
-    "qty", "list_unit_price", "discount_rate", "final_unit_price", "discount_type",
-    "promotion_name", "item_updated_at", "household_kind",
+    "qty", "list_unit_price", "discount_rate", "final_unit_price",
+    "discount_type", "promotion_name", "item_updated_at", "household_kind",
 }
 
 
@@ -148,11 +150,11 @@ def main() -> None:
         other_customer_id = str(uuid.uuid4())
         profiles = [
             {
-                "id": customer_id, "period": 9, "unit": "ADMIN01",
+                "id": customer_id, "period": 1, "unit": "A1",
                 "name": "團主住戶", "auth_user_id": admin_id,
             },
             {
-                "id": other_customer_id, "period": 9, "unit": "OTHER01",
+                "id": other_customer_id, "period": 1, "unit": "A2",
                 "name": "其他住戶", "auth_user_id": other_id,
             },
         ]
@@ -161,6 +163,23 @@ def main() -> None:
             body=profiles, prefer="return=minimal",
         )
         assert status in (200, 201), (status, payload)
+
+        status, payload = call(
+            "POST", "/rest/v1/community_member", SECRET_KEY,
+            body=[{"community_id": COMMUNITY_ID, "user_id": admin_id},
+                  {"community_id": COMMUNITY_ID, "user_id": other_id}],
+            prefer="return=minimal",
+        )
+        assert status in (200, 201), (status, payload)
+
+        # create_campaign_draft hardcodes threshold 1, and a 'quantity' threshold
+        # caps the campaign's total ordered quantity, so raise it before publishing
+        # to leave room for the multi-unit order checks below.
+        status, payload = call(
+            "PATCH", f"/rest/v1/campaign_draft?campaign_id=eq.{campaign_id}", ANON_KEY,
+            token=admin_token, body={"threshold": 100}, prefer="return=minimal",
+        )
+        assert status in (200, 204), (status, payload)
 
         status, payload = call(
             "POST", "/rest/v1/rpc/publish_campaign_draft", ANON_KEY,
@@ -180,7 +199,7 @@ def main() -> None:
             token=admin_token, body={},
         )
         assert status == 200 and own_profile == [{
-            "id": customer_id, "name": "團主住戶", "period": 9, "unit": "ADMIN01",
+            "id": customer_id, "name": "團主住戶", "picture_url": None, "period": 1, "unit": "A1",
         }], (status, own_profile)
         checks["admin_uid_resolves_own_customer"] = True
 
