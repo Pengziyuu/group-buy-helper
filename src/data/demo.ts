@@ -15,7 +15,7 @@ export type VisibleOrder = Order & {
   pictureUrl?: string | null
   period: number | null
   unit: string | null
-  householdKind?: HouseholdKind
+  householdKind: HouseholdKind
   orderedAt: string
   updatedAt: string
 }
