@@ -1,11 +1,13 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { currentCustomerId, initialOrders, items } from './data/demo'
 import type { CampaignContent } from './services/demoCampaignStore'
 
 describe('customer campaign app', () => {
+  afterEach(() => { vi.useRealTimers() })
+
   it('shows the verified campaign progress and visible order wall', () => {
     render(<App />)
 
@@ -325,7 +327,13 @@ describe('customer campaign app', () => {
   })
 
   it('lets the signed-in customer update only their own order', async () => {
-    const user = userEvent.setup()
+    // The success toast is removed 3500ms after it appears (App.tsx's notice
+    // effect). With real timers this test races that removal: it only has to
+    // lose 3.5s to a loaded machine between the click and the assertion below,
+    // which is exactly how it failed intermittently. Fake timers make the
+    // window unreachable instead of merely wide.
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     render(<App />)
 
     const submitOrder = screen.getByRole('button', { name: '送出訂單' })
@@ -340,6 +348,24 @@ describe('customer campaign app', () => {
     const successToast = screen.getByText('訂單已更新').closest('[role="status"]')
     expect(successToast).toHaveClass('resident-order-toast')
     expect(submitOrder).toBeDisabled()
+  })
+
+  it('clears the success toast on fake time, so a stalled worker cannot lose it', async () => {
+    // This is what makes the assertion above stall-proof. The 3.5s dismissal now
+    // runs on fake time, which advances in small steps per event-loop tick. A
+    // wall-clock stall runs no ticks, so it cannot consume the window the way it
+    // could with real timers.
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: '增加 A 牛奶（招牌）' }))
+    await user.click(screen.getByRole('button', { name: '送出訂單' }))
+    expect(screen.getByText('訂單已更新')).toBeInTheDocument()
+
+    await act(async () => { vi.advanceTimersByTime(3600) })
+
+    expect(screen.queryByText('訂單已更新')).not.toBeInTheDocument()
   })
 
   it('disables submission again when quantity changes are reverted', async () => {
