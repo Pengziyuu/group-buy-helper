@@ -309,12 +309,12 @@ describe('local Supabase visual demo apps', () => {
         notificationLab
         managementRepository={managementRepository}
         pickupNotificationTestCampaignRepository={markerRepository}
-        pickupNotificationRepository={{ preview, send: vi.fn() }}
+        pickupNotificationRepository={{ preview, createCommand: vi.fn() }}
       />,
     )
 
     expect(await screen.findByRole('heading', { name: '通知測試中心' })).toBeInTheDocument()
-    expect(screen.getByText('發送目的地：測試群組')).toBeInTheDocument()
+    expect(screen.getByText('發送方式：複製一次性測試指令並貼到測試群組')).toBeInTheDocument()
     expect(managementRepository.list).toHaveBeenCalledOnce()
     expect(markerRepository.list).toHaveBeenCalledOnce()
     expect(screen.queryByRole('button', { name: '住戶管理' })).not.toBeInTheDocument()
@@ -339,7 +339,7 @@ describe('local Supabase visual demo apps', () => {
         notificationLab
         managementRepository={{ list: vi.fn().mockResolvedValue([campaign]), create: vi.fn(), delete: vi.fn() }}
         pickupNotificationTestCampaignRepository={markerRepository}
-        pickupNotificationRepository={{ preview: vi.fn(), send: vi.fn() }}
+        pickupNotificationRepository={{ preview: vi.fn(), createCommand: vi.fn() }}
       />,
     )
 

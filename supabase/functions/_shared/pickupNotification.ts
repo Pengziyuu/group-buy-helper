@@ -115,6 +115,45 @@ export async function openPickupRecipientSnapshot(
   }
 }
 
+export function generatePickupReplyCommandCode(destination: 'test' | 'production'): string {
+  const random = crypto.getRandomValues(new Uint8Array(16))
+  return `${destination === 'test' ? 'T' : 'P'}-${encodeBase64Url(random)}`
+}
+
+export async function sealPickupReplyPayload(secret: string, intentId: string, message: string): Promise<string> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(intentId)
+    || !message.trim() || message.length > 4_500) throw new Error('通知指令內容格式錯誤')
+  const iv = crypto.getRandomValues(new Uint8Array(12))
+  const additionalData = new TextEncoder().encode(`pickup-reply:${intentId}`)
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv, additionalData },
+    await snapshotEncryptionKey(secret),
+    new TextEncoder().encode(message),
+  )
+  const packed = new Uint8Array(iv.byteLength + ciphertext.byteLength)
+  packed.set(iv)
+  packed.set(new Uint8Array(ciphertext), iv.byteLength)
+  return encodeBase64Url(packed)
+}
+
+export async function openPickupReplyPayload(secret: string, intentId: string, encrypted: string): Promise<string> {
+  try {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(intentId)) throw new Error('invalid')
+    const packed = decodeBase64Url(encrypted)
+    if (packed.byteLength <= 28) throw new Error('invalid')
+    const plaintext = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: packed.slice(0, 12), additionalData: new TextEncoder().encode(`pickup-reply:${intentId}`) },
+      await snapshotEncryptionKey(secret),
+      packed.slice(12),
+    )
+    const message = new TextDecoder().decode(plaintext)
+    if (!message.trim() || message.length > 4_500) throw new Error('invalid')
+    return message
+  } catch {
+    throw new Error('通知指令內容無效')
+  }
+}
+
 export async function technicalSha256(value: string): Promise<string> {
   const bytes = new TextEncoder().encode(value)
   const digest = await crypto.subtle.digest('SHA-256', Uint8Array.from(bytes).buffer)

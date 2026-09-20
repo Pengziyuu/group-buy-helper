@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import type { OrganizerOrderSummary, OrganizerOrderRow } from './domain/adminOrders'
 import type { PickupNotificationAudience } from './domain/pickupNotification'
-import type { PickupNotificationResponse } from './services/pickupNotificationGateway'
+import type { PickupNotificationCommand, PickupNotificationResponse } from './services/pickupNotificationGateway'
 import PickupNotificationPanel from './PickupNotificationPanel'
 import { ConfirmDialog } from './components/ui/ConfirmDialog'
 import { buildOrderExportRows, downloadOrderExport } from './services/orderExport'
@@ -27,7 +27,7 @@ type AdminOrdersPanelProps = {
   onSetOrderOrganizerNote?: (orderId: string, note: string) => Promise<void>
   onCancelOrder?: (orderId: string) => Promise<void>
   onPreviewPickupNotification?: (audience: PickupNotificationAudience, message: string) => Promise<PickupNotificationResponse>
-  onSendPickupNotification?: (audience: PickupNotificationAudience, message: string, previewToken: string) => Promise<PickupNotificationResponse>
+  onCreatePickupNotificationCommand?: (audience: PickupNotificationAudience, message: string, previewToken: string) => Promise<PickupNotificationCommand>
 }
 
 function AdminOrdersPanel({
@@ -42,7 +42,7 @@ function AdminOrdersPanel({
   onSetOrderOrganizerNote,
   onCancelOrder,
   onPreviewPickupNotification,
-  onSendPickupNotification,
+  onCreatePickupNotificationCommand,
 }: AdminOrdersPanelProps) {
   const [busyKeys, setBusyKeys] = useState<Set<string>>(() => new Set())
   const busyKeysRef = useRef(new Set<string>())
@@ -169,14 +169,14 @@ function AdminOrdersPanel({
         <div className="admin-progress-track"><span style={{ width: `${summary.progressPercent}%` }} /></div>
       </div>
 
-      {campaignStatus && campaignId && campaignTitle && onPreviewPickupNotification && onSendPickupNotification && (
+      {campaignStatus && campaignId && campaignTitle && onPreviewPickupNotification && onCreatePickupNotificationCommand && (
         <PickupNotificationPanel
           campaignId={campaignId}
           campaignTitle={campaignTitle}
           campaignStatus={campaignStatus}
           excludedOtherCount={summary.orderRows.filter((row) => row.householdKind === 'other').length}
           onPreview={onPreviewPickupNotification}
-          onSend={onSendPickupNotification}
+          onCreateCommand={onCreatePickupNotificationCommand}
         />
       )}
 

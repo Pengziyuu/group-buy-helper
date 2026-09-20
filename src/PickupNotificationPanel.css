@@ -98,6 +98,9 @@
 
 .pickup-message-field { display: grid; gap: 7px; margin-top: 18px; font-size: 12px; font-weight: 750; }
 .pickup-message-field textarea { width: 100%; min-height: 150px; resize: vertical; padding: 11px; border: 1px solid var(--admin-line); border-radius: 10px; font: inherit; line-height: 1.6; }
+.pickup-command-result { display: grid; gap: 10px; padding: 14px; border: 1px solid #acd6bc; border-radius: 12px; background: #f3fbf6; }
+.pickup-command-result input { width: 100%; padding: 11px; border: 1px solid #82b899; border-radius: 9px; background: #fff; font: 700 14px/1.4 ui-monospace, monospace; }
+.pickup-command-result button { min-height: 44px; padding: 0 14px; border-radius: 9px; font: inherit; font-weight: 750; cursor: pointer; }
 .pickup-empty-state { margin-top: 10px !important; padding: 12px; border-radius: 10px; background: #f2f5f7; color: var(--admin-ink) !important; }
 .pickup-notification-error { color: #9f2c2c; font-size: 12px; }
 .pickup-notification-success { color: #17633f; font-size: 12px; font-weight: 750; }

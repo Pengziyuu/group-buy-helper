@@ -5,7 +5,7 @@ import LinkifiedText from './components/LinkifiedText'
 import { campaign, initialOrders, items } from './data/demo'
 import { buildOrganizerOrderSummary, type OrganizerOrderSummary } from './domain/adminOrders'
 import type { PickupNotificationAudience } from './domain/pickupNotification'
-import type { PickupNotificationResponse } from './services/pickupNotificationGateway'
+import type { PickupNotificationCommand, PickupNotificationResponse } from './services/pickupNotificationGateway'
 import { campaignStatusLabel, type CampaignStatus } from './domain/orderWorkflow'
 import { itemLabel, MAX_CAMPAIGN_ITEMS } from './domain/itemLabel'
 import { normalizeQuantityUnit, QUANTITY_UNITS, type QuantityUnit } from './domain/quantityUnit'
@@ -65,7 +65,7 @@ type AdminAppProps = {
   onSetOrderOrganizerNote?: (orderId: string, note: string) => Promise<void>
   onCancelOrder?: (orderId: string) => Promise<void>
   onPreviewPickupNotification?: (audience: PickupNotificationAudience, message: string) => Promise<PickupNotificationResponse>
-  onSendPickupNotification?: (audience: PickupNotificationAudience, message: string, previewToken: string) => Promise<PickupNotificationResponse>
+  onCreatePickupNotificationCommand?: (audience: PickupNotificationAudience, message: string, previewToken: string) => Promise<PickupNotificationCommand>
   onUploadImage?: (file: File) => Promise<string>
   residentHref?: string | null
 }
@@ -89,7 +89,7 @@ function AdminApp({
   onSetOrderOrganizerNote,
   onCancelOrder,
   onPreviewPickupNotification,
-  onSendPickupNotification,
+  onCreatePickupNotificationCommand,
   onUploadImage,
   residentHref = '/',
 }: AdminAppProps = {}) {
@@ -939,7 +939,7 @@ function AdminApp({
             onSetOrderOrganizerNote={onSetOrderOrganizerNote}
             onCancelOrder={onCancelOrder}
             onPreviewPickupNotification={onPreviewPickupNotification}
-            onSendPickupNotification={onSendPickupNotification}
+            onCreatePickupNotificationCommand={onCreatePickupNotificationCommand}
           />
         ) : (
           <div className="admin-orders-empty">

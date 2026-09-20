@@ -1,6 +1,6 @@
 # LINE領取通知設定與驗證
 
-本功能讓團主針對每個已結單團購，分別向「一期＋三期」及「二期」的實際購買者發送LINE正式mention。測試與正式共用同一套Production系統及LINE官方帳號，但介面、Edge入口、群組槽位及intent皆強制分離。系統不保存發送時間、發送團主或通知歷史。
+本功能讓團主針對每個已結單團購，分別向「一期＋三期」及「二期」的實際購買者建立一次性短指令。團主將指令貼到已綁定群組後，機器人使用該Webhook事件的Reply API發出正式mention，避免主動Push按群組人數消耗月訊息額度。測試與正式共用同一套Production系統及LINE官方帳號，但介面、Edge入口、群組槽位及intent皆強制分離。
 
 ## 安全架構
 
@@ -9,11 +9,12 @@
 - 正式介面只呼叫`send-pickup-notification`，測試中心只呼叫`send-test-pickup-notification`；兩個Edge入口各自把`production`／`test`寫死，不接受Browser傳入目的地。
 - Browser只送出`campaignId`、通知組別與已核對文案，不送LINE User ID、群組ID或環境參數。
 - Edge Function會重新驗證Supabase session、`public.is_admin()`與`public.is_approved_line_organizer()`、團購狀態及實際訂單，並只針對本次購買者逐一確認其目前仍在目標LINE群組。
-- 預覽會建立15分鐘技術性send intent；intent同時保存固定`binding_kind`與當下`line_group_id`。開始發送後只延長至建立時即固定的1小時絕對上限，並由pg_cron每5分鐘自動清除到期資料。DB只保存隨機token、匿名caller hash、收件人／文案hash、LINE retry key、環境、狀態與到期時間，不保存LINE User ID名單、文案、團主UID、發送時間或長期通知歷史。
-- 收件人LINE ID、group ID與環境只放在團主瀏覽器暫持的AES-GCM opaque preview token密文中；密鑰只存在Edge Function secret。Browser不能讀取或竄改內容，DB也不落地保存這份名單。測試與正式preview token不能交換使用。
-- 發送時只逐一重查本次購買者是否仍在LINE群組，不讀取無關群組成員；`ready → sending`的claim會在單一Postgres statement snapshot內，同時重算全部DB資格名單hash、核對目前community群組綁定、團購狀態與團主權限。任一名單、群組或文案hash不一致就要求重新預覽。
-- 網路逾時的`sending`重試不再查詢可變資料，而是從opaque token重建完全相同payload並沿用LINE `X-Line-Retry-Key`，避免重複通知。
-- Webhook綁定事件以15分鐘event ID cache與5分鐘時間窗防重播，不建立永久webhook歷史。
+- 預覽會建立15分鐘技術性intent；建立指令後，intent與指令一併延長為自建立起10分鐘，且不得超過建立預覽時固定的1小時絕對保留上限。pg_cron每5分鐘清除到期資料。
+- DB只保存高熵短碼的SHA-256雜湊、AES-GCM加密通知正文、匿名caller／收件人／文案hash、環境、單次使用狀態與短期到期時間；不保存可重播的短碼明文、LINE User ID名單、團主UID或長期通知歷史。
+- 收件人LINE ID、group ID與環境只放在團主瀏覽器暫持的AES-GCM opaque preview token密文中；密鑰只存在Edge Function secret。Browser不能讀取或竄改內容，測試與正式preview token不能交換使用。
+- 團主將完整短指令貼入群組後，Webhook會再次驗證LINE簽章、5分鐘事件時間窗、event ID、發話團主、原建立團主、目前綁定群組、正式／測試分類、團購狀態、購買者資格與即時群組成員名單。
+- `issued → replying`由單一Postgres交易原子占用；同一短碼、同一Webhook重送或不同事件並發都只有一個勝者。Reply API失敗或逾時時短碼仍會終止，不會自動重送一次性reply token；團主需回後台重新預覽並建立新指令。
+- Webhook技術事件只保留短期replay cache，不建立永久webhook歷史。
 - `community_line_group`、測試團購標記表、短期技術表與敏感收件人RPC不允許Browser直接存取。測試團購標記只可經已驗證團主的窄RPC管理。
 - 每則Text message v2最多20個mentions；單次最多5則、共100位。超過時拒絕，不截斷名單。
 
@@ -31,6 +32,7 @@
 - [Messaging API overview](https://developers.line.biz/en/docs/messaging-api/overview/)
 - [Get group chat member profile](https://developers.line.biz/en/reference/messaging-api/#get-group-member-profile)
 - [Text message v2 mentions](https://developers.line.biz/en/reference/messaging-api/#text-message-v2)
+- [Send reply message](https://developers.line.biz/en/reference/messaging-api/#send-reply-message)
 
 > **成員查驗：**系統已持有購買者經同Provider LIFF驗證的LINE User ID，因此只呼叫單一群組成員profile端點確認各購買者是否仍在群組。這個端點沒有完整群組名單端點的verified／premium限制；系統不呼叫`/members/ids`，也不讀取無關群組成員。
 
@@ -97,26 +99,27 @@ https://<SUPABASE_PROJECT_REF>.supabase.co/functions/v1/line-group-webhook
 
    機器人回覆「正式團購通知已綁定至這個群組。」才算成功。
 
-既有單一綁定在環境migration套用後自動成為`test`槽位，不必重新綁定測試群組。重新綁定其中一個槽位不會覆蓋另一個槽位，但該槽位先前建立且尚未發送的preview會失效。
+既有單一綁定在環境migration套用後自動成為`test`槽位，不必重新綁定測試群組。重新綁定其中一個槽位不會覆蓋另一個槽位；有尚未使用的一次性指令時，系統會阻止重新綁定或切換測試標記。
 
 Webhook會驗證`x-line-signature`，再以同Provider的LINE User ID確認發話者同時存在於`line_organizer_identity`及`admin_users`。陌生住戶或未核准團主不能綁定。
 
 ## 5. 測試中心與正式介面
 
 - 測試中心固定為`/admin/notification-lab`，全頁顯示測試警示，只能處理明確經資料庫標記的已結單／已到貨測試團購。
-- 測試通知自動加入不可省略的`【測試】`前綴，只會呼叫測試Edge入口並送往測試群組。
-- 正式通知保留在各團購的「訂單管理」，只會呼叫正式Edge入口並送往正式社區群組，沒有環境或群組下拉選單。
-- 標記為測試的團購會被後端拒絕從正式入口發送；未標記團購也會被後端拒絕從測試入口發送。
-- 通知進入`sending`後，在成功或短期intent絕對TTL結束前，不可重綁該群組槽位或切換該團購的測試標記，以保留完全相同payload的安全重試能力。
+- 測試通知自動加入不可省略的`【測試】`前綴，只會建立`測試領取通知 T-…`指令，且只能在測試群組使用。
+- 正式通知保留在各團購的「訂單管理」，只會建立`發送領取通知 P-…`指令，且只能在正式社區群組使用；沒有環境或群組下拉選單。
+- 標記為測試的團購會被後端拒絕從正式入口建立指令；未標記團購也會被後端拒絕從測試入口建立指令。
+- 指令處於`issued`或`replying`時，不可重綁該群組槽位或切換該團購的測試標記。
 
 ## 6. 受控驗證與功能晉升
 
 1. 先在通知測試中心使用明確標記的已結單測試團購，核對名單、訊息數、`【測試】`前綴與真實mention。
 2. 測試成功後，以同一個已審核Git commit及migration部署正式功能；不要複製測試intent或測試資料。
 3. 正式團購開啟「訂單管理」後，先按「預覽一期、三期通知」或「預覽二期通知」。
-4. 核對可＠名單、無法＠名單、發送目的地與預計訊息數。
-5. 編輯通知內容後再確認發送。
-6. 確認LINE群組收到由官方帳號發出的正式mentions。
-7. 若發送失敗，UI必須顯示失敗；不得以普通`@姓名`文字替代。
+4. 核對可＠名單、無法＠名單、目標群組類型與預計訊息數。
+5. 編輯通知內容後按「產生正式群組指令」，複製畫面顯示的完整一次性指令。
+6. 由建立該指令的已核准團主，在10分鐘內將指令原樣貼到已綁定的正式群組。
+7. 確認機器人立即以Reply API回覆正式mentions。後台顯示「已複製」不代表已送達。
+8. 若名單變更，機器人會要求重新預覽；若Reply失敗或逾時，不得重貼同一指令，應回後台建立新指令。
 
 正式測試不建立seed、不恢復已刪除團購，也不在未經確認時向群組發訊息。

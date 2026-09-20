@@ -4,7 +4,7 @@ import { ConfirmDialog } from './components/ui/ConfirmDialog'
 import { FeedbackMessage } from './components/ui/FeedbackMessage'
 import type { PickupNotificationAudience } from './domain/pickupNotification'
 import type { CampaignListItem } from './services/campaignManagementGateway'
-import type { PickupNotificationResponse } from './services/pickupNotificationGateway'
+import type { PickupNotificationCommand, PickupNotificationResponse } from './services/pickupNotificationGateway'
 import './NotificationTestLab.css'
 
 type NotificationTestLabProps = {
@@ -12,7 +12,7 @@ type NotificationTestLabProps = {
   testCampaignIds: string[]
   onSetTestCampaign: (campaignId: string, enabled: boolean) => Promise<void>
   onPreview: (campaignId: string, audience: PickupNotificationAudience, message: string) => Promise<PickupNotificationResponse>
-  onSend: (campaignId: string, audience: PickupNotificationAudience, message: string, previewToken: string) => Promise<PickupNotificationResponse>
+  onCreateCommand: (campaignId: string, audience: PickupNotificationAudience, message: string, previewToken: string) => Promise<PickupNotificationCommand>
 }
 
 export default function NotificationTestLab({
@@ -20,7 +20,7 @@ export default function NotificationTestLab({
   testCampaignIds,
   onSetTestCampaign,
   onPreview,
-  onSend,
+  onCreateCommand,
 }: NotificationTestLabProps) {
   const [markedIds, setMarkedIds] = useState(() => new Set(testCampaignIds))
   const [target, setTarget] = useState<{ campaign: CampaignListItem; enabled: boolean } | null>(null)
@@ -58,7 +58,7 @@ export default function NotificationTestLab({
         <div>
           <p className="admin-eyebrow">TEST ENVIRONMENT</p>
           <h1>通知測試中心</h1>
-          <p>此頁所有通知只會送往測試群組</p>
+          <p>此頁只能產生測試群組使用的指令；通知會在您將指令貼到測試群組後，由機器人回覆。</p>
         </div>
         <a href="/admin">返回團主後台</a>
       </header>
@@ -105,7 +105,7 @@ export default function NotificationTestLab({
                 campaignStatus={campaign.status}
                 mode="test"
                 onPreview={(audience, message) => onPreview(campaign.id, audience, message)}
-                onSend={(audience, message, previewToken) => onSend(campaign.id, audience, message, previewToken)}
+                onCreateCommand={(audience, message, previewToken) => onCreateCommand(campaign.id, audience, message, previewToken)}
               />
             )}
           </article>

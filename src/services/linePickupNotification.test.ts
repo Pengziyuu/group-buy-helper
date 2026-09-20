@@ -2,11 +2,14 @@ import { createHmac } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
 import {
   buildPickupMentionMessages,
+  generatePickupReplyCommandCode,
   getLineGroupMemberIdsForCandidates,
   openPickupRecipientSnapshot,
+  openPickupReplyPayload,
   pickupEligibleRecipientSnapshotHash,
   pickupRecipientSnapshotHash,
   sealPickupRecipientSnapshot,
+  sealPickupReplyPayload,
   verifyLineWebhookSignature,
 } from '../../supabase/functions/_shared/pickupNotification'
 
@@ -65,6 +68,17 @@ describe('LINE pickup notification payload', () => {
     const replacement = sealed[separator] === 'A' ? 'B' : 'A'
     const tampered = sealed.slice(0, separator) + replacement + sealed.slice(separator + 1)
     await expect(openPickupRecipientSnapshot('test-secret-with-at-least-32-characters', tampered)).rejects.toThrow('預覽憑證無效')
+  })
+
+  it('creates an opaque 128-bit command and encrypts the reply body without storing plaintext', async () => {
+    const commandCode = generatePickupReplyCommandCode('production')
+    expect(commandCode).toMatch(/^P-[A-Za-z0-9_-]{22}$/)
+    const intentId = '92000000-0000-4000-8000-000000000001'
+    const encrypted = await sealPickupReplyPayload('test-secret-with-at-least-32-characters', intentId, '領取通知正文')
+    expect(encrypted).toMatch(/^[A-Za-z0-9_-]+$/)
+    expect(encrypted).not.toContain('領取通知正文')
+    await expect(openPickupReplyPayload('test-secret-with-at-least-32-characters', intentId, encrypted)).resolves.toBe('領取通知正文')
+    await expect(openPickupReplyPayload('wrong-secret-with-at-least-32-characters', intentId, encrypted)).rejects.toThrow('通知指令內容無效')
   })
 
   it('verifies the LINE webhook signature against the exact raw request body', async () => {

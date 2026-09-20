@@ -20,12 +20,12 @@ describe('notification test lab', () => {
         testCampaignIds={['test-id']}
         onSetTestCampaign={onSetTestCampaign}
         onPreview={vi.fn()}
-        onSend={vi.fn()}
+        onCreateCommand={vi.fn()}
       />,
     )
 
     expect(screen.getByRole('heading', { name: '通知測試中心' })).toBeInTheDocument()
-    expect(screen.getByText('此頁所有通知只會送往測試群組')).toBeInTheDocument()
+    expect(screen.getByText('此頁只能產生測試群組使用的指令；通知會在您將指令貼到測試群組後，由機器人回覆。')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '預覽既有測試團二期測試通知' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '將候選團加入通知測試中心' })).toBeInTheDocument()
     expect(screen.queryByText('進行中團')).not.toBeInTheDocument()
@@ -35,13 +35,13 @@ describe('notification test lab', () => {
     expect(screen.getByRole('dialog', { name: '加入通知測試中心' })).toHaveTextContent('候選團')
     await user.click(screen.getByRole('button', { name: '確認加入測試中心' }))
     await waitFor(() => expect(onSetTestCampaign).toHaveBeenCalledWith('candidate-id', true))
-    expect(screen.getAllByText('發送目的地：測試群組')).toHaveLength(2)
+    expect(screen.getAllByText('發送方式：複製一次性測試指令並貼到測試群組')).toHaveLength(2)
 
     await user.click(screen.getByRole('button', { name: '將候選團移出通知測試中心' }))
     expect(screen.getByRole('dialog', { name: '移出通知測試中心' })).toHaveTextContent('候選團')
     await user.click(screen.getByRole('button', { name: '確認移出測試中心' }))
     await waitFor(() => expect(onSetTestCampaign).toHaveBeenLastCalledWith('candidate-id', false))
-    expect(screen.getAllByText('發送目的地：測試群組')).toHaveLength(1)
+    expect(screen.getAllByText('發送方式：複製一次性測試指令並貼到測試群組')).toHaveLength(1)
     expect(screen.getByRole('button', { name: '將候選團加入通知測試中心' })).toBeInTheDocument()
   })
 
@@ -52,7 +52,7 @@ describe('notification test lab', () => {
         testCampaignIds={['test-id', 'candidate-id']}
         onSetTestCampaign={vi.fn()}
         onPreview={vi.fn()}
-        onSend={vi.fn()}
+        onCreateCommand={vi.fn()}
       />,
     )
 

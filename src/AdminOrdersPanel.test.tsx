@@ -65,14 +65,13 @@ describe('organizer orders panel', () => {
 
   it('offers LINE pickup notification actions only for a closed live campaign', () => {
     const onPreviewPickupNotification = vi.fn().mockResolvedValue({
-      sent: false,
       previewToken: null,
       mentionableRecipients: [],
       unavailableRecipients: [],
       mentionableCount: 0,
       messageCount: 0,
     })
-    const onSendPickupNotification = vi.fn()
+    const onCreatePickupNotificationCommand = vi.fn()
     const { rerender } = render(
       <AdminOrdersPanel
         summary={summary}
@@ -80,7 +79,7 @@ describe('organizer orders panel', () => {
         campaignId="campaign-1"
         campaignTitle="神農包子"
         onPreviewPickupNotification={onPreviewPickupNotification}
-        onSendPickupNotification={onSendPickupNotification}
+        onCreatePickupNotificationCommand={onCreatePickupNotificationCommand}
       />,
     )
     expect(screen.queryByRole('heading', { name: 'LINE領取通知' })).not.toBeInTheDocument()
@@ -92,7 +91,7 @@ describe('organizer orders panel', () => {
         campaignId="campaign-1"
         campaignTitle="神農包子"
         onPreviewPickupNotification={onPreviewPickupNotification}
-        onSendPickupNotification={onSendPickupNotification}
+        onCreatePickupNotificationCommand={onCreatePickupNotificationCommand}
       />,
     )
     expect(screen.getByRole('heading', { name: 'LINE領取通知' })).toBeInTheDocument()

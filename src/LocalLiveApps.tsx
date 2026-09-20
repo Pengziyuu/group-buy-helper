@@ -25,7 +25,7 @@ import type { CampaignStatus } from './domain/orderWorkflow'
 import type { HouseholdKind } from './domain/household'
 import type { VisibleOrder } from './data/demo'
 import { createAdminOrdersGateway } from './services/adminOrdersGateway'
-import { createPickupNotificationGateway, type PickupNotificationResponse } from './services/pickupNotificationGateway'
+import { createPickupNotificationGateway, type PickupNotificationCommand, type PickupNotificationResponse } from './services/pickupNotificationGateway'
 import { createPickupNotificationTestCampaignGateway } from './services/pickupNotificationTestCampaignGateway'
 import type { PickupNotificationAudience } from './domain/pickupNotification'
 import { createCampaignImageGateway } from './services/campaignImageGateway'
@@ -73,7 +73,7 @@ export type LiveAdminOrdersRepository = {
 
 export type LivePickupNotificationRepository = {
   preview(campaignId: string, audience: PickupNotificationAudience, message: string): Promise<PickupNotificationResponse>
-  send(campaignId: string, audience: PickupNotificationAudience, message: string, previewToken: string): Promise<PickupNotificationResponse>
+  createCommand(campaignId: string, audience: PickupNotificationAudience, message: string, previewToken: string): Promise<PickupNotificationCommand>
 }
 
 export type LivePickupNotificationTestCampaignRepository = {
@@ -828,7 +828,7 @@ export function LocalLiveAdminApp({
             await testCampaignGateway.setEnabled(targetCampaignId, enabled)
           }}
           onPreview={(targetCampaignId, audience, message) => pickupNotificationTestGateway.preview(targetCampaignId, audience, message)}
-          onSend={(targetCampaignId, audience, message, previewToken) => pickupNotificationTestGateway.send(targetCampaignId, audience, message, previewToken)}
+          onCreateCommand={(targetCampaignId, audience, message, previewToken) => pickupNotificationTestGateway.createCommand(targetCampaignId, audience, message, previewToken)}
         />
       )
     }
@@ -886,7 +886,7 @@ export function LocalLiveAdminApp({
       campaignTitle={content.title}
       residentHref={residentSlug ? `/campaign/${residentSlug}` : null}
       onPreviewPickupNotification={(audience, message) => pickupNotificationGateway.preview(campaignId, audience, message)}
-      onSendPickupNotification={(audience, message, previewToken) => pickupNotificationGateway.send(campaignId, audience, message, previewToken)}
+      onCreatePickupNotificationCommand={(audience, message, previewToken) => pickupNotificationGateway.createCommand(campaignId, audience, message, previewToken)}
       onUploadImage={(file) => imageGateway.upload(campaignId, file)}
       onSetCampaignStatus={async (status) => {
         await ordersGateway.setCampaignStatus(campaignId, status)

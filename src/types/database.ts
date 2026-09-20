@@ -869,7 +869,6 @@ export type Database = {
           delivery_status: string
           expires_at: string
           line_group_id: string
-          line_retry_key: string
           message_count: number | null
           message_hash: string | null
           recipient_count: number | null
@@ -885,7 +884,6 @@ export type Database = {
           delivery_status?: string
           expires_at?: string
           line_group_id: string
-          line_retry_key?: string
           message_count?: number | null
           message_hash?: string | null
           recipient_count?: number | null
@@ -901,7 +899,6 @@ export type Database = {
           delivery_status?: string
           expires_at?: string
           line_group_id?: string
-          line_retry_key?: string
           message_count?: number | null
           message_hash?: string | null
           recipient_count?: number | null
@@ -930,6 +927,59 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "campaign_public"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      pickup_notification_reply_command: {
+        Row: {
+          command_hash: string
+          completed_at: string | null
+          created_at: string
+          delivery_status: string
+          expires_at: string
+          failure_code: string | null
+          intent_token: string
+          message_hash: string
+          payload_ciphertext: string
+          retain_until: string
+          used_by_hash: string | null
+          webhook_event_id: string | null
+        }
+        Insert: {
+          command_hash: string
+          completed_at?: string | null
+          created_at?: string
+          delivery_status?: string
+          expires_at?: string
+          failure_code?: string | null
+          intent_token: string
+          message_hash: string
+          payload_ciphertext: string
+          retain_until?: string
+          used_by_hash?: string | null
+          webhook_event_id?: string | null
+        }
+        Update: {
+          command_hash?: string
+          completed_at?: string | null
+          created_at?: string
+          delivery_status?: string
+          expires_at?: string
+          failure_code?: string | null
+          intent_token?: string
+          message_hash?: string
+          payload_ciphertext?: string
+          retain_until?: string
+          used_by_hash?: string | null
+          webhook_event_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pickup_notification_reply_command_intent_token_fkey"
+            columns: ["intent_token"]
+            isOneToOne: true
+            referencedRelation: "pickup_notification_intent"
+            referencedColumns: ["token"]
           },
         ]
       }
@@ -1317,47 +1367,23 @@ export type Database = {
       }
       can_edit_order: { Args: { p_order_id: string }; Returns: boolean }
       cancel_customer_order: { Args: { p_order_id: string }; Returns: Json }
-      claim_pickup_notification_intent:
-        | {
-            Args: {
-              p_audience: string
-              p_caller_hash: string
-              p_caller_user_id: string
-              p_campaign_id: string
-              p_eligible_hash: string
-              p_line_group_id: string
-              p_message_hash: string
-              p_recipient_hash: string
-              p_token: string
-            }
-            Returns: {
-              delivery_status: string
-              line_retry_key: string
-              message_count: number
-              recipient_count: number
-            }[]
-          }
-        | {
-            Args: {
-              p_audience: string
-              p_binding_kind: string
-              p_caller_hash: string
-              p_caller_user_id: string
-              p_campaign_id: string
-              p_eligible_hash: string
-              p_line_group_id: string
-              p_message_hash: string
-              p_recipient_hash: string
-              p_token: string
-            }
-            Returns: {
-              delivery_status: string
-              line_retry_key: string
-              message_count: number
-              recipient_count: number
-            }[]
-          }
+      claim_pickup_notification_reply_command: {
+        Args: {
+          p_command_hash: string
+          p_eligible_hash: string
+          p_line_group_id: string
+          p_line_user_id: string
+          p_message_hash: string
+          p_recipient_hash: string
+          p_webhook_event_id: string
+        }
+        Returns: boolean
+      }
       close_due_campaigns: { Args: never; Returns: number }
+      complete_pickup_notification_reply_command: {
+        Args: { p_command_hash: string; p_webhook_event_id: string }
+        Returns: boolean
+      }
       consume_line_login_rate_limit: {
         Args: { p_key_hash: string; p_limit: number; p_window_seconds: number }
         Returns: boolean
@@ -1405,6 +1431,14 @@ export type Database = {
         Args: { p_campaign_id: string }
         Returns: boolean
       }
+      fail_pickup_notification_reply_command: {
+        Args: {
+          p_command_hash: string
+          p_failure_code: string
+          p_webhook_event_id: string
+        }
+        Returns: boolean
+      }
       finalize_pickup_notification_intent:
         | {
             Args: {
@@ -1431,6 +1465,15 @@ export type Database = {
             }
             Returns: boolean
           }
+      finish_pickup_notification_reply_command: {
+        Args: {
+          p_command_hash: string
+          p_failure_code?: string
+          p_succeeded: boolean
+          p_webhook_event_id: string
+        }
+        Returns: boolean
+      }
       get_customer_self: {
         Args: never
         Returns: {
@@ -1453,37 +1496,24 @@ export type Database = {
         }[]
       }
       has_campaign_access: { Args: { p_campaign_id: string }; Returns: boolean }
-      inspect_pickup_notification_intent:
-        | {
-            Args: {
-              p_audience: string
-              p_caller_hash: string
-              p_caller_user_id: string
-              p_campaign_id: string
-              p_token: string
-            }
-            Returns: {
-              delivery_status: string
-              message_count: number
-              recipient_count: number
-            }[]
-          }
-        | {
-            Args: {
-              p_audience: string
-              p_binding_kind: string
-              p_caller_hash: string
-              p_caller_user_id: string
-              p_campaign_id: string
-              p_message_hash: string
-              p_token: string
-            }
-            Returns: {
-              delivery_status: string
-              message_count: number
-              recipient_count: number
-            }[]
-          }
+      inspect_pickup_notification_reply_command: {
+        Args: {
+          p_command_hash: string
+          p_line_group_id: string
+          p_line_user_id: string
+        }
+        Returns: {
+          audience: string
+          binding_kind: string
+          campaign_id: string
+          intent_token: string
+          message_count: number
+          message_hash: string
+          payload_ciphertext: string
+          recipient_count: number
+          recipient_hash: string
+        }[]
+      }
       internal_pickup_notification_eligible_hash: {
         Args: { p_audience: string; p_campaign_id: string }
         Returns: string
@@ -1502,6 +1532,28 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_approved_line_organizer: { Args: never; Returns: boolean }
+      is_valid_arrival_label: {
+        Args: { p_arrival_label: string }
+        Returns: boolean
+      }
+      issue_pickup_notification_reply_command: {
+        Args: {
+          p_audience: string
+          p_binding_kind: string
+          p_caller_hash: string
+          p_caller_user_id: string
+          p_campaign_id: string
+          p_command_hash: string
+          p_message_hash: string
+          p_payload_ciphertext: string
+          p_token: string
+        }
+        Returns: {
+          expires_at: string
+          message_count: number
+          recipient_count: number
+        }[]
+      }
       join_campaign_by_slug: {
         Args: { p_slug: string }
         Returns: {
@@ -1572,26 +1624,6 @@ export type Database = {
           unit_price: number
         }[]
       }
-      mark_pickup_notification_intent_sent:
-        | {
-            Args: {
-              p_audience: string
-              p_caller_hash: string
-              p_campaign_id: string
-              p_token: string
-            }
-            Returns: boolean
-          }
-        | {
-            Args: {
-              p_audience: string
-              p_binding_kind: string
-              p_caller_hash: string
-              p_campaign_id: string
-              p_token: string
-            }
-            Returns: boolean
-          }
       owns_customer: { Args: { p_customer_id: string }; Returns: boolean }
       owns_order: { Args: { p_order_id: string }; Returns: boolean }
       process_line_group_binding_event: {
@@ -1651,6 +1683,16 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      reject_pickup_notification_reply_command: {
+        Args: {
+          p_command_hash: string
+          p_failure_code: string
+          p_line_group_id: string
+          p_line_user_id: string
+          p_webhook_event_id: string
+        }
+        Returns: boolean
       }
       reserve_pickup_notification_intent: {
         Args: {
