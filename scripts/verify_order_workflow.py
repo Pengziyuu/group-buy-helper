@@ -303,8 +303,45 @@ def main() -> None:
     recipients_match_eligibility_hash = all(hashes)
     assert recipients_match_eligibility_hash, hashes
 
+    # admin_update_resident_household is the organizer's only route for repairing
+    # someone who picked 其他 by mistake, and its three-argument wrapper is what a
+    # not-yet-updated frontend still calls during the database-first deploy window.
+    # Neither signature had any runtime coverage before this.
+    status, roster = call("POST", "/rest/v1/rpc/admin_list_residents", ANON_KEY,
+                          token=admin_token, body={})
+    assert status == 200 and roster, (status, roster)
+    shared_member = next((row for row in roster if row["display_name"] == "共戶驗證帳號"), None)
+    assert shared_member is not None, roster
+    shared_member_code = shared_member["member_code"]
+    customer_query = f"/rest/v1/customer?auth_user_id=eq.{second_id}&select=household_kind,period,unit"
+
+    status, _ = call("POST", "/rest/v1/rpc/admin_update_resident_household", ANON_KEY,
+                     token=admin_token,
+                     body={"p_member_code": shared_member_code, "p_household_kind": "other",
+                           "p_period": None, "p_unit": None})
+    _, moved = call("GET", customer_query, SECRET_KEY)
+    # The RPC returns void, so PostgREST answers 204 No Content, not 200.
+    admin_moves_resident_to_other = (
+        status in (200, 204) and moved
+        and moved[0]["household_kind"] == "other"
+        and moved[0]["period"] is None and moved[0]["unit"] is None
+    )
+    assert admin_moves_resident_to_other, (status, moved)
+
+    # The three-argument wrapper takes no kind and must still land a resident.
+    status, _ = call("POST", "/rest/v1/rpc/admin_update_resident_household", ANON_KEY,
+                     token=admin_token,
+                     body={"p_member_code": shared_member_code, "p_period": 2, "p_unit": "2K13"})
+    _, repaired = call("GET", customer_query, SECRET_KEY)
+    legacy_three_arg_household_update_still_works = (
+        status in (200, 204) and repaired
+        and repaired[0]["household_kind"] == "resident"
+        and repaired[0]["period"] == 2 and repaired[0]["unit"] == "2K13"
+    )
+    assert legacy_three_arg_household_update_still_works, (status, repaired)
+
     print(json.dumps({
-        "checks": 16,
+        "checks": 18,
         "resident_cannot_close": resident_cannot_close,
         "admin_can_close": admin_can_close,
         "closed_blocks_order_edits": closed_blocks_order_edits,
@@ -321,6 +358,8 @@ def main() -> None:
         "legacy_two_arg_bind_still_works": legacy_two_arg_bind_still_works,
         "pickup_excludes_other": pickup_excludes_other,
         "recipients_match_eligibility_hash": recipients_match_eligibility_hash,
+        "admin_moves_resident_to_other": admin_moves_resident_to_other,
+        "legacy_three_arg_household_update_still_works": legacy_three_arg_household_update_still_works,
     }, ensure_ascii=False))
 
 
