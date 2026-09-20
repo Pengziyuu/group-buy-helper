@@ -79,13 +79,29 @@ describe('createResidentMemberManagementGateway', () => {
     const rpc = vi.fn().mockResolvedValue({ data: null, error: null })
     const gateway = createResidentMemberManagementGateway({ rpc } as never)
 
-    await gateway.updateHousehold('abcdef0123456789abcdef0123456789abcd', { period: 3, unit: '3Z15' })
+    await gateway.updateHousehold('abcdef0123456789abcdef0123456789abcd', { kind: 'resident', period: 3, unit: '3Z15' })
 
     expect(rpc).toHaveBeenCalledWith('admin_update_resident_household', {
       p_member_code: 'abcdef0123456789abcdef0123456789abcd',
       p_household_kind: 'resident',
       p_period: 3,
       p_unit: '3Z15',
+    })
+  })
+
+  it('sends null period and unit when the organizer moves someone to other', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: null })
+    const gateway = createResidentMemberManagementGateway({ rpc } as never)
+
+    // customer_household_format requires period and unit to be null together for
+    // kind 'other'; sending a leftover household would violate the constraint.
+    await gateway.updateHousehold('abcdef0123456789abcdef0123456789abcd', { kind: 'other', period: null, unit: null })
+
+    expect(rpc).toHaveBeenCalledWith('admin_update_resident_household', {
+      p_member_code: 'abcdef0123456789abcdef0123456789abcd',
+      p_household_kind: 'other',
+      p_period: null,
+      p_unit: null,
     })
   })
 
@@ -97,7 +113,7 @@ describe('createResidentMemberManagementGateway', () => {
     // only in-product repair path and must flip household_kind to 'resident'
     // via the four-argument RPC, not the three-argument compatibility
     // wrapper that leaves household_kind untouched.
-    await gateway.updateHousehold('0123456789abcdef0123456789abcdef0123', { period: 1, unit: 'A1' })
+    await gateway.updateHousehold('0123456789abcdef0123456789abcdef0123', { kind: 'resident', period: 1, unit: 'A1' })
 
     expect(rpc).toHaveBeenCalledWith('admin_update_resident_household', {
       p_member_code: '0123456789abcdef0123456789abcdef0123',

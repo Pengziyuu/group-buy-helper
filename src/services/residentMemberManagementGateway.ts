@@ -80,15 +80,24 @@ export function createResidentMemberManagementGateway(client: SupabaseClient<Dat
       if (error) throw new Error(`${blocked ? '移除住戶' : '解除封鎖'}失敗：${errorMessage(error)}`)
     },
 
-    async updateHousehold(memberCode: string, household: { period: number; unit: string }): Promise<void> {
+    async updateHousehold(memberCode: string, household: { kind: HouseholdKind; period: number | null; unit: string | null }): Promise<void> {
       if (!/^[0-9a-f]{36}$/.test(memberCode)) throw new Error('住戶管理代碼無效')
-      const normalized = parseHouseholdUnit(household.period, household.unit)
+      // 'other' has no household at all: the customer_household_format CHECK
+      // requires period and unit to be null together for that kind.
+      const resident = household.kind === 'resident' && household.period !== null && household.unit !== null
+        ? parseHouseholdUnit(household.period, household.unit)
+        : null
+      // The generated types mark p_period and p_unit non-nullable (the generator
+      // does not model nullability of SQL function parameters), but
+      // admin_update_resident_household genuinely accepts null for both when the
+      // kind is 'other' - see
+      // supabase/migrations/20260919161000_household_kind_binding.sql.
       const { error } = await client.rpc('admin_update_resident_household', {
         p_member_code: memberCode,
-        p_household_kind: 'resident',
-        p_period: normalized.period,
-        p_unit: household.unit.trim().toUpperCase(),
-      })
+        p_household_kind: household.kind,
+        p_period: resident?.period ?? null,
+        p_unit: resident ? household.unit!.trim().toUpperCase() : null,
+      } as unknown as { p_member_code: string; p_household_kind: string; p_period: number; p_unit: string })
       if (error) throw new Error(`調整住戶資料失敗：${errorMessage(error)}`)
     },
   }

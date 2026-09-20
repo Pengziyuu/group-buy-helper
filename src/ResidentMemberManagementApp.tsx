@@ -5,6 +5,7 @@ import { ConfirmDialog } from './components/ui/ConfirmDialog'
 import { FeedbackMessage } from './components/ui/FeedbackMessage'
 import {
   formatHousehold,
+  type HouseholdKind,
   formatHouseholdUnit,
   HOUSEHOLD_LETTERS,
   HOUSEHOLD_NUMBERS,
@@ -18,7 +19,7 @@ import './ResidentMemberManagementApp.css'
 type Props = {
   members: ResidentMember[]
   onSetBlocked: (memberCode: string, blocked: boolean) => Promise<void>
-  onUpdateHousehold: (memberCode: string, household: { period: number; unit: string }) => Promise<void>
+  onUpdateHousehold: (memberCode: string, household: { kind: HouseholdKind; period: number | null; unit: string | null }) => Promise<void>
 }
 
 function householdLabel(member: ResidentMember): string {
@@ -38,6 +39,7 @@ export default function ResidentMemberManagementApp({ members, onSetBlocked, onU
   const [visibleMembers, setVisibleMembers] = useState(members)
   const [removeTarget, setRemoveTarget] = useState<ResidentMember | null>(null)
   const [editTargetCode, setEditTargetCode] = useState('')
+  const [editKind, setEditKind] = useState<HouseholdKind>('resident')
   const [editPeriod, setEditPeriod] = useState<ResidentPeriod>(2)
   const [editPrefix, setEditPrefix] = useState(1)
   const [editLetter, setEditLetter] = useState('A')
@@ -86,6 +88,7 @@ export default function ResidentMemberManagementApp({ members, onSetBlocked, onU
       setEditLetter(partial?.[1] ?? 'A')
       setEditNumber(Number(partial?.[2] ?? 1))
     }
+    setEditKind(member.householdKind ?? 'resident')
     setError('')
     setFeedback('')
     setEditTargetCode(member.memberCode)
@@ -94,22 +97,29 @@ export default function ResidentMemberManagementApp({ members, onSetBlocked, onU
   const updateHousehold = async (member: ResidentMember) => {
     if (busyCode) return
     const unit = formatHouseholdUnit({
-      kind: 'resident',
+      kind: editKind,
       period: editPeriod,
       prefix: editPeriod === 1 ? null : editPrefix,
       letter: editLetter,
       number: editNumber,
     })
-    if (unit === null) return
+    // 'other' has no household: formatHouseholdUnit returns null for that kind,
+    // which is the value the CHECK constraint wants, not a validation failure.
+    if (editKind === 'resident' && unit === null) return
+    const household = editKind === 'other'
+      ? { kind: 'other' as const, period: null, unit: null }
+      : { kind: 'resident' as const, period: editPeriod, unit: unit! }
     setBusyCode(member.memberCode)
     setError('')
     setFeedback('')
     try {
-      await onUpdateHousehold(member.memberCode, { period: editPeriod, unit })
+      await onUpdateHousehold(member.memberCode, household)
       setVisibleMembers((current) => current.map((item) => item.memberCode === member.memberCode
-        ? { ...item, period: editPeriod, unit }
+        ? { ...item, householdKind: household.kind, period: household.period, unit: household.unit }
         : item))
-      setFeedback(`已更新${member.displayName}的期別／戶號`)
+      setFeedback(editKind === 'other'
+        ? `已將${member.displayName}改為其他`
+        : `已更新${member.displayName}的期別／戶號`)
       setEditTargetCode('')
     } catch (changeError) {
       setError(changeError instanceof Error ? changeError.message : '調整住戶資料失敗')
@@ -163,10 +173,22 @@ export default function ResidentMemberManagementApp({ members, onSetBlocked, onU
             </div>
             {editTargetCode === member.memberCode && (
               <div className="resident-household-editor" aria-label={`調整${member.displayName}的住戶資料`}>
-                <label><span>期別</span><select aria-label={`${member.displayName} 期別`} value={editPeriod} onChange={(event) => setEditPeriod(Number(event.target.value) as ResidentPeriod)}>
+                <label><span>期別</span><select
+                  aria-label={`${member.displayName} 期別`}
+                  value={editKind === 'other' ? 'other' : editPeriod}
+                  onChange={(event) => {
+                    if (event.target.value === 'other') {
+                      setEditKind('other')
+                      return
+                    }
+                    setEditKind('resident')
+                    setEditPeriod(Number(event.target.value) as ResidentPeriod)
+                  }}
+                >
                   {RESIDENT_PERIODS.map((period) => <option key={period} value={period}>{new Intl.NumberFormat('zh-Hant-u-nu-hanidec').format(period)}期</option>)}
+                  <option value="other">其他</option>
                 </select></label>
-                <fieldset className="resident-household-unit">
+                {editKind === 'resident' && <><fieldset className="resident-household-unit">
                   <legend>戶號</legend>
                   <div className="resident-household-unit-parts">
                     {editPeriod !== 1 && <label><span>數字</span><select aria-label={`${member.displayName} 戶號數字`} value={editPrefix} onChange={(event) => setEditPrefix(Number(event.target.value))}>
@@ -179,7 +201,7 @@ export default function ResidentMemberManagementApp({ members, onSetBlocked, onU
                 </fieldset>
                 <label><span>樓層</span><select aria-label={`${member.displayName} 樓層`} value={editNumber} onChange={(event) => setEditNumber(Number(event.target.value))}>
                   {HOUSEHOLD_NUMBERS.map((number) => <option key={number} value={number}>{number}</option>)}
-                </select></label>
+                </select></label></>}
                 <div className="resident-household-editor-actions">
                   <button type="button" className="secondary-action" disabled={Boolean(busyCode)} onClick={() => setEditTargetCode('')}>取消</button>
                   <button type="button" className="primary-action" aria-label={`儲存住戶資料 ${member.displayName}`} disabled={Boolean(busyCode)} onClick={() => { void updateHousehold(member) }}>

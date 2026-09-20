@@ -101,7 +101,7 @@ describe('ResidentMemberManagementApp', () => {
 
     expect(onUpdateHousehold).toHaveBeenCalledWith(
       'abcdef0123456789abcdef0123456789abcd',
-      { period: 3, unit: '3Z15' },
+      { kind: 'resident', period: 3, unit: '3Z15' },
     )
     expect(await screen.findByText('已更新住戶甲的期別／戶號')).toBeInTheDocument()
     expect(screen.getByText('三期 3Z15')).toBeInTheDocument()
@@ -130,8 +130,51 @@ describe('ResidentMemberManagementApp', () => {
 
     expect(onUpdateHousehold).toHaveBeenCalledWith(
       'fedcba9876543210fedcba9876543210fedc',
-      { period: 1, unit: 'A1' },
+      { kind: 'resident', period: 1, unit: 'A1' },
     )
     expect(await screen.findByText('已更新住戶丙的期別／戶號')).toBeInTheDocument()
+  })
+
+  it('hides the household selects when the organizer picks 其他', async () => {
+    const user = userEvent.setup()
+    render(
+      <ResidentMemberManagementApp
+        members={[members[0]]}
+        onSetBlocked={vi.fn()}
+        onUpdateHousehold={vi.fn()}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: '調整住戶資料 住戶甲' }))
+    expect(screen.getByRole('combobox', { name: '住戶甲 戶號英文字母' })).toBeInTheDocument()
+
+    await user.selectOptions(screen.getByRole('combobox', { name: '住戶甲 期別' }), 'other')
+
+    expect(screen.queryByRole('combobox', { name: '住戶甲 戶號數字' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: '住戶甲 戶號英文字母' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: '住戶甲 樓層' })).not.toBeInTheDocument()
+  })
+
+  it('moves a resident to 其他 with no household at all', async () => {
+    const user = userEvent.setup()
+    const onUpdateHousehold = vi.fn().mockResolvedValue(undefined)
+    render(
+      <ResidentMemberManagementApp
+        members={[members[0]]}
+        onSetBlocked={vi.fn()}
+        onUpdateHousehold={onUpdateHousehold}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: '調整住戶資料 住戶甲' }))
+    await user.selectOptions(screen.getByRole('combobox', { name: '住戶甲 期別' }), 'other')
+    await user.click(screen.getByRole('button', { name: '儲存住戶資料 住戶甲' }))
+
+    expect(onUpdateHousehold).toHaveBeenCalledWith(
+      'abcdef0123456789abcdef0123456789abcd',
+      { kind: 'other', period: null, unit: null },
+    )
+    expect(await screen.findByText('已將住戶甲改為其他')).toBeInTheDocument()
+    expect(screen.getByText('其他')).toBeInTheDocument()
   })
 })

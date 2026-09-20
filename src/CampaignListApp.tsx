@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { campaignStatusLabel } from './domain/orderWorkflow'
 import { formatZhTwTimestamp } from './domain/timestamp'
 import type { CampaignListItem } from './services/campaignManagementGateway'
+import type { HouseholdKind } from './domain/household'
 import ResidentMemberManagementApp from './ResidentMemberManagementApp'
 import type { ResidentMember } from './services/residentMemberManagementGateway'
 import { ConfirmDialog } from './components/ui/ConfirmDialog'
@@ -18,7 +19,7 @@ type CampaignListAppProps = {
   onCopyResidentLink?: (path: string) => Promise<void>
   residentMembers?: ResidentMember[]
   onSetResidentBlocked?: (memberCode: string, blocked: boolean) => Promise<void>
-  onUpdateResidentHousehold?: (memberCode: string, household: { period: number; unit: string }) => Promise<void>
+  onUpdateResidentHousehold?: (memberCode: string, household: { kind: HouseholdKind; period: number | null; unit: string | null }) => Promise<void>
 }
 
 const currencyFormatter = new Intl.NumberFormat('zh-TW', {

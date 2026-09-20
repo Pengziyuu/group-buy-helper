@@ -90,7 +90,7 @@ export type LiveCampaignManagementRepository = {
 export type LiveResidentMemberRepository = {
   list(): Promise<ResidentMember[]>
   setBlocked(memberCode: string, blocked: boolean): Promise<void>
-  updateHousehold(memberCode: string, household: { period: number; unit: string }): Promise<void>
+  updateHousehold(memberCode: string, household: { kind: HouseholdKind; period: number | null; unit: string | null }): Promise<void>
 }
 
 type LocalLiveAppProps = {
