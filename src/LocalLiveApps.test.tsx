@@ -152,12 +152,13 @@ describe('local Supabase visual demo apps', () => {
       />,
     )
 
-    expect(await screen.findByRole('heading', { name: '全部開團' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '團購' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '早餐團購' })).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: '彭梓育的LINE頭貼' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'LINE 帳號：彭梓育' })).toBeInTheDocument()
     expect(signIn).toHaveBeenCalledWith('trusted-line-id-token')
     expect(list).toHaveBeenCalledTimes(1)
-    await user.click(screen.getByRole('button', { name: '登出' }))
+    await user.click(screen.getByRole('button', { name: 'LINE 帳號：彭梓育' }))
+    await user.click(screen.getByRole('menuitem', { name: '登出' }))
     expect(client.auth.signOut).toHaveBeenCalledOnce()
     expect(await screen.findByText('已登出，請重新開啟住戶LINE入口')).toBeInTheDocument()
   })
@@ -190,8 +191,8 @@ describe('local Supabase visual demo apps', () => {
       residentListRepository={{ list }}
     />)
 
-    expect(await screen.findByRole('heading', { name: '全部開團' })).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: '彭梓育的LINE頭貼' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '團購' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'LINE 帳號：彭梓育' })).toBeInTheDocument()
     expect(client.auth.getUser).toHaveBeenCalledWith('resident-access')
     expect(client.rpc).toHaveBeenCalledWith('get_line_resident_self')
     expect(liffClient.init).not.toHaveBeenCalled()
@@ -223,7 +224,7 @@ describe('local Supabase visual demo apps', () => {
       residentListRepository={{ list }}
     />)
 
-    expect(await screen.findByRole('heading', { name: '全部開團' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '團購' })).toBeInTheDocument()
     expect(client.auth.signOut).toHaveBeenCalledWith({ scope: 'local' })
     expect(liffClient.init).toHaveBeenCalledOnce()
     expect(signIn).toHaveBeenCalledWith('fresh-line-token')
@@ -252,7 +253,7 @@ describe('local Supabase visual demo apps', () => {
       residentListRepository={{ list: vi.fn().mockResolvedValue([]) }}
     />)
 
-    expect(await screen.findByRole('heading', { name: '全部開團' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '團購' })).toBeInTheDocument()
     expect(client.auth.signOut).toHaveBeenCalledWith({ scope: 'local' })
     expect(signIn).toHaveBeenCalledWith('fresh-line-token')
   })

@@ -1,12 +1,14 @@
 import { useState } from 'react'
+import { EmptyState } from './components/ui/AsyncState'
+import { Button } from './components/ui/Button'
+import { Menu } from './components/ui/Menu'
 import { ProgressBar } from './components/ui/ProgressBar'
-import { StatusBadge, type StatusTone } from './components/ui/StatusBadge'
-import { campaignStatusLabel, type CampaignStatus } from './domain/orderWorkflow'
-import { formatZhTwTimestamp } from './domain/timestamp'
+import { StatusBadge } from './components/ui/StatusBadge'
+import { describeAutoClose, normalizeArrivalLabel } from './domain/campaignSchedule'
+import type { CampaignStatus } from './domain/orderWorkflow'
 import { normalizeQuantityUnit, type QuantityUnit } from './domain/quantityUnit'
-import { formatArrivalLabel, formatAutoCloseReminder } from './domain/campaignSchedule'
 import type { CampaignImage } from './services/demoCampaignStore'
-import './ResidentCampaignListApp.css'
+import './components/resident/resident.css'
 
 export type ResidentLineIdentity = {
   displayName: string
@@ -34,121 +36,123 @@ type ResidentCampaignListAppProps = {
   identity: ResidentLineIdentity
   campaigns: ResidentCampaignListItem[]
   onLogout?: () => void | Promise<void>
+  now?: Date
 }
 
-const statusPriority: Record<CampaignStatus, number> = { open: 0, closed: 1, arrived: 1 }
+const CLOSED_PREVIEW_COUNT = 5
 
-function statusTone(status: CampaignStatus): StatusTone {
-  if (status === 'open') return 'success'
-  return 'neutral'
+function byNewestOpening(left: ResidentCampaignListItem, right: ResidentCampaignListItem) {
+  return Date.parse(right.openedAt) - Date.parse(left.openedAt)
 }
 
-function residentStatusText(status: CampaignStatus) {
-  return status === 'open' ? '開團中｜現在可以下單' : '已結單｜已停止下單'
+function campaignProgress(campaign: ResidentCampaignListItem) {
+  if (campaign.thresholdKind === 'amount') {
+    const value = campaign.totalAmount ?? 0
+    const target = campaign.amountThreshold ?? campaign.threshold
+    return { value, target, text: `NT$ ${value.toLocaleString('zh-TW')} / NT$ ${target.toLocaleString('zh-TW')}` }
+  }
+  const unit = normalizeQuantityUnit(campaign.quantityUnit)
+  return {
+    value: campaign.totalQuantity,
+    target: campaign.threshold,
+    text: `${campaign.totalQuantity} ${unit} / ${campaign.threshold} ${unit}`,
+  }
 }
 
-function CampaignCover({ campaign }: { campaign: ResidentCampaignListItem }) {
+function CampaignThumbnail({ campaign }: { campaign: ResidentCampaignListItem }) {
   const [failed, setFailed] = useState(false)
   const image = campaign.images?.[0]
-  const showImage = Boolean(image?.src) && !failed
-
   return (
-    <div className="resident-campaign-cover">
-      {showImage && image
-        ? <>
-            <img className="resident-campaign-cover-backdrop" src={image.src} alt="" aria-hidden="true" />
-            <img className="resident-campaign-cover-foreground" src={image.src} alt={image.alt || `${campaign.title}商品圖片`} onError={() => setFailed(true)} />
-          </>
-        : (
-          <div className="resident-campaign-cover-fallback" role="img" aria-label={`${campaign.title}尚未設定商品圖片`}>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M4 7.5h16v11H4zM7 7.5V5.8C7 4.8 7.8 4 8.8 4h6.4c1 0 1.8.8 1.8 1.8v1.7M8 12h8M12 9v6" />
-            </svg>
-            <span>團購小幫手</span>
-          </div>
-      )}
-      <div className="resident-campaign-cover-status">
-        <StatusBadge tone={statusTone(campaign.status)}>{campaignStatusLabel(campaign.status)}</StatusBadge>
-      </div>
+    <div className="resident-campaign-thumb">
+      {image?.src && !failed
+        ? <img src={image.src} alt={image.alt || `${campaign.title}商品圖片`} loading="lazy" onError={() => setFailed(true)} />
+        : <div className="resident-campaign-thumb-empty" role="img" aria-label={`${campaign.title}尚未設定商品圖片`}>無圖片</div>}
     </div>
   )
 }
 
-export default function ResidentCampaignListApp({ identity, campaigns, onLogout }: ResidentCampaignListAppProps) {
-  const sortedCampaigns = [...campaigns].sort((left, right) =>
-    statusPriority[left.status] - statusPriority[right.status]
-      || Date.parse(right.openedAt) - Date.parse(left.openedAt))
-  const openCampaignCount = campaigns.filter((campaign) => campaign.status === 'open').length
+function CampaignRow({ campaign, now }: { campaign: ResidentCampaignListItem; now: Date }) {
+  const open = campaign.status === 'open'
+  const progress = campaignProgress(campaign)
+  const closing = open ? describeAutoClose(campaign.autoCloseAt, now) : null
+  return (
+    <article className="resident-campaign-row" data-status={open ? 'open' : 'closed'}>
+      <CampaignThumbnail campaign={campaign} />
+      <div className="resident-campaign-row-body">
+        <h3><a href={`/campaign/${campaign.slug}`}>{campaign.title}</a></h3>
+        {open
+          ? <p className="resident-campaign-price"><strong>${campaign.unitPrice.toLocaleString('zh-TW')}</strong> 起</p>
+          : <p className="resident-campaign-price"><StatusBadge tone="neutral">已結單</StatusBadge></p>}
+        <ProgressBar label={`${campaign.title}成團進度`} value={progress.value} max={progress.target} />
+        <p className="resident-campaign-meta">
+          <span>{progress.text}</span>
+          {closing
+            ? <span className={closing.soon ? 'is-soon' : undefined}>{closing.when} 結單</span>
+            : <span>到貨：{normalizeArrivalLabel(campaign.arrivalLabel)}</span>}
+        </p>
+      </div>
+      <span className="resident-campaign-chevron" aria-hidden="true">›</span>
+    </article>
+  )
+}
+
+function ResidentAccount({ identity, onLogout }: { identity: ResidentLineIdentity; onLogout?: () => void | Promise<void> }) {
+  const label = `LINE 帳號：${identity.displayName}`
+  const avatar = identity.pictureUrl
+    ? <img className="resident-avatar" src={identity.pictureUrl} alt="" referrerPolicy="no-referrer" />
+    : <span className="resident-avatar">{identity.displayName.slice(0, 1)}</span>
+  if (!onLogout) return <span className="resident-account" role="img" aria-label={label}>{avatar}</span>
+  return (
+    <Menu
+      className="resident-account-menu"
+      label={label}
+      triggerContent={avatar}
+      items={[{ label: '登出', onSelect: () => { void onLogout() } }]}
+    />
+  )
+}
+
+export default function ResidentCampaignListApp({ identity, campaigns, onLogout, now = new Date() }: ResidentCampaignListAppProps) {
+  const [showAllClosed, setShowAllClosed] = useState(false)
+  const openCampaigns = campaigns.filter((campaign) => campaign.status === 'open').sort(byNewestOpening)
+  const closedCampaigns = campaigns.filter((campaign) => campaign.status !== 'open').sort(byNewestOpening)
+  const visibleClosed = showAllClosed ? closedCampaigns : closedCampaigns.slice(0, CLOSED_PREVIEW_COUNT)
+  const hiddenClosedCount = closedCampaigns.length - visibleClosed.length
 
   return (
-    <main className="resident-list-shell">
-      <header className="resident-list-header">
-        <div className="resident-list-identity">
-          {identity.pictureUrl
-            ? <img src={identity.pictureUrl} alt={`${identity.displayName}的LINE頭貼`} referrerPolicy="no-referrer" />
-            : <span className="resident-avatar-fallback" aria-label={`${identity.displayName}的預設頭貼`}>{identity.displayName.slice(0, 1)}</span>}
-          <div>
-            <p>LINE身分</p>
-            <strong>{identity.displayName}</strong>
-          </div>
-        </div>
-        {onLogout ? <button type="button" onClick={() => void onLogout()}>登出</button> : null}
+    <div className="resident-page">
+      <header className="resident-topbar">
+        <span className="resident-topbar-brand">團購小幫手</span>
+        <ResidentAccount identity={identity} onLogout={onLogout} />
       </header>
-
-      <section className="resident-list-heading">
-        <div className="resident-list-heading-copy">
-          <p>社區團購記事本</p>
-          <h1>全部開團</h1>
-          <span>看看鄰居最近都在買什麼，選一團查看內容或直接下單。</span>
-        </div>
-        <div className="resident-list-summary" aria-label={`共有${campaigns.length}個團購，${openCampaignCount}個開團中`}>
-          <strong>{openCampaignCount}</strong>
-          <span>個團購<br />開團中</span>
-        </div>
-      </section>
-
-      <section className="resident-campaign-grid" aria-label="已發布團購列表">
-        {campaigns.length === 0 && <p className="resident-list-empty">目前沒有已發布的團購。</p>}
-        {sortedCampaigns.map((campaign) => {
-          const amountThreshold = campaign.amountThreshold ?? campaign.threshold
-          const usesAmountThreshold = campaign.thresholdKind === 'amount'
-          const progressValue = usesAmountThreshold ? (campaign.totalAmount ?? 0) : campaign.totalQuantity
-          const progressTarget = usesAmountThreshold ? amountThreshold : campaign.threshold
-          const quantityUnit = normalizeQuantityUnit(campaign.quantityUnit)
-          const progressText = usesAmountThreshold
-            ? `NT$ ${progressValue.toLocaleString('zh-TW')} / NT$ ${progressTarget.toLocaleString('zh-TW')}`
-            : `${progressValue} ${quantityUnit} / ${progressTarget} ${quantityUnit}`
-
-          return (
-            <article className="resident-campaign-card" data-status={campaign.status} key={campaign.slug}>
-              <CampaignCover campaign={campaign} />
-              <div className="resident-campaign-card-body">
-                <p className="resident-campaign-state"><span aria-hidden="true">●</span>{residentStatusText(campaign.status)}</p>
-                <p className="resident-campaign-time">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 8v4l2.8 1.8" /></svg>
-                  {formatZhTwTimestamp(campaign.openedAt)} 開團
-                </p>
-                <h2>{campaign.title}</h2>
-                <div className="resident-campaign-schedule">
-                  <p>{formatArrivalLabel(campaign.arrivalLabel)}</p>
-                  {campaign.status === 'open' && campaign.autoCloseAt && <p className="is-close-reminder">{formatAutoCloseReminder(campaign.autoCloseAt)}</p>}
-                </div>
-                <div className="resident-campaign-facts">
-                  <p><span>最低價</span><strong><small>NT$</small> {campaign.unitPrice.toLocaleString('zh-TW')}</strong></p>
-                  <p><span>成團進度</span><strong>{progressText}</strong></p>
-                </div>
-                <div className="resident-campaign-progress">
-                  <ProgressBar label={`${campaign.title}成團進度`} value={progressValue} max={progressTarget} />
-                </div>
-                <a href={`/campaign/${campaign.slug}`} aria-label={`查看${campaign.title}`}>
-                  <span>{campaign.status === 'open' ? '查看並下單' : '查看團購內容'}</span>
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
-                </a>
-              </div>
-            </article>
-          )
-        })}
-      </section>
-    </main>
+      <main className="resident-list">
+        <h1>團購</h1>
+        <p className="resident-list-subtitle">
+          {openCampaigns.length > 0 ? `${openCampaigns.length} 團開團中` : '目前沒有開團中的團購'}
+        </p>
+        {campaigns.length === 0 && <EmptyState title="目前還沒有團購" description="團主開團後會出現在這裡。" />}
+        {openCampaigns.length > 0 && (
+          <section className="resident-list-group" aria-labelledby="open-campaigns-heading">
+            <h2 id="open-campaigns-heading">開團中</h2>
+            <div className="resident-campaign-grid" data-group="open">
+              {openCampaigns.map((campaign) => <CampaignRow key={campaign.slug} campaign={campaign} now={now} />)}
+            </div>
+          </section>
+        )}
+        {closedCampaigns.length > 0 && (
+          <section className="resident-list-group" aria-labelledby="closed-campaigns-heading">
+            <h2 id="closed-campaigns-heading">已結單</h2>
+            <div className="resident-campaign-grid" data-group="closed">
+              {visibleClosed.map((campaign) => <CampaignRow key={campaign.slug} campaign={campaign} now={now} />)}
+            </div>
+            {hiddenClosedCount > 0 && (
+              <Button variant="utility" className="resident-list-more" onClick={() => setShowAllClosed(true)}>
+                顯示更早的團購（{hiddenClosedCount}）
+              </Button>
+            )}
+          </section>
+        )}
+      </main>
+    </div>
   )
 }

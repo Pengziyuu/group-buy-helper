@@ -90,8 +90,8 @@ describe('RuntimeApp localStorage resident demo routing', () => {
     const config = { mode: 'demo' as const }
     const { rerender } = render(<RuntimeApp config={config} pathname="/" />)
 
-    expect(screen.getByRole('heading', { name: '全部開團' })).toBeInTheDocument()
-    const campaignLink = screen.getByRole('link', { name: '查看一涼製冰所 超厚三明治冰餅' })
+    expect(screen.getByRole('heading', { name: '團購' })).toBeInTheDocument()
+    const campaignLink = screen.getByRole('link', { name: '一涼製冰所 超厚三明治冰餅' })
     expect(campaignLink).toHaveAttribute('href', '/campaign/0123456789abcdef0123456789abcdef0123')
 
     rerender(<RuntimeApp config={config} pathname="/campaign/0123456789abcdef0123456789abcdef0123" />)
