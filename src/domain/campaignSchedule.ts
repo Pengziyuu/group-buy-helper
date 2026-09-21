@@ -91,3 +91,19 @@ export function formatAutoCloseReminder(value: string): string {
   const [, month, day] = date.split('-')
   return `${month}/${day} 12:00 自動結單`
 }
+
+const taipeiWeekdayFormatter = new Intl.DateTimeFormat('zh-TW', { timeZone: 'Asia/Taipei', weekday: 'narrow' })
+
+export function describeAutoClose(
+  value: string | null | undefined,
+  now: Date = new Date(),
+): { when: string; soon: boolean } | null {
+  const date = taipeiDateInputFromIso(value)
+  if (!date) return null
+  if (date === taipeiDateInputFromIso(now.toISOString())) return { when: '今天 12:00', soon: true }
+  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+  if (date === taipeiDateInputFromIso(tomorrow.toISOString())) return { when: '明天 12:00', soon: true }
+  const [, month, day] = date.split('-')
+  const weekday = taipeiWeekdayFormatter.format(new Date(value as string))
+  return { when: `${Number(month)}/${Number(day)}（${weekday}）12:00`, soon: false }
+}
