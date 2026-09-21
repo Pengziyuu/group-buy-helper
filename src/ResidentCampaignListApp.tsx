@@ -85,10 +85,10 @@ function CampaignRow({ campaign, now }: { campaign: ResidentCampaignListItem; no
           : <p className="resident-campaign-price"><StatusBadge tone="neutral">已結單</StatusBadge></p>}
         <ProgressBar label={`${campaign.title}成團進度`} value={progress.value} max={progress.target} />
         <p className="resident-campaign-meta">
-          <span>{progress.text}</span>
+          <span className="resident-campaign-progress-text">{progress.text}</span>
           {closing
-            ? <span className={closing.soon ? 'is-soon' : undefined}>{closing.when} 結單</span>
-            : <span>到貨：{normalizeArrivalLabel(campaign.arrivalLabel)}</span>}
+            ? <span className={`resident-campaign-schedule${closing.soon ? ' is-soon' : ''}`}>{closing.when} 結單</span>
+            : <span className="resident-campaign-schedule">到貨：{normalizeArrivalLabel(campaign.arrivalLabel)}</span>}
         </p>
       </div>
       <span className="resident-campaign-chevron" aria-hidden="true">›</span>
@@ -126,14 +126,16 @@ export default function ResidentCampaignListApp({ identity, campaigns, onLogout,
         <ResidentAccount identity={identity} onLogout={onLogout} />
       </header>
       <main className="resident-list">
-        <h1>團購</h1>
-        <p className="resident-list-subtitle">
+        <div className="resident-list-heading">
+          <h1>團購</h1>
+          <span className={`resident-list-count${openCampaigns.length === 0 ? ' is-empty' : ''}`}>
           {openCampaigns.length > 0 ? `${openCampaigns.length} 團開團中` : '目前沒有開團中的團購'}
-        </p>
+          </span>
+        </div>
         {campaigns.length === 0 && <EmptyState title="目前還沒有團購" description="團主開團後會出現在這裡。" />}
         {openCampaigns.length > 0 && (
           <section className="resident-list-group" aria-labelledby="open-campaigns-heading">
-            <h2 id="open-campaigns-heading">開團中</h2>
+            <h2 className="ui-visually-hidden" id="open-campaigns-heading">開團中</h2>
             <div className="resident-campaign-grid" data-group="open">
               {openCampaigns.map((campaign) => <CampaignRow key={campaign.slug} campaign={campaign} now={now} />)}
             </div>
