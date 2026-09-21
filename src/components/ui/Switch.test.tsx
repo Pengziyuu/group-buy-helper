@@ -23,5 +23,6 @@ describe('Switch', () => {
     rerender(<Switch label="全團基本折扣" checked onChange={change} disabled />)
     expect(screen.getByRole('switch', { name: '全團基本折扣' })).toBeChecked()
     expect(screen.getByRole('switch', { name: '全團基本折扣' })).toBeDisabled()
+    expect(screen.getByRole('switch', { name: '全團基本折扣' })).not.toHaveAttribute('aria-describedby')
   })
 })

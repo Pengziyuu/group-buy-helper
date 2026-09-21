@@ -45,6 +45,7 @@
 
   --color-disabled-bg: #f0f0f2;
   --color-disabled-text: #7a7a7a;
+  --color-control-off: #86868b;
 
   --font-sans: system-ui, -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
   --font-size-caption: 12px;

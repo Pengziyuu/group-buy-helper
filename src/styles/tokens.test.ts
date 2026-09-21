@@ -35,6 +35,11 @@ describe('design tokens', () => {
     expect(css).toMatch(/--shadow-dialog:\s*none;/)
   })
 
+  it('turns press feedback off for reduced motion', () => {
+    const foundations = readFileSync(resolve(process.cwd(), 'src/styles/foundations.css'), 'utf8')
+    expect(foundations).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*:root \{ --press-scale: 1; \}/)
+  })
+
   it.each([
     ['color-text', 'color-bg'],
     ['color-text', 'color-surface'],
@@ -59,5 +64,15 @@ describe('design tokens', () => {
     expect(tokens[foreground], foreground).toBeDefined()
     expect(tokens[background], background).toBeDefined()
     expect(contrast(tokens[foreground], tokens[background])).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it.each([
+    ['color-control-off', 'color-surface'],
+    ['color-control-off', 'color-bg'],
+    ['color-on-primary', 'color-control-off'],
+  ])('keeps the non-text control %s on %s at 3:1 or better', (foreground, background) => {
+    expect(tokens[foreground], foreground).toBeDefined()
+    expect(tokens[background], background).toBeDefined()
+    expect(contrast(tokens[foreground], tokens[background])).toBeGreaterThanOrEqual(3)
   })
 })

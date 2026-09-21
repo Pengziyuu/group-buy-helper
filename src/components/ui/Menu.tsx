@@ -25,13 +25,13 @@ export function Menu({ label, items, triggerContent = '⋯', size = 'md', classN
   const triggerRef = useRef<HTMLButtonElement>(null)
   const menuId = useId()
 
-  const enabledItems = () => [
-    ...(rootRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([aria-disabled="true"])') ?? []),
+  const menuItems = () => [
+    ...(rootRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []),
   ]
 
   useEffect(() => {
     if (!open) return
-    enabledItems()[0]?.focus()
+    menuItems()[0]?.focus()
     const closeOnOutsidePointer = (event: Event) => {
       if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
     }
@@ -45,7 +45,7 @@ export function Menu({ label, items, triggerContent = '⋯', size = 'md', classN
   }
 
   const moveFocus = (event: KeyboardEvent<HTMLDivElement>) => {
-    const elements = enabledItems()
+    const elements = menuItems()
     if (elements.length === 0) return
     const index = elements.indexOf(document.activeElement as HTMLElement)
     const targets: Record<string, HTMLElement | undefined> = {
@@ -67,7 +67,14 @@ export function Menu({ label, items, triggerContent = '⋯', size = 'md', classN
   }
 
   return (
-    <div ref={rootRef} className={`ui-menu ${className}`.trim()} data-size={size}>
+    <div
+      ref={rootRef}
+      className={`ui-menu ${className}`.trim()}
+      data-size={size}
+      onBlur={(event) => {
+        if (open && !event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false)
+      }}
+    >
       <button
         ref={triggerRef}
         type="button"

@@ -64,6 +64,34 @@ describe('Menu', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
 
+  it('keeps a menu with only a disabled item operable from the keyboard', async () => {
+    const user = userEvent.setup()
+    const cancel = vi.fn()
+    render(
+      <>
+        <Menu label="訂單操作 斯祈" items={[{ label: '取消整筆訂單', onSelect: cancel, disabled: true }]} />
+        <button type="button">下一列</button>
+      </>,
+    )
+
+    const trigger = screen.getByRole('button', { name: '訂單操作 斯祈' })
+    await user.click(trigger)
+    const item = screen.getByRole('menuitem', { name: '取消整筆訂單' })
+    expect(item).toHaveFocus()
+
+    await user.keyboard('{Enter}')
+    expect(cancel).not.toHaveBeenCalled()
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(trigger).toHaveFocus()
+
+    await user.click(trigger)
+    await user.tab()
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
   it('gives repeated row actions a distinct accessible name', async () => {
     const user = userEvent.setup()
     render(<Menu label="更多操作 冰餅團" items={[{ label: '刪除團購', ariaLabel: '刪除 冰餅團', onSelect: vi.fn() }]} />)

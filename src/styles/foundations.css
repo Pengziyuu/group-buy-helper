@@ -51,6 +51,7 @@ textarea,
 }
 
 @media (prefers-reduced-motion: reduce) {
+  :root { --press-scale: 1; }
   *,
   *::before,
   *::after {
