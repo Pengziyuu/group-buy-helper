@@ -181,3 +181,5 @@
   .resident-wall-list li:nth-child(2) { border-top: 0; }
   .resident-footer { width: min(100%, 1200px); margin: 0 auto; padding-inline: var(--space-6); text-align: left; }
 }
+
+.resident-custom-item-row .ui-quantity-control { justify-self: start; }
