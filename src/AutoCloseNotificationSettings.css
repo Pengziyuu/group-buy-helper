@@ -1,0 +1,102 @@
+.auto-close-notification-settings {
+  margin: 1.25rem 0;
+  padding: 1.25rem;
+  border: 1px solid var(--line, #d9d9d9);
+  border-radius: 1rem;
+  background: #fff;
+  box-shadow: 0 10px 30px rgb(30 46 40 / 7%);
+}
+
+.auto-close-notification-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.auto-close-notification-heading p,
+.auto-close-notification-heading h2,
+.auto-close-notification-help {
+  margin: 0;
+}
+
+.auto-close-notification-heading p {
+  color: #52635d;
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+
+.auto-close-notification-heading h2 {
+  margin-top: .2rem;
+  font-size: 1.3rem;
+}
+
+.auto-close-notification-heading > span {
+  padding: .3rem .65rem;
+  border-radius: 999px;
+  background: #edf7f2;
+  color: #17603f;
+  font-size: .78rem;
+  font-weight: 700;
+}
+
+.auto-close-notification-help {
+  margin-top: .55rem;
+  color: #52635d;
+}
+
+.auto-close-notification-state {
+  margin: 1rem 0;
+  padding: .8rem .9rem;
+  border: 1px solid #d9e2de;
+  border-radius: .75rem;
+  background: #f7faf8;
+  color: #355249;
+}
+
+.auto-close-notification-state.is-current_user {
+  border-color: #9ccbb4;
+  background: #edf7f2;
+  color: #17603f;
+}
+
+.auto-close-notification-save {
+  min-height: 44px;
+  padding: .7rem 1rem;
+  border: 1px solid #17603f;
+  border-radius: .7rem;
+  background: #17603f;
+  color: #fff;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.auto-close-notification-save:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.auto-close-notification-settings .ui-feedback {
+  margin-top: .75rem;
+}
+
+@media (max-width: 560px) {
+  .auto-close-notification-settings {
+    padding: 1rem;
+  }
+
+  .auto-close-notification-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .auto-close-notification-heading > span {
+    align-self: flex-start;
+  }
+
+  .auto-close-notification-save {
+    width: 100%;
+  }
+}

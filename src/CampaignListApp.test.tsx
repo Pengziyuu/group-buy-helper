@@ -22,6 +22,23 @@ const campaigns: CampaignListItem[] = [
 ]
 
 describe('organizer campaign list', () => {
+  it('lets the signed-in approved organizer make themselves the sole notification recipient', async () => {
+    const user = userEvent.setup()
+    const onSelectCurrentUser = vi.fn().mockResolvedValue(undefined)
+    render(
+      <CampaignListApp
+        campaigns={campaigns}
+        onCreate={vi.fn()}
+        autoCloseNotificationState="other_organizer"
+        onSelectCurrentUserForAutoCloseNotification={onSelectCurrentUser}
+      />,
+    )
+
+    expect(screen.getByRole('heading', { name: '自動結單通知' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '改由我接收通知' }))
+    await waitFor(() => expect(onSelectCurrentUser).toHaveBeenCalledOnce())
+  })
+
   it('switches between campaign management and resident management as peer sections', async () => {
     const user = userEvent.setup()
     const members: ResidentMember[] = [{

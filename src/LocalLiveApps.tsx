@@ -39,6 +39,10 @@ import {
   createResidentMemberManagementGateway,
   type ResidentMember,
 } from './services/residentMemberManagementGateway'
+import {
+  createAutoCloseNotificationSettingsGateway,
+  type AutoCloseNotificationSettingState,
+} from './services/autoCloseNotificationSettingsGateway'
 import { loadLiffIdentity, type LiffClient } from './services/liffIdentity'
 import { Button } from './components/ui/Button'
 import { normalizeQuantityUnit, type QuantityUnit } from './domain/quantityUnit'
@@ -91,6 +95,11 @@ export type LiveResidentMemberRepository = {
   list(): Promise<ResidentMember[]>
   setBlocked(memberCode: string, blocked: boolean): Promise<void>
   updateHousehold(memberCode: string, household: { kind: HouseholdKind; period: number | null; unit: string | null }): Promise<void>
+}
+
+export type LiveAutoCloseNotificationSettingsRepository = {
+  getState(): Promise<AutoCloseNotificationSettingState>
+  selectCurrentUser(): Promise<void>
 }
 
 type LocalLiveAppProps = {
@@ -363,6 +372,7 @@ export function LocalLiveAdminApp({
   pickupNotificationTestCampaignRepository,
   managementRepository,
   residentMemberRepository,
+  autoCloseNotificationSettingsRepository,
   authStorage = null,
   logoutFallbackStorage = null,
   liffId,
@@ -376,6 +386,7 @@ export function LocalLiveAdminApp({
   pickupNotificationTestCampaignRepository?: LivePickupNotificationTestCampaignRepository
   managementRepository?: LiveCampaignManagementRepository
   residentMemberRepository?: LiveResidentMemberRepository
+  autoCloseNotificationSettingsRepository?: LiveAutoCloseNotificationSettingsRepository
   authStorage?: AuthSessionStorage | null
   logoutFallbackStorage?: AuthSessionStorage | null
   liffId?: string
@@ -415,6 +426,12 @@ export function LocalLiveAdminApp({
     () => residentMemberRepository ?? createResidentMemberManagementGateway(client),
     [client, residentMemberRepository],
   )
+  const autoCloseNotificationSettingsGateway = useMemo(
+    () => autoCloseNotificationSettingsRepository ?? createAutoCloseNotificationSettingsGateway(client),
+    [autoCloseNotificationSettingsRepository, client],
+  )
+  const autoCloseNotificationSettingsGatewayRef = useRef(autoCloseNotificationSettingsGateway)
+  autoCloseNotificationSettingsGatewayRef.current = autoCloseNotificationSettingsGateway
   const activeLineOrganizerGateway = useMemo(
     () => lineOrganizerGateway ?? (liffId && liffClient
       ? createLineOrganizerGateway(client, liffClient, liffId)
@@ -438,6 +455,7 @@ export function LocalLiveAdminApp({
   const [campaigns, setCampaigns] = useState<CampaignListItem[] | null>(null)
   const [testCampaignIds, setTestCampaignIds] = useState<string[] | null>(null)
   const [residentMembers, setResidentMembers] = useState<ResidentMember[] | null>(null)
+  const [autoCloseNotificationState, setAutoCloseNotificationState] = useState<AutoCloseNotificationSettingState | null>(null)
   const [residentSlug, setResidentSlug] = useState<string | null>(null)
   const [publicationState, setPublicationState] = useState<'draft' | 'published'>('published')
   const [error, setError] = useState('')
@@ -643,6 +661,7 @@ export function LocalLiveAdminApp({
       setCampaigns(null)
       setTestCampaignIds(null)
       setResidentMembers(null)
+      setAutoCloseNotificationState(null)
       setResidentSlug(null)
       return
     }
@@ -673,10 +692,12 @@ export function LocalLiveAdminApp({
       void Promise.all([
         activeCampaignManagementGateway.list(),
         activeResidentMemberGateway.list(),
-      ]).then(([items, members]) => {
+        autoCloseNotificationSettingsGatewayRef.current.getState(),
+      ]).then(([items, members, notificationState]) => {
         if (active) {
           setCampaigns(items)
           setResidentMembers(members)
+          setAutoCloseNotificationState(notificationState)
         }
       }).catch((loadError: unknown) => {
         if (active) setError(errorMessage(loadError))
@@ -832,11 +853,16 @@ export function LocalLiveAdminApp({
         />
       )
     }
-    if (!campaigns || !residentMembers) return <LiveLoading label="載入團購與住戶列表…" />
+    if (!campaigns || !residentMembers || !autoCloseNotificationState) return <LiveLoading label="載入團購、住戶與通知設定…" />
     return (
       <CampaignListApp
         campaigns={campaigns}
         residentMembers={residentMembers}
+        autoCloseNotificationState={autoCloseNotificationState}
+        onSelectCurrentUserForAutoCloseNotification={async () => {
+          await autoCloseNotificationSettingsGateway.selectCurrentUser()
+          setAutoCloseNotificationState(await autoCloseNotificationSettingsGateway.getState())
+        }}
         onSetResidentBlocked={async (memberCode, blocked) => {
           await residentMemberGateway.setBlocked(memberCode, blocked)
           setResidentMembers(await residentMemberGateway.list())

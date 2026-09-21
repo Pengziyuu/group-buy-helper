@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -51,6 +46,24 @@ export type Database = {
         Update: {
           created_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      auto_close_notification_setting: {
+        Row: {
+          organizer_auth_user_id: string | null
+          singleton: boolean
+          updated_at: string
+        }
+        Insert: {
+          organizer_auth_user_id?: string | null
+          singleton?: boolean
+          updated_at?: string
+        }
+        Update: {
+          organizer_auth_user_id?: string | null
+          singleton?: boolean
+          updated_at?: string
         }
         Relationships: []
       }
@@ -176,6 +189,76 @@ export type Database = {
           },
           {
             foreignKeyName: "campaign_access_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_auto_close_notification: {
+        Row: {
+          attempts: number
+          campaign_id: string | null
+          close_reason: string
+          created_at: string
+          delivery_status: string
+          failure_code: string | null
+          id: string
+          line_retry_key: string
+          locked_at: string | null
+          message_text: string
+          next_attempt_at: string
+          recipient_line_user_id: string | null
+          sent_at: string | null
+        }
+        Insert: {
+          attempts?: number
+          campaign_id?: string | null
+          close_reason: string
+          created_at?: string
+          delivery_status: string
+          failure_code?: string | null
+          id?: string
+          line_retry_key?: string
+          locked_at?: string | null
+          message_text: string
+          next_attempt_at?: string
+          recipient_line_user_id?: string | null
+          sent_at?: string | null
+        }
+        Update: {
+          attempts?: number
+          campaign_id?: string | null
+          close_reason?: string
+          created_at?: string
+          delivery_status?: string
+          failure_code?: string | null
+          id?: string
+          line_retry_key?: string
+          locked_at?: string | null
+          message_text?: string
+          next_attempt_at?: string
+          recipient_line_user_id?: string | null
+          sent_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_auto_close_notification_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "admin_campaign_list"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_auto_close_notification_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_auto_close_notification_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "campaign_public"
@@ -1367,6 +1450,15 @@ export type Database = {
       }
       can_edit_order: { Args: { p_order_id: string }; Returns: boolean }
       cancel_customer_order: { Args: { p_order_id: string }; Returns: Json }
+      claim_campaign_auto_close_notifications: {
+        Args: { p_limit?: number }
+        Returns: {
+          line_retry_key: string
+          message_text: string
+          notification_id: string
+          recipient_line_user_id: string
+        }[]
+      }
       claim_pickup_notification_reply_command: {
         Args: {
           p_command_hash: string
@@ -1380,6 +1472,10 @@ export type Database = {
         Returns: boolean
       }
       close_due_campaigns: { Args: never; Returns: number }
+      complete_campaign_auto_close_notification: {
+        Args: { p_line_retry_key: string; p_notification_id: string }
+        Returns: boolean
+      }
       complete_pickup_notification_reply_command: {
         Args: { p_command_hash: string; p_webhook_event_id: string }
         Returns: boolean
@@ -1431,6 +1527,15 @@ export type Database = {
         Args: { p_campaign_id: string }
         Returns: boolean
       }
+      fail_campaign_auto_close_notification: {
+        Args: {
+          p_failure_code: string
+          p_line_retry_key: string
+          p_notification_id: string
+          p_retryable: boolean
+        }
+        Returns: boolean
+      }
       fail_pickup_notification_reply_command: {
         Args: {
           p_command_hash: string
@@ -1474,6 +1579,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      get_auto_close_notification_setting: { Args: never; Returns: string }
       get_customer_self: {
         Args: never
         Returns: {
@@ -1742,6 +1848,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      set_my_auto_close_notification_organizer: {
+        Args: never
+        Returns: boolean
       }
       set_order_organizer_note: {
         Args: { p_order_id: string; p_organizer_note: string }

@@ -390,6 +390,9 @@ verify_jwt = true
 [functions.send-test-pickup-notification]
 verify_jwt = true
 
+[functions.send-auto-close-organizer-notifications]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

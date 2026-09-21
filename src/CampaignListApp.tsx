@@ -9,6 +9,8 @@ import type { ResidentMember } from './services/residentMemberManagementGateway'
 import { ConfirmDialog } from './components/ui/ConfirmDialog'
 import { FeedbackMessage } from './components/ui/FeedbackMessage'
 import { ProgressBar } from './components/ui/ProgressBar'
+import AutoCloseNotificationSettings from './AutoCloseNotificationSettings'
+import type { AutoCloseNotificationSettingState } from './services/autoCloseNotificationSettingsGateway'
 import './CampaignListApp.css'
 
 type CampaignListAppProps = {
@@ -21,6 +23,8 @@ type CampaignListAppProps = {
   residentMembers?: ResidentMember[]
   onSetResidentBlocked?: (memberCode: string, blocked: boolean) => Promise<void>
   onUpdateResidentHousehold?: (memberCode: string, household: { kind: HouseholdKind; period: number | null; unit: string | null }) => Promise<void>
+  autoCloseNotificationState?: AutoCloseNotificationSettingState
+  onSelectCurrentUserForAutoCloseNotification?: () => Promise<void>
 }
 
 const currencyFormatter = new Intl.NumberFormat('zh-TW', {
@@ -84,7 +88,7 @@ function CampaignFormationProgress({ campaign }: { campaign: CampaignListItem })
   )
 }
 
-export default function CampaignListApp({ campaigns, onCreate, onDelete, onNavigate, onSignOut, onCopyResidentLink, residentMembers, onSetResidentBlocked, onUpdateResidentHousehold }: CampaignListAppProps) {
+export default function CampaignListApp({ campaigns, onCreate, onDelete, onNavigate, onSignOut, onCopyResidentLink, residentMembers, onSetResidentBlocked, onUpdateResidentHousehold, autoCloseNotificationState, onSelectCurrentUserForAutoCloseNotification }: CampaignListAppProps) {
   const [visibleCampaigns, setVisibleCampaigns] = useState(campaigns)
   const [creating, setCreating] = useState(false)
   const [title, setTitle] = useState('未命名團購')
@@ -235,6 +239,13 @@ export default function CampaignListApp({ campaigns, onCreate, onDelete, onNavig
           {residentMembers && <div className={unboundResidentCount > 0 ? 'needs-attention' : ''}><dt>待綁定戶號</dt><dd>{unboundResidentCount}</dd></div>}
         </dl>
       </section>
+
+      {autoCloseNotificationState && onSelectCurrentUserForAutoCloseNotification && (
+        <AutoCloseNotificationSettings
+          state={autoCloseNotificationState}
+          onSelectCurrentUser={onSelectCurrentUserForAutoCloseNotification}
+        />
+      )}
 
       {creating && (
         <form className="campaign-create-card" onSubmit={submit}>

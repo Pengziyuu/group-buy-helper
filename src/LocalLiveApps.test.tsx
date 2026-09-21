@@ -98,7 +98,10 @@ function authClient(session: unknown = null, getUserError: unknown = null, isAdm
     error: null,
   })
   const client = {
-    rpc: vi.fn().mockResolvedValue({ data: isAdmin, error: null }),
+    rpc: vi.fn().mockImplementation((name: string) => Promise.resolve({
+      data: name === 'get_auto_close_notification_setting' ? 'unconfigured' : isAdmin,
+      error: null,
+    })),
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session }, error: null }),
       getUser: vi.fn().mockResolvedValue({
