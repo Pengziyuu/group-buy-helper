@@ -131,6 +131,26 @@ describe('customer campaign app', () => {
     ])
   })
 
+  it('warns when an extra-item draft is missing its name, then clears the warning once it is filled in', async () => {
+    const user = userEvent.setup()
+    render(<App publishedContent={{
+      title: '額外品項提示測試', unitPrice: 45, threshold: 100, allowCustomItems: true,
+      announcement: '公告', images: [], items, openedAt: '2026-08-14T00:05:09.000Z',
+    }} />)
+
+    await user.click(screen.getByRole('button', { name: '新增額外品項' }))
+
+    const bar = screen.getByLabelText('訂單摘要與送出')
+    expect(within(bar).getByText('請填寫額外品項的名稱與數量。')).toBeInTheDocument()
+    expect(within(bar).getByRole('button', { name: '送出訂單' })).toBeDisabled()
+
+    await user.type(screen.getByRole('textbox', { name: '額外品項 1 名稱' }), '限定蛋糕')
+    await user.click(screen.getByRole('button', { name: '增加 額外品項 1' }))
+
+    expect(within(bar).queryByText('請填寫額外品項的名稱與數量。')).not.toBeInTheDocument()
+    expect(within(bar).getByRole('button', { name: '送出訂單' })).toBeEnabled()
+  })
+
   it('locks every order control while a custom order submission is pending', async () => {
     const user = userEvent.setup()
     let finishSubmit!: () => void
