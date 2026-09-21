@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import './CampaignImageViewer.css'
 import type { CampaignImage } from '../services/demoCampaignStore'
 
 type CampaignImageViewerProps = {
