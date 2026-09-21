@@ -46,6 +46,7 @@
   --color-disabled-bg: #f0f0f2;
   --color-disabled-text: #7a7a7a;
   --color-control-off: #86868b;
+  --color-fill-hover: #ececef;
 
   --font-sans: system-ui, -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
   --font-size-caption: 12px;
@@ -74,10 +75,16 @@
   --radius-surface: 18px;
   --radius-prominent: 18px;
   --radius-pill: 999px;
+  --radius-popover: 12px;
 
   --shadow-sticky: none;
   --shadow-dialog: none;
   --blur-sticky: saturate(180%) blur(20px);
+
+  --z-sticky: 20;
+  --z-menu: 900;
+  --z-dialog: 1000;
+  --z-toast: 1100;
 
   --touch-target: 44px;
   --press-scale: 0.95;

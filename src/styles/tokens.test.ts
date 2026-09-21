@@ -60,6 +60,7 @@ describe('design tokens', () => {
     ['color-neutral', 'color-neutral-subtle'],
     ['color-on-primary', 'color-text'],
     ['color-primary-on-dark', 'color-text'],
+    ['color-text', 'color-fill-hover'],
   ])('keeps %s on %s at 4.5:1 or better', (foreground, background) => {
     expect(tokens[foreground], foreground).toBeDefined()
     expect(tokens[background], background).toBeDefined()
