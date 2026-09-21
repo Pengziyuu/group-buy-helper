@@ -30,7 +30,7 @@
 .resident-campaign-meta .is-soon { color: var(--color-warning); font-weight: var(--font-weight-strong); }
 .resident-campaign-chevron { color: var(--color-text-tertiary); font-size: 20px; }
 .resident-campaign-row[data-status="closed"] { background: var(--color-surface-subtle); }
-.resident-campaign-row[data-status="closed"] .resident-campaign-thumb { opacity: 0.6; }
+.resident-campaign-row[data-status="closed"] .resident-campaign-thumb img { opacity: 0.6; }
 .resident-list-more { width: 100%; margin-top: var(--space-2); }
 
 @media (min-width: 1024px) {
