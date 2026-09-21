@@ -101,6 +101,13 @@ describe('shared UI primitives', () => {
     expect(retry).toHaveBeenCalledOnce()
   })
 
+  it('offers a skeleton placeholder for lists and tables', () => {
+    const { container } = render(<LoadingState label="載入訂單中…" variant="skeleton" rows={4} />)
+
+    expect(screen.getByRole('status', { name: '載入訂單中…' })).toHaveAttribute('aria-busy', 'true')
+    expect(container.querySelectorAll('.ui-skeleton-row')).toHaveLength(4)
+  })
+
   it('supports keyboard-safe confirmation and restores focus', async () => {
     const user = userEvent.setup()
     const confirm = vi.fn()
