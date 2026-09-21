@@ -138,6 +138,10 @@
 .ui-menu-popup [data-tone="danger"] { color: var(--color-danger); }
 .ui-menu-popup [aria-disabled="true"] { color: var(--color-disabled-text); cursor: not-allowed; }
 
+.ui-toast { position: fixed; left: 50%; bottom: calc(var(--space-4) + env(safe-area-inset-bottom)); z-index: 1100; display: flex; align-items: center; gap: var(--space-4); max-width: min(calc(100vw - 32px), 480px); padding: 10px 12px 10px 16px; border-radius: 12px; background: var(--color-text); color: var(--color-on-primary); font-size: var(--font-size-dense); transform: translateX(-50%); }
+.ui-toast-action { position: relative; min-height: 32px; padding: 0 var(--space-2); border: 0; background: transparent; color: var(--color-primary-on-dark); font-weight: var(--font-weight-strong); cursor: pointer; }
+.ui-toast-action::after { content: ""; position: absolute; inset: -6px 0; }
+
 @media (max-width: 430px) {
   .ui-dialog { padding: var(--space-5); }
   .ui-dialog-actions { display: grid; }
