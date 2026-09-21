@@ -14,7 +14,7 @@ describe('customer campaign app', () => {
     expect(screen.getByRole('heading', { name: '一涼製冰所 超厚三明治冰餅' })).toBeInTheDocument()
     expect(screen.getByText('62 個 / 100 個')).toBeInTheDocument()
     expect(screen.getByText('還差 38 個成團')).toBeInTheDocument()
-    expect(screen.getByText('已有 6 筆訂單，大家的訂單都看得到')).toBeInTheDocument()
+    expect(screen.getByText('已有 6 筆訂單・開團 2026/08/14 08:05')).toBeInTheDocument()
     expect(screen.queryByText(/戶參加/)).not.toBeInTheDocument()
     expect(screen.getByText('斯祈')).toBeInTheDocument()
     expect(screen.getByText('佩怡')).toBeInTheDocument()
@@ -29,7 +29,7 @@ describe('customer campaign app', () => {
 
     expect(screen.getByText('62 盒 / 63 盒')).toBeInTheDocument()
     expect(screen.getByText('還差 1 盒成團')).toBeInTheDocument()
-    expect(screen.getByText('我的訂單 6 盒')).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: '訂單摘要與送出' })).getByText('6 盒')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '增加 C 抹茶' }))
     await user.click(screen.getByRole('button', { name: '增加 C 抹茶' }))
     expect(screen.getByText('目前其他住戶已訂 56 盒，成團上限為 63 盒，本次最多可訂 7 盒。')).toBeInTheDocument()
@@ -91,7 +91,8 @@ describe('customer campaign app', () => {
     expect(screen.getByText('任選價 $145')).toBeInTheDocument()
     expect(screen.getByText('9折價 $162')).toBeInTheDocument()
 
-    const review = screen.getByRole('region', { name: '我的訂單明細' })
+    await user.click(screen.getByRole('button', { name: '查看訂單明細' }))
+    const review = screen.getByRole('dialog', { name: '訂單明細' })
     expect(within(review).getByText('五花肉片')).toBeInTheDocument()
     expect(within(review).getByText('2 × $145')).toBeInTheDocument()
     expect(within(review).getByText('$290')).toBeInTheDocument()
@@ -102,10 +103,8 @@ describe('customer campaign app', () => {
     expect(within(review).getByText('$706')).toBeInTheDocument()
     expect(within(review).getByText('已省 $113')).toBeInTheDocument()
 
-    await user.click(within(review).getByRole('button', { name: '收合明細' }))
-    expect(within(review).queryByText('2 × $145')).not.toBeInTheDocument()
-    await user.click(within(review).getByRole('button', { name: '展開明細' }))
-    expect(within(review).getByText('2 × $145')).toBeInTheDocument()
+    await user.click(within(review).getByRole('button', { name: '關閉訂單明細' }))
+    expect(screen.queryByRole('dialog', { name: '訂單明細' })).not.toBeInTheDocument()
   })
 
   it('submits resident custom items separately without changing price or threshold quantity', async () => {
@@ -203,12 +202,13 @@ describe('customer campaign app', () => {
     }
     render(<App residentCustomer={resident} visibleOrders={[resident, neighbor]} />)
 
-    const wall = screen.getByRole('region', { name: '目前訂單' })
+    const wall = screen.getByRole('region', { name: '大家的訂單' })
     expect(within(wall).queryByText('二期 2K13')).not.toBeInTheDocument()
     expect(within(wall).queryByText('二期 9Z9')).not.toBeInTheDocument()
     expect(within(wall).getByText('斯祈')).toBeInTheDocument()
     expect(within(wall).getByText('鄰居住戶')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: '二期 2K13・斯祈' })).toBeInTheDocument()
+    expect(screen.getByText('二期 2K13・斯祈')).toBeInTheDocument()
+    expect(within(wall).getByText('（你）')).toBeInTheDocument()
   })
 
   it('does not leak the fixed demo arrival copy into live content', () => {
@@ -238,7 +238,7 @@ describe('customer campaign app', () => {
     expect(screen.getByRole('progressbar', { name: '成團進度' })).toHaveAttribute('aria-valuenow', '2790')
   })
 
-  it('shows complete campaign images and opens an accessible image viewer', async () => {
+  it('shows campaign images with the announcement and opens an accessible image viewer', async () => {
     const user = userEvent.setup()
     const { rerender } = render(<App />)
 
@@ -246,21 +246,19 @@ describe('customer campaign app', () => {
     expect(screen.getByText(/🉐🉐美味代購價一個\$４５元🉐🉐/)).toBeInTheDocument()
     expect(screen.getByText(/保存期限:冷凍約三個月/)).toBeInTheDocument()
     expect(screen.getByRole('img', { name: '超厚三明治冰餅口味示意圖' })).toBeInTheDocument()
-    expect(screen.queryByText(/左右滑動查看/u)).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: /張圖片/ })).not.toBeInTheDocument()
 
     rerender(<App publishedContent={{
       title: '多圖團購', unitPrice: 45, threshold: 10, announcement: '多圖公告', items,
       images: [{ src: '/one.jpg', alt: '第一張' }, { src: '/two.jpg', alt: '第二張' }],
       openedAt: '2026-08-14T00:05:09.000Z',
     }} />)
-    expect(screen.getByText('← 左右滑動查看 2 張圖片 →')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: '共 2 張圖片' })).toBeInTheDocument()
 
-    const firstImage = screen.getByRole('button', { name: '放大檢視 第 1 張圖片：第一張' })
-    expect(firstImage.querySelector('.campaign-gallery-backdrop')).toHaveAttribute('aria-hidden', 'true')
-    await user.click(firstImage)
+    const mainImage = screen.getByRole('button', { name: '放大檢視 第 1 張圖片：第一張' })
+    await user.click(mainImage)
     const dialog = screen.getByRole('dialog', { name: '圖片檢視 1／2' })
     const closeButton = screen.getByRole('button', { name: '關閉圖片檢視' })
-    expect(dialog).toBeInTheDocument()
     expect(closeButton).toHaveFocus()
     expect(document.body).toHaveStyle({ overflow: 'hidden' })
     expect(screen.getByRole('img', { name: '第一張（放大檢視）' })).toHaveAttribute('src', '/one.jpg')
@@ -289,7 +287,6 @@ describe('customer campaign app', () => {
     fireEvent.pointerDown(viewerStage, { pointerId: 2, pointerType: 'mouse', button: 0, clientX: 80, clientY: 200 })
     fireEvent.pointerUp(viewerStage, { pointerId: 2, pointerType: 'mouse', button: 0, clientX: 280, clientY: 195 })
     expect(screen.getByRole('dialog', { name: '圖片檢視 2／2' })).toBeInTheDocument()
-
     fireEvent.pointerDown(viewerStage, { pointerId: 3, pointerType: 'touch', clientX: 280, clientY: 200 })
     fireEvent.pointerDown(viewerStage, { pointerId: 4, pointerType: 'touch', clientX: 220, clientY: 200 })
     fireEvent.pointerUp(viewerStage, { pointerId: 4, pointerType: 'touch', clientX: 80, clientY: 205 })
@@ -299,25 +296,21 @@ describe('customer campaign app', () => {
     await user.click(screen.getByRole('button', { name: '上一張圖片' }))
     expect(screen.getByRole('dialog', { name: '圖片檢視 1／2' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '下一張圖片' }))
-    expect(screen.getByRole('dialog', { name: '圖片檢視 2／2' })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: '第二張（放大檢視）' })).toHaveAttribute('src', '/two.jpg')
 
     await user.click(dialog.parentElement!)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(document.body).not.toHaveStyle({ overflow: 'hidden' })
-    expect(firstImage).toHaveFocus()
+    expect(mainImage).toHaveFocus()
 
-    await user.click(firstImage)
+    await user.click(mainImage)
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(firstImage).toHaveFocus()
+    expect(mainImage).toHaveFocus()
 
-    const secondImage = screen.getByRole('button', { name: '放大檢視 第 2 張圖片：第二張' })
-    fireEvent.error(within(secondImage).getByRole('img', { name: '第二張' }))
-    expect(screen.queryByRole('button', { name: '放大檢視 第 2 張圖片：第二張' })).not.toBeInTheDocument()
-    expect(screen.getByRole('status', { name: '' })).toHaveTextContent('圖片暫時無法顯示')
-
-    await user.click(firstImage)
+    await user.click(screen.getByRole('button', { name: '顯示第 2 張圖片' }))
+    await user.click(screen.getByRole('button', { name: '放大檢視 第 2 張圖片：第二張' }))
+    expect(screen.getByRole('dialog', { name: '圖片檢視 2／2' })).toBeInTheDocument()
     expect(document.body).toHaveStyle({ overflow: 'hidden' })
     rerender(<App publishedContent={{
       title: '多圖團購', unitPrice: 45, threshold: 10, announcement: '多圖公告', items, images: [],
@@ -327,23 +320,22 @@ describe('customer campaign app', () => {
     expect(document.body).not.toHaveStyle({ overflow: 'hidden' })
   })
 
-  it('provides in-app navigation and lets residents expand a long announcement', async () => {
+  it('links back to the campaign list and lets residents expand a long announcement', async () => {
     const user = userEvent.setup()
     render(<App />)
 
-    expect(screen.getByRole('link', { name: '回到全部開團' })).toHaveAttribute('href', '/')
-    expect(screen.getByRole('link', { name: '前往我的訂單' })).toHaveAttribute('href', '#order-heading')
-    const toggle = screen.getByRole('button', { name: '展開完整開團資訊' })
+    expect(screen.getByRole('link', { name: '全部團購' })).toHaveAttribute('href', '/')
+    const toggle = screen.getByRole('button', { name: '展開全文' })
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
 
     await user.click(toggle)
-    expect(screen.getByRole('button', { name: '收合開團資訊' })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('button', { name: '收合' })).toHaveAttribute('aria-expanded', 'true')
   })
 
   it('places product information before the resident order flow', () => {
     render(<App />)
 
-    const orderHeading = screen.getByRole('heading', { name: /二期 2K13/ })
+    const orderHeading = screen.getByRole('heading', { name: '我的訂單' })
     const announcementHeading = screen.getByRole('heading', { name: '開團資訊' })
     expect(announcementHeading.compareDocumentPosition(orderHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
@@ -361,7 +353,7 @@ describe('customer campaign app', () => {
     const submitOrder = screen.getByRole('button', { name: '送出訂單' })
     expect(submitOrder).toBeDisabled()
     await user.click(screen.getByRole('button', { name: '增加 A 牛奶（招牌）' }))
-    expect(screen.getByText('我的訂單 7 個')).toBeInTheDocument()
+    expect(within(screen.getByLabelText('訂單摘要與送出')).getByText('7 個')).toBeInTheDocument()
     expect(within(screen.getByLabelText('訂單摘要與送出')).getByText('$315')).toBeInTheDocument()
     expect(submitOrder).toBeEnabled()
 
@@ -440,7 +432,7 @@ describe('customer campaign app', () => {
     await user.click(screen.getByRole('button', { name: '送出訂單' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('目前無法更新訂單')
-    expect(screen.getByText('7 個')).toBeInTheDocument()
+    expect(within(screen.getByLabelText('訂單摘要與送出')).getByText('7 個')).toBeInTheDocument()
   })
 
   it('lets an unbound resident choose a complete phase-three household before ordering', async () => {
@@ -556,10 +548,11 @@ describe('customer campaign app', () => {
     expect(screen.getByText('已結單')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '送出訂單' })).toBeDisabled()
     expect(screen.getByRole('button', { name: '增加 A 牛奶（招牌）' })).toBeDisabled()
-    expect(screen.getByText('本團已結單，暫停修改訂單。')).toBeInTheDocument()
+    expect(screen.getByText('本團已結單，無法修改訂單。')).toBeInTheDocument()
   })
 
-  it('shows item names and prices without 號 and uses plus signs on the live wall', () => {
+  it('shows item names and prices without 號 and uses plus signs on the live wall', async () => {
+    const user = userEvent.setup()
     const content: CampaignContent = {
       title: '自訂品項團',
       unitPrice: 45,
@@ -592,16 +585,18 @@ describe('customer campaign app', () => {
     expect(within(productSelection).getByText('$45')).toBeInTheDocument()
     expect(within(productSelection).getByText('草莓')).toBeInTheDocument()
     expect(within(productSelection).getByText('$60')).toBeInTheDocument()
-    expect(within(screen.getByRole('region', { name: '我的訂單明細' })).getByText('$150')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '查看訂單明細' }))
+    expect(within(screen.getByRole('dialog', { name: '訂單明細' })).getByText('$150')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '關閉訂單明細' }))
     expect(screen.getByText('A+2、B+1')).toBeInTheDocument()
-    expect(within(screen.getByRole('region', { name: '目前訂單' })).queryByText('三期 3Z15')).not.toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: '大家的訂單' })).queryByText('三期 3Z15')).not.toBeInTheDocument()
     expect(screen.queryByText(/A號|B號/)).not.toBeInTheDocument()
   })
 
   it('shows campaign and order timestamps with meaningful edit markers', () => {
     render(<App />)
 
-    expect(screen.getByText('開團時間 2026/08/14 08:05')).toBeInTheDocument()
+    expect(screen.getByText('已有 6 筆訂單・開團 2026/08/14 08:05')).toBeInTheDocument()
     expect(screen.getByText('下單時間 2026/08/14 08:10')).toBeInTheDocument()
     expect(screen.getByText('已修改・最後修改 2026/08/14 08:12')).toBeInTheDocument()
   })
@@ -615,7 +610,7 @@ describe('customer campaign app', () => {
     )
 
     await user.click(screen.getByRole('button', { name: '增加 A 牛奶（招牌）' }))
-    expect(screen.getByText('我的訂單 7 個')).toBeInTheDocument()
+    expect(within(screen.getByLabelText('訂單摘要與送出')).getByText('7 個')).toBeInTheDocument()
 
     view.rerender(
       <App
@@ -626,7 +621,7 @@ describe('customer campaign app', () => {
         onSubmitOrder={onSubmitOrder}
       />,
     )
-    expect(screen.getByText('我的訂單 7 個')).toBeInTheDocument()
+    expect(within(screen.getByLabelText('訂單摘要與送出')).getByText('7 個')).toBeInTheDocument()
   })
 
   it('keeps the order page mounted when realtime sync degrades', async () => {
@@ -722,7 +717,24 @@ describe('customer campaign app', () => {
       autoCloseAt: '2027-10-15T04:00:00.000Z',
     }} />)
 
-    expect(screen.getByText(/預計到貨：10月中/)).toBeInTheDocument()
-    expect(screen.getByText(/提醒：.*10\/15 12:00 自動結單/)).toBeInTheDocument()
+    expect(screen.getByText('預計到貨')).toBeInTheDocument()
+    expect(screen.getByText('10月中')).toBeInTheDocument()
+    expect(screen.getByText('10/15（五）12:00')).toBeInTheDocument()
+  })
+
+  it('tells residents what they have already submitted and why submit is disabled', () => {
+    render(<App />)
+
+    expect(screen.getByText('你已送出 6 個・$270')).toBeInTheDocument()
+    expect(screen.getByText('・最後修改 2026/08/14 08:12')).toBeInTheDocument()
+    expect(screen.getByText('結單前都可以回來改數量；要整筆取消請找團主。')).toBeInTheDocument()
+  })
+
+  it('explains that items must be chosen before a first order', () => {
+    const resident = { ...initialOrders[0], items: {}, householdKind: 'resident' as const }
+    render(<App residentCustomer={resident} visibleOrders={[]} />)
+
+    expect(screen.queryByText(/你已送出/)).not.toBeInTheDocument()
+    expect(within(screen.getByLabelText('訂單摘要與送出')).getByText('選擇品項後即可送出。')).toBeInTheDocument()
   })
 })

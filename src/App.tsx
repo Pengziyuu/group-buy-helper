@@ -1,38 +1,33 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import './App.css'
 import { summarizeCampaign } from './domain/campaign'
 import { formatZhTwTimestamp, wasMeaningfullyUpdated } from './domain/timestamp'
-import { campaignStatusLabel, type CampaignStatus } from './domain/orderWorkflow'
+import type { CampaignStatus } from './domain/orderWorkflow'
 import { itemLabel } from './domain/itemLabel'
 import { normalizeQuantityUnit } from './domain/quantityUnit'
-import { formatArrivalLabel, formatAutoCloseReminder } from './domain/campaignSchedule'
+import { describeAutoClose } from './domain/campaignSchedule'
 import { customOrderItemsEqual, validCustomOrderItems, type CustomOrderItem } from './domain/customOrderItem'
 import { discountedUnitPrice, priceOrder, type DiscountPricing } from './domain/discountPricing'
-import {
-  formatHousehold,
-  formatHouseholdUnit,
-  HOUSEHOLD_LETTERS,
-  HOUSEHOLD_NUMBERS,
-  HOUSEHOLD_PREFIXES,
-  RESIDENT_PERIODS,
-  type HouseholdKind,
-  type ResidentPeriod,
-} from './domain/household'
-import {
-  campaign,
-  currentCustomerId,
-  initialOrders,
-  items,
-  type VisibleOrder,
-} from './data/demo'
+import { formatHousehold, type HouseholdKind } from './domain/household'
+import { campaign, currentCustomerId, initialOrders, items, type VisibleOrder } from './data/demo'
 import { loadPublishedCampaign, normalizeCampaignContent, type CampaignContent } from './services/demoCampaignStore'
+import { BottomSheet } from './components/ui/BottomSheet'
 import { Button } from './components/ui/Button'
-import { QuantityControl } from './components/ui/QuantityControl'
-import { StickyActionBar } from './components/ui/StickyActionBar'
 import { FeedbackMessage } from './components/ui/FeedbackMessage'
-import { ProgressBar } from './components/ui/ProgressBar'
-import LinkifiedText from './components/LinkifiedText'
+import { QuantityControl } from './components/ui/QuantityControl'
+import { Toast } from './components/ui/Toast'
 import { CampaignImageViewer } from './components/CampaignImageViewer'
+import { CampaignInfo } from './components/resident/CampaignInfo'
+import { CampaignSummary, type CampaignProgress } from './components/resident/CampaignSummary'
+import { OrderBreakdown, type BreakdownLine } from './components/resident/OrderBreakdown'
+import { OrderSummaryBar } from './components/resident/OrderSummaryBar'
+import { OrderWall } from './components/resident/OrderWall'
+import { ProductRow } from './components/resident/ProductRow'
+import {
+  ResidentBindingForm,
+  type ResidentBindingInput,
+  type VerifiedResidentIdentity,
+} from './components/resident/ResidentBindingForm'
+import './components/resident/resident.css'
 
 const defaultContent: CampaignContent = {
   title: campaign.title,
@@ -43,6 +38,8 @@ const defaultContent: CampaignContent = {
   items,
   openedAt: campaign.openedAt,
 }
+
+const SUCCESS_NOTICE_DURATION = 3500
 
 const orderQuantity = (orderItems: Record<string, number>) =>
   Object.values(orderItems).reduce((sum, quantity) => sum + quantity, 0)
@@ -57,47 +54,10 @@ const orderItemsEqual = (left: Record<string, number>, right: Record<string, num
   return [...codes].every((code) => (left[code] ?? 0) === (right[code] ?? 0))
 }
 
-const safeResidentBindingMessages = new Set([
-  '這個戶號已被綁定',
-  '此期別與戶號已由其他住戶綁定',
-  '住戶資料已綁定，如需變更請聯絡團主',
-  '住戶期別或戶號不符合社區編碼',
-  '請先完成LINE住戶驗證',
-])
-
-const residentBindingErrorMessage = (error: unknown) => {
-  const errorRecord = error && typeof error === 'object'
-    ? error as Record<string, unknown>
-    : null
-  const message = error instanceof Error
-    ? error.message
-    : typeof errorRecord?.message === 'string'
-      ? errorRecord.message
-      : ''
-  const code = typeof errorRecord?.code === 'string' ? errorRecord.code : ''
-  const status = typeof errorRecord?.status === 'number' ? errorRecord.status : null
-
-  if (safeResidentBindingMessages.has(message)) return message
-  if (status === 401 || code === 'PGRST301' || /jwt|authentication required/i.test(message)) {
-    return '登入狀態已失效，請重新開啟LINE頁面後再試。'
-  }
-  if (error instanceof TypeError || status === 0 || /failed to fetch|network|timeout/i.test(message)) {
-    return '連線失敗，請確認網路後再試。'
-  }
-  return '住戶資料儲存失敗，請稍後再試。'
-}
-
 type ResidentCustomer = Pick<VisibleOrder, 'customerId' | 'name'> & {
   period: number | null
   unit: string | null
   householdKind: HouseholdKind
-}
-
-type ResidentBindingInput = { kind: HouseholdKind; period: number | null; unit: string | null }
-
-type VerifiedResidentIdentity = {
-  displayName: string
-  pictureUrl: string | null
 }
 
 type AppProps = {
@@ -112,6 +72,8 @@ type AppProps = {
   syncError?: string
   onSyncRetry?: () => void
 }
+
+type Notice = { id: number; tone: 'success' | 'error'; text: string }
 
 function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visibleOrders, residentCustomer, verifiedResidentIdentity, onBindResident, onSubmitOrder, syncError, onSyncRetry }: AppProps = {}) {
   const [localPublishedCampaign] = useState(() => loadPublishedCampaign(defaultContent))
@@ -141,25 +103,17 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
     ? orders.find((order) => order.customerId === currentResident.customerId)
     : undefined
 
-  const [householdKind, setHouseholdKind] = useState<HouseholdKind>('resident')
-  const [residentPeriod, setResidentPeriod] = useState<ResidentPeriod>(2)
-  const [residentPrefix, setResidentPrefix] = useState(1)
-  const [residentLetter, setResidentLetter] = useState('A')
-  const [residentNumber, setResidentNumber] = useState(1)
-  const [binding, setBinding] = useState(false)
-  const [bindingNotice, setBindingNotice] = useState('')
   const [draft, setDraft] = useState<Record<string, number>>({ ...(ownOrder?.items ?? {}) })
   const [savedDraft, setSavedDraft] = useState<Record<string, number>>({ ...(ownOrder?.items ?? {}) })
   const [customDraft, setCustomDraft] = useState<CustomOrderItem[]>(() => ownOrder?.customItems?.map((item) => ({ ...item })) ?? [])
   const [savedCustomDraft, setSavedCustomDraft] = useState<CustomOrderItem[]>(() => ownOrder?.customItems?.map((item) => ({ ...item })) ?? [])
-  const [orderReviewExpanded, setOrderReviewExpanded] = useState(true)
   const customItemSequence = useRef(0)
-  const [notice, setNotice] = useState<{ tone: 'success' | 'error'; text: string } | null>(null)
+  const noticeSequence = useRef(0)
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [breakdownOpen, setBreakdownOpen] = useState(false)
   const draftDirty = !orderItemsEqual(draft, savedDraft) || !customOrderItemsEqual(customDraft, savedCustomDraft)
-  const [announcementExpanded, setAnnouncementExpanded] = useState(false)
   const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null)
-  const [failedImageSources, setFailedImageSources] = useState<Set<string>>(() => new Set())
 
   useEffect(() => {
     if (activeImageIndex !== null && !publishedCampaign.images[activeImageIndex]) {
@@ -178,11 +132,10 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
     }
   }, [draftDirty, ownOrder, visibleOrders])
 
-  useEffect(() => {
-    if (notice?.tone !== 'success') return
-    const timer = window.setTimeout(() => setNotice(null), 3500)
-    return () => window.clearTimeout(timer)
-  }, [notice])
+  const showNotice = (tone: Notice['tone'], text: string) => {
+    noticeSequence.current += 1
+    setNotice({ id: noticeSequence.current, tone, text })
+  }
 
   const thresholdKind = publishedCampaign.thresholdKind ?? 'quantity'
   const quantityUnit = normalizeQuantityUnit(publishedCampaign.quantityUnit)
@@ -202,6 +155,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
   const customDraftValid = customDraft.every((item) => item.name.trim().length > 0 && item.name.trim().length <= 100 && item.quantity >= 1 && item.quantity <= 20)
   const hasDraftItems = draftQuantity > 0 || customDraftQuantity > 0
   const hasSubmittedOrder = orderQuantity(savedDraft) > 0 || savedCustomDraft.length > 0
+  const pricedItems = publishedCampaign.items.map((item) => ({ code: item.code, unitPrice: item.unitPrice ?? publishedCampaign.unitPrice }))
   const discountPricing: DiscountPricing = {
     baseRate: publishedCampaign.baseDiscountRate ?? 1,
     mixMatch: publishedCampaign.mixMatchDiscount ? {
@@ -209,12 +163,8 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
       itemCodes: publishedCampaign.items.filter((item) => item.discountEligible).map((item) => item.code),
     } : null,
   }
-  const draftPricing = priceOrder(
-    draft,
-    publishedCampaign.items.map((item) => ({ code: item.code, unitPrice: item.unitPrice ?? publishedCampaign.unitPrice })),
-    discountPricing,
-  )
-  const draftAmount = draftPricing.total
+  const draftPricing = priceOrder(draft, pricedItems, discountPricing)
+  const savedPricing = priceOrder(savedDraft, pricedItems, discountPricing)
   const activePrices = activeItems.map((item) => discountedUnitPrice(
     item.unitPrice ?? publishedCampaign.unitPrice,
     publishedCampaign.baseDiscountRate ?? 1,
@@ -223,42 +173,44 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
   const maximumPrice = activePrices.length > 0 ? Math.max(...activePrices) : 0
   const editable = campaignStatus === 'open'
   const controlsEditable = editable && !submitting
-  const hasLongAnnouncement = publishedCampaign.announcement.length > 240
 
-  const renderProductRows = (itemsToRender: typeof activeItems) => itemsToRender.map((item) => {
-    const itemIndex = publishedCampaign.items.findIndex((candidate) => candidate.code === item.code)
-    const displayLabel = itemLabel(itemIndex)
-    const itemPrice = item.unitPrice ?? publishedCampaign.unitPrice
-    const quantity = draft[item.code] ?? 0
-    const usesMixMatch = draftPricing.mixMatchApplied && item.discountEligible
-    const appliedRate = usesMixMatch
-      ? publishedCampaign.mixMatchDiscount?.rate ?? publishedCampaign.baseDiscountRate ?? 1
-      : publishedCampaign.baseDiscountRate ?? 1
-    const currentUnitPrice = discountedUnitPrice(itemPrice, appliedRate)
-    const discountLabel = usesMixMatch
-      ? `任選價 $${currentUnitPrice}`
-      : appliedRate < 1 ? `${formatDiscountRate(appliedRate)}價 $${currentUnitPrice}` : `$${currentUnitPrice}`
-    return (
-      <div className="product-row" key={item.code}>
-        <span className="product-code">{displayLabel}</span>
-        <div className="product-name">
-          <strong>{item.name}</strong>
-          {appliedRate < 1 && <small className="product-list-price">原價 ${itemPrice}</small>}
-          <span>{discountLabel}</span>
-          {item.discountEligible && publishedCampaign.mixMatchDiscount && !usesMixMatch && (
-            <small>任選滿{publishedCampaign.mixMatchDiscount.minimumQuantity}件可享 ${discountedUnitPrice(itemPrice, publishedCampaign.mixMatchDiscount.rate)}</small>
-          )}
-        </div>
-        <QuantityControl
-          label={`${displayLabel} ${item.name}`}
-          value={quantity}
-          disabled={!controlsEditable}
-          onDecrement={() => adjust(item.code, -1)}
-          onIncrement={() => adjust(item.code, 1)}
-        />
-      </div>
-    )
+  const progress: CampaignProgress = {
+    value: thresholdKind === 'amount' ? summary.amount : summary.quantity,
+    max: summary.threshold,
+    text: thresholdKind === 'amount'
+      ? `NT$ ${summary.amount.toLocaleString('zh-TW')} / NT$ ${summary.threshold.toLocaleString('zh-TW')}`
+      : `${summary.quantity} ${quantityUnit} / ${summary.threshold} ${quantityUnit}`,
+    remainingText: summary.formed
+      ? '已成團'
+      : thresholdKind === 'amount'
+        ? `還差 NT$ ${summary.remaining.toLocaleString('zh-TW')} 成團`
+        : `還差 ${summary.remaining} ${quantityUnit}成團`,
+    formed: summary.formed,
+  }
+  const priceText = minimumPrice === maximumPrice ? `$${minimumPrice}／${quantityUnit}` : `$${minimumPrice}～$${maximumPrice}`
+  const closing = describeAutoClose(publishedCampaign.autoCloseAt)
+  const breakdownLines: BreakdownLine[] = draftPricing.lines.map((line) => {
+    const index = publishedCampaign.items.findIndex((item) => item.code === line.code)
+    return {
+      ...line,
+      label: itemLabel(index),
+      name: publishedCampaign.items[index]?.name ?? line.code,
+      discountText: line.discountType === 'mix_match'
+        ? line.promotionName ?? ''
+        : line.discountType === 'base' ? formatDiscountRate(line.discountRate) : '原價',
+    }
   })
+  const submittedAt = ownOrder
+    ? wasMeaningfullyUpdated(ownOrder.orderedAt, ownOrder.updatedAt)
+      ? `最後修改 ${formatZhTwTimestamp(ownOrder.updatedAt)}`
+      : `下單 ${formatZhTwTimestamp(ownOrder.orderedAt)}`
+    : null
+  const savedCustomQuantity = savedCustomDraft.reduce((sum, item) => sum + item.quantity, 0)
+  const submitHint = !editable
+    ? '本團已結單，無法修改訂單。'
+    : !hasDraftItems
+      ? hasSubmittedOrder ? '想整筆取消訂單，請聯繫團主協助取消。' : '選擇品項後即可送出。'
+      : !customDraftValid ? '請填寫額外品項的名稱與數量。' : null
 
   const adjust = (code: string, delta: number) => {
     if (!controlsEditable) return
@@ -270,10 +222,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
       const otherQuantity = Math.max(0, summary.quantity - orderQuantity(savedDraft))
       const maxOrderQuantity = Math.max(0, publishedCampaign.threshold - otherQuantity)
       if (nextDraftQuantity > maxOrderQuantity) {
-        setNotice({
-          tone: 'error',
-          text: `目前其他住戶已訂 ${otherQuantity} ${quantityUnit}，成團上限為 ${thresholdTarget} ${quantityUnit}，本次最多可訂 ${maxOrderQuantity} ${quantityUnit}。`,
-        })
+        showNotice('error', `目前其他住戶已訂 ${otherQuantity} ${quantityUnit}，成團上限為 ${thresholdTarget} ${quantityUnit}，本次最多可訂 ${maxOrderQuantity} ${quantityUnit}。`)
         return
       }
     }
@@ -285,6 +234,37 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
       return { ...current, [code]: nextQuantity }
     })
   }
+
+  const renderProductRows = (itemsToRender: typeof activeItems) => itemsToRender.map((item) => {
+    const itemIndex = publishedCampaign.items.findIndex((candidate) => candidate.code === item.code)
+    const displayLabel = itemLabel(itemIndex)
+    const itemPrice = item.unitPrice ?? publishedCampaign.unitPrice
+    const usesMixMatch = draftPricing.mixMatchApplied && item.discountEligible
+    const appliedRate = usesMixMatch
+      ? publishedCampaign.mixMatchDiscount?.rate ?? publishedCampaign.baseDiscountRate ?? 1
+      : publishedCampaign.baseDiscountRate ?? 1
+    const currentUnitPrice = discountedUnitPrice(itemPrice, appliedRate)
+    const priceLabel = usesMixMatch
+      ? `任選價 $${currentUnitPrice}`
+      : appliedRate < 1 ? `${formatDiscountRate(appliedRate)}價 $${currentUnitPrice}` : `$${currentUnitPrice}`
+    const hint = item.discountEligible && publishedCampaign.mixMatchDiscount && !usesMixMatch
+      ? `任選滿${publishedCampaign.mixMatchDiscount.minimumQuantity}件可享 $${discountedUnitPrice(itemPrice, publishedCampaign.mixMatchDiscount.rate)}`
+      : undefined
+    return (
+      <ProductRow
+        key={item.code}
+        code={displayLabel}
+        name={item.name}
+        priceText={priceLabel}
+        listPrice={appliedRate < 1 ? itemPrice : undefined}
+        hint={hint}
+        quantity={draft[item.code] ?? 0}
+        disabled={!controlsEditable}
+        onDecrement={() => adjust(item.code, -1)}
+        onIncrement={() => adjust(item.code, 1)}
+      />
+    )
+  })
 
   const addCustomItem = () => {
     if (!controlsEditable || customDraft.length >= 10) return
@@ -309,30 +289,10 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
     setNotice(null)
   }
 
-  const bindResident = async () => {
+  const bindResident = async (input: ResidentBindingInput) => {
     if (!onBindResident) return
-    setBinding(true)
-    setBindingNotice('')
-    try {
-      const customer = householdKind === 'other'
-        ? await onBindResident({ kind: 'other', period: null, unit: null })
-        : await onBindResident({
-          kind: 'resident',
-          period: residentPeriod,
-          unit: formatHouseholdUnit({
-            kind: 'resident',
-            period: residentPeriod,
-            prefix: residentPeriod === 1 ? null : residentPrefix,
-            letter: residentLetter,
-            number: residentNumber,
-          }),
-        })
-      setBoundResident(customer)
-    } catch (error) {
-      setBindingNotice(residentBindingErrorMessage(error))
-    } finally {
-      setBinding(false)
-    }
+    const customer = await onBindResident(input)
+    setBoundResident(customer)
   }
 
   const submit = async () => {
@@ -345,9 +305,9 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
         setSavedDraft({ ...draft })
         setCustomDraft(submittedCustomItems)
         setSavedCustomDraft(submittedCustomItems)
-        setNotice({ tone: 'success', text: '訂單已更新' })
+        showNotice('success', '訂單已更新')
       } catch (error) {
-        setNotice({ tone: 'error', text: error instanceof Error ? error.message : '訂單更新失敗' })
+        showNotice('error', error instanceof Error ? error.message : '訂單更新失敗')
       } finally {
         setSubmitting(false)
       }
@@ -364,23 +324,14 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
     const submittedCustomItems = validCustomOrderItems(customDraft)
     setCustomDraft(submittedCustomItems)
     setSavedCustomDraft(submittedCustomItems)
-    setNotice({ tone: 'success', text: '訂單已更新' })
+    showNotice('success', '訂單已更新')
   }
 
   return (
-    <main className="app-shell">
-      <nav className="resident-detail-nav" aria-label="團購頁面導覽">
-        <a className="resident-nav-action resident-nav-secondary" href="/" aria-label="回到全部開團">
-          <span aria-hidden="true">←</span>
-          回到全部開團
-        </a>
-        {currentResident && (
-          <a className="resident-nav-action resident-nav-primary" href="#order-heading">
-            <span aria-hidden="true">↓</span>
-            前往我的訂單
-          </a>
-        )}
-      </nav>
+    <div className={`resident-page${currentResident ? ' is-ordering' : ''}`}>
+      <header className="resident-topbar">
+        <a className="resident-back-link" href="/"><span aria-hidden="true">‹</span>全部團購</a>
+      </header>
       {syncError && (
         <FeedbackMessage
           className="resident-sync-feedback"
@@ -390,92 +341,157 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
           onAction={onSyncRetry}
         >{syncError}</FeedbackMessage>
       )}
-      <section className="hero-card">
-        <div className="eyebrow-row">
-          <span className="status-dot" aria-hidden="true" />
-          <span>{campaignStatusLabel(campaignStatus)}</span>
-          <span className="price">{minimumPrice === maximumPrice ? `$${minimumPrice}` : `$${minimumPrice}～$${maximumPrice}`}</span>
-        </div>
-        <h1>{publishedCampaign.title}</h1>
-        <p className="arrival">📦 {formatArrivalLabel(publishedCampaign.arrivalLabel)}</p>
-        {publishedCampaign.autoCloseAt && (
-          <p className="campaign-close-reminder">{campaignStatus === 'open' ? '提醒：' : '原訂：'}{formatAutoCloseReminder(publishedCampaign.autoCloseAt)}</p>
-        )}
-        {publishedCampaign.openedAt && (
-          <p className="campaign-time">開團時間 {formatZhTwTimestamp(publishedCampaign.openedAt)}</p>
-        )}
-
-        <div className="progress-copy">
-          <strong>{thresholdKind === 'amount'
-            ? `NT$ ${summary.amount.toLocaleString('zh-TW')} / NT$ ${summary.threshold.toLocaleString('zh-TW')}`
-            : `${summary.quantity} ${quantityUnit} / ${summary.threshold} ${quantityUnit}`}</strong>
-          <span>{summary.formed
-            ? '已成團'
-            : thresholdKind === 'amount'
-              ? `還差 NT$ ${summary.remaining.toLocaleString('zh-TW')} 成團`
-              : `還差 ${summary.remaining} ${quantityUnit}成團`}</span>
-        </div>
-        <ProgressBar
-          className="campaign-progress"
-          label="成團進度"
-          value={thresholdKind === 'amount' ? summary.amount : summary.quantity}
-          max={summary.threshold}
+      <main className="resident-campaign">
+        <CampaignSummary
+          title={publishedCampaign.title}
+          status={campaignStatus}
+          priceText={priceText}
+          arrivalLabel={publishedCampaign.arrivalLabel}
+          closingText={closing ? closing.when : null}
+          progress={progress}
+          orderCount={orders.length}
+          openedAt={publishedCampaign.openedAt}
         />
-        <p className="social-proof">已有 {orders.length} 筆訂單，大家的訂單都看得到</p>
-      </section>
-
-      <article className="panel campaign-post" aria-labelledby="campaign-post-heading">
-        <div className="post-heading">
-          <div>
-            <p className="section-kicker">團主公告</p>
-            <h2 id="campaign-post-heading">開團資訊</h2>
+        <CampaignInfo
+          images={publishedCampaign.images}
+          announcement={publishedCampaign.announcement}
+          onOpenImage={setActiveImageIndex}
+        />
+        <section className="resident-card resident-order" aria-labelledby="order-heading">
+          <div className="resident-section-heading">
+            <h2 id="order-heading">我的訂單</h2>
+            {currentResident && (
+              <span>{formatHousehold(currentResident.householdKind, currentResident.period, currentResident.unit)}・{currentResident.name}</span>
+            )}
           </div>
-          <span className="organizer-badge">團主提供</span>
-        </div>
-
-        <div className="campaign-gallery" aria-label="團購圖片">
-          {publishedCampaign.images.map((image, index) => failedImageSources.has(image.src) ? (
-            <div key={image.src} className="campaign-gallery-fallback" role="status">圖片暫時無法顯示</div>
+          {currentResident ? (
+            <>
+              {hasSubmittedOrder && (
+                <p className="resident-sent">
+                  <strong>{`你已送出 ${orderQuantity(savedDraft)} ${quantityUnit}・$${savedPricing.total}`}</strong>
+                  {savedCustomQuantity > 0 && <span>{`・另有 ${savedCustomQuantity} ${quantityUnit}額外品項`}</span>}
+                  {submittedAt && <span>{`・${submittedAt}`}</span>}
+                </p>
+              )}
+              {publishedCampaign.mixMatchDiscount && (
+                <div className={`resident-discount-status${draftPricing.mixMatchApplied ? ' is-applied' : ''}`} role="status">
+                  <strong>{draftPricing.mixMatchApplied
+                    ? `已套用${publishedCampaign.mixMatchDiscount.name}`
+                    : `再選${Math.max(0, publishedCampaign.mixMatchDiscount.minimumQuantity - draftPricing.mixMatchQuantity)}件即可享${formatDiscountRate(publishedCampaign.mixMatchDiscount.rate)}`}</strong>
+                  <span>{draftPricing.mixMatchApplied
+                    ? `限定區共${draftPricing.mixMatchQuantity}件，全部享優惠價`
+                    : `限定區目前${draftPricing.mixMatchQuantity}件，未達標維持${formatDiscountRate(publishedCampaign.baseDiscountRate ?? 1)}`}</span>
+                </div>
+              )}
+              <div className="resident-order-items">
+                {mixMatchItems.length > 0 && publishedCampaign.mixMatchDiscount && (
+                  <section className="resident-product-section" aria-labelledby="mix-match-products-heading">
+                    <h3 id="mix-match-products-heading">任選優惠專區</h3>
+                    <p className="resident-product-section-note">共同累計件數・{publishedCampaign.mixMatchDiscount.name}</p>
+                    {renderProductRows(mixMatchItems)}
+                  </section>
+                )}
+                {regularItems.length > 0 && (
+                  <section className="resident-product-section" aria-label={publishedCampaign.mixMatchDiscount ? '其他商品' : '商品選擇'}>
+                    <h3>{publishedCampaign.mixMatchDiscount ? '其他商品' : '選擇品項'}</h3>
+                    {renderProductRows(regularItems)}
+                  </section>
+                )}
+                {publishedCampaign.allowCustomItems && (
+                  <section className="resident-custom-items" aria-labelledby="custom-order-items-heading">
+                    <div className="resident-custom-items-heading">
+                      <div>
+                        <h3 id="custom-order-items-heading">額外品項</h3>
+                        <p>名稱由你填寫，金額由團主另計；不納入成團門檻。</p>
+                      </div>
+                      <Button variant="secondary" onClick={addCustomItem} disabled={!controlsEditable || customDraft.length >= 10}>
+                        <span aria-hidden="true">＋</span> 新增額外品項
+                      </Button>
+                    </div>
+                    {customDraft.map((item, index) => (
+                      <div className="resident-custom-item-row" key={item.id}>
+                        <label>
+                          <span>品項名稱</span>
+                          <input
+                            className="ui-input"
+                            aria-label={`額外品項 ${index + 1} 名稱`}
+                            value={item.name}
+                            maxLength={100}
+                            disabled={!controlsEditable}
+                            placeholder="例如：限定口味"
+                            onChange={(event) => updateCustomItem(item.id, { name: event.target.value })}
+                          />
+                        </label>
+                        <QuantityControl
+                          label={`額外品項 ${index + 1}`}
+                          value={item.quantity}
+                          max={20}
+                          disabled={!controlsEditable}
+                          onDecrement={() => updateCustomItem(item.id, { quantity: Math.max(0, item.quantity - 1) })}
+                          onIncrement={() => updateCustomItem(item.id, { quantity: Math.min(20, item.quantity + 1) })}
+                        />
+                        <Button
+                          variant="utility"
+                          aria-label={`移除額外品項 ${index + 1}`}
+                          disabled={!controlsEditable}
+                          onClick={() => removeCustomItem(item.id)}
+                        >移除</Button>
+                      </div>
+                    ))}
+                    {customDraft.length > 0 && <p className="resident-custom-items-note">金額由團主另計</p>}
+                  </section>
+                )}
+              </div>
+              {editable && <p className="resident-order-rule">結單前都可以回來改數量；要整筆取消請找團主。</p>}
+              {notice?.tone === 'error' && <FeedbackMessage className="resident-order-feedback" tone="error">{notice.text}</FeedbackMessage>}
+              <OrderSummaryBar
+                quantity={draftQuantity}
+                quantityUnit={quantityUnit}
+                amount={draftPricing.total}
+                customQuantity={customDraftQuantity}
+                onShowBreakdown={hasDraftItems ? () => setBreakdownOpen(true) : undefined}
+                submitDisabled={!controlsEditable || !draftDirty || !hasDraftItems || !customDraftValid}
+                submitting={submitting}
+                onSubmit={() => { void submit() }}
+                hint={submitHint}
+              />
+            </>
           ) : (
-              <button
-                key={image.src}
-                type="button"
-                className="campaign-gallery-item"
-                aria-label={`放大檢視 第 ${index + 1} 張圖片：${image.alt}`}
-                onClick={() => setActiveImageIndex(index)}
-              >
-                <img className="campaign-gallery-backdrop" src={image.src} alt="" aria-hidden="true" />
-                <img
-                  className="campaign-gallery-foreground"
-                  src={image.src}
-                  alt={image.alt}
-                  loading="eager"
-                  onError={() => setFailedImageSources((current) => new Set(current).add(image.src))}
-                />
-                <span aria-hidden="true">放大檢視</span>
-              </button>
-            ))}
-        </div>
-        {publishedCampaign.images.length > 1 && (
-          <p className="campaign-gallery-hint">← 左右滑動查看 {publishedCampaign.images.length} 張圖片 →</p>
-        )}
-        <div
-          id="campaign-announcement"
-          className={`campaign-copy${hasLongAnnouncement && !announcementExpanded ? ' is-collapsed' : ''}`}
-        ><LinkifiedText text={publishedCampaign.announcement} /></div>
-        {hasLongAnnouncement && (
-          <Button
-            className="announcement-toggle"
-            variant="utility"
-            aria-controls="campaign-announcement"
-            aria-expanded={announcementExpanded}
-            onClick={() => setAnnouncementExpanded((current) => !current)}
-          >
-            {announcementExpanded ? '收合開團資訊' : '展開完整開團資訊'}
-          </Button>
-        )}
-      </article>
-
+            <ResidentBindingForm identity={verifiedResidentIdentity} disabled={!editable} onBind={bindResident} />
+          )}
+        </section>
+        <OrderWall
+          orders={orders}
+          currentCustomerId={currentResident?.customerId}
+          quantityUnit={quantityUnit}
+          itemDisplayLabel={itemDisplayLabel}
+        />
+      </main>
+      <footer className="resident-footer">
+        {liveDemo
+          ? 'Supabase Live Demo・發布內容由資料庫即時同步'
+          : '這是本機示範模式；接上 LIFF 與 Supabase 後會自動辨識身分並即時同步。'}
+      </footer>
+      {notice?.tone === 'success' && (
+        <Toast
+          key={notice.id}
+          className="resident-order-toast"
+          message={notice.text}
+          duration={SUCCESS_NOTICE_DURATION}
+          onDismiss={() => setNotice(null)}
+        />
+      )}
+      {breakdownOpen && (
+        <BottomSheet title="訂單明細" onClose={() => setBreakdownOpen(false)}>
+          <OrderBreakdown
+            lines={breakdownLines}
+            customItems={customDraft}
+            total={draftPricing.total}
+            savings={draftPricing.savings}
+            quantityUnit={quantityUnit}
+          />
+        </BottomSheet>
+      )}
       {activeImageIndex !== null && (
         <CampaignImageViewer
           images={publishedCampaign.images}
@@ -484,297 +500,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
           onClose={() => setActiveImageIndex(null)}
         />
       )}
-
-      {currentResident ? <section className="panel order-panel" aria-labelledby="order-heading">
-        <div className="section-heading">
-          <div>
-            <p className="section-kicker">我的訂單</p>
-            <h2 id="order-heading">{formatHousehold(currentResident.householdKind, currentResident.period, currentResident.unit)}・{currentResident.name}</h2>
-          </div>
-          <div className="my-total">
-            <strong>我的訂單 {draftQuantity} {quantityUnit}</strong>
-          </div>
-        </div>
-
-        {publishedCampaign.mixMatchDiscount && (
-          <div className={`resident-discount-status ${draftPricing.mixMatchApplied ? 'is-applied' : ''}`} role="status">
-            <strong>{draftPricing.mixMatchApplied
-              ? `已套用${publishedCampaign.mixMatchDiscount.name}`
-              : `再選${Math.max(0, publishedCampaign.mixMatchDiscount.minimumQuantity - draftPricing.mixMatchQuantity)}件即可享${formatDiscountRate(publishedCampaign.mixMatchDiscount.rate)}`}</strong>
-            <span>{draftPricing.mixMatchApplied
-              ? `限定區共${draftPricing.mixMatchQuantity}件，全部享優惠價`
-              : `限定區目前${draftPricing.mixMatchQuantity}件，未達標維持${formatDiscountRate(publishedCampaign.baseDiscountRate ?? 1)}`}</span>
-          </div>
-        )}
-        {mixMatchItems.length > 0 && publishedCampaign.mixMatchDiscount && (
-          <section className="product-section mix-match-product-section" aria-labelledby="mix-match-products-heading">
-            <div className="product-section-heading">
-              <div>
-                <p>共同累計件數</p>
-                <h3 id="mix-match-products-heading">任選優惠專區</h3>
-              </div>
-              <span>{publishedCampaign.mixMatchDiscount.name}</span>
-            </div>
-            <div className="product-list">{renderProductRows(mixMatchItems)}</div>
-          </section>
-        )}
-        {regularItems.length > 0 && (
-          <section className="product-section" aria-label={publishedCampaign.mixMatchDiscount ? '其他商品' : '商品選擇'}>
-            <div className="product-section-heading">
-              <h3>{publishedCampaign.mixMatchDiscount ? '其他商品' : '商品選擇'}</h3>
-            </div>
-            <div className="product-list">{renderProductRows(regularItems)}</div>
-          </section>
-        )}
-
-        {publishedCampaign.allowCustomItems && (
-          <section className="custom-order-items" aria-labelledby="custom-order-items-heading">
-            <div className="custom-order-items-heading">
-              <div>
-                <h3 id="custom-order-items-heading">額外品項</h3>
-                <p>名稱由你填寫，金額由團主另計；不納入成團門檻。</p>
-              </div>
-              <Button variant="secondary" onClick={addCustomItem} disabled={!controlsEditable || customDraft.length >= 10}><span aria-hidden="true">＋</span> 新增額外品項</Button>
-            </div>
-            {customDraft.map((item, index) => (
-              <div className="custom-order-item-row" key={item.id}>
-                <label>
-                  <span>品項名稱</span>
-                  <input
-                    aria-label={`額外品項 ${index + 1} 名稱`}
-                    value={item.name}
-                    maxLength={100}
-                    disabled={!controlsEditable}
-                    placeholder="例如：限定口味"
-                    onChange={(event) => updateCustomItem(item.id, { name: event.target.value })}
-                  />
-                </label>
-                <QuantityControl
-                  label={`額外品項 ${index + 1}`}
-                  value={item.quantity}
-                  max={20}
-                  disabled={!controlsEditable}
-                  onDecrement={() => updateCustomItem(item.id, { quantity: Math.max(0, item.quantity - 1) })}
-                  onIncrement={() => updateCustomItem(item.id, { quantity: Math.min(20, item.quantity + 1) })}
-                />
-                <Button
-                  variant="utility"
-                  aria-label={`移除額外品項 ${index + 1}`}
-                  disabled={!controlsEditable}
-                  onClick={() => removeCustomItem(item.id)}
-                >移除</Button>
-              </div>
-            ))}
-            {customDraft.length > 0 && <p className="custom-order-items-note">金額由團主另計</p>}
-          </section>
-        )}
-
-        {hasDraftItems && (
-          <section className="order-review" aria-labelledby="order-review-heading">
-            <div className="order-review-heading">
-              <div>
-                <p>送出前確認</p>
-                <h3 id="order-review-heading">我的訂單明細</h3>
-              </div>
-              <button
-                type="button"
-                aria-expanded={orderReviewExpanded}
-                aria-controls="order-review-content"
-                onClick={() => setOrderReviewExpanded((current) => !current)}
-              >{orderReviewExpanded ? '收合明細' : '展開明細'}</button>
-            </div>
-            {orderReviewExpanded && (
-              <div id="order-review-content">
-                <div className="order-review-lines">
-                  {draftPricing.lines.map((line) => {
-                    const itemIndex = publishedCampaign.items.findIndex((item) => item.code === line.code)
-                    const item = publishedCampaign.items[itemIndex]
-                    const discountText = line.discountType === 'mix_match'
-                      ? line.promotionName
-                      : line.discountType === 'base' ? formatDiscountRate(line.discountRate) : '原價'
-                    return (
-                      <div className="order-review-line" key={line.code}>
-                        <span className="product-code">{itemLabel(itemIndex)}</span>
-                        <div>
-                          <strong>{item?.name ?? line.code}</strong>
-                          <small><span className="order-review-discount">{discountText}</span>{line.listUnitPrice !== line.finalUnitPrice ? `・原價 $${line.listUnitPrice}` : ''}</small>
-                        </div>
-                        <span>{line.quantity} × ${line.finalUnitPrice}</span>
-                        <strong>${line.lineTotal}</strong>
-                      </div>
-                    )
-                  })}
-                  {customDraft.filter((item) => item.quantity > 0).map((item) => (
-                    <div className="order-review-line order-review-custom-line" key={item.id}>
-                      <span className="product-code">＋</span>
-                      <div><strong>{item.name || '未命名額外品項'}</strong><small>額外品項</small></div>
-                      <span>{item.quantity} {quantityUnit}</span>
-                      <strong>金額另計</strong>
-                    </div>
-                  ))}
-                </div>
-                <div className="order-review-total">
-                  <div>
-                    <span>商品合計</span>
-                    {draftPricing.savings > 0 && <small>已省 ${draftPricing.savings}</small>}
-                    {customDraftQuantity > 0 && <small>另有 {customDraftQuantity} {quantityUnit}額外品項，金額另計</small>}
-                  </div>
-                  <strong>${draftAmount}</strong>
-                </div>
-              </div>
-            )}
-          </section>
-        )}
-
-        <StickyActionBar className="resident-order-action" ariaLabel="訂單摘要與送出">
-          <div className="resident-order-action-total">
-            <span>{draftQuantity} {quantityUnit}</span>
-            <strong>${draftAmount}</strong>
-            {customDraftQuantity > 0 && <small>另有 {customDraftQuantity} {quantityUnit}額外品項・金額另計</small>}
-          </div>
-          <Button
-            className="submit-button"
-            onClick={() => { void submit() }}
-            disabled={!controlsEditable || !draftDirty || !hasDraftItems || !customDraftValid}
-            loading={submitting}
-            loadingLabel="訂單送出中…"
-          >送出訂單</Button>
-        </StickyActionBar>
-        {editable && !hasDraftItems && hasSubmittedOrder && (
-          <p className="resident-cancel-hint">想整筆取消訂單，請聯繫團主協助取消。</p>
-        )}
-        {notice?.tone === 'error' && <FeedbackMessage className="resident-order-feedback" tone="error">{notice.text}</FeedbackMessage>}
-        {notice?.tone === 'success' && <FeedbackMessage className="resident-order-toast" tone="success">{notice.text}</FeedbackMessage>}
-        <p className="privacy-note">
-          {editable
-            ? '送出後仍可在結單前修改。你只能修改自己的訂單。'
-            : '本團已結單，暫停修改訂單。'}
-        </p>
-      </section> : (
-        <section className="panel order-panel resident-binding" aria-labelledby="resident-binding-heading">
-          <p className="section-kicker">我的訂單</p>
-          <h2 id="resident-binding-heading">首次填寫住戶資料</h2>
-          <p className="binding-intro">完成一次綁定後，即可選擇品項並送出訂單。</p>
-          {verifiedResidentIdentity && (
-            <div className="verified-resident-identity">
-              {verifiedResidentIdentity.pictureUrl
-                ? <img src={verifiedResidentIdentity.pictureUrl} alt={`${verifiedResidentIdentity.displayName}的LINE頭貼`} referrerPolicy="no-referrer" />
-                : <span aria-hidden="true">{verifiedResidentIdentity.displayName.slice(0, 1)}</span>}
-              <div><small>LINE驗證身分</small><strong>{verifiedResidentIdentity.displayName}</strong></div>
-            </div>
-          )}
-          <div className="binding-fields">
-            <label>
-              <span>期別</span>
-              <select
-                value={householdKind === 'other' ? 'other' : residentPeriod}
-                onChange={(event) => {
-                  const value = event.target.value
-                  if (value === 'other') {
-                    setHouseholdKind('other')
-                  } else {
-                    setHouseholdKind('resident')
-                    setResidentPeriod(Number(value) as ResidentPeriod)
-                  }
-                }}
-              >
-                {RESIDENT_PERIODS.map((period) => (
-                  <option key={period} value={period}>{new Intl.NumberFormat('zh-Hant-u-nu-hanidec').format(period)}期</option>
-                ))}
-                <option value="other">其他</option>
-              </select>
-            </label>
-            {householdKind === 'resident' && <>
-              <fieldset className="binding-household-unit">
-                <legend>戶號</legend>
-                <div className="binding-household-unit-parts">
-                  {residentPeriod !== 1 && <label>
-                    <span>數字</span>
-                    <select aria-label="戶號數字" value={residentPrefix} onChange={(event) => setResidentPrefix(Number(event.target.value))}>
-                      {HOUSEHOLD_PREFIXES.map((prefix) => <option key={prefix} value={prefix}>{prefix}</option>)}
-                    </select>
-                  </label>}
-                  <label>
-                    <span>英文字母</span>
-                    <select aria-label="戶號英文字母" value={residentLetter} onChange={(event) => setResidentLetter(event.target.value)}>
-                      {HOUSEHOLD_LETTERS.map((letter) => <option key={letter} value={letter}>{letter}</option>)}
-                    </select>
-                  </label>
-                </div>
-              </fieldset>
-              <label>
-                <span>樓層</span>
-                <select value={residentNumber} onChange={(event) => setResidentNumber(Number(event.target.value))}>
-                  {HOUSEHOLD_NUMBERS.map((number) => <option key={number} value={number}>{number}</option>)}
-                </select>
-              </label>
-            </>}
-          </div>
-          <Button
-            className="submit-button"
-            onClick={() => { void bindResident() }}
-            disabled={!controlsEditable}
-            loading={binding}
-            loadingLabel="住戶資料儲存中…"
-          >儲存住戶資料</Button>
-          {bindingNotice && <FeedbackMessage className="resident-binding-feedback" tone="error">{bindingNotice}</FeedbackMessage>}
-          <p className="privacy-note">住戶資料只用於辨識訂單；同一戶號可由多個LINE帳號各自下單。</p>
-        </section>
-      )}
-
-      <section className="panel wall-panel" aria-labelledby="wall-heading">
-        <div className="section-heading compact">
-          <div>
-            <p className="section-kicker">即時成團牆</p>
-            <h2 id="wall-heading">目前訂單</h2>
-          </div>
-          <span className="live-pill">● 即時</span>
-        </div>
-
-        <div className="order-wall">
-          {[...orders]
-            .sort((a, b) => Date.parse(a.orderedAt) - Date.parse(b.orderedAt)
-              || a.customerId.localeCompare(b.customerId))
-            .map((order) => (
-              <article className={`wall-order ${order.customerId === currentResident?.customerId ? 'own' : ''}`} key={order.customerId}>
-                {order.pictureUrl
-                  ? <img className="avatar" src={order.pictureUrl} alt={`${order.name}的LINE頭貼`} referrerPolicy="no-referrer" />
-                  : <div className="avatar" aria-hidden="true">{order.name.slice(0, 1).toUpperCase()}</div>}
-                <div className="wall-main">
-                  <div className="wall-name">
-                    <strong>{order.name}</strong>
-                  </div>
-                  <p>{Object.entries(order.items)
-                    .filter(([, quantity]) => quantity > 0)
-                    .map(([code, quantity]) => `${itemDisplayLabel(code)}+${quantity}`)
-                    .join('、') || '無正式品項'}</p>
-                  {(order.customItems ?? []).length > 0 && (
-                    <p className="wall-custom-items">{order.customItems
-                      ?.map((item) => `${item.name}×${item.quantity}（另計）`)
-                      .join('、')}</p>
-                  )}
-                  <p className="wall-time">
-                    下單時間 {formatZhTwTimestamp(order.orderedAt)}
-                    {wasMeaningfullyUpdated(order.orderedAt, order.updatedAt) && (
-                      <span>已修改・最後修改 {formatZhTwTimestamp(order.updatedAt)}</span>
-                    )}
-                  </p>
-                </div>
-                <div className="wall-order-totals">
-                  <strong className="wall-count">{orderQuantity(order.items)}{quantityUnit}</strong>
-                  {(order.customItems ?? []).length > 0 && <small>另有 {(order.customItems ?? []).reduce((sum, item) => sum + item.quantity, 0)} {quantityUnit}額外品項</small>}
-                </div>
-              </article>
-            ))}
-        </div>
-      </section>
-
-      <footer>
-        {liveDemo
-          ? 'Supabase Live Demo・發布內容由資料庫即時同步'
-          : '這是本機示範模式；接上 LIFF 與 Supabase 後會自動辨識身分並即時同步。'}
-      </footer>
-    </main>
+    </div>
   )
 }
 

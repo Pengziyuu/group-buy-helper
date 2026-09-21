@@ -96,7 +96,7 @@ describe('RuntimeApp localStorage resident demo routing', () => {
 
     rerender(<RuntimeApp config={config} pathname="/campaign/0123456789abcdef0123456789abcdef0123" />)
     expect(screen.getByRole('heading', { name: '一涼製冰所 超厚三明治冰餅' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /二期 2K13/ })).toBeInTheDocument()
+    expect(screen.getByText('二期 2K13・斯祈')).toBeInTheDocument()
   })
 })
 

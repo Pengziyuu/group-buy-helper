@@ -1869,13 +1869,13 @@ describe('local Supabase visual demo apps', () => {
     render(<LocalLiveResidentApp client={client} campaignSlug="campaign-slug" />)
 
     // The order wall keeps the order but does not expose its household kind.
-    const wall = await screen.findByRole('region', { name: '目前訂單' })
+    const wall = await screen.findByRole('region', { name: '大家的訂單' })
     expect(within(wall).getByText('丙', { selector: 'strong' })).toBeInTheDocument()
     expect(within(wall).queryByText('其他')).not.toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: '其他・丙' })).toBeInTheDocument()
+    expect(screen.getByText('其他・丙')).toBeInTheDocument()
     // Their own draft is prefilled from that same order rather than showing
     // an empty draft they could accidentally resubmit.
-    expect(screen.getByText('我的訂單 3 個')).toBeInTheDocument()
+    expect(within(screen.getByLabelText('訂單摘要與送出')).getByText('3 個')).toBeInTheDocument()
   })
 
   it('infers other instead of throwing when a wall row has no household_kind at all', async () => {
@@ -1927,10 +1927,10 @@ describe('local Supabase visual demo apps', () => {
 
     render(<LocalLiveResidentApp client={client} campaignSlug="campaign-slug" />)
 
-    const wall = await screen.findByRole('region', { name: '目前訂單' })
+    const wall = await screen.findByRole('region', { name: '大家的訂單' })
     expect(within(wall).getByText('丁', { selector: 'strong' })).toBeInTheDocument()
     expect(within(wall).queryByText('其他')).not.toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: '其他・丁' })).toBeInTheDocument()
+    expect(screen.getByText('其他・丁')).toBeInTheDocument()
   })
 
   it('resolves a resident share slug to its campaign id before loading data', async () => {
