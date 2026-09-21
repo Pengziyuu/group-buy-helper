@@ -10,7 +10,9 @@ type ToastProps = {
 }
 
 export function Toast({ message, actionLabel, onAction, onDismiss, duration = 5000, className = '' }: ToastProps) {
-  const [paused, setPaused] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  const [focused, setFocused] = useState(false)
+  const paused = hovered || focused
   const onDismissRef = useRef(onDismiss)
   onDismissRef.current = onDismiss
 
@@ -24,11 +26,11 @@ export function Toast({ message, actionLabel, onAction, onDismiss, duration = 50
     <div
       className={`ui-toast ${className}`.trim()}
       role="status"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-      onFocus={() => setPaused(true)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onFocus={() => setFocused(true)}
       onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPaused(false)
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocused(false)
       }}
     >
       <span>{message}</span>

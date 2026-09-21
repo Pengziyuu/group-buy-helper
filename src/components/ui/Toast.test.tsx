@@ -43,4 +43,24 @@ describe('Toast', () => {
     expect(undo).toHaveBeenCalledOnce()
     expect(dismiss).toHaveBeenCalledOnce()
   })
+
+  it('stays paused while focus is inside even after the pointer leaves', () => {
+    vi.useFakeTimers()
+    const dismiss = vi.fn()
+    render(<Toast message="已儲存" actionLabel="復原" onAction={vi.fn()} onDismiss={dismiss} />)
+    const toast = screen.getByRole('status')
+    const undo = screen.getByRole('button', { name: '復原' })
+
+    fireEvent.mouseEnter(toast)
+    fireEvent.focusIn(undo)
+    fireEvent.mouseLeave(toast)
+    act(() => { vi.advanceTimersByTime(10000) })
+    expect(dismiss).not.toHaveBeenCalled()
+
+    fireEvent.focusOut(undo, { relatedTarget: null })
+    act(() => { vi.advanceTimersByTime(4999) })
+    expect(dismiss).not.toHaveBeenCalled()
+    act(() => { vi.advanceTimersByTime(1) })
+    expect(dismiss).toHaveBeenCalledOnce()
+  })
 })
