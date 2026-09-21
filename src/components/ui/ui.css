@@ -126,6 +126,18 @@
 .ui-switch label { display: flex; align-items: center; min-height: var(--touch-target); font-weight: var(--font-weight-strong); cursor: pointer; }
 .ui-switch-description { grid-column: 2; margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-caption); }
 
+.ui-menu { position: relative; display: inline-flex; }
+.ui-menu-trigger { position: relative; display: inline-grid; place-items: center; width: var(--touch-target); height: var(--touch-target); border: 1px solid var(--color-border-strong); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-text); font-size: 18px; line-height: 1; cursor: pointer; }
+.ui-menu[data-size="sm"] .ui-menu-trigger { width: 32px; height: 32px; }
+.ui-menu[data-size="sm"] .ui-menu-trigger::after { content: ""; position: absolute; inset: -6px; }
+.ui-menu-trigger[aria-expanded="true"] { background: var(--color-surface-subtle); }
+.ui-menu-popup { position: absolute; top: calc(100% + 4px); right: 0; z-index: 900; display: grid; min-width: 200px; padding: var(--space-1); border: 1px solid var(--color-border-strong); border-radius: 12px; background: var(--color-surface-raised); }
+.ui-menu-popup :where(a, button) { display: flex; align-items: center; gap: var(--space-2); min-height: var(--touch-target); padding: 0 var(--space-3); border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--color-text); font-size: var(--font-size-dense); text-align: left; text-decoration: none; cursor: pointer; }
+.ui-menu-popup :where(a, button):hover,
+.ui-menu-popup :where(a, button):focus-visible { background: var(--color-surface-subtle); }
+.ui-menu-popup [data-tone="danger"] { color: var(--color-danger); }
+.ui-menu-popup [aria-disabled="true"] { color: var(--color-disabled-text); cursor: not-allowed; }
+
 @media (max-width: 430px) {
   .ui-dialog { padding: var(--space-5); }
   .ui-dialog-actions { display: grid; }
