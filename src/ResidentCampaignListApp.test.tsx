@@ -21,6 +21,7 @@ describe('ResidentCampaignListApp', () => {
     render(
       <ResidentCampaignListApp
         identity={identity}
+        now={new Date('2026-09-01T00:00:00.000Z')}
         campaigns={[
           campaign({
             slug: '0123456789abcdef0123456789abcdef0123', title: '早餐團購', totalAmount: 440,

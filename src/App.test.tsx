@@ -708,6 +708,10 @@ describe('customer campaign app', () => {
   })
 
   it('shows the published arrival and optional automatic closing reminder', () => {
+    // Pin the clock: on 2027-10-14/15 the relative 今天／明天 wording would
+    // replace the date this test expects.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-09-20T00:00:00.000Z'))
     render(<App visibleOrders={[]} publishedContent={{
       title: '時程測試團', unitPrice: 50, threshold: 10,
       announcement: '', images: [],
