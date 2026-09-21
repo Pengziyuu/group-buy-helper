@@ -89,7 +89,8 @@
 .ui-dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-6); }
 
 .ui-quantity-control { display: inline-grid; grid-template-columns: 44px minmax(32px, auto) 44px; align-items: center; height: var(--touch-target); border: 1px solid var(--color-border-strong); border-radius: var(--radius-pill); background: var(--color-surface); }
-.ui-quantity-control button { width: 44px; height: 42px; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--color-primary); font-size: 20px; cursor: pointer; }
+.ui-quantity-control button { position: relative; width: 44px; height: 42px; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--color-primary); font-size: 20px; cursor: pointer; }
+.ui-quantity-control button::after { content: ""; position: absolute; inset: -1px 0; }
 .ui-quantity-control button:active:not(:disabled) { transform: scale(var(--press-scale)); }
 .ui-quantity-control button:disabled { color: var(--color-disabled-text); cursor: not-allowed; }
 .ui-quantity-control output { text-align: center; font-weight: var(--font-weight-strong); font-variant-numeric: tabular-nums; }
