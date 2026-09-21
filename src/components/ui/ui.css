@@ -137,6 +137,16 @@
 .ui-toast-action { position: relative; min-height: 32px; min-width: var(--touch-target); padding: 0 var(--space-2); border: 0; background: transparent; color: var(--color-primary-on-dark); font-weight: var(--font-weight-strong); cursor: pointer; }
 .ui-toast-action::after { content: ""; position: absolute; inset: -6px 0; }
 
+.ui-sheet-backdrop { position: fixed; inset: 0; z-index: var(--z-dialog); display: flex; align-items: flex-end; justify-content: center; background: var(--color-overlay); }
+.ui-sheet { width: 100%; max-height: min(85vh, 720px); display: flex; flex-direction: column; padding-bottom: env(safe-area-inset-bottom); border-radius: var(--radius-surface) var(--radius-surface) 0 0; background: var(--color-surface-raised); }
+.ui-sheet-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4); border-bottom: 1px solid var(--color-divider); }
+.ui-sheet-header h2 { margin: 0; font-size: var(--font-size-title); font-weight: var(--font-weight-strong); line-height: var(--line-height-heading); }
+.ui-sheet-body { overflow-y: auto; padding: var(--space-4); }
+@media (min-width: 640px) {
+  .ui-sheet-backdrop { align-items: center; padding: var(--space-4); }
+  .ui-sheet { width: min(100%, 480px); border-radius: var(--radius-surface); }
+}
+
 @media (hover: hover) {
   .ui-button:hover:not(:disabled) { background: var(--color-primary-hover); }
   .ui-button[data-variant="secondary"]:hover:not(:disabled) { background: var(--color-primary-subtle); }
