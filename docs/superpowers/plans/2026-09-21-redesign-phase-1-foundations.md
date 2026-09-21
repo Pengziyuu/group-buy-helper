@@ -1691,3 +1691,22 @@ git commit -m "fix: keep <頁面> readable after the token change"
 - 測試、lint、build 結果與測試數量
 - 15 對截圖中有變化的頁面摘要，以及修了哪些破版
 - 提醒：本階段未 push；建議與第 2 階段（住戶端）一起上線，避免住戶端出現新舊配色混搭
+
+---
+
+## 執行結果與留給後續階段的事項（2026-09-21）
+
+**結果：** Task 0～9 全部完成，另依整體審查補一輪修正（commits `7234fdd`…`9e22e77`，均未 push）。74 個測試檔、487 項全部通過；lint、build 通過；5 頁 × 3 寬度改版前後截圖無破版、無水平溢出。
+
+**執行中對計畫的修正：**
+- 數量加減鈕、開關、Toast 的「復原」按鈕原計畫的觸控範圍不足 44px，已各自補上擴大可點範圍的 `::after` 或 `min-width`。
+- Toast 改為分別記錄滑鼠停留與焦點，兩者任一存在就暫停（原計畫只有一個狀態，滑鼠移開會在焦點仍在時恢復倒數）。
+- `prefers-reduced-motion` 時 `--press-scale: 1`，按下不再縮小。
+- Menu 的停用項目仍可聚焦但不可執行（避免只有停用項目時鍵盤無法操作），焦點離開選單即關閉。
+- 停用中的 Switch 改用半透明，仍看得出開或關；關閉狀態的軌道改用 `--color-control-off: #86868b`（非文字元件對比 ≥ 3:1）。
+
+**後續階段開工前要處理：**
+- 第 2 階段開始前：新增互動用的底色 token（hover、選單開啟時的底色；目前的 `--color-surface-subtle` 與白色幾乎無差）；統一 44px 觸控範圍的做法（寬度也保證 44px）；把 12px 圓角與 z-index 層級做成 token；hover 樣式包在 `@media (hover: hover)`；在計畫的〈對 Spec 的調整〉記下按鈕變體命名為 `danger`／`danger-solid`（Spec 寫 destructive），並加測試確保 `danger-solid` 只用在確認視窗。
+- 第 3 階段（團主架構）開始前：Menu 放進可點的表格列時要阻止點擊冒泡；表格可捲動時選單會被裁切，考慮原生 `popover`；選擇連結項目後焦點會掉到 body；對話框內的 Menu 按 Esc 會同時關掉對話框。截圖腳本在 `click` 選擇器找不到時必須報錯（第 3 階段會移除 `#admin-orders-tab`）。IconButton 的 padding 被 utility 變體蓋掉，第一次使用時修正選擇器。
+- 第 4 階段（付款復原）開始前：Toast 應先 `onDismiss` 再 `onAction`，避免吃掉接著出現的提示；復原後焦點要回到付款格；提示區改為常駐的 live region 再放入文字；呼叫端每則提示給不同 `key`。
+- 既有頁面問題（隨各頁改寫處理）：`AdminApp.css` 引用不存在的 `--color-background`，`.admin-eyebrow`／`.admin-item-code` 對比約 4.1～4.3:1；`ResidentCampaignListApp.css` 的狀態標籤覆寫帶陰影與 850 字重。
