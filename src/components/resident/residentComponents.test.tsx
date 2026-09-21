@@ -56,6 +56,19 @@ describe('resident campaign page parts', () => {
     expect(screen.queryByRole('heading', { name: '開團資訊' })).not.toBeInTheDocument()
   })
 
+  it('expands a collapsed announcement when focus lands on a link hidden inside it', async () => {
+    const user = userEvent.setup()
+    const longAnnouncement = `${'公告內容。'.repeat(90)}\nhttps://example.com/detail`
+    render(<CampaignInfo images={[]} announcement={longAnnouncement} onOpenImage={vi.fn()} />)
+
+    expect(screen.getByRole('button', { name: '展開全文' })).toHaveAttribute('aria-expanded', 'false')
+
+    await user.tab()
+
+    expect(screen.getByRole('link', { name: 'https://example.com/detail' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: '收合' })).toHaveAttribute('aria-expanded', 'true')
+  })
+
   it('lists priced lines, custom items and savings in the breakdown', () => {
     render(
       <OrderBreakdown

@@ -26,7 +26,11 @@ export function CampaignInfo({ images, announcement, onOpenImage }: CampaignInfo
         {images.length > 0 && <ImageGallery images={images} onOpen={onOpenImage} />}
         {hasAnnouncement && (
           <div>
-            <div id="campaign-announcement" className={`resident-announcement${collapsible && !expanded ? ' is-collapsed' : ''}`}>
+            <div
+              id="campaign-announcement"
+              className={`resident-announcement${collapsible && !expanded ? ' is-collapsed' : ''}`}
+              onFocus={() => { if (collapsible) setExpanded(true) }}
+            >
               <LinkifiedText text={announcement} />
             </div>
             {collapsible && (
