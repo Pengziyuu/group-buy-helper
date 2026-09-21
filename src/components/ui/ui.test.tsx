@@ -60,6 +60,18 @@ describe('shared UI primitives', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('請填寫團購標題')
   })
 
+  it('marks required fields without polluting the accessible name', () => {
+    render(
+      <FormField id="campaign-title" label="團購標題" required>
+        <input />
+      </FormField>,
+    )
+
+    const input = screen.getByRole('textbox', { name: '團購標題' })
+    expect(input).toBeRequired()
+    expect(screen.getByText('必填')).toHaveAttribute('aria-hidden', 'true')
+  })
+
   it('renders semantic status, progress, and feedback without relying on color alone', () => {
     render(<>
       <StatusBadge tone="success">開團中</StatusBadge>
