@@ -6,6 +6,7 @@ import { CampaignInfo } from './CampaignInfo'
 import { OrderBreakdown } from './OrderBreakdown'
 import { OrderSummaryBar } from './OrderSummaryBar'
 import { OrderWall } from './OrderWall'
+import { ProductRow } from './ProductRow'
 import { ResidentBindingForm } from './ResidentBindingForm'
 import type { VisibleOrder } from '../../data/demo'
 
@@ -135,5 +136,67 @@ describe('resident campaign page parts', () => {
     expect(screen.queryByRole('combobox', { name: '樓層' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '儲存住戶資料' }))
     expect(onBind).toHaveBeenLastCalledWith({ kind: 'other', period: null, unit: null })
+  })
+})
+
+describe('ProductRow', () => {
+  it('renders the code, name, price, list price and hint when given', () => {
+    render(
+      <ProductRow code="A" name="五花肉片" priceText="$45／個" listPrice={60} hint="限量20份"
+        quantity={3} disabled={false} onDecrement={vi.fn()} onIncrement={vi.fn()} />,
+    )
+
+    expect(screen.getByText('A')).toBeInTheDocument()
+    expect(screen.getByText('五花肉片')).toBeInTheDocument()
+    expect(screen.getByText('$45／個')).toBeInTheDocument()
+    expect(screen.getByText('原價 $60')).toBeInTheDocument()
+    expect(screen.getByText('限量20份')).toBeInTheDocument()
+  })
+
+  it('omits the list price and hint when not given', () => {
+    render(
+      <ProductRow code="B" name="花生糖" priceText="$30／個"
+        quantity={0} disabled={false} onDecrement={vi.fn()} onIncrement={vi.fn()} />,
+    )
+
+    expect(screen.queryByText(/原價/)).not.toBeInTheDocument()
+    expect(screen.queryByText('限量20份')).not.toBeInTheDocument()
+  })
+
+  it('wires the quantity control to onDecrement and onIncrement', async () => {
+    const user = userEvent.setup()
+    const onDecrement = vi.fn()
+    const onIncrement = vi.fn()
+    render(
+      <ProductRow code="A" name="五花肉片" priceText="$45／個" quantity={2} disabled={false}
+        onDecrement={onDecrement} onIncrement={onIncrement} />,
+    )
+
+    await user.click(screen.getByRole('button', { name: '減少 A 五花肉片' }))
+    expect(onDecrement).toHaveBeenCalledOnce()
+    expect(onIncrement).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: '增加 A 五花肉片' }))
+    expect(onIncrement).toHaveBeenCalledOnce()
+  })
+
+  it('disables the quantity control so no callback fires', async () => {
+    const user = userEvent.setup()
+    const onDecrement = vi.fn()
+    const onIncrement = vi.fn()
+    render(
+      <ProductRow code="A" name="五花肉片" priceText="$45／個" quantity={2} disabled
+        onDecrement={onDecrement} onIncrement={onIncrement} />,
+    )
+
+    const decrementButton = screen.getByRole('button', { name: '減少 A 五花肉片' })
+    const incrementButton = screen.getByRole('button', { name: '增加 A 五花肉片' })
+    expect(decrementButton).toBeDisabled()
+    expect(incrementButton).toBeDisabled()
+
+    await user.click(decrementButton)
+    await user.click(incrementButton)
+    expect(onDecrement).not.toHaveBeenCalled()
+    expect(onIncrement).not.toHaveBeenCalled()
   })
 })
