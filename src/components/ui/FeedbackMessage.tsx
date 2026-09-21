@@ -21,7 +21,7 @@ export function FeedbackMessage({ tone, children, actionLabel, onAction, classNa
       role={assertive ? 'alert' : 'status'}
     >
       <span>{children}</span>
-      {actionLabel && onAction && <Button variant="tertiary" onClick={onAction}>{actionLabel}</Button>}
+      {actionLabel && onAction && <Button variant="utility" size="sm" onClick={onAction}>{actionLabel}</Button>}
     </div>
   )
 }

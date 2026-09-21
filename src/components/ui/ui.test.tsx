@@ -14,22 +14,39 @@ import { AppHeader, Breadcrumbs, SectionNav } from './Navigation'
 import { StickyActionBar } from './StickyActionBar'
 
 describe('shared UI primitives', () => {
-  it('exposes button hierarchy and a stable processing state', () => {
+  it('exposes the DESIGN.md button grammar and a stable processing state', () => {
     render(<>
       <Button variant="primary" loading>儲存</Button>
       <Button variant="primary" loading loadingLabel="LINE驗證中…">使用 LINE 登入</Button>
       <Button variant="secondary">取消</Button>
-      <Button variant="tertiary">更多</Button>
-      <Button variant="destructive">刪除</Button>
+      <Button variant="utility">複製住戶連結</Button>
+      <Button variant="utility" size="sm">儲存備註</Button>
+      <Button variant="danger">刪除團購</Button>
+      <Button variant="danger-solid">確認永久刪除</Button>
       <IconButton label="關閉">×</IconButton>
     </>)
 
     expect(screen.getByRole('button', { name: '儲存中…' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'LINE驗證中…' })).toBeDisabled()
     expect(screen.getByRole('button', { name: '取消' })).toHaveAttribute('data-variant', 'secondary')
-    expect(screen.getByRole('button', { name: '更多' })).toHaveAttribute('data-variant', 'tertiary')
-    expect(screen.getByRole('button', { name: '刪除' })).toHaveAttribute('data-variant', 'destructive')
+    expect(screen.getByRole('button', { name: '複製住戶連結' })).toHaveAttribute('data-variant', 'utility')
+    expect(screen.getByRole('button', { name: '複製住戶連結' })).toHaveAttribute('data-size', 'md')
+    expect(screen.getByRole('button', { name: '儲存備註' })).toHaveAttribute('data-size', 'sm')
+    expect(screen.getByRole('button', { name: '刪除團購' })).toHaveAttribute('data-variant', 'danger')
+    expect(screen.getByRole('button', { name: '確認永久刪除' })).toHaveAttribute('data-variant', 'danger-solid')
+    expect(screen.getByRole('button', { name: '關閉' })).toHaveAttribute('data-variant', 'utility')
     expect(screen.getByRole('button', { name: '關閉' })).toHaveTextContent('×')
+  })
+
+  it('reserves the solid danger button for the confirmation dialog', () => {
+    render(
+      <ConfirmDialog title="確認刪除團購" confirmLabel="確認永久刪除" onConfirm={vi.fn()} onCancel={vi.fn()}>
+        無法復原。
+      </ConfirmDialog>,
+    )
+
+    expect(screen.getByRole('button', { name: '確認永久刪除' })).toHaveAttribute('data-variant', 'danger-solid')
+    expect(screen.getByRole('button', { name: '取消' })).toHaveAttribute('data-variant', 'secondary')
   })
 
   it('connects form labels, helper copy, and inline validation', () => {

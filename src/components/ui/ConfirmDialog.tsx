@@ -84,7 +84,7 @@ export function ConfirmDialog({
         <div className="ui-dialog-content">{children}</div>
         <div className="ui-dialog-actions">
           <Button ref={cancelRef} variant="secondary" onClick={onCancel} disabled={busy}>{cancelLabel}</Button>
-          <Button variant={destructive ? 'destructive' : 'primary'} onClick={onConfirm} loading={busy} disabled={busy} loadingLabel="處理中…">
+          <Button variant={destructive ? 'danger-solid' : 'primary'} onClick={onConfirm} loading={busy} disabled={busy} loadingLabel="處理中…">
             {confirmLabel}
           </Button>
         </div>

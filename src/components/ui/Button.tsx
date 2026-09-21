@@ -1,15 +1,18 @@
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react'
 
-export type ButtonVariant = 'primary' | 'secondary' | 'tertiary' | 'destructive'
+export type ButtonVariant = 'primary' | 'secondary' | 'utility' | 'danger' | 'danger-solid'
+export type ButtonSize = 'md' | 'sm'
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant
+  size?: ButtonSize
   loading?: boolean
   loadingLabel?: string
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({
   variant = 'primary',
+  size = 'md',
   loading = false,
   loadingLabel,
   disabled,
@@ -26,6 +29,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       type="button"
       className={`ui-button ${className}`.trim()}
       data-variant={variant}
+      data-size={size}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       {...props}
@@ -46,7 +50,7 @@ export function IconButton({ label, className = '', children, ...props }: IconBu
     <Button
       className={`ui-icon-button ${className}`.trim()}
       aria-label={label}
-      variant={props.variant ?? 'tertiary'}
+      variant={props.variant ?? 'utility'}
       {...props}
     >
       {children}

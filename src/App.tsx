@@ -466,7 +466,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
         {hasLongAnnouncement && (
           <Button
             className="announcement-toggle"
-            variant="tertiary"
+            variant="utility"
             aria-controls="campaign-announcement"
             aria-expanded={announcementExpanded}
             onClick={() => setAnnouncementExpanded((current) => !current)}
@@ -558,7 +558,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
                   onIncrement={() => updateCustomItem(item.id, { quantity: Math.min(20, item.quantity + 1) })}
                 />
                 <Button
-                  variant="tertiary"
+                  variant="utility"
                   aria-label={`移除額外品項 ${index + 1}`}
                   disabled={!controlsEditable}
                   onClick={() => removeCustomItem(item.id)}
