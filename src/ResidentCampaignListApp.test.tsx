@@ -43,13 +43,14 @@ describe('ResidentCampaignListApp', () => {
     expect(screen.getByText('1 團開團中')).toHaveClass('resident-list-count')
 
     const open = screen.getByRole('region', { name: '開團中' })
-    expect(within(open).getByRole('heading', { name: '開團中' })).toHaveClass('ui-visually-hidden')
+    expect(within(open).getByRole('heading', { name: '開團中' })).not.toHaveClass('ui-visually-hidden')
     expect(within(open).getByRole('link', { name: '早餐團購' })).toHaveAttribute('href', '/campaign/0123456789abcdef0123456789abcdef0123')
     expect(within(open).getByRole('img', { name: '早餐商品照片' })).toHaveAttribute('src', 'https://example.com/breakfast-cover.jpg')
     expect(within(open).queryByRole('img', { name: '早餐細節照片' })).not.toBeInTheDocument()
     expect(within(open).getByText('$55')).toBeInTheDocument()
     expect(within(open).getByText('NT$ 440 / NT$ 1,000')).toBeInTheDocument()
     expect(within(open).getByText('3/5（五）12:00 結單')).toBeInTheDocument()
+    expect(within(open).getByText('到貨：03/08')).toBeInTheDocument()
     expect(within(open).getByRole('progressbar', { name: '早餐團購成團進度' })).toHaveAttribute('aria-valuenow', '440')
 
     const closed = screen.getByRole('region', { name: '已結單' })
