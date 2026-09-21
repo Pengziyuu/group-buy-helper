@@ -28,3 +28,9 @@ dist-ssr
 
 # Vercel local project metadata
 .vercel
+
+# Local agent tooling
+.claude/launch.json
+.claude/worktrees/
+.impeccable/
+.superpowers/brainstorm/
