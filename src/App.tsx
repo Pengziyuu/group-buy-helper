@@ -347,7 +347,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
           status={campaignStatus}
           priceText={priceText}
           arrivalLabel={publishedCampaign.arrivalLabel}
-          closingText={editable && closing ? closing.when : null}
+          closingText={closing?.when ?? null}
           progress={progress}
           orderCount={orders.length}
           openedAt={publishedCampaign.openedAt}

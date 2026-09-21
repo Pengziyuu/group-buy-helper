@@ -30,12 +30,13 @@ export function CampaignSummary({ title, status, priceText, arrivalLabel, closin
         <StatusBadge tone={status === 'open' ? 'success' : 'neutral'}>{campaignStatusLabel(status)}</StatusBadge>
         <h1 id="campaign-title">{title}</h1>
         <p className="resident-summary-price">{priceText}</p>
-        <dl className="resident-summary-facts">
+        <dl className="resident-summary-facts" role="group" aria-label="團購時程">
           <div><dt>預計到貨</dt><dd>{normalizeArrivalLabel(arrivalLabel)}</dd></div>
-          {closingText && <div><dt>結單</dt><dd>{closingText}</dd></div>}
+          <div><dt>結單</dt><dd>{closingText ?? '未排定'}</dd></div>
         </dl>
       </div>
       <div className="resident-summary-progress">
+        <h2>成團進度</h2>
         <p className="resident-summary-progress-text">
           <strong>{progress.text}</strong>
           <span className={progress.formed ? 'is-formed' : undefined}>{progress.remainingText}</span>

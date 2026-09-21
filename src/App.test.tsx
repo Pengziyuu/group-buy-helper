@@ -757,7 +757,8 @@ describe('customer campaign app', () => {
     }} />)
 
     expect(screen.getByText('已結單', { selector: '.ui-status-badge' })).toBeInTheDocument()
-    expect(screen.queryByText('結單')).not.toBeInTheDocument()
+    expect(screen.getByText('結單')).toBeInTheDocument()
+    expect(screen.getByText('10/15（五）12:00')).toBeInTheDocument()
   })
 
   it('tells residents what they have already submitted and why submit is disabled', () => {

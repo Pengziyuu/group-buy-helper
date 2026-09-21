@@ -49,15 +49,22 @@ describe('ResidentCampaignListApp', () => {
     expect(within(open).queryByRole('img', { name: '早餐細節照片' })).not.toBeInTheDocument()
     expect(within(open).getByText('$55')).toBeInTheDocument()
     expect(within(open).getByText('NT$ 440 / NT$ 1,000')).toBeInTheDocument()
-    expect(within(open).getByText('3/5（五）12:00 結單')).toBeInTheDocument()
-    expect(within(open).getByText('到貨：03/08')).toBeInTheDocument()
+    const openFacts = within(open).getByRole('group', { name: '早餐團購時程' })
+    expect(within(openFacts).getByText('結單')).toBeInTheDocument()
+    expect(within(openFacts).getByText('3/5（五）12:00')).toBeInTheDocument()
+    expect(within(openFacts).getByText('到貨')).toBeInTheDocument()
+    expect(within(openFacts).getByText('03/08')).toBeInTheDocument()
     expect(within(open).getByRole('progressbar', { name: '早餐團購成團進度' })).toHaveAttribute('aria-valuenow', '440')
 
     const closed = screen.getByRole('region', { name: '已結單' })
     expect(within(closed).getByRole('link', { name: '水果團購' })).toBeInTheDocument()
     expect(within(closed).getByText('已結單', { selector: '.ui-status-badge' })).toBeInTheDocument()
     expect(within(closed).getByText('12 箱 / 12 箱')).toBeInTheDocument()
-    expect(within(closed).getByText('到貨：貨到通知')).toBeInTheDocument()
+    const closedFacts = within(closed).getByRole('group', { name: '水果團購時程' })
+    expect(within(closedFacts).getByText('結單')).toBeInTheDocument()
+    expect(within(closedFacts).getByText('未排定')).toBeInTheDocument()
+    expect(within(closedFacts).getByText('到貨')).toBeInTheDocument()
+    expect(within(closedFacts).getByText('貨到通知')).toBeInTheDocument()
     expect(within(closed).getByRole('img', { name: '水果團購尚未設定商品圖片' })).toBeInTheDocument()
 
     const titles = screen.getAllByRole('link').map((link) => link.textContent)
@@ -96,8 +103,32 @@ describe('ResidentCampaignListApp', () => {
       />,
     )
 
-    expect(screen.getByText('今天 12:00 結單')).toHaveClass('is-soon')
-    expect(screen.getByText('明天 12:00 結單')).toHaveClass('is-soon')
+    expect(screen.getByText('今天 12:00')).toHaveClass('is-soon')
+    expect(screen.getByText('明天 12:00')).toHaveClass('is-soon')
+  })
+
+  it('keeps arrival in the same fact column whether a closing time exists or not', () => {
+    render(<ResidentCampaignListApp identity={identity} campaigns={[
+      campaign({ slug: 'scheduled', title: '有排定結單', arrivalLabel: '10月初', autoCloseAt: '2027-03-05T04:00:00.000Z' }),
+      campaign({ slug: 'unscheduled', title: '沒有排定結單', arrivalLabel: '10月中', autoCloseAt: null }),
+    ]} now={new Date('2026-09-01T00:00:00.000Z')} />)
+
+    const scheduled = screen.getByRole('group', { name: '有排定結單時程' })
+    const unscheduled = screen.getByRole('group', { name: '沒有排定結單時程' })
+    expect(scheduled.children[1]).toHaveClass('resident-campaign-fact-arrival')
+    expect(unscheduled.children[1]).toHaveClass('resident-campaign-fact-arrival')
+    expect(within(unscheduled).getByText('未排定')).toBeInTheDocument()
+    expect(within(unscheduled).getByText('10月中')).toBeInTheDocument()
+  })
+
+  it('preserves scheduled closing information after a campaign closes', () => {
+    render(<ResidentCampaignListApp identity={identity} campaigns={[
+      campaign({ slug: 'closed-scheduled', title: '有排定的已結單團', status: 'closed', autoCloseAt: '2027-03-05T04:00:00.000Z' }),
+      campaign({ slug: 'closed-unscheduled', title: '未排定的已結單團', status: 'closed', autoCloseAt: null }),
+    ]} now={new Date('2026-09-01T00:00:00.000Z')} />)
+
+    expect(within(screen.getByRole('group', { name: '有排定的已結單團時程' })).getByText('3/5（五）12:00')).toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: '未排定的已結單團時程' })).getByText('未排定')).toBeInTheDocument()
   })
 
   it('shows the five newest closed campaigns until asked for older ones', async () => {

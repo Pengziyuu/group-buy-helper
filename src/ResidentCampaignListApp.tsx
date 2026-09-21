@@ -74,7 +74,7 @@ function CampaignThumbnail({ campaign }: { campaign: ResidentCampaignListItem })
 function CampaignRow({ campaign, now }: { campaign: ResidentCampaignListItem; now: Date }) {
   const open = campaign.status === 'open'
   const progress = campaignProgress(campaign)
-  const closing = open ? describeAutoClose(campaign.autoCloseAt, now) : null
+  const closing = describeAutoClose(campaign.autoCloseAt, now)
   return (
     <article className="resident-campaign-row" data-status={open ? 'open' : 'closed'}>
       <CampaignThumbnail campaign={campaign} />
@@ -83,16 +83,18 @@ function CampaignRow({ campaign, now }: { campaign: ResidentCampaignListItem; no
         {open
           ? <p className="resident-campaign-price"><strong>${campaign.unitPrice.toLocaleString('zh-TW')}</strong> 起</p>
           : <p className="resident-campaign-price"><StatusBadge tone="neutral">已結單</StatusBadge></p>}
+        <dl className="resident-campaign-facts" role="group" aria-label={`${campaign.title}時程`}>
+          <div>
+            <dt>結單</dt>
+            <dd className={open && closing?.soon ? 'is-soon' : undefined}>{closing?.when ?? '未排定'}</dd>
+          </div>
+          <div className="resident-campaign-fact-arrival">
+            <dt>到貨</dt>
+            <dd>{normalizeArrivalLabel(campaign.arrivalLabel)}</dd>
+          </div>
+        </dl>
+        <p className="resident-campaign-progress-text">{progress.text}</p>
         <ProgressBar label={`${campaign.title}成團進度`} value={progress.value} max={progress.target} />
-        <p className="resident-campaign-meta">
-          <span className="resident-campaign-progress-text">{progress.text}</span>
-          <span className="resident-campaign-schedules">
-            {closing && (
-              <span className={`resident-campaign-schedule${closing.soon ? ' is-soon' : ''}`}>{closing.when} 結單</span>
-            )}
-            <span className="resident-campaign-arrival">到貨：{normalizeArrivalLabel(campaign.arrivalLabel)}</span>
-          </span>
-        </p>
       </div>
       <span className="resident-campaign-chevron" aria-hidden="true">›</span>
     </article>
