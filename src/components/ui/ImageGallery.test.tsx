@@ -20,15 +20,17 @@ describe('ImageGallery', () => {
     expect(open).toHaveBeenCalledWith(0)
   })
 
-  it('switches the large image from the thumbnails', async () => {
+  it('switches the large image and decorative backdrop from the thumbnails', async () => {
     const user = userEvent.setup()
     const open = vi.fn()
-    render(<ImageGallery images={images} onOpen={open} />)
+    const { container } = render(<ImageGallery images={images} onOpen={open} />)
 
     const thumbnails = screen.getByRole('group', { name: '共 3 張圖片' })
     expect(within(thumbnails).getByRole('button', { name: '顯示第 1 張圖片' })).toHaveAttribute('aria-pressed', 'true')
+    expect(container.querySelector('.ui-gallery-backdrop')).toHaveStyle({ backgroundImage: 'url("/one.jpg")' })
     await user.click(within(thumbnails).getByRole('button', { name: '顯示第 3 張圖片' }))
     expect(within(thumbnails).getByRole('button', { name: '顯示第 3 張圖片' })).toHaveAttribute('aria-pressed', 'true')
+    expect(container.querySelector('.ui-gallery-backdrop')).toHaveStyle({ backgroundImage: 'url("/three.jpg")' })
 
     await user.click(screen.getByRole('button', { name: '放大檢視 第 3 張圖片：第三張' }))
     expect(open).toHaveBeenCalledWith(2)

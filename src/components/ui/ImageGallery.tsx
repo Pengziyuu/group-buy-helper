@@ -25,7 +25,13 @@ export function ImageGallery({ images, onOpen }: ImageGalleryProps) {
           aria-label={`放大檢視 第 ${index + 1} 張圖片：${image.alt}`}
           onClick={() => onOpen(index)}
         >
+          <span
+            className="ui-gallery-backdrop"
+            aria-hidden="true"
+            style={{ backgroundImage: `url(${JSON.stringify(image.src)})` }}
+          />
           <img
+            className="ui-gallery-image"
             src={image.src}
             alt={image.alt}
             onError={() => setFailedSources((current) => new Set(current).add(image.src))}
