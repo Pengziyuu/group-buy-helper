@@ -35,6 +35,17 @@ const otherMember = {
   blockedAt: null,
 }
 
+const unboundMember = {
+  memberCode: '1111111111111111111111111111111111aa',
+  displayName: '住戶丁',
+  pictureUrl: null,
+  period: null,
+  unit: null,
+  joinedAt: '2026-08-16T00:00:00Z',
+  blocked: false,
+  blockedAt: null,
+}
+
 describe('ResidentMemberManagementApp', () => {
   it('checks every active resident with one button and summarises the result with lights', async () => {
     const user = userEvent.setup()
@@ -60,6 +71,8 @@ describe('ResidentMemberManagementApp', () => {
     expect(await screen.findByText('已更新 2 位住戶的群組狀態')).toBeInTheDocument()
     expect(within(summary).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['在群組內 1', '不在群組 1', '尚未查驗 0'])
     expect(within(screen.getByRole('article', { name: '住戶丙' })).getByText('不在群組')).toBeInTheDocument()
+    expect(screen.queryByRole('article', { name: '陌生住戶' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('radio', { name: '已封鎖 1' }))
     expect(within(screen.getByRole('article', { name: '陌生住戶' })).queryByText(/群組/)).not.toBeInTheDocument()
     expect(screen.getByText(/群組狀態僅供核對/)).toBeInTheDocument()
   })
@@ -88,22 +101,24 @@ describe('ResidentMemberManagementApp', () => {
     expect(screen.getByRole('button', { name: '更新全部群組狀態' })).toBeEnabled()
   })
 
-  it('shows verified LINE residents without internal identity fields', () => {
+  it('shows verified LINE residents without internal identity fields', async () => {
+    const user = userEvent.setup()
     render(<ResidentMemberManagementApp members={members} onSetBlocked={vi.fn()} onUpdateHousehold={vi.fn()} />)
 
-    expect(screen.getByRole('heading', { name: '住戶名單' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: '住戶 1 位' })).toBeInTheDocument()
     expect(screen.getByText('住戶甲')).toBeInTheDocument()
     expect(screen.getByText('二期 2K13')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: '住戶甲的LINE頭貼' })).toBeInTheDocument()
-    expect(screen.getByText('陌生住戶')).toBeInTheDocument()
-    expect(screen.getByText('已封鎖')).toBeInTheDocument()
     expect(document.body.textContent).not.toContain('abcdef0123456789abcdef0123456789abcd')
-    const adjustButton = screen.getByRole('button', { name: '調整住戶資料 住戶甲' })
-    const blockButton = screen.getByRole('button', { name: '移除並封鎖 住戶甲' })
-    expect(adjustButton).toHaveClass('resident-action-secondary')
-    expect(blockButton).toHaveClass('resident-action-danger')
-    expect(adjustButton.querySelector('[aria-hidden="true"]')).toHaveTextContent('✎')
-    expect(blockButton.querySelector('[aria-hidden="true"]')).toHaveTextContent('⊘')
+    expect(screen.getByRole('button', { name: '調整住戶資料 住戶甲' })).toHaveTextContent('調整戶號')
+    await user.click(screen.getByRole('button', { name: '更多操作 住戶甲' }))
+    expect(screen.getByRole('menuitem', { name: '移除並封鎖 住戶甲' })).toHaveAttribute('data-tone', 'danger')
+    await user.keyboard('{Escape}')
+
+    expect(screen.queryByText('陌生住戶')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('radio', { name: '已封鎖 1' }))
+    expect(screen.getByText('陌生住戶')).toBeInTheDocument()
+    expect(screen.getByText('已封鎖', { selector: '.ui-status-badge' })).toBeInTheDocument()
   })
 
 
@@ -112,7 +127,8 @@ describe('ResidentMemberManagementApp', () => {
     const onSetBlocked = vi.fn().mockResolvedValue(undefined)
     render(<ResidentMemberManagementApp members={members} onSetBlocked={onSetBlocked} onUpdateHousehold={vi.fn()} />)
 
-    await user.click(screen.getByRole('button', { name: '移除並封鎖 住戶甲' }))
+    await user.click(screen.getByRole('button', { name: '更多操作 住戶甲' }))
+    await user.click(screen.getByRole('menuitem', { name: '移除並封鎖 住戶甲' }))
     expect(screen.getByRole('dialog', { name: '確認移除住戶' })).toBeInTheDocument()
     expect(onSetBlocked).not.toHaveBeenCalled()
 
@@ -124,7 +140,7 @@ describe('ResidentMemberManagementApp', () => {
   it('lets the organizer unblock a resident', async () => {
     const user = userEvent.setup()
     const onSetBlocked = vi.fn().mockResolvedValue(undefined)
-    render(<ResidentMemberManagementApp members={members} onSetBlocked={onSetBlocked} onUpdateHousehold={vi.fn()} />)
+    render(<ResidentMemberManagementApp members={members} initialFilter="blocked" onSetBlocked={onSetBlocked} onUpdateHousehold={vi.fn()} />)
 
     await user.click(screen.getByRole('button', { name: '解除封鎖 陌生住戶' }))
 
@@ -170,7 +186,7 @@ describe('ResidentMemberManagementApp', () => {
       />,
     )
 
-    expect(screen.getByText('其他')).toBeInTheDocument()
+    expect(within(screen.getByRole('article', { name: '住戶丙' })).getByText('其他')).toBeInTheDocument()
     const adjustButton = screen.getByRole('button', { name: '調整住戶資料 住戶丙' })
     expect(adjustButton).toBeInTheDocument()
 
@@ -227,6 +243,37 @@ describe('ResidentMemberManagementApp', () => {
       { kind: 'other', period: null, unit: null },
     )
     expect(await screen.findByText('已將住戶甲改為其他')).toBeInTheDocument()
-    expect(screen.getByText('其他')).toBeInTheDocument()
+    expect(within(screen.getByRole('article', { name: '住戶甲' })).getByText('其他')).toBeInTheDocument()
+  })
+
+  it('filters residents and searches by name or household', async () => {
+    const user = userEvent.setup()
+    render(<ResidentMemberManagementApp members={[...members, otherMember, unboundMember]} onSetBlocked={vi.fn()} onUpdateHousehold={vi.fn()} />)
+
+    expect(screen.getByRole('heading', { level: 1, name: '住戶 3 位' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: '全部 3' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: '未填戶號 1' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: '其他 1' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: '已封鎖 1' })).toBeInTheDocument()
+
+    await user.type(screen.getByRole('searchbox', { name: '搜尋住戶' }), '2k13')
+    expect(screen.getByRole('article', { name: '住戶甲' })).toBeInTheDocument()
+    expect(screen.queryByRole('article', { name: '住戶丙' })).not.toBeInTheDocument()
+
+    await user.clear(screen.getByRole('searchbox', { name: '搜尋住戶' }))
+    await user.click(screen.getByRole('radio', { name: '未填戶號 1' }))
+    const unboundCard = screen.getByRole('article', { name: '住戶丁' })
+    expect(within(unboundCard).getByText('尚未填戶號')).toBeInTheDocument()
+    expect(screen.queryByRole('article', { name: '住戶甲' })).not.toBeInTheDocument()
+
+    await user.type(screen.getByRole('searchbox', { name: '搜尋住戶' }), '不存在')
+    expect(screen.getByText('沒有符合條件的住戶。')).toBeInTheDocument()
+  })
+
+  it('opens on the filter it was linked with', () => {
+    render(<ResidentMemberManagementApp members={[...members, unboundMember]} initialFilter="unbound" onSetBlocked={vi.fn()} onUpdateHousehold={vi.fn()} />)
+    expect(screen.getByRole('radio', { name: '未填戶號 1' })).toBeChecked()
+    expect(screen.getByRole('article', { name: '住戶丁' })).toBeInTheDocument()
+    expect(screen.queryByRole('article', { name: '住戶甲' })).not.toBeInTheDocument()
   })
 })

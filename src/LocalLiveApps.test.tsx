@@ -392,7 +392,7 @@ describe('local Supabase visual demo apps', () => {
     expect(managementRepository.list).toHaveBeenCalledTimes(1)
     expect(residentMemberRepository.list).toHaveBeenCalledTimes(1)
     await user.click(screen.getByRole('button', { name: '住戶與戶號 1' }))
-    expect(screen.getByRole('heading', { name: '住戶名單' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: '住戶 1 位' })).toBeInTheDocument()
     expect(screen.getByText('住戶甲')).toBeInTheDocument()
   })
 

@@ -60,10 +60,10 @@ describe('organizer campaign list', () => {
     expect(screen.getByRole('region', { name: '工作概況' })).toHaveTextContent('開團中1')
     expect(screen.getByRole('region', { name: '工作概況' })).toHaveTextContent('待發布1')
     expect(screen.getByRole('region', { name: '工作概況' })).toHaveTextContent('待綁定戶號0')
-    expect(screen.queryByRole('heading', { name: '住戶名單' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 1, name: '住戶 1 位' })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '住戶與戶號 1' }))
-    expect(screen.getByRole('heading', { name: '住戶名單' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: '住戶 1 位' })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: '團購列表' })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '團購作業 2' }))
