@@ -23,6 +23,16 @@ type Props = {
   onRefreshGroupStatuses?: (memberCodes: string[]) => Promise<ResidentGroupStatusUpdate[]>
 }
 
+const GROUP_CHECK_BATCH_SIZE = 20
+const GROUP_CHECK_BUSY = 'group-check'
+
+function groupStatusLabel(status: ResidentMember['groupStatus']): string {
+  if (status === 'in_group') return '在群組內'
+  if (status === 'not_in_group') return '不在群組'
+  if (status === 'unknown') return '無法確認'
+  return '尚未查驗'
+}
+
 function householdLabel(member: ResidentMember): string {
   const kind = member.householdKind ?? 'resident'
   if (kind === 'resident' && (member.period === null || !member.unit)) return '尚未綁定期別／戶號'
@@ -48,25 +58,47 @@ export default function ResidentMemberManagementApp({ members, onSetBlocked, onU
   const [busyCode, setBusyCode] = useState('')
   const [feedback, setFeedback] = useState('')
   const [error, setError] = useState('')
+  const [groupCheckProgress, setGroupCheckProgress] = useState<{ done: number; total: number } | null>(null)
 
   useEffect(() => { setVisibleMembers(members) }, [members])
 
-  const refreshGroupStatus = async (member: ResidentMember) => {
+  const activeMembers = visibleMembers.filter((member) => !member.blocked)
+
+  const refreshAllGroupStatuses = async () => {
     if (busyCode || !onRefreshGroupStatuses) return
-    setBusyCode(member.memberCode)
+    const codes = activeMembers.map((member) => member.memberCode)
+    if (codes.length === 0) return
+    setBusyCode(GROUP_CHECK_BUSY)
     setError('')
     setFeedback('')
+    let failed = 0
     try {
-      const [status] = await onRefreshGroupStatuses([member.memberCode])
-      if (!status || status.memberCode !== member.memberCode) throw new Error('群組查驗結果不完整')
-      setVisibleMembers((current) => current.map((item) => item.memberCode === member.memberCode
-        ? { ...item, groupStatus: status.groupStatus, groupCheckedAt: status.groupCheckedAt } : item))
-      setFeedback(`已更新${member.displayName}的群組狀態`)
-    } catch (lookupError) {
-      setError(lookupError instanceof Error ? lookupError.message : '群組查驗失敗')
+      for (let start = 0; start < codes.length; start += GROUP_CHECK_BATCH_SIZE) {
+        setGroupCheckProgress({ done: start, total: codes.length })
+        const batch = codes.slice(start, start + GROUP_CHECK_BATCH_SIZE)
+        try {
+          const statuses = new Map((await onRefreshGroupStatuses(batch)).map((status) => [status.memberCode, status]))
+          if (batch.some((code) => !statuses.has(code))) throw new Error('群組查驗結果不完整')
+          setVisibleMembers((current) => current.map((item) => {
+            const status = statuses.get(item.memberCode)
+            return status ? { ...item, groupStatus: status.groupStatus, groupCheckedAt: status.groupCheckedAt } : item
+          }))
+        } catch {
+          // The server keeps the previous result for a batch it could not confirm.
+          failed += batch.length
+        }
+      }
+      if (failed > 0) setError(`${failed} 位暫時無法確認，原本的結果未變更，請稍後再試`)
+      else setFeedback(`已更新 ${codes.length} 位住戶的群組狀態`)
     } finally {
+      setGroupCheckProgress(null)
       setBusyCode('')
     }
+  }
+
+  const groupCounts = {
+    in: activeMembers.filter((member) => member.groupStatus === 'in_group').length,
+    out: activeMembers.filter((member) => member.groupStatus === 'not_in_group').length,
   }
 
   const changeBlocked = async (member: ResidentMember, blocked: boolean) => {
@@ -156,8 +188,22 @@ export default function ResidentMemberManagementApp({ members, onSetBlocked, onU
           <p>核對LINE住戶身分、設定期別與戶號；不明身分可移除並封鎖。</p>
           <p>群組狀態僅供核對，不會自動停用既有住戶。</p>
         </div>
-        <span>{visibleMembers.filter((member) => !member.blocked).length} 位住戶</span>
+        <span>{activeMembers.length} 位住戶</span>
       </div>
+
+      {onRefreshGroupStatuses && (
+        <div className="resident-group-check">
+          <ul className="resident-group-summary" aria-label="正式群組狀態">
+            <li><span className="resident-group-dot" data-status="in_group" aria-hidden="true" />在群組內 <strong>{groupCounts.in}</strong></li>
+            <li><span className="resident-group-dot" data-status="not_in_group" aria-hidden="true" />不在群組 <strong>{groupCounts.out}</strong></li>
+            <li><span className="resident-group-dot" data-status="unchecked" aria-hidden="true" />尚未查驗 <strong>{activeMembers.length - groupCounts.in - groupCounts.out}</strong></li>
+          </ul>
+          <button type="button" className="resident-action resident-action-secondary" disabled={Boolean(busyCode) || activeMembers.length === 0}
+            aria-label="更新全部群組狀態" onClick={() => { void refreshAllGroupStatuses() }}>
+            <span aria-hidden="true">↻</span>{groupCheckProgress ? `查驗中…${groupCheckProgress.done}/${groupCheckProgress.total}` : '更新全部群組狀態'}
+          </button>
+        </div>
+      )}
 
       {feedback && <FeedbackMessage tone="success">{feedback}</FeedbackMessage>}
       {error && <FeedbackMessage tone="error">{error}</FeedbackMessage>}
@@ -165,26 +211,23 @@ export default function ResidentMemberManagementApp({ members, onSetBlocked, onU
 
       <div className="resident-member-list">
         {visibleMembers.map((member) => (
-          <article key={member.memberCode} className={member.blocked ? 'resident-member-card is-blocked' : 'resident-member-card'}>
+          <article key={member.memberCode} aria-labelledby={`resident-member-name-${member.memberCode}`} className={member.blocked ? 'resident-member-card is-blocked' : 'resident-member-card'}>
             <div className="resident-member-avatar"><Avatar member={member} /></div>
             <div className="resident-member-copy">
               <div>
-                <h3>{member.displayName}</h3>
+                <h3 id={`resident-member-name-${member.memberCode}`}>{member.displayName}</h3>
                 {member.blocked && <span>已封鎖</span>}
               </div>
               <p>{householdLabel(member)}</p>
               <small>加入時間 {formatZhTwTimestamp(member.joinedAt)}</small>
-              <p className="resident-member-group-status">LINE群組：<strong>{member.groupStatus === 'in_group' ? '在正式群組內'
-                : member.groupStatus === 'not_in_group' ? '不在正式群組內'
-                  : member.groupStatus === 'unknown' ? '無法確認' : '尚未查驗'}</strong></p>
-              {member.groupCheckedAt && <small>最後查驗 {formatZhTwTimestamp(member.groupCheckedAt)}</small>}
+              {onRefreshGroupStatuses && !member.blocked && (
+                <p className="resident-member-group-status">
+                  <span className="resident-group-dot" data-status={member.groupStatus ?? 'unchecked'} aria-hidden="true" />
+                  {groupStatusLabel(member.groupStatus)}
+                </p>
+              )}
             </div>
             <div className="resident-member-actions">
-              {onRefreshGroupStatuses && <button type="button" className="resident-action resident-action-secondary"
-                aria-label={`更新${member.displayName}的群組狀態`} disabled={Boolean(busyCode)}
-                onClick={() => { void refreshGroupStatus(member) }}>
-                <span aria-hidden="true">↻</span>{busyCode === member.memberCode ? '查驗中…' : '更新群組狀態'}
-              </button>}
               {!member.blocked && (member.householdKind === 'other' || (member.period !== null && member.unit)) && (
                 <button type="button" className="resident-action resident-action-secondary" aria-label={`調整住戶資料 ${member.displayName}`} disabled={Boolean(busyCode)} onClick={() => openHouseholdEditor(member)}>
                   <span aria-hidden="true">✎</span>調整期別／戶號

@@ -67,12 +67,14 @@
 .resident-member-actions > button,
 .resident-household-editor-actions > button { min-height: 44px; }
 .resident-household-editor-actions > button { min-width: 44px; }
-.resident-member-actions .resident-action { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0 0.9rem; border: 1px solid; border-radius: 0.6rem; background: #fff; font: inherit; font-size: 0.86rem; font-weight: 750; cursor: pointer; transition: background-color .16s ease, border-color .16s ease, transform .16s ease; }
+.resident-member-actions .resident-action,
+.resident-group-check .resident-action { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0 0.9rem; border: 1px solid; border-radius: 0.6rem; background: #fff; font: inherit; font-size: 0.86rem; font-weight: 750; cursor: pointer; transition: background-color .16s ease, border-color .16s ease, transform .16s ease; }
 .resident-action-secondary { border-color: #6b8175; color: #294f3b; }
 .resident-action-secondary:hover:not(:disabled) { border-color: #347a55; background: #edf7f1; transform: translateY(-1px); }
 .resident-action-danger { border-color: #cb7770; color: #a32828; }
 .resident-action-danger:hover:not(:disabled) { border-color: #a32828; background: #fff0ef; transform: translateY(-1px); }
-.resident-member-actions .resident-action:focus-visible { outline: 3px solid rgb(22 119 200 / 25%); outline-offset: 2px; }
+.resident-member-actions .resident-action:focus-visible,
+.resident-group-check .resident-action:focus-visible { outline: 3px solid rgb(22 119 200 / 25%); outline-offset: 2px; }
 .resident-member-actions .resident-action:disabled { opacity: .5; cursor: wait; transform: none; }
 
 .resident-household-editor {
@@ -156,4 +158,22 @@
   .resident-household-editor { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .resident-household-unit { grid-column: 1 / -1; }
   .resident-household-editor-actions > button { flex: 1; min-height: 44px; }
+}
+
+/* Production LINE group check: one button for every active resident, counts and a light per row. */
+.resident-group-check { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem 1rem; margin-bottom: 1rem; padding: 0.75rem 1rem; border: 1px solid var(--color-border); border-radius: var(--radius-surface); background: var(--color-surface); }
+.resident-group-summary { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; margin: 0; padding: 0; list-style: none; }
+.resident-group-summary li,
+.resident-member-copy .resident-member-group-status,
+.resident-member-group-status { display: inline-flex; align-items: center; gap: 0.4rem; }
+.resident-group-summary strong { font-variant-numeric: tabular-nums; font-weight: 600; }
+.resident-group-dot,
+.resident-member-copy .resident-group-dot { width: 10px; height: 10px; flex: none; padding: 0; border-radius: 50%; background: var(--color-control-off); }
+.resident-member-copy .resident-group-dot[data-status="in_group"],
+.resident-group-dot[data-status="in_group"] { background: var(--color-success); }
+.resident-member-copy .resident-group-dot[data-status="not_in_group"],
+.resident-group-dot[data-status="not_in_group"] { background: var(--color-danger); }
+
+@media (max-width: 640px) {
+  .resident-group-check .resident-action { flex: 1 1 100%; }
 }
