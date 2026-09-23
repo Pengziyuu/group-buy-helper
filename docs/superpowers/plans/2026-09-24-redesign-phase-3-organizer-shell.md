@@ -63,6 +63,11 @@
 8. **領取通知分區暫時沿用現有 `PickupNotificationPanel`**（按鈕＋對話框），第 4 階段改成頁面內步驟。
 9. **結單／重新開放改為先確認**（規格要求；原本在訂單面板按下即送出）。
 10. **團主端標籤：** 「待發布」改為「草稿」、「已結束」改為「已結單」（規格〈已確認的決策〉）；首頁不再有「工作概況」四格數字。
+11. **不做付款相關功能**（2026-09-24 團主決定，已寫入規格〈已確認的決策〉）：
+    - 首頁表格不放「未付款」欄。
+    - 本階段新增的測試不依賴付款操作。
+    - 訂單面板既有的付款標記與統計本階段不動，第 4 階段改寫訂單頁時移除。
+    - Excel 匯出保留，團主依匯出檔自行處理付款。
 
 ## Review Focus
 
@@ -1029,7 +1034,6 @@ git commit -m "feat: add the organizer top navigation and create-campaign dialog
   - `sortCampaigns(list)`
   - `filterCampaigns(list, filter)`
   - `countCampaigns(list): Record<'all' | 'open' | 'draft' | 'closed', number>`
-  - `unpaidOrderCount(c)`
   - `formationProgress(c): { value; max; text; statusText; formed }`
   - `copyResidentLink(path: string, copy?: (path: string) => Promise<void>): Promise<void>`
   - `<OrganizerHome campaigns autoCloseNotificationState? unboundResidentCount? now? onDelete? onCopyResidentLink?>`
@@ -1057,7 +1061,7 @@ git commit -m "feat: add the organizer top navigation and create-campaign dialog
 ```ts
 import { describe, expect, it } from 'vitest'
 import type { CampaignListItem } from '../../services/campaignManagementGateway'
-import { campaignPhase, countCampaigns, filterCampaigns, formationProgress, sortCampaigns, unpaidOrderCount } from './campaignListView'
+import { campaignPhase, countCampaigns, filterCampaigns, formationProgress, sortCampaigns } from './campaignListView'
 
 function campaign(overrides: Partial<CampaignListItem> & Pick<CampaignListItem, 'id'>): CampaignListItem {
   return {
@@ -1097,11 +1101,6 @@ describe('campaign list view', () => {
     expect(countCampaigns(list)).toEqual({ all: 4, open: 1, draft: 1, closed: 2 })
     expect(filterCampaigns(list, 'closed').map((item) => item.id)).toEqual(['c', 'a'])
     expect(filterCampaigns(list, 'all')).toHaveLength(4)
-  })
-
-  it('counts unpaid orders without going below zero', () => {
-    expect(unpaidOrderCount(campaign({ id: 'x', orderCount: 6, paidOrderCount: 4 }))).toBe(2)
-    expect(unpaidOrderCount(campaign({ id: 'y', orderCount: 1, paidOrderCount: 3 }))).toBe(0)
   })
 
   it('describes quantity and amount formation progress', () => {
@@ -1191,7 +1190,7 @@ describe('OrganizerHome', () => {
     expect(screen.getByRole('link', { name: '冰餅團' })).toBeInTheDocument()
   })
 
-  it('shows status, progress, orders, unpaid count, closing time and time for each phase', () => {
+  it('shows status, progress, orders, closing time and time for each phase without payment columns', () => {
     renderHome()
 
     const openRow = rowOf('冰餅團')
@@ -1201,7 +1200,6 @@ describe('OrganizerHome', () => {
     expect(within(openRow).getByText('18／30 盒')).toBeInTheDocument()
     expect(within(openRow).getByText('還差 12 盒成團')).toBeInTheDocument()
     expect(within(openRow).getByText('6')).toBeInTheDocument()
-    expect(within(openRow).getAllByText('—')).toHaveLength(1)
     expect(within(openRow).getByText('今天 12:00')).toHaveClass('organizer-soon')
     expect(within(openRow).getByText('2026/08/12 10:00')).toBeInTheDocument()
 
@@ -1216,7 +1214,8 @@ describe('OrganizerHome', () => {
 
     const closedRow = rowOf('已結單水果團')
     expect(within(closedRow).getByText('已結單')).toBeInTheDocument()
-    expect(within(closedRow).getByText('3')).toBeInTheDocument()
+    expect(within(closedRow).getByText('5')).toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: '未付款' })).not.toBeInTheDocument()
     expect(within(closedRow).queryByText(/12:00/)).not.toBeInTheDocument()
   })
 
@@ -1397,10 +1396,6 @@ export function countCampaigns(campaigns: CampaignListItem[]): Record<CampaignFi
   return counts
 }
 
-export function unpaidOrderCount(campaign: Pick<CampaignListItem, 'orderCount' | 'paidOrderCount'>): number {
-  return Math.max(0, campaign.orderCount - campaign.paidOrderCount)
-}
-
 export type FormationProgress = { value: number; max: number; text: string; statusText: string; formed: boolean }
 
 export function formationProgress(campaign: CampaignListItem): FormationProgress {
@@ -1462,7 +1457,7 @@ import { ProgressBar } from '../ui/ProgressBar'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import { StatusBadge } from '../ui/StatusBadge'
 import {
-  campaignPhase, countCampaigns, filterCampaigns, formationProgress, sortCampaigns, unpaidOrderCount,
+  campaignPhase, countCampaigns, filterCampaigns, formationProgress, sortCampaigns,
   type CampaignFilter, type CampaignPhase,
 } from './campaignListView'
 import { copyResidentLink } from './copyResidentLink'
@@ -1599,7 +1594,6 @@ export function OrganizerHome({ campaigns, autoCloseNotificationState, unboundRe
                 <th scope="col">狀態</th>
                 <th scope="col">成團進度</th>
                 <th scope="col">訂單</th>
-                <th scope="col">未付款</th>
                 <th scope="col">結單</th>
                 <th scope="col">時間</th>
                 <th scope="col"><span className="ui-visually-hidden">操作</span></th>
@@ -1638,7 +1632,6 @@ export function OrganizerHome({ campaigns, autoCloseNotificationState, unboundRe
                       )}
                     </td>
                     <td data-label="訂單" className="ui-num">{phase === 'draft' ? '—' : campaign.orderCount}</td>
-                    <td data-label="未付款" className="ui-num">{phase === 'closed' ? unpaidOrderCount(campaign) : '—'}</td>
                     <td data-label="結單">
                       {phase === 'closed' ? '—' : closing
                         ? <span className={closing.soon ? 'organizer-soon' : undefined}>{closing.when}</span>
@@ -3307,9 +3300,6 @@ git commit -m "feat: add the campaign workspace rail and pickup section"
 
        await waitFor(() => expect(window.location.pathname).toBe(`/admin/campaign/${campaignId}/orders`))
        expect(screen.getByRole('heading', { name: '訂單統計' })).toBeInTheDocument()
-       await user.click(screen.getByRole('button', { name: '標記 H11 已付款' }))
-       await user.click(screen.getByRole('button', { name: '確認標記已付款' }))
-       expect(await screen.findByRole('button', { name: '標記 H11 未付款' })).toBeInTheDocument()
 
        await user.click(screen.getByRole('link', { name: '內容設定' }))
        expect(window.location.pathname).toBe(`/admin/campaign/${campaignId}/content`)
@@ -3935,7 +3925,7 @@ Expected: 21 行都是 `ok`。
   - 640px 以下導覽換到第二列，不擠壓。
 - **首頁：**
   - 標題「團購」與分段切換「全部｜開團中｜草稿｜已結單」。
-  - 表格欄位：縮圖＋名稱、狀態、成團進度、訂單、未付款、結單、時間、操作。
+  - 表格欄位：縮圖＋名稱、狀態、成團進度、訂單、結單、時間、操作（沒有「未付款」）。
   - 1440 是一張表；375 每團是一張小卡，欄名在左、值在右。
 - **住戶：** 標題「住戶 N 位」、搜尋、篩選、群組查驗區塊（Demo 沒有查驗功能，不會出現）、住戶卡片與「調整戶號」「⋯」。
 - **設定：** 自動結單通知、通知測試中心、（Demo 無登出）。
