@@ -145,7 +145,11 @@ python scripts/verify_admin_as_resident.py
 4. 兩個 LIFF app 都只啟用 `profile` 與 `openid` scope，Add friend option 關閉。
 5. 團主 LIFF ID 放入 `VITE_LIFF_ID`，住戶 LIFF ID 放入 `VITE_RESIDENT_LIFF_ID`，LINE Login Channel ID 放入Edge Function secret `LINE_CHANNEL_ID`。
 6. 團主與住戶都只把 ID token 交給後端向 LINE 官方驗證；前端 `profile.userId`、名稱與頭貼不作為授權或可信資料來源。
-7. 住戶固定使用短版入口 `https://liff.line.me/<住戶LIFF-ID>`。任何持有效LINE帳號者都可加入；LINE LIFF無法證明使用者目前是否在指定聊天群組。
+7. 住戶固定使用短版入口 `https://liff.line.me/<住戶LIFF-ID>`。**僅首次入會的新成員**須由後端以官方驗證的LINE帳號，查驗其是否在已綁定的正式團購群組；LIFF登入本身不是群組資格證明，測試群組也不算。
+   - 不在正式群組時不建立入會資格，提示先加入群組，並可按「已加入，重新確認」重試。
+   - LINE查驗失敗、尚未綁定正式群組或機器人已離群時暫不放行，顯示無法確認，不誤判為住戶未加入。
+   - 既有入會紀錄的住戶不受此新限制；之後退群也不因此停權，原本團主手動封鎖仍有效。
+   - 團主可在「住戶與戶號」逐位更新群組狀態，查看查驗時間；此狀態僅供核對，不會自動停用既有住戶。
    - 團主後台以LINE官方驗證名稱、頭貼、期別／戶號及加入時間顯示住戶名單。
    - 團主可移除並封鎖陌生住戶；封鎖會立即撤銷community membership，阻止再次加入。解除封鎖後恢復membership。
 8. 新團主第一次以 LIFF 登入時只會取得隨機申請代碼，不會立即取得後台權限。使用可信環境執行：

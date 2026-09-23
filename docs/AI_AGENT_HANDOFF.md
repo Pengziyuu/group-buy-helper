@@ -76,6 +76,8 @@ python scripts/start_local_live_demo.py
 - `supabase/functions/send-pickup-notification/`：正式領取通知預覽／指令。
 - `supabase/functions/send-test-pickup-notification/`：測試中心專用入口。
 - `supabase/functions/send-auto-close-organizer-notifications/`：pg_cron呼叫的一對一LINE Push worker。
+- `supabase/migrations/20260923010000_resident_production_group_admission.sql`：首次入會資格紀錄、正式群組綁定版次、查驗狀態與最小權限RPC；`scripts/verify_resident_group_admission.sql`提供本機回滾驗證。
+- `supabase/functions/check-resident-group-membership/`：已核准團主依住戶代碼查驗正式群組，並讀回安全狀態；部署時須與新版住戶登入函式、migration及前端一併發佈。
 - `supabase/seed.sql`：非敏感本機示範資料。
 
 ### 專題文件
@@ -122,7 +124,9 @@ python scripts/start_local_live_demo.py
 - 團主後台可看完整住戶資料，但Browser只使用隨機`memberCode`操作，不取得LINE subject、Auth UID或community UUID。
 - 同一期別＋戶號可有多個LINE帳號，各自獨立下單。
 - `household_kind = other`不要求期別／戶號，也不納入LINE領取通知。
-- 公開LINE入會模式是已接受的產品風險：任何有效LINE帳號可從固定LIFF入口加入，由團主依可信名稱／頭貼辨識及封鎖陌生人。
+- 入會規則：僅首次加入的新成員須由可信後端查驗其LINE帳號在已綁定的正式群組；測試群組不算。新成員不在群組時阻擋並提供「已加入，重新確認」；查驗異常時暫不放行但不得誤標為未加入。
+- 以後端入會紀錄判斷新舊成員，不以裝置、重新登入、Auth／LINE identity存在或是否曾下單判斷。既有入會住戶之後退群仍可使用，原手動封鎖持續有效。
+- 團主住戶名單的群組狀態與最後查驗時間僅供核對，不自動撤銷既有資格。查詢404前須排除機器人不在群組；查驗失敗不覆蓋舊結果且要提示重試，並行查驗不能讓較舊結果覆蓋較新結果；重新綁定群組後舊查驗結果不可當成目前狀態。
 
 ### 訂單與付款
 
