@@ -1,9 +1,13 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import { ConfirmDialog } from './ConfirmDialog'
 import { Menu } from './Menu'
 
 describe('Menu', () => {
+  const rect = (box: { top: number; bottom: number; left: number; right: number }) => ({
+    ...box, x: box.left, y: box.top, width: box.right - box.left, height: box.bottom - box.top, toJSON: () => box,
+  }) as DOMRect
   it('opens a keyboard-navigable overflow menu and returns focus on Escape', async () => {
     const user = userEvent.setup()
     render(
@@ -98,5 +102,70 @@ describe('Menu', () => {
 
     await user.click(screen.getByRole('button', { name: '更多操作 冰餅團' }))
     expect(screen.getByRole('menuitem', { name: '刪除 冰餅團' })).toHaveTextContent('刪除團購')
+  })
+
+  it('places the popup in the viewport so a scrolling table cannot clip it', async () => {
+    const user = userEvent.setup()
+    render(<Menu label="更多操作" items={[{ label: '刪除', onSelect: vi.fn() }]} />)
+    const trigger = screen.getByRole('button', { name: '更多操作' })
+    vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue(rect({ top: 100, bottom: 132, left: 268, right: 300 }))
+
+    await user.click(trigger)
+
+    const popup = screen.getByRole('menu', { name: '更多操作' })
+    expect(popup.style.top).toBe('136px')
+    expect(popup.style.right).toBe(`${window.innerWidth - 300}px`)
+  })
+
+  it('opens upwards when there is no room below the trigger', async () => {
+    const user = userEvent.setup()
+    const offsetHeight = vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.getAttribute('role') === 'menu' ? 120 : 0
+    })
+    try {
+      render(<Menu label="更多操作" items={[{ label: '刪除', onSelect: vi.fn() }]} />)
+      const trigger = screen.getByRole('button', { name: '更多操作' })
+      const top = window.innerHeight - 40
+      vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue(rect({ top, bottom: top + 32, left: 268, right: 300 }))
+
+      await user.click(trigger)
+
+      expect(screen.getByRole('menu', { name: '更多操作' }).style.top).toBe(`${top - 4 - 120}px`)
+    } finally {
+      offsetHeight.mockRestore()
+    }
+  })
+
+  it('returns focus to the trigger after choosing a link item', async () => {
+    const user = userEvent.setup()
+    render(<Menu label="更多操作" items={[{ label: '查看說明', href: '#help' }]} />)
+    const trigger = screen.getByRole('button', { name: '更多操作' })
+
+    await user.click(trigger)
+    await user.click(screen.getByRole('menuitem', { name: '查看說明' }))
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(trigger).toHaveFocus()
+  })
+
+  it('closes only itself when Escape is pressed inside a dialog', async () => {
+    const user = userEvent.setup()
+    const onCancel = vi.fn()
+    render(
+      <ConfirmDialog title="確認" confirmLabel="確定" onConfirm={vi.fn()} onCancel={onCancel}>
+        <Menu label="更多操作" items={[{ label: '刪除', onSelect: vi.fn() }]} />
+      </ConfirmDialog>,
+    )
+    const trigger = screen.getByRole('button', { name: '更多操作' })
+
+    await user.click(trigger)
+    await user.keyboard('{Escape}')
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(trigger).toHaveFocus()
+    expect(onCancel).not.toHaveBeenCalled()
+
+    await user.keyboard('{Escape}')
+    expect(onCancel).toHaveBeenCalledOnce()
   })
 })

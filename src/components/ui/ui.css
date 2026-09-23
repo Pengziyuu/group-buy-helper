@@ -127,7 +127,7 @@
 .ui-menu[data-size="sm"] .ui-menu-trigger { width: 32px; height: 32px; }
 .ui-menu[data-size="sm"] .ui-menu-trigger::after { content: ""; position: absolute; inset: -6px; }
 .ui-menu-trigger[aria-expanded="true"] { background: var(--color-fill-hover); }
-.ui-menu-popup { position: absolute; top: calc(100% + 4px); right: 0; z-index: var(--z-menu); display: grid; min-width: 200px; padding: var(--space-1); border: 1px solid var(--color-border-strong); border-radius: var(--radius-popover); background: var(--color-surface-raised); }
+.ui-menu-popup { position: fixed; top: 0; right: 0; z-index: var(--z-menu); display: grid; min-width: 200px; padding: var(--space-1); border: 1px solid var(--color-border-strong); border-radius: var(--radius-popover); background: var(--color-surface-raised); }
 .ui-menu-popup :where(a, button) { display: flex; align-items: center; gap: var(--space-2); min-height: var(--touch-target); padding: 0 var(--space-3); border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--color-text); font-size: var(--font-size-dense); text-align: left; text-decoration: none; cursor: pointer; }
 .ui-menu-popup :where(a, button):focus-visible { background: var(--color-fill-hover); }
 .ui-menu-popup [data-tone="danger"] { color: var(--color-danger); }

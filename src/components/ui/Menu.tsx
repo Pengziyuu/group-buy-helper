@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 
 export type MenuItem = {
   label: string
@@ -19,15 +19,43 @@ type MenuProps = {
   className?: string
 }
 
+const POPUP_GAP = 4
+const VIEWPORT_MARGIN = 8
+
 export function Menu({ label, items, triggerContent = '⋯', size = 'md', className = '' }: MenuProps) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
+  const popupRef = useRef<HTMLDivElement>(null)
   const menuId = useId()
 
   const menuItems = () => [
     ...(rootRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []),
   ]
+
+  useLayoutEffect(() => {
+    if (!open) return
+    // A fixed popup cannot be clipped by a scrolling ancestor such as a wide table.
+    const place = () => {
+      const trigger = triggerRef.current
+      const popup = popupRef.current
+      if (!trigger || !popup) return
+      const anchor = trigger.getBoundingClientRect()
+      const height = popup.offsetHeight
+      const below = anchor.bottom + POPUP_GAP
+      const above = anchor.top - POPUP_GAP - height
+      const top = below + height > window.innerHeight - VIEWPORT_MARGIN && above >= VIEWPORT_MARGIN ? above : below
+      popup.style.top = `${top}px`
+      popup.style.right = `${Math.max(VIEWPORT_MARGIN, window.innerWidth - anchor.right)}px`
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -60,6 +88,8 @@ export function Menu({ label, items, triggerContent = '⋯', size = 'md', classN
       target.focus()
     } else if (event.key === 'Escape') {
       event.preventDefault()
+      // Keep an enclosing dialog open: its Escape listener sits on the document.
+      event.stopPropagation()
       close(true)
     } else if (event.key === 'Tab') {
       close(false)
@@ -88,7 +118,7 @@ export function Menu({ label, items, triggerContent = '⋯', size = 'md', classN
         <span aria-hidden="true">{triggerContent}</span>
       </button>
       {open && (
-        <div id={menuId} role="menu" aria-label={label} className="ui-menu-popup" onKeyDown={moveFocus}>
+        <div ref={popupRef} id={menuId} role="menu" aria-label={label} className="ui-menu-popup" onKeyDown={moveFocus}>
           {items.map((item) => item.href && !item.disabled ? (
             <a
               key={item.label}
@@ -99,7 +129,7 @@ export function Menu({ label, items, triggerContent = '⋯', size = 'md', classN
               tabIndex={-1}
               aria-label={item.ariaLabel}
               data-tone={item.tone}
-              onClick={() => close(false)}
+              onClick={() => close(true)}
             >
               {item.icon}
               <span>{item.label}</span>
