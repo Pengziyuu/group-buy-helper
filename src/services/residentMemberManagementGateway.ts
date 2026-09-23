@@ -2,7 +2,16 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database'
 import { parseHouseholdUnit, type HouseholdKind } from '../domain/household'
 
+export type ResidentGroupStatus = 'in_group' | 'not_in_group' | 'unknown' | 'unchecked'
+export type ResidentGroupStatusUpdate = {
+  memberCode: string
+  groupStatus: ResidentGroupStatus
+  groupCheckedAt: string | null
+}
+
 export type ResidentMember = {
+  groupStatus?: ResidentGroupStatus
+  groupCheckedAt?: string | null
   memberCode: string
   displayName: string
   pictureUrl: string | null
@@ -63,12 +72,99 @@ function toResidentMember(value: unknown): ResidentMember {
   }
 }
 
+const groupStatusMessages = {
+  INVALID_RESPONSE: '群組狀態回應格式錯誤，請重新整理後再試',
+  INVALID_SELECTION: '請選擇有效的住戶重新查驗',
+  REFRESH_FAILED: '群組查驗失敗，請稍後重試',
+  AUTH_REQUIRED: '團主登入已失效，請重新登入',
+  NETWORK: '網路連線失敗，請稍後重試',
+  RATE_LIMITED: '查驗次數過多，請稍後重試',
+} as const
+
+export class ResidentGroupStatusError extends Error {
+  readonly code: keyof typeof groupStatusMessages
+  constructor(code: keyof typeof groupStatusMessages) {
+    super(groupStatusMessages[code])
+    this.name = 'ResidentGroupStatusError'
+    this.code = code
+  }
+}
+
+function parseGroupStatuses(value: unknown, allowedCodes: Set<string>): ResidentGroupStatusUpdate[] {
+  if (!Array.isArray(value)) throw new ResidentGroupStatusError('INVALID_RESPONSE')
+  const seen = new Set<string>()
+  return value.map((row: unknown) => {
+    if (!row || typeof row !== 'object' || Array.isArray(row)) throw new ResidentGroupStatusError('INVALID_RESPONSE')
+    const { member_code: memberCode, group_status: groupStatus, group_checked_at: groupCheckedAt } = row as Record<string, unknown>
+    const validTimestamp = typeof groupCheckedAt === 'string'
+      && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(groupCheckedAt)
+      && Number.isFinite(Date.parse(groupCheckedAt))
+    if (typeof memberCode !== 'string' || !allowedCodes.has(memberCode) || seen.has(memberCode)
+      || !['in_group', 'not_in_group', 'unknown', 'unchecked'].includes(String(groupStatus))
+      || (groupStatus === 'unchecked' ? groupCheckedAt !== null : !validTimestamp)) {
+      throw new ResidentGroupStatusError('INVALID_RESPONSE')
+    }
+    seen.add(memberCode)
+    return { memberCode, groupStatus: groupStatus as ResidentGroupStatus, groupCheckedAt: groupCheckedAt as string | null }
+  })
+}
+
 export function createResidentMemberManagementGateway(client: SupabaseClient<Database>) {
   return {
     async list(): Promise<ResidentMember[]> {
-      const { data, error } = await client.rpc('admin_list_residents')
-      if (error) throw new Error(`讀取住戶名單失敗：${errorMessage(error)}`)
-      return (data ?? []).map(toResidentMember)
+      const [{ data, error }, statuses] = await Promise.all([
+        client.rpc('admin_list_residents'),
+        // Temporary narrow bridge until the generated RPC types are updated.
+        (client.rpc as unknown as (name: 'admin_list_resident_group_statuses') => PromiseLike<{ data: unknown; error: unknown }>)('admin_list_resident_group_statuses'),
+      ])
+      if (error || statuses.error) throw new Error('讀取住戶名單失敗，請稍後重試')
+      const members = (data ?? []).map(toResidentMember)
+      const groupStatuses = new Map(parseGroupStatuses(statuses.data, new Set(members.map((member) => member.memberCode)))
+        .map((status) => [status.memberCode, status]))
+      return members.map((member) => ({
+        ...member,
+        groupStatus: groupStatuses.get(member.memberCode)?.groupStatus ?? 'unchecked',
+        groupCheckedAt: groupStatuses.get(member.memberCode)?.groupCheckedAt ?? null,
+      }))
+    },
+
+    async refreshGroupStatuses(memberCodes: string[]): Promise<ResidentGroupStatusUpdate[]> {
+      if (memberCodes.length < 1 || memberCodes.length > 20 || new Set(memberCodes).size !== memberCodes.length
+        || memberCodes.some((code) => !/^[0-9a-f]{36}$/.test(code))) {
+        throw new ResidentGroupStatusError('INVALID_SELECTION')
+      }
+      let response: { data: unknown; error: unknown }
+      try {
+        response = await client.functions.invoke('check-resident-group-membership', { body: { memberCodes } })
+      } catch {
+        throw new ResidentGroupStatusError('NETWORK')
+      }
+      if (response.error) {
+        const status = (response.error as { status?: number }).status
+          ?? (response.error as { context?: { status?: number } }).context?.status
+        throw new ResidentGroupStatusError(status === 401 ? 'AUTH_REQUIRED'
+          : status === 429 ? 'RATE_LIMITED'
+            : response.error instanceof TypeError ? 'NETWORK' : 'REFRESH_FAILED')
+      }
+      if (!response.data || typeof response.data !== 'object' || !('members' in response.data)) {
+        throw new ResidentGroupStatusError('INVALID_RESPONSE')
+      }
+      const rows = (response.data as { members: unknown }).members
+      if (!Array.isArray(rows) || rows.length !== memberCodes.length) throw new ResidentGroupStatusError('INVALID_RESPONSE')
+      const seen = new Set<string>()
+      return rows.map((value: unknown) => {
+        if (!value || typeof value !== 'object') throw new ResidentGroupStatusError('INVALID_RESPONSE')
+        const row = value as Record<string, unknown>
+        const code = row.memberCode
+        const checkedAt = row.groupCheckedAt
+        if (typeof code !== 'string' || !memberCodes.includes(code) || seen.has(code)
+          || !['in_group', 'not_in_group', 'unknown'].includes(String(row.groupStatus))
+          || typeof checkedAt !== 'string' || !Number.isFinite(Date.parse(checkedAt))) {
+          throw new ResidentGroupStatusError('INVALID_RESPONSE')
+        }
+        seen.add(code)
+        return { memberCode: code, groupStatus: row.groupStatus as ResidentGroupStatus, groupCheckedAt: checkedAt }
+      })
     },
 
     async setBlocked(memberCode: string, blocked: boolean): Promise<void> {

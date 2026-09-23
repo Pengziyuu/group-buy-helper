@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { formatZhTwTimestamp } from './domain/timestamp'
-import type { ResidentMember } from './services/residentMemberManagementGateway'
+import type { ResidentMember, ResidentGroupStatusUpdate } from './services/residentMemberManagementGateway'
 import { ConfirmDialog } from './components/ui/ConfirmDialog'
 import { FeedbackMessage } from './components/ui/FeedbackMessage'
 import {
@@ -20,6 +20,7 @@ type Props = {
   members: ResidentMember[]
   onSetBlocked: (memberCode: string, blocked: boolean) => Promise<void>
   onUpdateHousehold: (memberCode: string, household: { kind: HouseholdKind; period: number | null; unit: string | null }) => Promise<void>
+  onRefreshGroupStatuses?: (memberCodes: string[]) => Promise<ResidentGroupStatusUpdate[]>
 }
 
 function householdLabel(member: ResidentMember): string {
@@ -35,7 +36,7 @@ function Avatar({ member }: { member: ResidentMember }) {
   return <span aria-hidden="true">{member.displayName.slice(0, 1)}</span>
 }
 
-export default function ResidentMemberManagementApp({ members, onSetBlocked, onUpdateHousehold }: Props) {
+export default function ResidentMemberManagementApp({ members, onSetBlocked, onUpdateHousehold, onRefreshGroupStatuses }: Props) {
   const [visibleMembers, setVisibleMembers] = useState(members)
   const [removeTarget, setRemoveTarget] = useState<ResidentMember | null>(null)
   const [editTargetCode, setEditTargetCode] = useState('')
@@ -49,6 +50,24 @@ export default function ResidentMemberManagementApp({ members, onSetBlocked, onU
   const [error, setError] = useState('')
 
   useEffect(() => { setVisibleMembers(members) }, [members])
+
+  const refreshGroupStatus = async (member: ResidentMember) => {
+    if (busyCode || !onRefreshGroupStatuses) return
+    setBusyCode(member.memberCode)
+    setError('')
+    setFeedback('')
+    try {
+      const [status] = await onRefreshGroupStatuses([member.memberCode])
+      if (!status || status.memberCode !== member.memberCode) throw new Error('群組查驗結果不完整')
+      setVisibleMembers((current) => current.map((item) => item.memberCode === member.memberCode
+        ? { ...item, groupStatus: status.groupStatus, groupCheckedAt: status.groupCheckedAt } : item))
+      setFeedback(`已更新${member.displayName}的群組狀態`)
+    } catch (lookupError) {
+      setError(lookupError instanceof Error ? lookupError.message : '群組查驗失敗')
+    } finally {
+      setBusyCode('')
+    }
+  }
 
   const changeBlocked = async (member: ResidentMember, blocked: boolean) => {
     if (busyCode) return
@@ -135,6 +154,7 @@ export default function ResidentMemberManagementApp({ members, onSetBlocked, onU
           <p className="admin-eyebrow">住戶與戶號</p>
           <h2 id="resident-member-heading">住戶名單</h2>
           <p>核對LINE住戶身分、設定期別與戶號；不明身分可移除並封鎖。</p>
+          <p>群組狀態僅供核對，不會自動停用既有住戶。</p>
         </div>
         <span>{visibleMembers.filter((member) => !member.blocked).length} 位住戶</span>
       </div>
@@ -154,8 +174,17 @@ export default function ResidentMemberManagementApp({ members, onSetBlocked, onU
               </div>
               <p>{householdLabel(member)}</p>
               <small>加入時間 {formatZhTwTimestamp(member.joinedAt)}</small>
+              <p className="resident-member-group-status">LINE群組：<strong>{member.groupStatus === 'in_group' ? '在正式群組內'
+                : member.groupStatus === 'not_in_group' ? '不在正式群組內'
+                  : member.groupStatus === 'unknown' ? '無法確認' : '尚未查驗'}</strong></p>
+              {member.groupCheckedAt && <small>最後查驗 {formatZhTwTimestamp(member.groupCheckedAt)}</small>}
             </div>
             <div className="resident-member-actions">
+              {onRefreshGroupStatuses && <button type="button" className="resident-action resident-action-secondary"
+                aria-label={`更新${member.displayName}的群組狀態`} disabled={Boolean(busyCode)}
+                onClick={() => { void refreshGroupStatus(member) }}>
+                <span aria-hidden="true">↻</span>{busyCode === member.memberCode ? '查驗中…' : '更新群組狀態'}
+              </button>}
               {!member.blocked && (member.householdKind === 'other' || (member.period !== null && member.unit)) && (
                 <button type="button" className="resident-action resident-action-secondary" aria-label={`調整住戶資料 ${member.displayName}`} disabled={Boolean(busyCode)} onClick={() => openHouseholdEditor(member)}>
                   <span aria-hidden="true">✎</span>調整期別／戶號

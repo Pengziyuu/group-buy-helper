@@ -5,7 +5,7 @@ import { formatArrivalLabel, formatAutoCloseReminder } from './domain/campaignSc
 import type { CampaignListItem } from './services/campaignManagementGateway'
 import type { HouseholdKind } from './domain/household'
 import ResidentMemberManagementApp from './ResidentMemberManagementApp'
-import type { ResidentMember } from './services/residentMemberManagementGateway'
+import type { ResidentMember, ResidentGroupStatusUpdate } from './services/residentMemberManagementGateway'
 import { ConfirmDialog } from './components/ui/ConfirmDialog'
 import { FeedbackMessage } from './components/ui/FeedbackMessage'
 import { ProgressBar } from './components/ui/ProgressBar'
@@ -23,6 +23,7 @@ type CampaignListAppProps = {
   residentMembers?: ResidentMember[]
   onSetResidentBlocked?: (memberCode: string, blocked: boolean) => Promise<void>
   onUpdateResidentHousehold?: (memberCode: string, household: { kind: HouseholdKind; period: number | null; unit: string | null }) => Promise<void>
+  onRefreshResidentGroupStatuses?: (memberCodes: string[]) => Promise<ResidentGroupStatusUpdate[]>
   autoCloseNotificationState?: AutoCloseNotificationSettingState
   onSelectCurrentUserForAutoCloseNotification?: () => Promise<void>
 }
@@ -88,7 +89,7 @@ function CampaignFormationProgress({ campaign }: { campaign: CampaignListItem })
   )
 }
 
-export default function CampaignListApp({ campaigns, onCreate, onDelete, onNavigate, onSignOut, onCopyResidentLink, residentMembers, onSetResidentBlocked, onUpdateResidentHousehold, autoCloseNotificationState, onSelectCurrentUserForAutoCloseNotification }: CampaignListAppProps) {
+export default function CampaignListApp({ campaigns, onCreate, onDelete, onNavigate, onSignOut, onCopyResidentLink, residentMembers, onSetResidentBlocked, onUpdateResidentHousehold, onRefreshResidentGroupStatuses, autoCloseNotificationState, onSelectCurrentUserForAutoCloseNotification }: CampaignListAppProps) {
   const [visibleCampaigns, setVisibleCampaigns] = useState(campaigns)
   const [creating, setCreating] = useState(false)
   const [title, setTitle] = useState('未命名團購')
@@ -362,7 +363,7 @@ export default function CampaignListApp({ campaigns, onCreate, onDelete, onNavig
       </section>
       </>}
       {activeSection === 'residents' && residentMembers && onSetResidentBlocked && onUpdateResidentHousehold && (
-        <ResidentMemberManagementApp members={residentMembers} onSetBlocked={onSetResidentBlocked} onUpdateHousehold={onUpdateResidentHousehold} />
+        <ResidentMemberManagementApp members={residentMembers} onSetBlocked={onSetResidentBlocked} onUpdateHousehold={onUpdateResidentHousehold} onRefreshGroupStatuses={onRefreshResidentGroupStatuses} />
       )}
     </main>
   )

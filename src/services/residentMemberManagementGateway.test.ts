@@ -2,9 +2,76 @@ import { describe, expect, it, vi } from 'vitest'
 import { createResidentMemberManagementGateway } from './residentMemberManagementGateway'
 
 describe('createResidentMemberManagementGateway', () => {
+  it.each([[], ['invalid'], Array(21).fill('a'.repeat(36)), ['a'.repeat(36), 'a'.repeat(36)]].map((codes) => [codes]))('rejects invalid selections before sending %j', async (codes) => {
+    const invoke = vi.fn().mockResolvedValue({ data: { members: [] }, error: null })
+    await expect(createResidentMemberManagementGateway({ functions: { invoke } } as never).refreshGroupStatuses(codes))
+      .rejects.toMatchObject({ code: 'INVALID_SELECTION' })
+    expect(invoke).not.toHaveBeenCalled()
+  })
+
+  it.each([null, {}, { members: [] }, { members: [null] },
+    { members: [{ memberCode: 'b'.repeat(36), groupStatus: 'in_group', groupCheckedAt: '2026-09-23T00:00:00Z' }] },
+    { members: [{ memberCode: 'a'.repeat(36), groupStatus: 'unchecked', groupCheckedAt: null }] },
+    { members: [{ memberCode: 'a'.repeat(36), groupStatus: 'unknown', groupCheckedAt: 'invalid' }] },
+    { members: Array(2).fill({ memberCode: 'a'.repeat(36), groupStatus: 'in_group', groupCheckedAt: '2026-09-23T00:00:00Z' }) },
+  ])('rejects incomplete or malformed refresh responses %j', async (data) => {
+    const invoke = vi.fn().mockResolvedValue({ data, error: null })
+    await expect(createResidentMemberManagementGateway({ functions: { invoke } } as never).refreshGroupStatuses(['a'.repeat(36)]))
+      .rejects.toMatchObject({ code: 'INVALID_RESPONSE' })
+  })
+
+  it.each([
+    [{ message: 'SQL secret', details: 'private' }, 'REFRESH_FAILED'],
+    [{ status: 401, message: 'secret' }, 'AUTH_REQUIRED'],
+    [new TypeError('secret network diagnostics'), 'NETWORK'],
+    [{ status: 429, message: 'secret' }, 'RATE_LIMITED'],
+  ])('maps provider errors safely %j', async (error, code) => {
+    const invoke = vi.fn().mockResolvedValue({ data: null, error })
+    const result = createResidentMemberManagementGateway({ functions: { invoke } } as never).refreshGroupStatuses(['a'.repeat(36)])
+    await expect(result).rejects.toMatchObject({ code })
+    await expect(result).rejects.not.toThrow(/secret|private|SQL/)
+  })
+
+  it('refreshes only selected opaque codes without allowing a client-selected group', async () => {
+    const status = { memberCode: 'a'.repeat(36), groupStatus: 'unknown', groupCheckedAt: '2026-09-23T01:00:00Z' }
+    const invoke = vi.fn().mockResolvedValue({ data: { members: [{ ...status, lineUserId: 'secret', blocked: true }] }, error: null })
+    const gateway = createResidentMemberManagementGateway({ functions: { invoke } } as never)
+    await expect(gateway.refreshGroupStatuses([status.memberCode])).resolves.toEqual([status])
+    expect(invoke).toHaveBeenCalledWith('check-resident-group-membership', { body: { memberCodes: [status.memberCode] } })
+  })
+
+  it.each([
+    null,
+    [{ member_code: 'a'.repeat(36), group_status: 'unexpected', group_checked_at: null }],
+    [{ member_code: 'a'.repeat(36), group_status: 'in_group', group_checked_at: 'not-a-date' }],
+    [{ member_code: 'a'.repeat(36), group_status: 'in_group', group_checked_at: null }],
+    [{ member_code: 'b'.repeat(36), group_status: 'unchecked', group_checked_at: null }],
+    [null],
+    Array(2).fill({ member_code: 'a'.repeat(36), group_status: 'unchecked', group_checked_at: null }),
+  ].map((statuses) => [statuses]))('rejects malformed, duplicate or unrelated group-status rows: %j', async (statuses) => {
+    const rpc = vi.fn(async (name: string) => ({ data: name === 'admin_list_residents' ? [{
+      member_code: 'a'.repeat(36), display_name: '甲', picture_url: null, period: null, unit: null,
+      household_kind: null, joined_at: '2026-08-14T00:00:00Z', blocked: false, blocked_at: null,
+    }] : statuses, error: null }))
+    await expect(createResidentMemberManagementGateway({ rpc } as never).list()).rejects.toThrow('群組狀態回應格式錯誤，請重新整理後再試')
+  })
+
+  it('merges a separately authorized safe group status by member code', async () => {
+    const memberCode = 'a'.repeat(36)
+    const rpc = vi.fn(async (name: string) => ({ data: name === 'admin_list_residents' ? [{
+      member_code: memberCode, display_name: '住戶甲', picture_url: null,
+      period: null, unit: null, household_kind: null,
+      joined_at: '2026-08-14T00:00:00Z', blocked: false, blocked_at: null,
+    }] : [{ member_code: memberCode, group_status: 'not_in_group', group_checked_at: '2026-09-23T01:00:00Z', line_user_id: 'secret' }], error: null }))
+    const result = await createResidentMemberManagementGateway({ rpc } as never).list()
+    expect(rpc).toHaveBeenCalledWith('admin_list_resident_group_statuses')
+    expect(result[0]).toMatchObject({ memberCode, groupStatus: 'not_in_group', groupCheckedAt: '2026-09-23T01:00:00Z', blocked: false })
+    expect(JSON.stringify(result)).not.toContain('secret')
+  })
+
   it('loads only safe resident management fields', async () => {
-    const rpc = vi.fn().mockResolvedValue({
-      data: [{
+    const rpc = vi.fn().mockResolvedValue({ data: [], error: null }).mockResolvedValueOnce({
+          data: [{
         member_code: 'abcdef0123456789abcdef0123456789abcd',
         display_name: '住戶甲',
         picture_url: 'https://example.com/avatar.jpg',
@@ -29,13 +96,15 @@ describe('createResidentMemberManagementGateway', () => {
       joinedAt: '2026-08-14T00:00:00Z',
       blocked: false,
       blockedAt: null,
+      groupStatus: 'unchecked',
+      groupCheckedAt: null,
     }])
     expect(rpc).toHaveBeenCalledWith('admin_list_residents')
   })
 
   it('carries the household kind for someone outside the community', async () => {
-    const rpc = vi.fn().mockResolvedValue({
-      data: [{
+    const rpc = vi.fn().mockResolvedValue({ data: [], error: null }).mockResolvedValueOnce({
+          data: [{
         member_code: 'abcdef0123456789abcdef0123456789abcd',
         display_name: '住戶丙',
         picture_url: null,
@@ -60,6 +129,8 @@ describe('createResidentMemberManagementGateway', () => {
       joinedAt: '2026-08-14T00:00:00Z',
       blocked: false,
       blockedAt: null,
+      groupStatus: 'unchecked',
+      groupCheckedAt: null,
     }])
   })
 

@@ -384,6 +384,9 @@ verify_jwt = false
 [functions.line-group-webhook]
 verify_jwt = false
 
+[functions.check-resident-group-membership]
+verify_jwt = true
+
 [functions.send-pickup-notification]
 verify_jwt = true
 

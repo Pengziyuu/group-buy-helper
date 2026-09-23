@@ -8,21 +8,34 @@ function record(value: unknown): Record<string, unknown> | null {
     : null
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+const admissionMessages = {
+  GROUP_MEMBERSHIP_REQUIRED: '請先加入社區團購群組，才能使用團購系統',
+  GROUP_MEMBERSHIP_UNAVAILABLE: '目前無法確認群組資格，請稍後再試或聯繫團主',
+} as const
+
+export class ResidentAdmissionError extends Error {
+  readonly code: keyof typeof admissionMessages
+
+  constructor(code: keyof typeof admissionMessages) {
+    super(admissionMessages[code])
+    this.name = 'ResidentAdmissionError'
+    this.code = code
+  }
 }
 
-async function functionErrorMessage(error: unknown): Promise<string> {
+async function functionError(error: unknown): Promise<Error> {
   const context = record(error)?.context
   if (context && typeof context === 'object' && 'clone' in context) {
     try {
       const payload = record(await (context as Response).clone().json())
-      if (typeof payload?.error === 'string' && payload.error) return payload.error
+      if (payload?.code === 'GROUP_MEMBERSHIP_REQUIRED' || payload?.code === 'GROUP_MEMBERSHIP_UNAVAILABLE') {
+        return new ResidentAdmissionError(payload.code)
+      }
     } catch {
-      // Fall back to the SDK error when the gateway did not return safe JSON.
+      // Never render arbitrary provider response text.
     }
   }
-  return errorMessage(error)
+  return new Error('LINE住戶登入失敗，請稍後重試或聯繫團主')
 }
 
 export type LineResidentSignInResult = {
@@ -37,7 +50,7 @@ export function createLineResidentGateway(client: SupabaseClient<Database>) {
         body: { idToken },
       })
       if (response.error) {
-        throw new Error(`LINE住戶登入失敗：${await functionErrorMessage(response.error)}`)
+        throw await functionError(response.error)
       }
       const data = record(response.data)
       if (data?.status !== 'approved'

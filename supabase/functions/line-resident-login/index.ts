@@ -3,6 +3,7 @@ import { clientAddress, corsHeaders, jsonResponse, readJsonBodyWithLimit } from 
 import { lineVerificationPublicMessage, verifyLineIdToken } from '../_shared/line.ts'
 import { enforceLineLoginRateLimit } from '../_shared/lineRateLimit.ts'
 import { selectLineResidentAuthUserId } from '../_shared/policies.ts'
+import { checkResidentGroupMemberships } from '../_shared/residentGroupMembership.ts'
 
 type AdminClient = ReturnType<typeof createClient>
 
@@ -58,7 +59,30 @@ Deno.serve(async (request) => {
 
     await enforceLineLoginRateLimit(admin, clientAddress(request), rateLimitPepper)
     const lineIdentity = await verifyLineIdToken(idToken, lineChannelId)
-
+    const communityId = '00000000-0000-4000-8000-000000000001'
+    const { data: block, error: blockError } = await admin.from('community_resident_block')
+      .select('line_user_id').eq('community_id', communityId).eq('line_user_id', lineIdentity.subject).maybeSingle()
+    if (blockError) throw blockError
+    if (block) throw new Error('resident blocked')
+    // Identity/Auth/customer existence is NOT proof of prior admission.
+    const { data: admission, error: admissionError } = await admin.from('community_resident_admission')
+      .select('line_user_id').eq('community_id', communityId).eq('line_user_id', lineIdentity.subject).maybeSingle()
+    if (admissionError) throw admissionError
+    let groupId: string | null = null
+    let bindingRevision: string | null = null
+    let groupCheckedAt: string | null = null
+    if (!admission) {
+      const { data: binding, error: bindingError } = await admin.from('community_line_group')
+        .select('line_group_id,binding_revision').eq('community_id', communityId).eq('binding_kind', 'production').maybeSingle()
+      if (bindingError) throw new Error('GROUP_MEMBERSHIP_UNAVAILABLE')
+      const [status] = await checkResidentGroupMemberships(binding?.line_group_id ?? '', [lineIdentity.subject],
+        Deno.env.get('LINE_MESSAGING_CHANNEL_ACCESS_TOKEN') ?? '')
+      if (status === 'not_in_group') return jsonResponse({ code: 'GROUP_MEMBERSHIP_REQUIRED', error: '請先加入社區團購群組，才能使用團購系統' }, 403)
+      if (status !== 'in_group' || !binding?.binding_revision) throw new Error('GROUP_MEMBERSHIP_UNAVAILABLE')
+      groupId = binding.line_group_id
+      bindingRevision = binding.binding_revision
+      groupCheckedAt = new Date().toISOString()
+    }
 
     const [organizerResult, residentResult] = await Promise.all([
       admin.from('line_organizer_identity')
@@ -93,8 +117,14 @@ Deno.serve(async (request) => {
       p_auth_user_id: authUserId,
       p_display_name: lineIdentity.displayName,
       p_picture_url: lineIdentity.pictureUrl,
+      p_group_id: groupId,
+      p_binding_revision: bindingRevision,
+      p_group_checked_at: groupCheckedAt,
     })
-    if (provisionError) throw provisionError
+    if (provisionError) {
+      if (provisionError.message.includes('GROUP_MEMBERSHIP_UNAVAILABLE')) throw new Error('GROUP_MEMBERSHIP_UNAVAILABLE')
+      throw provisionError
+    }
 
     const { data: link, error: linkError } = await admin.auth.admin.generateLink({
       type: 'magiclink',
@@ -112,7 +142,8 @@ Deno.serve(async (request) => {
       pictureUrl: lineIdentity.pictureUrl,
     })
   } catch (error) {
-    const message = error instanceof Error ? error.message : ''
+    const message = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string' ? error.message : ''
+    if (message === 'GROUP_MEMBERSHIP_UNAVAILABLE') return jsonResponse({ code: 'GROUP_MEMBERSHIP_UNAVAILABLE', error: '目前無法確認群組資格，請稍後再試或聯繫團主' }, 503)
     if (message === '請求內容過大') return jsonResponse({ error: message }, 413)
     if (message.includes('嘗試過多')) return jsonResponse({ error: message }, 429)
     if (message === '無法識別請求來源' || message === 'JSON格式錯誤') {
@@ -121,7 +152,7 @@ Deno.serve(async (request) => {
     const lineError = lineVerificationPublicMessage(error)
     if (lineError) return jsonResponse({ error: lineError }, 401)
     if (message.includes('resident blocked')) return jsonResponse({ error: '此LINE帳號已被團主移除' }, 403)
-    console.error('line-resident-login failed', error)
+    console.error('line-resident-login failed')
     return jsonResponse({ error: '住戶登入服務暫時無法使用' }, 500)
   }
 })

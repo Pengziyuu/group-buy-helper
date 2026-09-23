@@ -34,7 +34,7 @@ import {
   type CampaignListItem,
 } from './services/campaignManagementGateway'
 import { createLineOrganizerGateway, type LineOrganizerResult } from './services/lineOrganizerGateway'
-import { createLineResidentGateway, type LineResidentSignInResult } from './services/lineResidentGateway'
+import { createLineResidentGateway, ResidentAdmissionError, type LineResidentSignInResult } from './services/lineResidentGateway'
 import {
   createResidentMemberManagementGateway,
   type ResidentMember,
@@ -95,6 +95,7 @@ export type LiveResidentMemberRepository = {
   list(): Promise<ResidentMember[]>
   setBlocked(memberCode: string, blocked: boolean): Promise<void>
   updateHousehold(memberCode: string, household: { kind: HouseholdKind; period: number | null; unit: string | null }): Promise<void>
+  refreshGroupStatuses?(memberCodes: string[]): Promise<import('./services/residentMemberManagementGateway').ResidentGroupStatusUpdate[]>
 }
 
 export type LiveAutoCloseNotificationSettingsRepository = {
@@ -863,6 +864,9 @@ export function LocalLiveAdminApp({
           await autoCloseNotificationSettingsGateway.selectCurrentUser()
           setAutoCloseNotificationState(await autoCloseNotificationSettingsGateway.getState())
         }}
+        onRefreshResidentGroupStatuses={residentMemberGateway.refreshGroupStatuses
+          ? (memberCodes) => residentMemberGateway.refreshGroupStatuses!(memberCodes)
+          : undefined}
         onSetResidentBlocked={async (memberCode, blocked) => {
           await residentMemberGateway.setBlocked(memberCode, blocked)
           setResidentMembers(await residentMemberGateway.list())
@@ -985,6 +989,28 @@ function residentCampaignListRepository(client: SupabaseClient<Database>): LiveR
   }
 }
 
+function ResidentAdmissionPrompt({ error, onRetry }: { error: ResidentAdmissionError; onRetry: () => void }) {
+  const required = error.code === 'GROUP_MEMBERSHIP_REQUIRED'
+  return <main className="live-state-shell">
+    <ErrorState title={required ? '請先加入社區團購群組' : '暫時無法確認群組資格'} message={error.message} page />
+    <Button onClick={onRetry}>{required ? '已加入，重新確認' : '重試'}</Button>
+  </main>
+}
+
+async function authenticateResident(
+  { client, liffId, liffClient, lineResidentGateway }: LocalLiveResidentAppProps,
+  recheck: boolean,
+): Promise<ResidentLineIdentity | null> {
+  // Restored admitted residents are not subject to a new group-membership gate.
+  const restored = recheck ? null : await loadRestoredResidentIdentity(client)
+  if (restored) return restored
+  if (!liffId || !liffClient) throw new Error('住戶LINE登入設定不完整')
+  const identity = await loadLiffIdentity(liffClient, liffId)
+  if (!identity) return null
+  const result = await (lineResidentGateway ?? createLineResidentGateway(client)).signIn(identity.idToken)
+  return result.identity
+}
+
 function LocalLiveResidentListApp({
   client,
   liffId,
@@ -995,20 +1021,14 @@ function LocalLiveResidentListApp({
   const [identity, setIdentity] = useState<ResidentLineIdentity | null>(null)
   const [campaigns, setCampaigns] = useState<ResidentCampaignListItem[] | null>(null)
   const [error, setError] = useState('')
+  const [admissionError, setAdmissionError] = useState<ResidentAdmissionError | null>(null)
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     let active = true
     const initialize = async () => {
-      let trustedIdentity = await loadRestoredResidentIdentity(client)
-      if (!trustedIdentity && (liffId || liffClient)) {
-        if (!liffId || !liffClient) throw new Error('住戶LINE登入設定不完整')
-        const liffIdentity = await loadLiffIdentity(liffClient, liffId)
-        if (!liffIdentity) return
-        const gateway = lineResidentGateway ?? createLineResidentGateway(client)
-        const result = await gateway.signIn(liffIdentity.idToken)
-        trustedIdentity = result.identity
-      }
-      if (!trustedIdentity) throw new Error('請使用住戶LINE入口登入')
+      const trustedIdentity = await authenticateResident({ client, liffId, liffClient, lineResidentGateway }, attempt > 0)
+      if (!trustedIdentity || !active) return
       const nextCampaigns = await (residentListRepository ?? residentCampaignListRepository(client)).list()
       if (active) {
         setIdentity(trustedIdentity)
@@ -1016,11 +1036,17 @@ function LocalLiveResidentListApp({
       }
     }
     void initialize().catch((loadError: unknown) => {
-      if (active) setError(errorMessage(loadError))
+      if (!active) return
+      if (loadError instanceof ResidentAdmissionError) setAdmissionError(loadError)
+      else setError(errorMessage(loadError))
     })
     return () => { active = false }
-  }, [client, liffClient, liffId, lineResidentGateway, residentListRepository])
+  }, [client, liffClient, liffId, lineResidentGateway, residentListRepository, attempt])
 
+  if (admissionError) return <ResidentAdmissionPrompt error={admissionError} onRetry={() => {
+    setAdmissionError(null)
+    setAttempt((current) => current + 1)
+  }} />
   if (error) return <LiveError message={error} title="無法載入住戶入口" />
   if (!identity || !campaigns) return <LiveLoading label="確認LINE住戶身分並載入開團列表…" />
   return (
@@ -1089,13 +1115,15 @@ async function ensureResidentSession(client: SupabaseClient<Database>, allowAnon
   return anonymousData.session
 }
 
-function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug }: LocalLiveResidentAppProps & { campaignSlug: string }) {
+function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug, liffId, liffClient, lineResidentGateway }: LocalLiveResidentAppProps & { campaignSlug: string }) {
   const [content, setContent] = useState<CampaignContent | null>(null)
   const [campaignStatus, setCampaignStatus] = useState<CampaignStatus | null>(null)
   const [orders, setOrders] = useState<VisibleOrder[]>([])
   const [residentCustomer, setResidentCustomer] = useState<ResidentCustomer | null | undefined>(undefined)
   const [residentIdentity, setResidentIdentity] = useState<ResidentLineIdentity | null>(null)
   const [joinedCampaignId, setJoinedCampaignId] = useState<string | null>(campaignId ?? null)
+  const [admissionError, setAdmissionError] = useState<ResidentAdmissionError | null>(null)
+  const [attempt, setAttempt] = useState(0)
   const [error, setError] = useState('')
   const [syncError, setSyncError] = useState('')
   const sessionPromise = useRef<Promise<Session> | null>(null)
@@ -1158,8 +1186,15 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug }: Loca
     }
 
     const initialize = async () => {
-      sessionPromise.current ??= ensureResidentSession(client, false)
-      await sessionPromise.current
+      if (liffId || liffClient) {
+        const identity = await authenticateResident({ client, liffId, liffClient, lineResidentGateway }, attempt > 0)
+        if (!identity || !active) return
+      } else {
+        // Preserve the local-live fixture/session path when no LIFF is configured.
+        sessionPromise.current ??= ensureResidentSession(client, false)
+        await sessionPromise.current
+      }
+      if (!active) return
       const { data: joinedRows, error: joinError } = await client.rpc('join_campaign_by_slug', {
         p_slug: campaignSlug,
       })
@@ -1206,7 +1241,9 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug }: Loca
     }
 
     void initialize().catch((loadError: unknown) => {
-      if (active) setError(errorMessage(loadError))
+      if (!active) return
+      if (loadError instanceof ResidentAdmissionError) setAdmissionError(loadError)
+      else setError(errorMessage(loadError))
     })
 
     return () => {
@@ -1215,8 +1252,12 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug }: Loca
       retrySyncRef.current = null
       if (channel) void client.removeChannel(channel)
     }
-  }, [campaignId, campaignSlug, client])
+  }, [campaignId, campaignSlug, client, liffId, liffClient, lineResidentGateway, attempt])
 
+  if (admissionError) return <ResidentAdmissionPrompt error={admissionError} onRetry={() => {
+    setAdmissionError(null)
+    setAttempt((current) => current + 1)
+  }} />
   if (error) return <LiveError message={error} />
   if (!joinedCampaignId || !content || !campaignStatus || residentCustomer === undefined || !residentIdentity) return <LiveLoading label="連線住戶端即時資料…" />
   return (

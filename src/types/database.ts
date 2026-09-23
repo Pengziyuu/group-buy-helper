@@ -445,16 +445,19 @@ export type Database = {
       community_line_group: {
         Row: {
           binding_kind: string
+          binding_revision: string
           community_id: string
           line_group_id: string
         }
         Insert: {
           binding_kind: string
+          binding_revision?: string
           community_id: string
           line_group_id: string
         }
         Update: {
           binding_kind?: string
+          binding_revision?: string
           community_id?: string
           line_group_id?: string
         }
@@ -490,6 +493,32 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "community_member_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "community"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_resident_admission: {
+        Row: {
+          admitted_at: string
+          community_id: string
+          line_user_id: string
+        }
+        Insert: {
+          admitted_at?: string
+          community_id: string
+          line_user_id: string
+        }
+        Update: {
+          admitted_at?: string
+          community_id?: string
+          line_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_resident_admission_community_id_fkey"
             columns: ["community_id"]
             isOneToOne: false
             referencedRelation: "community"
@@ -1136,6 +1165,38 @@ export type Database = {
         }
         Relationships: []
       }
+      resident_group_check: {
+        Row: {
+          binding_revision: string
+          community_id: string
+          group_checked_at: string
+          group_status: string
+          line_user_id: string
+        }
+        Insert: {
+          binding_revision: string
+          community_id: string
+          group_checked_at: string
+          group_status: string
+          line_user_id: string
+        }
+        Update: {
+          binding_revision?: string
+          community_id?: string
+          group_checked_at?: string
+          group_status?: string
+          line_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resident_group_check_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "community"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       admin_campaign_list: {
@@ -1383,6 +1444,14 @@ export type Database = {
       }
     }
     Functions: {
+      admin_list_resident_group_statuses: {
+        Args: never
+        Returns: {
+          group_checked_at: string
+          group_status: string
+          member_code: string
+        }[]
+      }
       admin_list_residents: {
         Args: never
         Returns: {
@@ -1745,7 +1814,10 @@ export type Database = {
       provision_line_resident: {
         Args: {
           p_auth_user_id: string
+          p_binding_revision: string
           p_display_name: string
+          p_group_checked_at: string
+          p_group_id: string
           p_line_user_id: string
           p_picture_url: string
         }
@@ -1812,6 +1884,23 @@ export type Database = {
         Returns: {
           line_group_id: string
           token: string
+        }[]
+      }
+      service_record_resident_group_checks: {
+        Args: {
+          p_binding_revision: string
+          p_checked_at: string
+          p_checks: Json
+        }
+        Returns: undefined
+      }
+      service_resident_group_candidates: {
+        Args: { p_member_codes: string[] }
+        Returns: {
+          binding_revision: string
+          line_group_id: string
+          line_user_id: string
+          member_code: string
         }[]
       }
       set_campaign_status: {

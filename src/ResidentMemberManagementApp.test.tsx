@@ -36,6 +36,29 @@ const otherMember = {
 }
 
 describe('ResidentMemberManagementApp', () => {
+  it('refreshes each LINE account status without changing existing admission or household', async () => {
+    const user = userEvent.setup()
+    const onRefreshGroupStatuses = vi.fn().mockResolvedValue([{ memberCode: members[0].memberCode, groupStatus: 'not_in_group', groupCheckedAt: '2026-09-23T01:00:00Z' }])
+    render(<ResidentMemberManagementApp members={[members[0]]} onSetBlocked={vi.fn()} onUpdateHousehold={vi.fn()}
+      onRefreshGroupStatuses={onRefreshGroupStatuses} />)
+    expect(screen.getByText('尚未查驗')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '更新住戶甲的群組狀態' }))
+    expect(onRefreshGroupStatuses).toHaveBeenCalledWith([members[0].memberCode])
+    expect(await screen.findByText('不在正式群組內')).toBeInTheDocument()
+    expect(screen.getByText('二期 2K13')).toBeInTheDocument()
+    expect(screen.getByText(/群組狀態僅供核對/)).toBeInTheDocument()
+  })
+
+  it('reports lookup failure without claiming absence or disabling a resident', async () => {
+    const user = userEvent.setup()
+    const onRefreshGroupStatuses = vi.fn().mockRejectedValue(new Error('群組查驗失敗'))
+    render(<ResidentMemberManagementApp members={[members[0]]} onSetBlocked={vi.fn()} onUpdateHousehold={vi.fn()}
+      onRefreshGroupStatuses={onRefreshGroupStatuses} />)
+    await user.click(screen.getByRole('button', { name: '更新住戶甲的群組狀態' }))
+    expect(await screen.findByText('群組查驗失敗')).toBeInTheDocument()
+    expect(screen.getByText('尚未查驗')).toBeInTheDocument()
+  })
+
   it('shows verified LINE residents without internal identity fields', () => {
     render(<ResidentMemberManagementApp members={members} onSetBlocked={vi.fn()} onUpdateHousehold={vi.fn()} />)
 

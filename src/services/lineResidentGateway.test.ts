@@ -2,6 +2,20 @@ import { describe, expect, it, vi } from 'vitest'
 import { createLineResidentGateway } from './lineResidentGateway'
 
 describe('createLineResidentGateway', () => {
+  it.each([
+    ['GROUP_MEMBERSHIP_REQUIRED', '請先加入社區團購群組，才能使用團購系統'],
+    ['GROUP_MEMBERSHIP_UNAVAILABLE', '目前無法確認群組資格，請稍後再試或聯繫團主'],
+  ])('maps %s to a typed safe admission error without exchanging credentials', async (code, message) => {
+    const verifyOtp = vi.fn()
+    const gateway = createLineResidentGateway({
+      functions: { invoke: vi.fn().mockResolvedValue({ data: null, error: {
+        context: new Response(JSON.stringify({ code, error: 'secret provider diagnostics' }), { status: 403 }),
+      } }) }, auth: { verifyOtp },
+    } as never)
+    await expect(gateway.signIn('token')).rejects.toMatchObject({ code, message })
+    expect(verifyOtp).not.toHaveBeenCalled()
+  })
+
   it('exchanges a trusted resident token and verifies the resulting Supabase user', async () => {
     const invoke = vi.fn().mockResolvedValue({
       data: {
