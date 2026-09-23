@@ -1,0 +1,28 @@
+/* Organizer shell: top navigation and the page frame shared by every organizer page. */
+.organizer-app { min-height: 100vh; background: var(--color-bg); color: var(--color-text); font-size: var(--font-size-dense); }
+.organizer-topbar { position: sticky; top: 0; z-index: var(--z-sticky); display: flex; align-items: center; gap: var(--space-4); min-height: 52px; padding: 0 var(--space-6); border-bottom: 1px solid var(--color-divider); background: var(--color-surface); }
+.organizer-brand { display: inline-flex; align-items: center; min-height: 32px; color: var(--color-text); font-weight: var(--font-weight-strong); text-decoration: none; }
+.organizer-nav { display: flex; gap: var(--space-1); }
+.organizer-nav a { display: inline-flex; align-items: center; min-height: 32px; padding: 0 var(--space-3); border-radius: var(--radius-control); color: var(--color-text-secondary); text-decoration: none; }
+.organizer-nav a[aria-current="page"] { background: var(--color-neutral-subtle); color: var(--color-text); font-weight: var(--font-weight-strong); }
+.organizer-create { margin-left: auto; }
+.organizer-page { width: min(100%, 1440px); margin: 0 auto; padding: var(--space-5) var(--space-6) var(--space-10); }
+.organizer-page h1 { margin: 0; font-size: var(--font-size-page-title); font-weight: var(--font-weight-strong); line-height: var(--line-height-heading); }
+.organizer-page-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4); }
+.organizer-muted { color: var(--color-text-secondary); }
+.organizer-create-dialog .ui-input { width: 100%; }
+
+@media (hover: hover) {
+  .organizer-nav a:not([aria-current="page"]):hover { background: var(--color-fill-hover); color: var(--color-text); }
+}
+
+@media (max-width: 1023px) {
+  .organizer-topbar { flex-wrap: wrap; gap: var(--space-2); padding: var(--space-2) var(--space-4); }
+  .organizer-brand, .organizer-nav a { min-height: var(--touch-target); }
+  .organizer-app .ui-button { min-height: var(--touch-target); }
+  .organizer-page { padding: var(--space-4) var(--space-4) var(--space-8); }
+}
+
+@media (max-width: 639px) {
+  .organizer-nav { order: 3; width: 100%; }
+}
