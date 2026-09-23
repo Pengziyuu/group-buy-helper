@@ -746,7 +746,7 @@ describe('customer campaign app', () => {
     expect(screen.getByText('10/15（五）12:00')).toBeInTheDocument()
   })
 
-  it('hides the closing time once a campaign is no longer open, even with an autoCloseAt set', () => {
+  it('labels the scheduled closing time as 原訂結單 once a campaign is no longer open', () => {
     render(<App visibleOrders={[]} campaignStatus="closed" publishedContent={{
       title: '已結單測試團', unitPrice: 50, threshold: 10,
       announcement: '', images: [],
@@ -757,7 +757,8 @@ describe('customer campaign app', () => {
     }} />)
 
     expect(screen.getByText('已結單', { selector: '.ui-status-badge' })).toBeInTheDocument()
-    expect(screen.getByText('結單')).toBeInTheDocument()
+    expect(screen.getByText('原訂結單')).toBeInTheDocument()
+    expect(screen.queryByText('結單')).not.toBeInTheDocument()
     expect(screen.getByText('10/15（五）12:00')).toBeInTheDocument()
   })
 

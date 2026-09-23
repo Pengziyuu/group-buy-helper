@@ -32,7 +32,7 @@ export function CampaignSummary({ title, status, priceText, arrivalLabel, closin
         <p className="resident-summary-price">{priceText}</p>
         <dl className="resident-summary-facts" role="group" aria-label="團購時程">
           <div><dt>預計到貨</dt><dd>{normalizeArrivalLabel(arrivalLabel)}</dd></div>
-          <div><dt>結單</dt><dd>{closingText ?? '未排定'}</dd></div>
+          <div><dt>{status !== 'open' && closingText ? '原訂結單' : '結單'}</dt><dd>{closingText ?? '未排定'}</dd></div>
         </dl>
       </div>
       <div className="resident-summary-progress">

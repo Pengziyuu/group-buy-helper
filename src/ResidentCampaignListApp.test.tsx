@@ -91,6 +91,27 @@ describe('ResidentCampaignListApp', () => {
     expect(screen.queryByText(/已到貨/)).not.toBeInTheDocument()
   })
 
+  it('labels the scheduled closing time as 原訂結單 on campaigns that are no longer open', () => {
+    render(
+      <ResidentCampaignListApp
+        identity={identity}
+        now={new Date('2026-09-01T00:00:00.000Z')}
+        campaigns={[
+          campaign({ slug: 'open', title: '開團中的團', autoCloseAt: '2026-10-15T04:00:00.000Z' }),
+          campaign({ slug: 'closed', title: '提前結單的團', status: 'closed', autoCloseAt: '2026-10-16T04:00:00.000Z' }),
+        ]}
+      />,
+    )
+
+    const open = screen.getByRole('group', { name: '開團中的團時程' })
+    expect(within(open).getByText('結單')).toBeInTheDocument()
+    expect(within(open).getByText('10/15（四）12:00')).toBeInTheDocument()
+    const closed = screen.getByRole('group', { name: '提前結單的團時程' })
+    expect(within(closed).getByText('原訂結單')).toBeInTheDocument()
+    expect(within(closed).queryByText('結單')).not.toBeInTheDocument()
+    expect(within(closed).getByText('10/16（五）12:00')).toBeInTheDocument()
+  })
+
   it('highlights campaigns that close today or tomorrow', () => {
     render(
       <ResidentCampaignListApp

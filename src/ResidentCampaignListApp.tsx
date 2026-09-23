@@ -85,7 +85,7 @@ function CampaignRow({ campaign, now }: { campaign: ResidentCampaignListItem; no
           : <p className="resident-campaign-price"><StatusBadge tone="neutral">已結單</StatusBadge></p>}
         <dl className="resident-campaign-facts" role="group" aria-label={`${campaign.title}時程`}>
           <div>
-            <dt>結單</dt>
+            <dt>{!open && closing ? '原訂結單' : '結單'}</dt>
             <dd className={open && closing?.soon ? 'is-soon' : undefined}>{closing?.when ?? '未排定'}</dd>
           </div>
           <div className="resident-campaign-fact-arrival">
