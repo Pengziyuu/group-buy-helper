@@ -103,13 +103,13 @@ export default function RuntimeApp({ config, pathname, client, liffClient }: Run
   }
   if (usesSupabaseBackend(config) && config.mode !== 'demo') {
     if (!client) throw new Error('Supabase client未初始化')
-    if (appRoute.kind === 'admin-list') {
+    if (appRoute.kind === 'admin-list' || appRoute.kind === 'admin-residents' || appRoute.kind === 'admin-settings') {
       return <LocalLiveAdminApp client={client} liffId={config.mode === 'live' ? config.liffId : undefined} liffClient={liffClient} authStorage={getBrowserAuthStorage()} logoutFallbackStorage={getBrowserSessionStorage()} />
     }
     if (appRoute.kind === 'admin-notification-lab') {
       return <LocalLiveAdminApp client={client} notificationLab liffId={config.mode === 'live' ? config.liffId : undefined} liffClient={liffClient} authStorage={getBrowserAuthStorage()} logoutFallbackStorage={getBrowserSessionStorage()} />
     }
-    if (appRoute.kind === 'admin-editor') {
+    if (appRoute.kind === 'admin-campaign') {
       return <LocalLiveAdminApp client={client} campaignId={appRoute.campaignId} liffId={config.mode === 'live' ? config.liffId : undefined} liffClient={liffClient} authStorage={getBrowserAuthStorage()} logoutFallbackStorage={getBrowserSessionStorage()} />
     }
     if (appRoute.kind === 'resident-campaign') {
@@ -149,7 +149,7 @@ export default function RuntimeApp({ config, pathname, client, liffClient }: Run
       </main>
     )
   }
-  if (appRoute.kind === 'admin-list') {
+  if (appRoute.kind === 'admin-list' || appRoute.kind === 'admin-residents' || appRoute.kind === 'admin-settings') {
     return (
       <CampaignListApp
         campaigns={[demoOrganizerCampaign]}
@@ -160,7 +160,7 @@ export default function RuntimeApp({ config, pathname, client, liffClient }: Run
       />
     )
   }
-  if (appRoute.kind === 'admin-editor') {
+  if (appRoute.kind === 'admin-campaign') {
     return <DemoOrganizerEditor />
   }
   if (appRoute.kind === 'resident-default') {
