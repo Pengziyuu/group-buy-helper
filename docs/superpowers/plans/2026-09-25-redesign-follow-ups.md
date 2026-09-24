@@ -716,8 +716,8 @@ export function LiveStatus({ state, onRetry }: { state: LiveState; onRetry?: () 
 
 **截圖結果：** `node scripts/capture-pages.mjs .superpowers/qa/follow-ups/after` 產出 24 張 PNG＋`report.json`，`scrollWidth` 在 375／768／1440 三種寬度下都等於 viewport 寬度、`offenders=0`，沒有水平溢出。與 `before` 逐張位元比對：
 - `admin-orders-375/768/1440`：有差異，多了「下單時間」欄，第二行「已修改・{相對時間}」，滑鼠停留有完整時間 `title`；375px 與 768px 的訂單卡片／表格逐張目視確認無擠壓或換行錯亂。
-- `resident-campaign-375/768/1440`：有差異，「大家的訂單」與住戶自己的訂單改成「下單 08/14 08:10」「已修改・08/14 08:12」的相對時間格式（demo 資料是 2026/08/14，距今已超過 24 小時，所以顯示為 `MM/DD HH:mm` 而非「N 小時前」），逐張目視確認排版正常。
-- `admin-overview-375/768/1440`：與 `before` 位元完全相同。原因：demo 資料裡「最新訂單」的下單時間都超過 24 小時（2026/08/14），無論是改版前的 `orderView.ts` 版 `formatRelativeTime` 或改版後 `src/components/relativeTime.ts` 版，同一個時間點都會格式化成同樣的 `MM/DD HH:mm` 字串，畫面文字沒有變化，因此截圖位元相同；這不代表功能沒生效，只是 demo 資料剛好落在「顯示絕對日期」的區間，用 `admin-overview` 手動操作驗證（見下方「請團主確認」）另外確認了每分鐘自動更新有生效。
+- `resident-campaign-375/768/1440`：有差異，「大家的訂單」（含住戶自己在牆上被標示出來的那一列）改成「下單 08/14 08:10」「已修改・08/14 08:12」的相對時間格式（demo 資料是 2026/08/14，距今已超過 24 小時，所以顯示為 `MM/DD HH:mm` 而非「N 小時前」），逐張目視確認排版正常。「我的訂單」不屬於這次範圍，`App.tsx` 裡仍顯示完整的「最後修改」時間，沒有改動。
+- `admin-overview-375/768/1440`：與 `before` 位元完全相同。原因：demo 資料裡「最新訂單」的下單時間都超過 24 小時（2026/08/14），無論是改版前的 `orderView.ts` 版 `formatRelativeTime` 或改版後 `src/components/relativeTime.ts` 版，同一個時間點都會格式化成同樣的 `MM/DD HH:mm` 字串，畫面文字沒有變化，因此截圖位元相同；這不代表功能沒生效，只是 demo 資料剛好落在「顯示絕對日期」的區間——demo 訂單時間都超過 24 小時，截圖看不出每分鐘重算的效果。每分鐘自動更新確實生效，是由 `OverviewSection.test.tsx` 的 fake-timer 測試（`refreshes the relative times every minute without new orders`）驗證的，並非用截圖或手動操作驗證。
 - 其餘 15 張（`admin-editor-*`、`admin-list-*`、`admin-residents-*`、`admin-settings-*`、`resident-list-*`）與 `before` 位元完全相同，符合預期。
 
 **執行中的修正（相對於原計畫文字的偏離，均已如實記錄於對應 commit）：**
@@ -733,3 +733,4 @@ export function LiveStatus({ state, onRetry }: { state: LiveState; onRetry?: () 
 - 團主端訂單表（`/admin/campaign/{id}/orders`）新增「下單時間」欄，顯示相對時間，修改過的訂單第二行會多一行「已修改・{相對時間}」，滑鼠停留可看到完整時間。
 - 住戶端訂單牆（公開團購頁的「大家的訂單」）改成「下單 N 分鐘前」的相對時間顯示方式。
 - 發布團購前，若「開團資訊」欄位是空白（含只有空白字元），會被擋下並顯示「填寫開團資訊」，跟其他必填項目一樣。
+- 這次上線之後，已經開團、但「開團資訊」目前是空白的團購，之後想再發布任何更新（例如改內容、改品項），都會先被擋下、要求先把開團資訊填好才能發布。
