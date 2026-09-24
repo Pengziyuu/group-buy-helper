@@ -23,3 +23,18 @@
 @media (max-width: 1023px) {
   .content-item-mix-hit { min-width: var(--touch-target); min-height: var(--touch-target); }
 }
+
+.content-images { display: grid; gap: var(--space-3); }
+.content-image-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.content-image-tile { position: relative; aspect-ratio: 1; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface-subtle); }
+.content-image-tile img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.content-image-cover { position: absolute; bottom: var(--space-1); left: var(--space-1); padding: 2px var(--space-2); border-radius: 999px; background: var(--color-surface); color: var(--color-text); font-size: var(--font-size-caption); font-weight: var(--font-weight-strong); }
+.content-image-remove { position: absolute; top: var(--space-1); right: var(--space-1); }
+.content-image-add { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-2); }
+.content-image-picker { cursor: pointer; }
+.content-image-picker:focus-within { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.content-image-picker[data-disabled] { background: var(--color-disabled-bg); border-color: var(--color-border); color: var(--color-disabled-text); cursor: not-allowed; }
+.content-image-url { display: grid; flex: 1 1 240px; gap: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-dense); }
+.content-image-count { margin-left: auto; color: var(--color-text-secondary); font-size: var(--font-size-dense); font-variant-numeric: tabular-nums; }
+.content-image-progress { min-height: 1.4em; margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-dense); }
+.content-image-errors { display: grid; gap: var(--space-1); margin: 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-control); background: var(--color-danger-subtle); color: var(--color-danger); font-size: var(--font-size-dense); list-style: none; }
