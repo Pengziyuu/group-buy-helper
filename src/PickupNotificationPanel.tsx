@@ -21,7 +21,7 @@ type PickupNotificationPanelProps = {
   onCreateCommand: (audience: PickupNotificationAudience, message: string, previewToken: string) => Promise<PickupNotificationCommand>
 }
 
-type FocusTarget = 'step-two' | 'copy' | 'command' | 'first-choice'
+type FocusTarget = 'step-two' | 'copy' | 'command' | 'first-choice' | 'second-choice'
 
 function recipientLabel(recipient: PickupNotificationRecipient): string {
   return `${formatResidentPeriod(recipient.period)}・${recipient.unit}・${recipient.displayName}`
@@ -61,6 +61,7 @@ function PickupNotificationPanel({ campaignId, campaignTitle, campaignStatus, mo
   const [busyAudience, setBusyAudience] = useState<PickupNotificationAudience | null>(null)
   const [error, setError] = useState('')
   const firstChoiceRef = useRef<HTMLButtonElement>(null)
+  const secondChoiceRef = useRef<HTMLButtonElement>(null)
   const stepTwoHeadingRef = useRef<HTMLHeadingElement>(null)
   const commandButtonRef = useRef<HTMLButtonElement>(null)
   const copyButtonRef = useRef<HTMLButtonElement>(null)
@@ -88,6 +89,7 @@ function PickupNotificationPanel({ campaignId, campaignTitle, campaignStatus, mo
       copy: copyButtonRef.current,
       command: commandButtonRef.current,
       'first-choice': firstChoiceRef.current,
+      'second-choice': secondChoiceRef.current,
     }
     elements[target]?.focus()
   }, [audience, busy, command, error, preview])
@@ -113,6 +115,7 @@ function PickupNotificationPanel({ campaignId, campaignTitle, campaignStatus, mo
       focusTargetRef.current = 'step-two'
     } catch (previewError) {
       setError(previewError instanceof Error ? previewError.message : '目前無法讀取通知名單，請稍後再試。')
+      focusTargetRef.current = nextAudience === 'phase2' ? 'second-choice' : 'first-choice'
     } finally {
       operationLock.current = false
       setBusy(null)
@@ -183,7 +186,7 @@ function PickupNotificationPanel({ campaignId, campaignTitle, campaignStatus, mo
               <Button ref={firstChoiceRef} variant="secondary" aria-label={isTest ? `預覽${campaignTitle}一期、三期測試通知` : undefined} disabled={busy !== null} onClick={() => { void openPreview('phase13') }}>
                 {busy === 'preview' && busyAudience === 'phase13' ? '讀取一期、三期名單中…' : `預覽一期、三期${isTest ? '測試' : ''}通知`}
               </Button>
-              <Button variant="secondary" aria-label={isTest ? `預覽${campaignTitle}二期測試通知` : undefined} disabled={busy !== null} onClick={() => { void openPreview('phase2') }}>
+              <Button ref={secondChoiceRef} variant="secondary" aria-label={isTest ? `預覽${campaignTitle}二期測試通知` : undefined} disabled={busy !== null} onClick={() => { void openPreview('phase2') }}>
                 {busy === 'preview' && busyAudience === 'phase2' ? '讀取二期名單中…' : `預覽二期${isTest ? '測試' : ''}通知`}
               </Button>
             </div>

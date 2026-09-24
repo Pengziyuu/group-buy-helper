@@ -90,9 +90,11 @@ export function OrderNoteCell({ order, controlLabel, disabled, onSave, onSavingC
         aria-label={`${controlLabel} 備註`}
         maxLength={500}
         value={draft}
-        disabled={saving}
+        readOnly={saving}
+        aria-busy={saving || undefined}
         onChange={(event) => setDraft(event.target.value)}
         onKeyDown={(event) => {
+          if (saving) return
           if (event.key === 'Enter') {
             event.preventDefault()
             settledRef.current = true

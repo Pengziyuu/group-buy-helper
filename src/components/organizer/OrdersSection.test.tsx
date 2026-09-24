@@ -143,6 +143,7 @@ describe('OrdersSection', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('儲存備註失敗：network')
     expect(screen.getByRole('textbox', { name: 'H11 備註' })).toHaveValue('請放管理室補充')
+    expect(screen.getByRole('textbox', { name: 'H11 備註' })).toHaveFocus()
   })
 
   it('does not overwrite a note being typed when fresh order data arrives', async () => {
@@ -169,8 +170,12 @@ describe('OrdersSection', () => {
     await user.type(screen.getByRole('textbox', { name: 'H11 備註' }), '！{Enter}')
 
     expect(rowOf(/H11/)).toHaveAttribute('aria-busy', 'true')
-    expect(screen.getByRole('textbox', { name: 'H11 備註' })).toBeDisabled()
+    const noteInput = screen.getByRole('textbox', { name: 'H11 備註' })
+    expect(noteInput).toHaveAttribute('readonly')
+    expect(noteInput).toHaveFocus()
     expect(screen.getByRole('button', { name: '編輯 1E7 備註' })).toBeEnabled()
+    await user.keyboard('{Enter}')
+    expect(onSetOrderOrganizerNote).toHaveBeenCalledTimes(1)
     finish?.()
     await waitFor(() => expect(rowOf(/H11/)).not.toHaveAttribute('aria-busy'))
   })

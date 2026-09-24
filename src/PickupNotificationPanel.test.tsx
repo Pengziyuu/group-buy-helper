@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import PickupNotificationPanel from './PickupNotificationPanel'
@@ -163,6 +163,21 @@ describe('pickup notification panel', () => {
     await user.click(await screen.findByRole('button', { name: '複製指令' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('無法自動複製，請手動選取指令複製。')
     expect(screen.getByDisplayValue(command.command)).toBeInTheDocument()
+  })
+
+  it('returns focus to the chosen audience when reading the recipient list fails', async () => {
+    const user = userEvent.setup()
+    let failPreview!: () => void
+    const onPreview = vi.fn(() => new Promise<never>((_, reject) => { failPreview = () => reject(new Error('暫時無法讀取名單')) }))
+    render(<PickupNotificationPanel {...baseProps} onPreview={onPreview} />)
+
+    await user.click(screen.getByRole('button', { name: '預覽二期通知' }))
+    // Browsers drop focus from a button once it is disabled; jsdom does not, so mimic it.
+    ;(document.activeElement as HTMLElement).blur()
+    await act(async () => { failPreview() })
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('暫時無法讀取名單')
+    expect(screen.getByRole('button', { name: '預覽二期通知' })).toHaveFocus()
   })
 
   it('warns only when non-resident buyers are excluded', () => {
