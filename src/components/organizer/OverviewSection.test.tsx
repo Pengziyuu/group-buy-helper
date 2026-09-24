@@ -37,7 +37,10 @@ function renderOverview(props: Partial<Parameters<typeof OverviewSection>[0]> = 
   )
 }
 
-afterEach(() => { window.localStorage.clear() })
+afterEach(() => {
+  window.localStorage.clear()
+  vi.useRealTimers()
+})
 
 describe('OverviewSection', () => {
   it('shows progress, orders, total and today for an open campaign', () => {
@@ -136,7 +139,6 @@ describe('OverviewSection', () => {
 
     act(() => { vi.advanceTimersByTime(120_000) })
     expect(within(latest).getByText('2 分鐘前')).toBeInTheDocument()
-    vi.useRealTimers()
   })
 
   it('invites sharing when nobody has ordered yet', () => {
