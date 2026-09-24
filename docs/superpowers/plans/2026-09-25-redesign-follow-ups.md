@@ -703,3 +703,33 @@ export function LiveStatus({ state, onRetry }: { state: LiveState; onRetry?: () 
   - 延後的小問題；
   - 請團主確認的事項，至少包含：概況頁放著幾分鐘後，時間會自己變。
 - [ ] **Step 5: Commit** `git commit -m "docs: describe relative order times and the required announcement"`（add `README.md`、`docs/AI_AGENT_HANDOFF.md`、本計畫檔）。
+
+## 執行結果（2026-09-25）
+
+**Commit 範圍：** `9325c55..19f678f`（`7a94c4d` 共用相對時間、`3da7fc6` 團主端訂單表下單時間欄＋概況每分鐘更新、`d8c57e6` 住戶端訂單牆相對時間、`553e4c6` 開團資訊發布必填、`25b6900` 三處焦點修正、`6b4d376` 重新載入失敗不算操作失敗、`19f678f` 補強領取通知焦點回復測試）。本次（Task 7）另加一個 commit（見下方 Step 5）。
+
+**測試／驗證：**
+- `npm test`：97 個測試檔、710 個測試全數通過。
+- `npx tsc -b`：無錯誤。
+- `npm run lint`（oxlint）：無錯誤、無警告。
+- `npm run build`：成功；僅既有的「部分 chunk 超過 500 kB」建置提示（與本次改動無關，不是錯誤）。
+
+**截圖結果：** `node scripts/capture-pages.mjs .superpowers/qa/follow-ups/after` 產出 24 張 PNG＋`report.json`，`scrollWidth` 在 375／768／1440 三種寬度下都等於 viewport 寬度、`offenders=0`，沒有水平溢出。與 `before` 逐張位元比對：
+- `admin-orders-375/768/1440`：有差異，多了「下單時間」欄，第二行「已修改・{相對時間}」，滑鼠停留有完整時間 `title`；375px 與 768px 的訂單卡片／表格逐張目視確認無擠壓或換行錯亂。
+- `resident-campaign-375/768/1440`：有差異，「大家的訂單」與住戶自己的訂單改成「下單 08/14 08:10」「已修改・08/14 08:12」的相對時間格式（demo 資料是 2026/08/14，距今已超過 24 小時，所以顯示為 `MM/DD HH:mm` 而非「N 小時前」），逐張目視確認排版正常。
+- `admin-overview-375/768/1440`：與 `before` 位元完全相同。原因：demo 資料裡「最新訂單」的下單時間都超過 24 小時（2026/08/14），無論是改版前的 `orderView.ts` 版 `formatRelativeTime` 或改版後 `src/components/relativeTime.ts` 版，同一個時間點都會格式化成同樣的 `MM/DD HH:mm` 字串，畫面文字沒有變化，因此截圖位元相同；這不代表功能沒生效，只是 demo 資料剛好落在「顯示絕對日期」的區間，用 `admin-overview` 手動操作驗證（見下方「請團主確認」）另外確認了每分鐘自動更新有生效。
+- 其餘 15 張（`admin-editor-*`、`admin-list-*`、`admin-residents-*`、`admin-settings-*`、`resident-list-*`）與 `before` 位元完全相同，符合預期。
+
+**執行中的修正（相對於原計畫文字的偏離，均已如實記錄於對應 commit）：**
+- 四個「已修改・…」斷言（`OrdersSection.test.tsx`、`residentComponents.test.tsx` 等）改用比對 `textContent` 的自訂 matcher，因為 Testing Library 預設的文字比對不會跨越內嵌的 `<time>` 元素邊界，無法用 `getByText` 直接比對含巢狀標籤的完整字串。
+- `PickupNotificationPanel` 的焦點回復測試原本用 `blur()` 停用中的按鈕來模擬瀏覽器行為，但 jsdom 對 disabled 按鈕呼叫 `blur()` 是 no-op，導致測試在復原修正前也會通過（沒有真的守住 bug）；改為先把焦點移到一個暫時的 DOM 元素、模擬瀏覽器把焦點從被停用按鈕上移開的行為，並回退實作驗證測試會 RED，才確認測試確實守住這個修正。
+
+**延後的小問題（不影響功能、未修正）：**
+- `src/components/relativeTime.ts` 中 `formatRelativeTime` 有一處 `!value` 判斷與前面的 `time === null` 判斷重複（`value` 為 falsy 時 `Date.parse('')` 已會是 `NaN`，`time === null` 已涵蓋），可再簡化但不影響行為。
+- `OrdersSection.test.tsx` 有一處多餘的空白行，屬純風格問題。
+
+**請團主確認：**
+- 團主概況頁（`/admin/campaign/{id}/overview`）打開後放著幾分鐘不動，「最新訂單」與相關時間顯示會自己每分鐘更新一次，不必重新整理頁面。
+- 團主端訂單表（`/admin/campaign/{id}/orders`）新增「下單時間」欄，顯示相對時間，修改過的訂單第二行會多一行「已修改・{相對時間}」，滑鼠停留可看到完整時間。
+- 住戶端訂單牆（公開團購頁的「大家的訂單」）改成「下單 N 分鐘前」的相對時間顯示方式。
+- 發布團購前，若「開團資訊」欄位是空白（含只有空白字元），會被擋下並顯示「填寫開團資訊」，跟其他必填項目一樣。
