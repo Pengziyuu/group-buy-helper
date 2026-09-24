@@ -5,6 +5,7 @@ import { initialOrders, items } from '../../data/demo'
 import { buildOrganizerOrderSummary, type OrganizerOrderSummary } from '../../domain/adminOrders'
 import { OrdersSection } from './OrdersSection'
 
+
 const base = buildOrganizerOrderSummary({ orders: initialOrders, items, threshold: 100 })
 const summary: OrganizerOrderSummary = {
   ...base,
@@ -207,6 +208,25 @@ describe('OrdersSection', () => {
     expect(screen.getByRole('rowheader', { name: /其他\s*丙/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '編輯 其他 備註' })).toBeInTheDocument()
     expect(screen.queryByText(/null|NaN期/)).not.toBeInTheDocument()
+  })
+
+  it('shows when each order was placed and when it was changed', () => {
+    const now = new Date('2026-09-24T12:30:00.000Z')
+    const edited: OrganizerOrderSummary = {
+      ...summary,
+      orderRows: summary.orderRows.map((order) => order.orderId === 'order-1'
+        ? { ...order, updatedAt: '2026-09-24T12:25:00.000Z' }
+        : order),
+    }
+    render(<OrdersSection campaignTitle="一涼製冰所" openedAt="2026-09-20T00:00:00.000Z" summary={edited} status="open" liveState="live" now={now} />)
+
+    expect(screen.getByRole('columnheader', { name: '下單時間' })).toBeInTheDocument()
+    const placed = within(rowOf(/H11/)).getByText('2 小時前')
+    expect(placed.tagName).toBe('TIME')
+    expect(placed).toHaveAttribute('title', '2026/09/24 18:00')
+    expect(within(rowOf(/H11/)).getByText((_, element) => element?.tagName === 'SMALL' && element.textContent === '已修改・5 分鐘前')).toBeInTheDocument()
+    expect(within(rowOf(/2I7/)).getByText('30 分鐘前')).toBeInTheDocument()
+    expect(within(rowOf(/2I7/)).queryByText(/已修改/)).not.toBeInTheDocument()
   })
 
   it('explains an empty order list', () => {

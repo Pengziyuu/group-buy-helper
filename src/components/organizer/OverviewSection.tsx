@@ -7,6 +7,7 @@ import { ExportOrdersButton } from './ExportOrdersButton'
 import { readLastSeen, writeLastSeen } from './lastSeenStore'
 import { LiveStatus, type LiveState } from './LiveStatus'
 import { OrganizerLink } from './OrganizerLink'
+import { useNow } from '../relativeTime'
 import {
   countOrdersOnTaipeiDay, formatRelativeTime, isNewSince, latestOrders, orderHouseholdLabel, orderItemChips, wasEdited,
 } from './orderView'
@@ -29,7 +30,7 @@ export function OverviewSection({ campaignId, campaignTitle, openedAt, summary, 
   const [lastSeen] = useState(() => readLastSeen(campaignId))
   useEffect(() => { writeLastSeen(campaignId, new Date().toISOString()) }, [campaignId])
 
-  const today = now ?? new Date()
+  const today = useNow(now)
   const closed = status !== 'open'
   const usesAmount = summary.thresholdKind === 'amount'
   const unit = summary.quantityUnit

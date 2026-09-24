@@ -10,8 +10,9 @@ import { ExportOrdersButton } from './ExportOrdersButton'
 import { LiveStatus, type LiveState } from './LiveStatus'
 import { OrderNoteCell } from './OrderNoteCell'
 import {
-  matchesOrderSearch, orderControlLabel, orderHouseholdLabel, orderItemChips, sortOrders, type OrderSort,
+  matchesOrderSearch, orderControlLabel, orderHouseholdLabel, orderItemChips, sortOrders, wasEdited, type OrderSort,
 } from './orderView'
+import { RelativeTime, useNow } from '../relativeTime'
 
 const currency = (amount: number) => `$${amount.toLocaleString('en-US')}`
 
@@ -25,10 +26,11 @@ type OrdersSectionProps = {
   onSetOrderOrganizerNote?: (orderId: string, note: string) => Promise<void>
   onCancelOrder?: (orderId: string) => Promise<void>
   onExport?: () => Promise<void>
+  now?: Date
 }
 
 export function OrdersSection({
-  campaignTitle, openedAt, summary, status, liveState, onRetrySync, onSetOrderOrganizerNote, onCancelOrder, onExport,
+  campaignTitle, openedAt, summary, status, liveState, onRetrySync, onSetOrderOrganizerNote, onCancelOrder, onExport, now,
 }: OrdersSectionProps) {
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<OrderSort>('household')
@@ -36,6 +38,7 @@ export function OrdersSection({
   const [cancelTarget, setCancelTarget] = useState<OrganizerOrderRow | null>(null)
   const [cancelling, setCancelling] = useState(false)
   const [cancelError, setCancelError] = useState('')
+  const currentTime = useNow(now)
   const unit = summary.quantityUnit
   const rows = sortOrders(summary.orderRows.filter((order) => matchesOrderSearch(order, query)), sort)
 
@@ -106,6 +109,7 @@ export function OrdersSection({
                     <th scope="col">訂購內容</th>
                     <th scope="col">數量</th>
                     <th scope="col">金額</th>
+                    <th scope="col">下單時間</th>
                     <th scope="col">團主備註</th>
                     <th scope="col"><span className="ui-visually-hidden">操作</span></th>
                   </tr>
@@ -136,6 +140,12 @@ export function OrdersSection({
                         <td data-label="金額" className="ui-num">
                           {currency(order.amount)}
                           {order.customItemSummary && <small className="organizer-muted"> ＋另計</small>}
+                        </td>
+                        <td data-label="下單時間" className="organizer-order-time">
+                          <RelativeTime value={order.orderedAt} now={currentTime} />
+                          {wasEdited(order) && (
+                            <small>已修改・<RelativeTime value={order.updatedAt} now={currentTime} /></small>
+                          )}
                         </td>
                         <td data-label="團主備註">
                           <OrderNoteCell

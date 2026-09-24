@@ -191,3 +191,6 @@
 @media (max-width: 1023px) {
   .organizer-note-button { min-height: var(--touch-target); }
 }
+
+.organizer-order-time { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.organizer-order-time small { display: block; color: var(--color-text-secondary); font-size: var(--font-size-caption); }

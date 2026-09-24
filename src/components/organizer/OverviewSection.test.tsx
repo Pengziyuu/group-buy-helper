@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { initialOrders, items } from '../../data/demo'
@@ -124,6 +124,19 @@ describe('OverviewSection', () => {
     expect(screen.getByRole('status')).toHaveTextContent('即時同步中斷，畫面可能不是最新')
     await user.click(screen.getByRole('button', { name: '重新同步' }))
     expect(onRetrySync).toHaveBeenCalledOnce()
+  })
+
+  it('refreshes the relative times every minute without new orders', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-25T04:00:30.000Z'))
+    const fresh = { ...summary, orderRows: [{ ...summary.orderRows[0], orderedAt: '2026-09-25T04:00:00.000Z', updatedAt: undefined }] }
+    render(<OverviewSection campaignId="campaign-1" campaignTitle="冰餅團" openedAt="2026-09-20T00:00:00.000Z" summary={fresh} status="open" liveState="live" />)
+    const latest = screen.getByRole('list', { name: '最新訂單' })
+    expect(within(latest).getByText('剛剛')).toBeInTheDocument()
+
+    act(() => { vi.advanceTimersByTime(120_000) })
+    expect(within(latest).getByText('2 分鐘前')).toBeInTheDocument()
+    vi.useRealTimers()
   })
 
   it('invites sharing when nobody has ordered yet', () => {
