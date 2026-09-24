@@ -168,3 +168,26 @@
   .organizer-latest li { grid-template-columns: 10px minmax(0, 1fr); }
   .organizer-latest li > :nth-child(n + 3) { grid-column: 2; text-align: left; }
 }
+
+/* Orders section: totals, toolbar, order table and the in-place note editor. */
+.organizer-order-totals { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); margin: 0; }
+.organizer-order-totals div { display: flex; align-items: baseline; gap: var(--space-2); }
+.organizer-order-totals dt { color: var(--color-text-secondary); }
+.organizer-order-totals dd { margin: 0; font-weight: var(--font-weight-strong); font-variant-numeric: tabular-nums; }
+.organizer-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.organizer-toolbar .ui-input { flex: 1 1 220px; max-width: 320px; }
+.organizer-order-table th[scope="row"] { min-width: 140px; }
+.organizer-order-household { display: block; color: var(--color-text-secondary); font-size: var(--font-size-caption); }
+.organizer-note-button { display: inline-flex; align-items: center; min-height: 32px; max-width: 260px; padding: 0 var(--space-2); border: 1px dashed transparent; border-radius: var(--radius-control); background: transparent; color: var(--color-text); font: inherit; text-align: left; overflow-wrap: anywhere; cursor: text; }
+.organizer-note-button:disabled { cursor: not-allowed; }
+.organizer-note-editor { display: grid; gap: 4px; min-width: 180px; }
+.organizer-note-editor small { font-size: var(--font-size-caption); }
+.organizer-note-error { color: var(--color-danger); }
+
+@media (hover: hover) {
+  .organizer-note-button:not(:disabled):hover { border-color: var(--color-border-strong); }
+}
+
+@media (max-width: 1023px) {
+  .organizer-note-button { min-height: var(--touch-target); }
+}
