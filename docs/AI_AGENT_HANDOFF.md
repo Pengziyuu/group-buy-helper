@@ -7,7 +7,7 @@
 這是單一社區使用的 LINE LIFF 團購系統：
 
 - 住戶以 LINE 驗證身分，瀏覽所有已發布團購、下單及查看自己的訂單。
-- 團主以另一個 LIFF 入口登入，管理團購、住戶、訂單、付款完成狀態、匯出與通知。
+- 團主以另一個 LIFF 入口登入，管理團購、住戶、訂單與團主備註、匯出與通知；付款由團主依匯出的 Excel 在系統外處理。
 - 前端部署於 Vercel，資料、Auth、Realtime、Storage、pg_cron 與 Edge Functions 位於 Supabase。
 - 正式站：<https://group-buy-helper-liart.vercel.app/>
 - 團主入口：<https://group-buy-helper-liart.vercel.app/admin>
@@ -61,7 +61,7 @@ python scripts/start_local_live_demo.py
 - `src/App.tsx`：住戶團購詳情、下單、自己的訂單與即時訂單牆。
 - `src/CampaignListApp.tsx`：團主工作台、團購列表、住戶管理入口與自動結單通知設定。
 - `src/AdminApp.tsx`：團購草稿／發布編輯器。
-- `src/AdminOrdersPanel.tsx`：團主訂單、付款、取消、匯出與領取通知。
+- `src/components/organizer/OverviewSection.tsx`、`OrdersSection.tsx`：團主概況（成團進度、今日新增、品項數量、最新訂單）與訂單（搜尋、排序、團主備註、整筆取消、匯出）；`LocalLiveAdminApp` 訂閱該團 `orders`／`order_item` 的 Realtime 變動後重新載入。
 - `src/NotificationTestLab.tsx`：與正式通知介面隔離的通知測試中心。
 - `src/services/`：Supabase gateway、Excel匯出與migration／Edge Function契約測試。
 - `src/domain/`：價格、折扣、戶籍、時間、門檻與訂單純領域邏輯。
@@ -92,7 +92,7 @@ python scripts/start_local_live_demo.py
 - `/admin`：團主首頁（所有團購）。
 - `/admin/residents`：住戶（`?filter=unbound|other|blocked` 開啟對應篩選）。
 - `/admin/settings`：設定（自動結單通知、通知測試中心入口、登出）。
-- `/admin/campaign/<uuid>/<分區>`：團購工作區；分區為 `orders`、`content`、`pickup`（`overview` 於第 4 階段提供，目前導向預設分區）。只有 UUID 的網址會以 `replaceState` 導向預設分區：草稿 → 內容設定，已發布 → 訂單。
+- `/admin/campaign/<uuid>/<分區>`：團購工作區；分區為 `overview`、`orders`、`content`、`pickup`。只有 UUID 的網址會以 `replaceState` 導向預設分區：草稿 → 內容設定；已發布且開團中 → 概況；已結單 → 訂單。
 - 團主端各頁之間以 `history.pushState` 切換，不重新載入，也不重新驗證登入。
 - `/admin/notification-lab`：隔離的通知測試中心。
 - `vercel.json`將`/admin`及其子路徑rewrite到`admin.html`，其他路徑rewrite到`index.html`。
@@ -133,7 +133,7 @@ python scripts/start_local_live_demo.py
 
 ### 訂單與付款
 
-- 只追蹤已付款／未付款，不記錄付款方式。
+- 前端不提供付款功能（2026-09-24 決定）：團主結單後匯出 Excel，自行處理付款。資料庫的 `paid` 欄位與 `setOrderPaid` gateway 仍在，但畫面不讀也不寫；不要再加付款介面。
 - 住戶不能送出空訂單；整筆取消由團主在開團中操作，且不可復原。
 - 團購已結單後住戶訂單鎖定。
 - `.xlsx`匯出是結單後純前端唯讀下載，不寫資料庫；正式總價使用公式，額外品項金額留空並標示另計。

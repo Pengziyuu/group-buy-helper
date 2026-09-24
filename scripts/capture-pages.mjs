@@ -21,6 +21,7 @@ const pages = [
   { name: 'admin-list', path: '/admin' },
   { name: 'admin-residents', path: '/admin/residents' },
   { name: 'admin-settings', path: '/admin/settings' },
+  { name: 'admin-overview', path: '/admin/campaign/01234567-89ab-cdef-0123-456789abcdef/overview' },
   { name: 'admin-editor', path: '/admin/campaign/01234567-89ab-cdef-0123-456789abcdef/content' },
   { name: 'admin-orders', path: '/admin/campaign/01234567-89ab-cdef-0123-456789abcdef/orders' },
 ]
