@@ -109,7 +109,7 @@ export function WorkspaceRail({ campaign, section, now, onSetCampaignStatus, onC
           const reason = sectionUnavailableReason(item.section, campaign.status, campaign.published)
           if (reason) {
             return (
-              <span key={item.section} className="organizer-rail-link" aria-disabled="true">
+              <span key={item.section} className="organizer-rail-link is-unavailable">
                 {item.label}<small>{reason}</small>
               </span>
             )

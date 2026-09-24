@@ -27,6 +27,10 @@
   .organizer-nav { order: 3; width: 100%; }
 }
 
+@media (max-width: 1023px) {
+  .organizer-attention a { display: inline-flex; align-items: center; min-height: var(--touch-target); }
+}
+
 /* Organizer home: attention list and the campaign table, which turns into cards below 640px. */
 .organizer-attention { margin-bottom: var(--space-4); }
 .organizer-attention ul { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
@@ -89,16 +93,17 @@
 .organizer-rail-nav { display: grid; gap: 2px; }
 .organizer-rail-link { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: 36px; padding: 0 var(--space-3); border-radius: var(--radius-control); color: var(--color-text); text-decoration: none; }
 .organizer-rail-link[aria-current="page"] { background: var(--color-primary-subtle); color: var(--color-primary); font-weight: var(--font-weight-strong); }
-.organizer-rail-link[aria-disabled="true"] { color: var(--color-disabled-text); cursor: not-allowed; }
+.organizer-rail-link.is-unavailable { color: var(--color-disabled-text); cursor: not-allowed; }
 .organizer-rail-link small { font-size: var(--font-size-caption); }
+.organizer-rail-link.is-unavailable small { color: var(--color-text-secondary); }
 .organizer-rail-share { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: auto; padding-top: var(--space-3); border-top: 1px solid var(--color-divider); }
-.organizer-rail-share a { color: var(--color-primary); }
+.organizer-rail-share a { display: inline-flex; align-items: center; min-height: 24px; color: var(--color-primary); }
 .organizer-workspace-main { min-width: 0; padding: var(--space-5) var(--space-6) var(--space-10); }
 .organizer-workspace-main .admin-shell { min-height: 0; max-width: none; margin: 0; padding: 0; }
 .organizer-section h2 { margin: 0 0 var(--space-3); font-size: var(--font-size-title); font-weight: var(--font-weight-strong); }
 
 @media (hover: hover) {
-  .organizer-rail-link:not([aria-disabled="true"]):not([aria-current="page"]):hover { background: var(--color-fill-hover); }
+  .organizer-rail-link:not(.is-unavailable):not([aria-current="page"]):hover { background: var(--color-fill-hover); }
 }
 
 @media (max-width: 1023px) {

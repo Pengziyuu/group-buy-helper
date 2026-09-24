@@ -41,9 +41,9 @@ function CampaignThumb({ campaign }: { campaign: CampaignListItem }) {
   const [failed, setFailed] = useState(false)
   useEffect(() => setFailed(false), [image?.src])
   if (image && !failed) {
-    return <img className="organizer-thumb" src={image.src} alt={image.alt} loading="lazy" onError={() => setFailed(true)} />
+    return <img className="organizer-thumb" src={image.src} alt="" loading="lazy" onError={() => setFailed(true)} />
   }
-  return <span className="organizer-thumb organizer-thumb-empty" role="img" aria-label={`${campaign.title}尚未設定圖片`}>無圖</span>
+  return <span className="organizer-thumb organizer-thumb-empty" aria-hidden="true">無圖</span>
 }
 
 export function OrganizerHome({ campaigns, autoCloseNotificationState, unboundResidentCount = 0, now, onDelete, onCopyResidentLink }: OrganizerHomeProps) {
