@@ -491,7 +491,7 @@ describe('local Supabase visual demo apps', () => {
     expect(screen.getByRole('textbox', { name: '品項 A 商品名稱（口味）' })).toHaveValue('A')
     expect(screen.getByRole('button', { name: '發布並開團' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '結單' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: '查看住戶端 ↗' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '開啟住戶頁' })).not.toBeInTheDocument()
     expect(repository.loadOptionalPublished).toHaveBeenCalledWith('new-campaign')
   })
 
@@ -866,20 +866,14 @@ describe('local Supabase visual demo apps', () => {
     vi.mocked(client.auth.signOut).mockImplementation(() => new Promise((resolve) => {
       finishSignOut = () => resolve({ error: null })
     }))
-    const repository: LiveAdminRepository = {
-      loadPublished: vi.fn().mockResolvedValue(published),
-      loadOptionalDraft: vi.fn().mockResolvedValue(null),
-      saveDraft: vi.fn(),
-      publish: vi.fn(),
-    }
+    const settings = settingsRepository()
 
     render(
       <LocalLiveAdminApp
         client={client}
         page="settings"
-        repository={repository}
         ordersRepository={ordersRepository()}
-        autoCloseNotificationSettingsRepository={settingsRepository()}
+        autoCloseNotificationSettingsRepository={settings}
       />,
     )
     expect(await screen.findByRole('heading', { level: 1, name: '設定' })).toBeInTheDocument()
@@ -899,7 +893,7 @@ describe('local Supabase visual demo apps', () => {
     })
     expect(client.auth.getUser).toHaveBeenCalledTimes(1)
     expect(screen.getByText('登出中…')).toBeInTheDocument()
-    expect(repository.loadPublished).not.toHaveBeenCalled()
+    expect(settings.getState).toHaveBeenCalledTimes(1)
 
     await act(async () => {
       finishSignOut?.()
@@ -1139,21 +1133,15 @@ describe('local Supabase visual demo apps', () => {
       primary.values.delete(key)
     })
     const fallback = memoryAuthStorage()
-    const repository: LiveAdminRepository = {
-      loadPublished: vi.fn().mockResolvedValue(published),
-      loadOptionalDraft: vi.fn().mockResolvedValue(null),
-      saveDraft: vi.fn(),
-      publish: vi.fn(),
-    }
+    const settings = settingsRepository()
     const firstView = render(
       <LocalLiveAdminApp
         client={first}
         page="settings"
-        repository={repository}
         ordersRepository={ordersRepository()}
         authStorage={primary.storage}
         logoutFallbackStorage={fallback.storage}
-        autoCloseNotificationSettingsRepository={settingsRepository()}
+        autoCloseNotificationSettingsRepository={settings}
       />,
     )
     expect(await screen.findByRole('heading', { level: 1, name: '設定' })).toBeInTheDocument()
@@ -1166,20 +1154,20 @@ describe('local Supabase visual demo apps', () => {
     firstView.unmount()
 
     const second = authClient(session).client
+    const secondSettings = settingsRepository()
     render(
       <LocalLiveAdminApp
         client={second}
         page="settings"
-        repository={repository}
         ordersRepository={ordersRepository()}
         authStorage={primary.storage}
         logoutFallbackStorage={fallback.storage}
-        autoCloseNotificationSettingsRepository={settingsRepository()}
+        autoCloseNotificationSettingsRepository={secondSettings}
       />,
     )
     expect(await screen.findByRole('alert')).toHaveTextContent('無法清除本機登入資料')
     expect(second.auth.getSession).not.toHaveBeenCalled()
-    expect(repository.loadPublished).not.toHaveBeenCalled()
+    expect(secondSettings.getState).not.toHaveBeenCalled()
     expect(fallback.values.get(LOGOUT_TOMBSTONE_KEY)).toBe('1')
   })
 
@@ -1189,20 +1177,14 @@ describe('local Supabase visual demo apps', () => {
     const first = authClient(session).client
     vi.mocked(first.auth.signOut).mockImplementation(() => new Promise(() => undefined))
     const { storage, values } = memoryAuthStorage({ [SUPABASE_AUTH_STORAGE_KEY]: 'persisted-session' })
-    const repository: LiveAdminRepository = {
-      loadPublished: vi.fn().mockResolvedValue(published),
-      loadOptionalDraft: vi.fn().mockResolvedValue(null),
-      saveDraft: vi.fn(),
-      publish: vi.fn(),
-    }
+    const settings = settingsRepository()
     const firstView = render(
       <LocalLiveAdminApp
         client={first}
         page="settings"
-        repository={repository}
         ordersRepository={ordersRepository()}
         authStorage={storage}
-        autoCloseNotificationSettingsRepository={settingsRepository()}
+        autoCloseNotificationSettingsRepository={settings}
       />,
     )
     expect(await screen.findByRole('heading', { level: 1, name: '設定' })).toBeInTheDocument()
@@ -1212,20 +1194,20 @@ describe('local Supabase visual demo apps', () => {
     firstView.unmount()
 
     const second = authClient(session).client
+    const secondSettings = settingsRepository()
     render(
       <LocalLiveAdminApp
         client={second}
         page="settings"
-        repository={repository}
         ordersRepository={ordersRepository()}
         authStorage={storage}
-        autoCloseNotificationSettingsRepository={settingsRepository()}
+        autoCloseNotificationSettingsRepository={secondSettings}
       />,
     )
 
     expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
     expect(second.auth.getSession).not.toHaveBeenCalled()
-    expect(repository.loadPublished).not.toHaveBeenCalled()
+    expect(secondSettings.getState).not.toHaveBeenCalled()
     expect(values.has(SUPABASE_AUTH_STORAGE_KEY)).toBe(false)
     expect(values.has(LOGOUT_TOMBSTONE_KEY)).toBe(false)
     expect(screen.getByRole('alert')).toHaveTextContent('先前的登出已在本機完成')
