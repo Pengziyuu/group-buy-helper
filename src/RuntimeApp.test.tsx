@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import RuntimeApp from './RuntimeApp'
@@ -89,6 +89,22 @@ describe('RuntimeApp production live routing', () => {
 })
 
 describe('RuntimeApp localStorage resident demo routing', () => {
+  afterEach(() => { window.history.replaceState(null, '', '/') })
+
+  it('ignores a popstate event so a resident page keeps its LIFF-resolved pathname', () => {
+    const config = { mode: 'demo' as const }
+    render(<RuntimeApp config={config} pathname="/" />)
+    expect(screen.getByRole('heading', { name: '團購' })).toBeInTheDocument()
+
+    act(() => {
+      window.history.pushState(null, '', '/admin')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
+
+    expect(screen.getByRole('heading', { name: '團購' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '建立新團' })).not.toBeInTheDocument()
+  })
+
   it('does not impersonate the Live notification lab with resident demo data', () => {
     render(<RuntimeApp config={{ mode: 'demo' }} pathname="/admin/notification-lab" />)
     expect(screen.getByText('通知測試中心僅提供Live模式使用')).toBeInTheDocument()
@@ -139,5 +155,28 @@ describe('RuntimeApp localStorage organizer demo routing', () => {
 
     rerender(<RuntimeApp config={config} pathname="/admin/settings" />)
     expect(screen.getByRole('heading', { level: 1, name: '設定' })).toBeInTheDocument()
+  })
+
+  it('moves focus to the new page heading after clicking an organizer nav link', async () => {
+    const user = userEvent.setup()
+    const config = { mode: 'demo' as const }
+    render(<RuntimeApp config={config} pathname="/admin" />)
+    expect(screen.getByRole('heading', { level: 1, name: '團購' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('link', { name: '住戶' }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: '住戶 1 位' })).toHaveFocus()
+  })
+
+  it('keeps focus on the campaign heading through the follow-up URL replace that fills in the default section', async () => {
+    const user = userEvent.setup()
+    const config = { mode: 'demo' as const }
+    const campaignId = '01234567-89ab-cdef-0123-456789abcdef'
+    render(<RuntimeApp config={config} pathname="/admin" />)
+
+    await user.click(screen.getByRole('link', { name: '一涼製冰所 超厚三明治冰餅' }))
+
+    await waitFor(() => expect(window.location.pathname).toBe(`/admin/campaign/${campaignId}/orders`))
+    expect(screen.getByRole('heading', { level: 1, name: '一涼製冰所 超厚三明治冰餅' })).toHaveFocus()
   })
 })
