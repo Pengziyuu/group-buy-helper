@@ -118,6 +118,17 @@ describe('ItemTable', () => {
     expect(onChange).toHaveBeenCalledWith([{ ...baseItems[0], discountEligible: true }, baseItems[1], items[2]])
   })
 
+  it('toggles the mix-and-match checkbox by clicking its wrapping hit-area label', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    render(<ItemTable items={baseItems} locked={false} disabled={false} mixMatchEnabled onChange={onChange} />)
+
+    const checkbox = screen.getByRole('checkbox', { name: '品項 A 加入任選優惠' })
+    await user.click(checkbox.closest('label')!)
+
+    expect(onChange).toHaveBeenCalledWith([{ ...baseItems[0], discountEligible: true }, baseItems[1]])
+  })
+
   it('locks every field and hides the editing controls once the campaign has opened', () => {
     const onChange = vi.fn()
     render(<Harness locked mixMatchEnabled onChange={onChange} />)

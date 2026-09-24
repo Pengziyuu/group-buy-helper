@@ -125,14 +125,16 @@ export function ItemTable({ items, locked, disabled, mixMatchEnabled, onChange }
                   </td>
                   {mixMatchEnabled && (
                     <td data-label="參加任選">
-                      <input
-                        type="checkbox"
-                        className="content-item-mix"
-                        aria-label={`品項 ${label} 加入任選優惠`}
-                        checked={item.discountEligible ?? false}
-                        disabled={!editable || !item.active}
-                        onChange={(event) => update(item.code, { discountEligible: event.target.checked })}
-                      />
+                      <label className="content-item-mix-hit">
+                        <input
+                          type="checkbox"
+                          className="content-item-mix"
+                          aria-label={`品項 ${label} 加入任選優惠`}
+                          checked={item.discountEligible ?? false}
+                          disabled={!editable || !item.active}
+                          onChange={(event) => update(item.code, { discountEligible: event.target.checked })}
+                        />
+                      </label>
                     </td>
                   )}
                 </tr>

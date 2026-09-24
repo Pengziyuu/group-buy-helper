@@ -15,10 +15,11 @@
 .content-item-table .ui-input { width: 100%; min-width: 0; }
 .content-item-table .content-item-price { max-width: 140px; }
 .content-item-table tr.is-inactive { color: var(--color-text-tertiary); }
-.content-item-mix { width: 24px; height: 24px; margin: 0; accent-color: var(--color-primary); }
+.content-item-mix-hit { display: inline-grid; place-items: center; min-width: 24px; min-height: 24px; cursor: pointer; }
+.content-item-mix { width: 20px; height: 20px; margin: 0; accent-color: var(--color-primary); }
 .content-item-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .content-item-actions small { color: var(--color-text-secondary); font-size: var(--font-size-caption); }
 
 @media (max-width: 1023px) {
-  .content-item-mix { width: 28px; height: 28px; margin: 8px; }
+  .content-item-mix-hit { min-width: var(--touch-target); min-height: var(--touch-target); }
 }
