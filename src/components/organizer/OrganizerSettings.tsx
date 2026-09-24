@@ -2,6 +2,7 @@ import { useState } from 'react'
 import AutoCloseNotificationSettings from '../../AutoCloseNotificationSettings'
 import type { AutoCloseNotificationSettingState } from '../../services/autoCloseNotificationSettingsGateway'
 import { Button } from '../ui/Button'
+import { FeedbackMessage } from '../ui/FeedbackMessage'
 import { OrganizerLink } from './OrganizerLink'
 
 type OrganizerSettingsProps = {
@@ -12,6 +13,7 @@ type OrganizerSettingsProps = {
 
 export function OrganizerSettings({ autoCloseNotificationState, onSelectCurrentUserForAutoCloseNotification, onSignOut }: OrganizerSettingsProps) {
   const [signingOut, setSigningOut] = useState(false)
+  const [signOutError, setSignOutError] = useState<string | null>(null)
 
   return (
     <main className="organizer-page organizer-settings">
@@ -30,14 +32,24 @@ export function OrganizerSettings({ autoCloseNotificationState, onSelectCurrentU
       {onSignOut && (
         <section className="organizer-settings-section" aria-labelledby="account-heading">
           <h2 id="account-heading">帳號</h2>
+          {signOutError && (
+            <FeedbackMessage tone="error">{signOutError}</FeedbackMessage>
+          )}
           <Button
             variant="secondary"
             size="sm"
             loading={signingOut}
             loadingLabel="正在登出…"
-            onClick={() => {
+            onClick={async () => {
               setSigningOut(true)
-              void onSignOut().finally(() => setSigningOut(false))
+              setSignOutError(null)
+              try {
+                await onSignOut()
+              } catch (error) {
+                setSignOutError(`登出失敗：${error instanceof Error ? error.message : String(error)}`)
+              } finally {
+                setSigningOut(false)
+              }
             }}
           >登出</Button>
         </section>

@@ -33,4 +33,14 @@ describe('OrganizerSettings', () => {
     await user.click(screen.getByRole('button', { name: '登出' }))
     expect(onSignOut).toHaveBeenCalledOnce()
   })
+
+  it('shows an error when sign-out fails', async () => {
+    const user = userEvent.setup()
+    const onSignOut = vi.fn().mockRejectedValue(new Error('network down'))
+    renderSettings({ onSignOut })
+
+    await user.click(screen.getByRole('button', { name: '登出' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('登出失敗：network down')
+    expect(screen.getByRole('button', { name: '登出' })).toBeEnabled()
+  })
 })
