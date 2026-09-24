@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
+import { Button } from './components/ui/Button'
 import type { CampaignStatus } from './domain/orderWorkflow'
 import {
   pickupNotificationAudienceLabel,
@@ -20,6 +21,8 @@ type PickupNotificationPanelProps = {
   onCreateCommand: (audience: PickupNotificationAudience, message: string, previewToken: string) => Promise<PickupNotificationCommand>
 }
 
+type FocusTarget = 'step-two' | 'copy' | 'command' | 'first-choice'
+
 function recipientLabel(recipient: PickupNotificationRecipient): string {
   return `${formatResidentPeriod(recipient.period)}・${recipient.unit}・${recipient.displayName}`
 }
@@ -32,7 +35,7 @@ function RecipientList({ recipients }: { recipients: PickupNotificationRecipient
           {recipient.pictureUrl
             ? <img src={recipient.pictureUrl} alt="" />
             : <span className="pickup-recipient-avatar" aria-hidden="true">{recipient.displayName.slice(0, 1)}</span>}
-          <span><strong>{recipientLabel(recipient)}</strong><small>{recipient.paid ? '已付款' : '未付款'}</small></span>
+          <strong>{recipientLabel(recipient)}</strong>
         </li>
       ))}
     </ul>
@@ -44,7 +47,9 @@ function PickupNotificationPanel({ campaignId, campaignTitle, campaignStatus, mo
   const messageLimit = 4500 - (isTest ? '【測試】\n'.length : 0)
   const idPrefix = useId()
   const panelHeadingId = `${idPrefix}-panel-heading`
-  const dialogHeadingId = `${idPrefix}-dialog-heading`
+  const stepOneId = `${idPrefix}-step-one`
+  const stepTwoId = `${idPrefix}-step-two`
+  const stepThreeId = `${idPrefix}-step-three`
   const mentionableHeadingId = `${idPrefix}-mentionable-heading`
   const unavailableHeadingId = `${idPrefix}-unavailable-heading`
   const [audience, setAudience] = useState<PickupNotificationAudience | null>(null)
@@ -55,42 +60,45 @@ function PickupNotificationPanel({ campaignId, campaignTitle, campaignStatus, mo
   const [busy, setBusy] = useState<'preview' | 'create-command' | null>(null)
   const [busyAudience, setBusyAudience] = useState<PickupNotificationAudience | null>(null)
   const [error, setError] = useState('')
-  const dialogRef = useRef<HTMLDivElement>(null)
-  const triggerRef = useRef<HTMLButtonElement | null>(null)
+  const firstChoiceRef = useRef<HTMLButtonElement>(null)
+  const stepTwoHeadingRef = useRef<HTMLHeadingElement>(null)
   const commandButtonRef = useRef<HTMLButtonElement>(null)
   const copyButtonRef = useRef<HTMLButtonElement>(null)
   const operationLock = useRef(false)
+  const focusTargetRef = useRef<FocusTarget | null>(null)
 
+  // Reopening the campaign discards any preview token or command from the closed period.
   useEffect(() => {
-    if (!audience) return
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    queueMicrotask(() => dialogRef.current?.querySelector<HTMLElement>('button')?.focus())
-    return () => { document.body.style.overflow = previousOverflow }
-  }, [audience])
+    if (campaignStatus !== 'open') return
+    setAudience(null)
+    setPreview(null)
+    setMessage('')
+    setCommand(null)
+    setCopyStatus('')
+    setError('')
+  }, [campaignStatus])
 
+  // Focus follows the step the organizer has just reached.
   useEffect(() => {
-    if (campaignStatus === 'open' && audience) setAudience(null)
-  }, [audience, campaignStatus])
-
-  useEffect(() => {
-    if (busy === 'create-command') queueMicrotask(() => dialogRef.current?.focus())
-  }, [busy])
-
-  useEffect(() => {
-    if (busy !== null) return
-    if (command) queueMicrotask(() => copyButtonRef.current?.focus())
-    else if (error && audience) queueMicrotask(() => commandButtonRef.current?.focus())
-  }, [audience, busy, command, error])
+    const target = focusTargetRef.current
+    if (!target || busy !== null) return
+    focusTargetRef.current = null
+    const elements: Record<FocusTarget, HTMLElement | null> = {
+      'step-two': stepTwoHeadingRef.current,
+      copy: copyButtonRef.current,
+      command: commandButtonRef.current,
+      'first-choice': firstChoiceRef.current,
+    }
+    elements[target]?.focus()
+  }, [audience, busy, command, error, preview])
 
   if (campaignStatus === 'open') return null
 
   const outboundMessage = (body: string) => isTest ? `【測試】\n${body}` : body
 
-  const openPreview = async (nextAudience: PickupNotificationAudience, trigger: HTMLButtonElement) => {
+  const openPreview = async (nextAudience: PickupNotificationAudience) => {
     if (operationLock.current) return
     operationLock.current = true
-    triggerRef.current = trigger
     const nextMessage = pickupNotificationTemplate(nextAudience, campaignTitle)
     setBusy('preview')
     setBusyAudience(nextAudience)
@@ -102,6 +110,7 @@ function PickupNotificationPanel({ campaignId, campaignTitle, campaignStatus, mo
       setAudience(nextAudience)
       setMessage(nextMessage)
       setPreview(result)
+      focusTargetRef.current = 'step-two'
     } catch (previewError) {
       setError(previewError instanceof Error ? previewError.message : '目前無法讀取通知名單，請稍後再試。')
     } finally {
@@ -119,8 +128,10 @@ function PickupNotificationPanel({ campaignId, campaignTitle, campaignStatus, mo
     setCopyStatus('')
     try {
       setCommand(await onCreateCommand(audience, outboundMessage(message), preview.previewToken))
+      focusTargetRef.current = 'copy'
     } catch (commandError) {
       setError(commandError instanceof Error ? commandError.message : '目前無法產生通知指令，請稍後再試。')
+      focusTargetRef.current = 'command'
     } finally {
       operationLock.current = false
       setBusy(null)
@@ -138,41 +149,18 @@ function PickupNotificationPanel({ campaignId, campaignTitle, campaignStatus, mo
     }
   }
 
-  const close = () => {
+  const startOver = () => {
     if (operationLock.current) return
-    const trigger = triggerRef.current
     setAudience(null)
     setPreview(null)
     setMessage('')
     setError('')
     setCommand(null)
     setCopyStatus('')
-    queueMicrotask(() => trigger?.focus())
+    focusTargetRef.current = 'first-choice'
   }
 
-  const handleDialogKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Escape') {
-      event.preventDefault()
-      close()
-      return
-    }
-    if (event.key !== 'Tab') return
-    const focusable = [...(dialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [href]') ?? [])]
-    if (focusable.length === 0) {
-      event.preventDefault()
-      dialogRef.current?.focus()
-      return
-    }
-    const first = focusable[0]
-    const last = focusable[focusable.length - 1]
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault()
-      last.focus()
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault()
-      first.focus()
-    }
-  }
+  const chosen = audience && preview
 
   return (
     <section className="pickup-notification-panel" data-campaign-id={campaignId} aria-labelledby={panelHeadingId}>
@@ -181,27 +169,31 @@ function PickupNotificationPanel({ campaignId, campaignTitle, campaignStatus, mo
         <p>{isTest ? '發送方式：複製一次性測試指令並貼到測試群組' : '發送方式：複製一次性指令並貼到正式社區群組'}</p>
       </div>
       {Boolean(excludedOtherCount) && <p className="pickup-notification-excluded">本團另有 {excludedOtherCount} 位「其他」身分的訂購者不會收到通知，請自行聯繫。</p>}
-      <div className="pickup-notification-actions" aria-busy={busy === 'preview'}>
-        <button type="button" aria-label={isTest ? `預覽${campaignTitle}一期、三期測試通知` : undefined} disabled={busy !== null} onClick={(event) => { void openPreview('phase13', event.currentTarget) }}>
-          {busy === 'preview' && busyAudience === 'phase13' ? '讀取一期、三期名單中…' : `預覽一期、三期${isTest ? '測試' : ''}通知`}
-        </button>
-        <button type="button" aria-label={isTest ? `預覽${campaignTitle}二期測試通知` : undefined} disabled={busy !== null} onClick={(event) => { void openPreview('phase2', event.currentTarget) }}>
-          {busy === 'preview' && busyAudience === 'phase2' ? '讀取二期名單中…' : `預覽二期${isTest ? '測試' : ''}通知`}
-        </button>
-      </div>
-      <span className="pickup-sr-status" aria-live="polite">
-        {busy === 'preview' ? `正在讀取${busyAudience ? pickupNotificationAudienceLabel(busyAudience) : ''}名單` : busy === 'create-command' ? '正在產生一次性群組指令' : ''}
-      </span>
-      {error && !audience && <p className="pickup-notification-error" role="alert">{error}</p>}
 
-      {audience && preview && (
-        <div className="pickup-dialog-backdrop">
-          <div ref={dialogRef} tabIndex={-1} className="pickup-dialog" role="dialog" aria-modal="true" aria-labelledby={dialogHeadingId} aria-busy={busy === 'create-command'} onKeyDown={handleDialogKeyDown}>
-            <div className="pickup-dialog-heading">
-              <div><p>LINE官方帳號</p><h4 id={dialogHeadingId}>{pickupNotificationAudienceLabel(audience)}領取通知</h4></div>
-              <button type="button" className="pickup-dialog-close" aria-label="關閉領取通知" disabled={busy !== null} onClick={close}>×</button>
+      <ol className="pickup-steps">
+        <li className="pickup-step" data-state={chosen ? 'done' : 'current'} aria-labelledby={stepOneId}>
+          <h4 id={stepOneId}>1. 選擇通知對象</h4>
+          {chosen ? (
+            <div className="pickup-step-actions">
+              <p>已選擇：{pickupNotificationAudienceLabel(audience)}</p>
+              <Button variant="utility" size="sm" disabled={busy !== null} onClick={startOver}>重新選擇</Button>
             </div>
+          ) : (
+            <div className="pickup-step-actions" aria-busy={busy === 'preview'}>
+              <Button ref={firstChoiceRef} variant="secondary" aria-label={isTest ? `預覽${campaignTitle}一期、三期測試通知` : undefined} disabled={busy !== null} onClick={() => { void openPreview('phase13') }}>
+                {busy === 'preview' && busyAudience === 'phase13' ? '讀取一期、三期名單中…' : `預覽一期、三期${isTest ? '測試' : ''}通知`}
+              </Button>
+              <Button variant="secondary" aria-label={isTest ? `預覽${campaignTitle}二期測試通知` : undefined} disabled={busy !== null} onClick={() => { void openPreview('phase2') }}>
+                {busy === 'preview' && busyAudience === 'phase2' ? '讀取二期名單中…' : `預覽二期${isTest ? '測試' : ''}通知`}
+              </Button>
+            </div>
+          )}
+          {error && !chosen && <p className="pickup-notification-error" role="alert">{error}</p>}
+        </li>
 
+        {chosen && (
+          <li className="pickup-step" data-state={command ? 'done' : 'current'} aria-labelledby={stepTwoId}>
+            <h4 id={stepTwoId} ref={stepTwoHeadingRef} tabIndex={-1}>2. 確認名單與訊息</h4>
             <section aria-labelledby={mentionableHeadingId}>
               <h5 id={mentionableHeadingId}>可＠{preview.mentionableCount}位</h5>
               <p>將分成{preview.messageCount}則LINE訊息回覆。</p>
@@ -209,7 +201,6 @@ function PickupNotificationPanel({ campaignId, campaignTitle, campaignStatus, mo
                 ? <RecipientList recipients={preview.mentionableRecipients} />
                 : <p className="pickup-empty-state">目前沒有符合條件且仍在群組中的購買者，因此不能產生指令。</p>}
             </section>
-
             {preview.unavailableRecipients.length > 0 && (
               <section className="pickup-unavailable" aria-labelledby={unavailableHeadingId}>
                 <h5 id={unavailableHeadingId}>以下{preview.unavailableRecipients.length}位目前無法＠</h5>
@@ -217,35 +208,41 @@ function PickupNotificationPanel({ campaignId, campaignTitle, campaignStatus, mo
                 <RecipientList recipients={preview.unavailableRecipients} />
               </section>
             )}
-
             <label className="pickup-message-field">
               <span>{isTest ? '測試通知正文' : '通知內容'}</span>
               {isTest && <small>系統回覆時會自動加上「【測試】」前綴。</small>}
               <textarea aria-label={isTest ? '測試通知正文' : '通知內容'} value={message} maxLength={messageLimit} rows={8} disabled={busy === 'create-command' || command !== null} onChange={(event) => setMessage(event.target.value)} />
             </label>
             {error && <p className="pickup-notification-error" role="alert">{error}</p>}
-            {command && (
-              <section className="pickup-command-result" aria-label="一次性LINE群組指令">
-                <strong>{isTest ? '測試群組指令已產生' : '正式群組指令已產生'}</strong>
-                <p>請複製並貼到{isTest ? '測試群組' : '正式社區群組'}。此頁尚未代表通知已發送。</p>
-                <input aria-label="一次性LINE群組指令" readOnly value={command.command} onFocus={(event) => event.currentTarget.select()} />
-                <button ref={copyButtonRef} type="button" className="pickup-send-action" onClick={() => { void copyCommand() }}>複製指令</button>
-                {copyStatus && <p className="pickup-notification-success" role="status">{copyStatus}</p>}
-              </section>
+            {!command && (
+              <div className="pickup-step-actions">
+                <Button ref={commandButtonRef} disabled={busy !== null || preview.mentionableCount === 0 || !preview.previewToken || !message.trim()} onClick={() => { void createCommand() }}>
+                  {busy === 'create-command' ? '產生指令中…' : `產生${isTest ? '測試' : '正式'}群組指令並＠${preview.mentionableCount}位住戶`}
+                </Button>
+              </div>
             )}
-            <div className="pickup-dialog-actions">
-              {command ? <button type="button" onClick={close}>關閉</button> : (
-                <>
-                  <button type="button" disabled={busy !== null} onClick={close}>取消</button>
-                  <button ref={commandButtonRef} type="button" className="pickup-send-action" disabled={busy !== null || preview.mentionableCount === 0 || !preview.previewToken || !message.trim()} onClick={() => { void createCommand() }}>
-                    {busy === 'create-command' ? '產生指令中…' : `產生${isTest ? '測試' : '正式'}群組指令並＠${preview.mentionableCount}位住戶`}
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+          </li>
+        )}
+
+        {chosen && command && (
+          <li className="pickup-step" data-state="current" aria-labelledby={stepThreeId}>
+            <h4 id={stepThreeId}>3. 複製指令到群組</h4>
+            <section className="pickup-command-result" aria-label="一次性LINE群組指令">
+              <strong>{isTest ? '測試群組指令已產生' : '正式群組指令已產生'}</strong>
+              <p>請複製並貼到{isTest ? '測試群組' : '正式社區群組'}。此頁尚未代表通知已發送。</p>
+              <input className="ui-input" aria-label="一次性LINE群組指令" readOnly value={command.command} onFocus={(event) => event.currentTarget.select()} />
+              <div className="pickup-step-actions">
+                <Button ref={copyButtonRef} onClick={() => { void copyCommand() }}>複製指令</Button>
+                <Button variant="secondary" onClick={startOver}>完成</Button>
+              </div>
+              {copyStatus && <p className="pickup-notification-success" role="status">{copyStatus}</p>}
+            </section>
+          </li>
+        )}
+      </ol>
+      <span className="pickup-sr-status" aria-live="polite">
+        {busy === 'preview' ? `正在讀取${busyAudience ? pickupNotificationAudienceLabel(busyAudience) : ''}名單` : busy === 'create-command' ? '正在產生一次性群組指令' : ''}
+      </span>
     </section>
   )
 }

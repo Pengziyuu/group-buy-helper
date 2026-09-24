@@ -59,18 +59,53 @@ describe('pickup notification panel', () => {
     expect(onCreateCommand).toHaveBeenCalledWith('phase2', '【測試】\n新版功能測試', preview.previewToken)
   })
 
-  it('traps focus in the modal and restores trigger focus on Escape', async () => {
+  it('moves focus through the steps and starts over without reusing the previous preview', async () => {
+    const user = userEvent.setup()
+    const onPreview = vi.fn()
+      .mockResolvedValueOnce(preview)
+      .mockResolvedValueOnce({ ...preview, previewToken: 'second-token' })
+    const onCreateCommand = vi.fn().mockResolvedValue(command)
+    render(<PickupNotificationPanel {...baseProps} onPreview={onPreview} onCreateCommand={onCreateCommand} />)
+
+    await user.click(screen.getByRole('button', { name: '預覽二期通知' }))
+    expect(await screen.findByRole('heading', { name: '2. 確認名單與訊息' })).toHaveFocus()
+    expect(screen.getByText('已選擇：二期')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '產生正式群組指令並＠2位住戶' }))
+    expect(await screen.findByRole('button', { name: '複製指令' })).toHaveFocus()
+    expect(screen.getByText(/此頁尚未代表通知已發送/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '完成' }))
+    expect(screen.getByRole('button', { name: '預覽一期、三期通知' })).toHaveFocus()
+    expect(screen.queryByRole('button', { name: '複製指令' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '預覽一期、三期通知' }))
+    await user.click(await screen.findByRole('button', { name: '產生正式群組指令並＠2位住戶' }))
+    expect(onCreateCommand).toHaveBeenLastCalledWith('phase13', expect.any(String), 'second-token')
+  })
+
+  it('hides itself as soon as the campaign is reopened and starts over when closed again', async () => {
+    const user = userEvent.setup()
+    const { rerender } = render(<PickupNotificationPanel {...baseProps} onPreview={vi.fn().mockResolvedValue(preview)} />)
+    await user.click(screen.getByRole('button', { name: '預覽二期通知' }))
+    expect(await screen.findByRole('heading', { name: '2. 確認名單與訊息' })).toBeInTheDocument()
+
+    rerender(<PickupNotificationPanel {...baseProps} campaignStatus="open" onPreview={vi.fn()} />)
+    expect(screen.queryByRole('heading', { name: 'LINE領取通知' })).not.toBeInTheDocument()
+
+    rerender(<PickupNotificationPanel {...baseProps} onPreview={vi.fn()} />)
+    expect(screen.queryByRole('heading', { name: '2. 確認名單與訊息' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '預覽二期通知' })).toBeEnabled()
+  })
+
+  it('never shows payment status in the recipient lists', async () => {
     const user = userEvent.setup()
     render(<PickupNotificationPanel {...baseProps} onPreview={vi.fn().mockResolvedValue(preview)} />)
-    const trigger = screen.getByRole('button', { name: '預覽二期通知' })
-    await user.click(trigger)
-    expect(await screen.findByRole('dialog', { name: '二期領取通知' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '關閉領取通知' })).toHaveFocus()
-    await user.keyboard('{Shift>}{Tab}{/Shift}')
-    expect(screen.getByRole('button', { name: '產生正式群組指令並＠2位住戶' })).toHaveFocus()
-    await user.keyboard('{Escape}')
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(trigger).toHaveFocus()
+    await user.click(screen.getByRole('button', { name: '預覽一期、三期通知' }))
+    expect(await screen.findByText('一期・A1・王小美')).toBeInTheDocument()
+    // Exact matches: the default message body itself mentions 尚未付款, which is the organizer's own wording.
+    expect(screen.queryByText('已付款')).not.toBeInTheDocument()
+    expect(screen.queryByText('未付款')).not.toBeInTheDocument()
   })
 
   it('explains when no current group member can be mentioned', async () => {
