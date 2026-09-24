@@ -172,12 +172,15 @@ describe('pickup notification panel', () => {
     render(<PickupNotificationPanel {...baseProps} onPreview={onPreview} />)
 
     await user.click(screen.getByRole('button', { name: '預覽二期通知' }))
-    // Browsers drop focus from a button once it is disabled; jsdom does not, so mimic it.
-    ;(document.activeElement as HTMLElement).blur()
+    // Browsers drop focus from a button once it is disabled; jsdom keeps it, so move focus away explicitly.
+    const elsewhere = document.createElement('button')
+    document.body.append(elsewhere)
+    elsewhere.focus()
     await act(async () => { failPreview() })
 
     expect(await screen.findByRole('alert')).toHaveTextContent('暫時無法讀取名單')
     expect(screen.getByRole('button', { name: '預覽二期通知' })).toHaveFocus()
+    elsewhere.remove()
   })
 
   it('warns only when non-resident buyers are excluded', () => {
