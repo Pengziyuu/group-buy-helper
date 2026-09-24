@@ -461,6 +461,8 @@ export function LocalLiveAdminApp({
   const logoutBarrier = useRef(false)
   const activeSignOut = useRef(false)
   const validatedOrganizerId = useRef<string | null>(null)
+  const currentCampaignIdRef = useRef(campaignId)
+  currentCampaignIdRef.current = campaignId
   const [session, setSession] = useState<Session | null | undefined>(undefined)
   const [content, setContent] = useState<CampaignContent | null>(null)
   const [contentCampaignId, setContentCampaignId] = useState<string | null>(null)
@@ -893,6 +895,7 @@ export function LocalLiveAdminApp({
       return (
         <OrganizerShell current="residents" onCreate={createCampaign}>
           <ResidentMemberManagementApp
+            key={residentFilter}
             members={residentMembers}
             initialFilter={residentFilter}
             onRefreshGroupStatuses={residentMemberGateway.refreshGroupStatuses
@@ -945,13 +948,16 @@ export function LocalLiveAdminApp({
 
   const reloadOrderSummary = async () => {
     if (!publishedContent) return
-    setOrderSummary(await ordersGateway.loadSummary(
+    const requestedCampaignId = campaignId
+    const summary = await ordersGateway.loadSummary(
       campaignId,
       publishedContent.threshold,
       publishedContent.thresholdKind,
       publishedContent.amountThreshold,
       publishedContent.quantityUnit,
-    ))
+    )
+    if (currentCampaignIdRef.current !== requestedCampaignId) return
+    setOrderSummary(summary)
   }
   const published = publishedContent !== null
   const shownSection = resolveWorkspaceSection(section, published)
@@ -976,8 +982,11 @@ export function LocalLiveAdminApp({
         requestedSection={section}
         section={shownSection}
         onSetCampaignStatus={async (status) => {
+          const requestedCampaignId = campaignId
           await ordersGateway.setCampaignStatus(campaignId, status)
-          setCampaignStatus(await ordersGateway.loadCampaignStatus(campaignId))
+          const nextStatus = await ordersGateway.loadCampaignStatus(campaignId)
+          if (currentCampaignIdRef.current !== requestedCampaignId) return
+          setCampaignStatus(nextStatus)
         }}
       >
         <AdminApp
@@ -1004,12 +1013,17 @@ export function LocalLiveAdminApp({
             await gateway.saveDraft(campaignId, nextContent)
           }}
           onPublish={async (nextContent) => {
+            const requestedCampaignId = campaignId
             await gateway.saveDraft(campaignId, nextContent)
             const nextPublished = await gateway.publish(campaignId)
-            setContent(nextPublished)
-            setPublishedContent(nextPublished)
-            setResidentSlug(await gateway.loadResidentSlug?.(campaignId) ?? null)
-            setOrderSummary(await ordersGateway.loadSummary(campaignId, nextPublished.threshold, nextPublished.thresholdKind, nextPublished.amountThreshold, nextPublished.quantityUnit))
+            const nextResidentSlug = await gateway.loadResidentSlug?.(campaignId) ?? null
+            const nextSummary = await ordersGateway.loadSummary(campaignId, nextPublished.threshold, nextPublished.thresholdKind, nextPublished.amountThreshold, nextPublished.quantityUnit)
+            if (currentCampaignIdRef.current === requestedCampaignId) {
+              setContent(nextPublished)
+              setPublishedContent(nextPublished)
+              setResidentSlug(nextResidentSlug)
+              setOrderSummary(nextSummary)
+            }
             return nextPublished
           }}
         />

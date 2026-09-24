@@ -6,7 +6,7 @@ import { LocalLiveAdminApp, LocalLiveResidentApp } from './LocalLiveApps'
 import { CampaignWorkspace } from './components/organizer/CampaignWorkspace'
 import { OrganizerHome } from './components/organizer/OrganizerHome'
 import { OrganizerNavigationProvider } from './components/organizer/OrganizerLink'
-import { useBrowserLocation } from './components/organizer/organizerNavigation'
+import { useBrowserLocation, useFocusHeadingOnNavigate } from './components/organizer/organizerNavigation'
 import { OrganizerSettings } from './components/organizer/OrganizerSettings'
 import { OrganizerShell } from './components/organizer/OrganizerShell'
 import { PickupSection } from './components/organizer/PickupSection'
@@ -111,9 +111,14 @@ export type RuntimeAppProps = {
 }
 
 export default function RuntimeApp({ config, pathname, search = '', client, liffClient }: RuntimeAppProps) {
-  const [location, navigate] = useBrowserLocation({ pathname, search })
+  // Only the organizer shell has in-app navigation; a resident page's pathname
+  // is resolved from LIFF state, not the browser's address bar, so it must not
+  // react to popstate. Based on the initial prop: the mode never changes mid-session.
+  const isAdminMode = selectAppMode(pathname) === 'admin'
+  const [location, navigate, navigationTick] = useBrowserLocation({ pathname, search }, { enabled: isAdminMode })
+  useFocusHeadingOnNavigate(navigationTick, isAdminMode)
   const routes = <RuntimeRoutes config={config} pathname={location.pathname} search={location.search} client={client} liffClient={liffClient} />
-  return selectAppMode(location.pathname) === 'admin'
+  return isAdminMode
     ? <OrganizerNavigationProvider navigate={navigate}>{routes}</OrganizerNavigationProvider>
     : routes
 }
@@ -198,6 +203,7 @@ function RuntimeRoutes({ config, pathname, search, client, liffClient }: Runtime
     return (
       <OrganizerShell current="residents" onCreate={createDemoCampaign}>
         <ResidentMemberManagementApp
+          key={parseResidentFilter(search)}
           members={demoResidentMembers}
           initialFilter={parseResidentFilter(search)}
           onSetBlocked={async () => undefined}

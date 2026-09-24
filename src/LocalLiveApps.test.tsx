@@ -419,6 +419,29 @@ describe('local Supabase visual demo apps', () => {
     expect(managementRepository.list).not.toHaveBeenCalled()
   })
 
+  it('remounts the residents page when the URL filter changes, instead of keeping the stale selection', async () => {
+    const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
+    const { client } = authClient(session)
+    const managementRepository: LiveCampaignManagementRepository = { list: vi.fn(), create: vi.fn(), delete: vi.fn() }
+    const residentMemberRepository: LiveResidentMemberRepository = {
+      list: vi.fn().mockResolvedValue([
+        { memberCode: 'abcdef0123456789abcdef0123456789abcd', displayName: '住戶甲', pictureUrl: null, period: 2, unit: '2K13', joinedAt: '2026-08-14T00:00:00Z', blocked: false, blockedAt: null },
+        { memberCode: '0123456789abcdef0123456789abcdef0124', displayName: '住戶丙', pictureUrl: null, period: 1, unit: 'B8', joinedAt: '2026-08-14T00:00:00Z', blocked: false, blockedAt: null },
+        { memberCode: '0123456789abcdef0123456789abcdef0123', displayName: '住戶丁', pictureUrl: null, period: null, unit: null, joinedAt: '2026-08-15T00:00:00Z', blocked: true, blockedAt: '2026-08-15T00:00:00Z' },
+      ]),
+      setBlocked: vi.fn(),
+      updateHousehold: vi.fn(),
+    }
+    const props = { client, page: 'residents' as const, managementRepository, residentMemberRepository }
+    const { rerender } = render(<LocalLiveAdminApp {...props} residentFilter="blocked" />)
+
+    expect(await screen.findByRole('radio', { name: '已封鎖 1' })).toBeChecked()
+
+    rerender(<LocalLiveAdminApp {...props} residentFilter="all" />)
+
+    expect(await screen.findByRole('radio', { name: '全部 2' })).toBeChecked()
+  })
+
   it('keeps unsaved content edits while switching workspace sections', async () => {
     const user = userEvent.setup()
     const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
@@ -458,6 +481,38 @@ describe('local Supabase visual demo apps', () => {
     rerender(<LocalLiveAdminApp {...props} campaignId="campaign-2" />)
 
     expect(await screen.findByRole('textbox', { name: '團購標題' })).toHaveValue('第二團')
+    const rail = screen.getByRole('complementary', { name: '團購工作區' })
+    expect(within(rail).getByRole('heading', { level: 1, name: '第二團' })).toBeInTheDocument()
+  })
+
+  it('does not let a late publish for the previous campaign overwrite the one now shown', async () => {
+    const user = userEvent.setup()
+    const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
+    const { client } = authClient(session)
+    let resolvePublish: (value: CampaignContent) => void = () => {}
+    const publishPromise = new Promise<CampaignContent>((resolve) => { resolvePublish = resolve })
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn(async (id: string) => ({ ...published, title: id === 'campaign-1' ? '第一團' : '第二團' })),
+      loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      saveDraft: vi.fn().mockResolvedValue(undefined),
+      publish: vi.fn().mockReturnValue(publishPromise),
+      loadResidentSlug: vi.fn(async (id: string) => `slug-${id}`),
+    }
+    const workflowRepository = ordersRepository()
+    const props = { client, repository, ordersRepository: workflowRepository, section: 'content' as const }
+    const { rerender } = render(<LocalLiveAdminApp {...props} campaignId="campaign-1" />)
+
+    expect(await screen.findByRole('textbox', { name: '團購標題' })).toHaveValue('第一團')
+    await user.click(screen.getByRole('button', { name: '更新住戶公告' }))
+    expect(repository.publish).toHaveBeenCalledWith('campaign-1')
+
+    rerender(<LocalLiveAdminApp {...props} campaignId="campaign-2" />)
+    expect(await screen.findByRole('textbox', { name: '團購標題' })).toHaveValue('第二團')
+
+    resolvePublish({ ...published, title: '被汙染的第一團' })
+    await waitFor(() => expect(workflowRepository.loadSummary).toHaveBeenCalledTimes(3))
+
+    expect(screen.getByRole('textbox', { name: '團購標題' })).toHaveValue('第二團')
     const rail = screen.getByRole('complementary', { name: '團購工作區' })
     expect(within(rail).getByRole('heading', { level: 1, name: '第二團' })).toBeInTheDocument()
   })
