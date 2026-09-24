@@ -154,6 +154,7 @@ function AdminApp({
     && Number(amountThresholdInput) > 0
     && Number(amountThresholdInput) <= 999999999999.99
   const thresholdValid = thresholdKind === 'quantity' ? thresholdInputValid : amountThresholdInputValid
+  const itemNamesValid = campaignItems.every((item) => item.name.trim().length > 0)
   const numericInputsValid = itemPricesValid && discountRulesValid && thresholdValid
   const scheduleInputsValid = !autoCloseEnabled || (validDateInput(autoCloseDate) && autoCloseDate >= todayInTaipei())
   const arrivalLabel = buildArrivalLabel(arrivalMode, arrivalMonth, arrivalDay, arrivalPeriod)
@@ -194,7 +195,7 @@ function AdminApp({
   }
 
   useEffect(() => {
-    if (draftRevision === savedRevisionRef.current || editorBusy || autoSaveInFlightRef.current || !numericInputsValid || !scheduleInputsValid) return
+    if (draftRevision === savedRevisionRef.current || editorBusy || autoSaveInFlightRef.current || !numericInputsValid || !scheduleInputsValid || !itemNamesValid) return
     const revision = draftRevision
     const delay = flushAutoSaveImmediatelyRef.current ? 0 : 500
     flushAutoSaveImmediatelyRef.current = false
@@ -222,7 +223,10 @@ function AdminApp({
         items: campaignItems,
         openedAt,
       }
-      const saving = onSaveDraft ? onSaveDraft(content) : Promise.resolve(saveDraftCampaign(content))
+      const saving = onSaveDraft ? onSaveDraft(content) : new Promise<void>((resolve) => {
+        saveDraftCampaign(content)
+        resolve()
+      })
       void saving.then(() => {
         savedRevisionRef.current = revision
         if (latestRevisionRef.current === revision) {
@@ -245,7 +249,7 @@ function AdminApp({
       })
     }, delay)
     return () => window.clearTimeout(timer)
-  }, [allowCustomItems, amountThreshold, announcement, arrivalLabel, autoCloseAt, autoSaveCycle, baseDiscountEnabled, baseDiscountRate, campaignItems, draftRevision, editorBusy, images, mixMatchDiscountRate, mixMatchEnabled, mixMatchMinimumQuantity, mixMatchName, numericInputsValid, onSaveDraft, openedAt, quantityUnit, scheduleInputsValid, threshold, thresholdKind, title, unitPrice])
+  }, [allowCustomItems, amountThreshold, announcement, arrivalLabel, autoCloseAt, autoSaveCycle, baseDiscountEnabled, baseDiscountRate, campaignItems, draftRevision, editorBusy, images, itemNamesValid, mixMatchDiscountRate, mixMatchEnabled, mixMatchMinimumQuantity, mixMatchName, numericInputsValid, onSaveDraft, openedAt, quantityUnit, scheduleInputsValid, threshold, thresholdKind, title, unitPrice])
 
   const retryAutoSave = () => {
     if (autoSaveFailedRevision === null || editorBusy || autoSaveInFlightRef.current) return
@@ -343,7 +347,7 @@ function AdminApp({
     pending: draftSavePending,
     saving: autoSaving,
     failedMessage: autoSaveError,
-    canSave: numericInputsValid && scheduleInputsValid,
+    canSave: numericInputsValid && scheduleInputsValid && itemNamesValid,
     lastSavedAt,
   })
   const publishing = busyAction === 'publish'

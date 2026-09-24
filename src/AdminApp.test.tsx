@@ -519,6 +519,10 @@ describe('organizer campaign editor', () => {
 
     expect(screen.getByRole('rowheader', { name: 'AA' })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: '品項 AA 商品名稱（口味）' })).toBeInTheDocument()
+    // The new row starts with a blank name, which holds autosave (see the blank-item-name tests);
+    // name it so the save this test is checking for is actually allowed to happen.
+    await user.type(screen.getByRole('textbox', { name: '品項 AA 商品名稱（口味）' }), '花生')
+
     await waitFor(() => expect(onSaveDraft).toHaveBeenCalledWith(expect.objectContaining({
       items: expect.arrayContaining([
         expect.objectContaining({ code: 'ITEM1', name: '牛奶', unitPrice: 45 }),
@@ -681,5 +685,71 @@ describe('organizer campaign editor', () => {
         expect.objectContaining({ code: 'ITEM2', name: '花生', unitPrice: 40 }),
       ],
     })))
+  })
+
+  it('holds autosave until every item has a name, instead of failing the save on a blank row', async () => {
+    const user = userEvent.setup()
+    const onSaveDraft = vi.fn().mockImplementation((content: CampaignContent) =>
+      content.items.some((item) => !item.name.trim())
+        ? Promise.reject(new Error('品項名稱不能為空'))
+        : Promise.resolve())
+    render(<AdminApp initialContent={{
+      title: '品項團', unitPrice: 40, threshold: 10, announcement: '', images: [], openedAt: null,
+      items: [{ code: 'ITEM1', name: '牛奶', unitPrice: 40, active: true }],
+    }} initialPublicationState="draft" onSaveDraft={onSaveDraft} />)
+
+    await user.click(screen.getByRole('spinbutton', { name: '品項 A 單價' }))
+    await user.keyboard('{Enter}')
+
+    await new Promise((resolve) => setTimeout(resolve, 700))
+    expect(onSaveDraft).not.toHaveBeenCalled()
+    expect(screen.getByText('有欄位需要修正，修正後才會自動儲存')).toBeInTheDocument()
+
+    await user.type(screen.getByRole('textbox', { name: '品項 B 商品名稱（口味）' }), '花生')
+
+    await waitFor(() => expect(onSaveDraft).toHaveBeenCalledTimes(1))
+    expect(onSaveDraft).toHaveBeenCalledWith(expect.objectContaining({
+      items: [
+        expect.objectContaining({ code: 'ITEM1', name: '牛奶' }),
+        expect.objectContaining({ code: 'ITEM2', name: '花生' }),
+      ],
+    }))
+    expect(await screen.findByText(/^已自動儲存/)).toBeInTheDocument()
+  })
+
+  it('does not attempt a failing autosave for an unrelated edit while a blank item row exists', async () => {
+    const user = userEvent.setup()
+    const onSaveDraft = vi.fn().mockImplementation((content: CampaignContent) =>
+      content.items.some((item) => !item.name.trim())
+        ? Promise.reject(new Error('品項名稱不能為空'))
+        : Promise.resolve())
+    render(<AdminApp initialContent={{
+      title: '品項團', unitPrice: 40, threshold: 10, announcement: '', images: [], openedAt: null,
+      items: [{ code: 'ITEM1', name: '牛奶', unitPrice: 40, active: true }],
+    }} initialPublicationState="draft" onSaveDraft={onSaveDraft} />)
+
+    await user.click(screen.getByRole('spinbutton', { name: '品項 A 單價' }))
+    await user.keyboard('{Enter}')
+
+    await user.type(screen.getByRole('textbox', { name: '開團資訊' }), '新公告內容')
+
+    await new Promise((resolve) => setTimeout(resolve, 700))
+    expect(onSaveDraft).not.toHaveBeenCalled()
+    expect(screen.queryByText(/^儲存失敗/)).not.toBeInTheDocument()
+  })
+
+  it('reports a save failure instead of sticking on 儲存中 when the local demo save throws synchronously', async () => {
+    const user = userEvent.setup()
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('storage full')
+    })
+    render(<AdminApp />)
+
+    await user.type(screen.getByRole('textbox', { name: '團購標題' }), '新標題')
+
+    expect(await screen.findByText('儲存失敗：storage full')).toBeInTheDocument()
+    expect(screen.queryByText('儲存中…')).not.toBeInTheDocument()
+
+    setItemSpy.mockRestore()
   })
 })
