@@ -1,7 +1,8 @@
 import type { OrganizerItemRow, OrganizerOrderRow } from '../../domain/adminOrders'
 import { taipeiDateInputFromIso } from '../../domain/campaignSchedule'
 import { compareHousehold, formatHousehold } from '../../domain/household'
-import { formatZhTwTimestamp, wasMeaningfullyUpdated } from '../../domain/timestamp'
+import { wasMeaningfullyUpdated } from '../../domain/timestamp'
+export { formatRelativeTime } from '../relativeTime'
 
 export type OrderSort = 'household' | 'orderedAt'
 export type OrderItemChip = { key: string; label: string; name: string; quantity: number; custom: boolean }
@@ -55,15 +56,4 @@ export function wasEdited(order: OrganizerOrderRow): boolean {
 export function isNewSince(order: OrganizerOrderRow, lastSeen: string | null): boolean {
   const seen = timestamp(lastSeen)
   return seen > 0 && lastActivity(order) > seen
-}
-
-export function formatRelativeTime(value: string | undefined, now: Date): string {
-  const time = timestamp(value)
-  if (!time || !value) return ''
-  const minutes = Math.floor((now.getTime() - time) / 60_000)
-  if (minutes < 1) return '剛剛'
-  if (minutes < 60) return `${minutes} 分鐘前`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours} 小時前`
-  return formatZhTwTimestamp(value).slice(5)
 }
