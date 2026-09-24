@@ -1,15 +1,29 @@
 import { useEffect, useRef, useState } from 'react'
 import './AdminApp.css'
-import LinkifiedText from './components/LinkifiedText'
+import './components/organizer/content/content.css'
+import { ContentPreview } from './components/organizer/content/ContentPreview'
+import { ContentSectionNav } from './components/organizer/content/ContentSectionNav'
+import { ContentTopBar, type ContentNotice } from './components/organizer/content/ContentTopBar'
+import {
+  describeSaveState,
+  publicationStatus,
+  publishBlockers,
+  publishBlockReason,
+  sectionCompletion,
+} from './components/organizer/content/contentChecks'
+import { ImageManager } from './components/organizer/content/ImageManager'
+import { ItemTable } from './components/organizer/content/ItemTable'
+import { PublishChecklist } from './components/organizer/content/PublishChecklist'
+import { FormField } from './components/ui/FormField'
+import { SegmentedControl } from './components/ui/SegmentedControl'
+import { Switch } from './components/ui/Switch'
 import { campaign, items } from './data/demo'
-import { campaignStatusLabel, type CampaignStatus } from './domain/orderWorkflow'
-import { itemLabel, MAX_CAMPAIGN_ITEMS } from './domain/itemLabel'
+import type { CampaignStatus } from './domain/orderWorkflow'
 import { normalizeQuantityUnit, QUANTITY_UNITS, type QuantityUnit } from './domain/quantityUnit'
 import {
   buildArrivalLabel,
   daysInMonth,
   formatArrivalLabel,
-  formatAutoCloseReminder,
   parseArrivalLabel,
   taipeiDateInputFromIso,
   taipeiNoonIso,
@@ -47,12 +61,19 @@ type AdminAppProps = {
   onPublish?: (content: CampaignContent) => Promise<CampaignContent | void>
   campaignStatus?: CampaignStatus
   onUploadImage?: (file: File) => Promise<string>
+  residentHref?: string | null
   section?: 'content' | null
 }
 
 function messageFromError(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
+
+const ARRIVAL_OPTIONS: Array<{ value: ArrivalMode; label: string }> = [
+  { value: 'notice', label: '貨到通知' },
+  { value: 'date', label: '指定日期' },
+  { value: 'month-period', label: '月份時段' },
+]
 
 function AdminApp({
   initialContent,
@@ -61,6 +82,7 @@ function AdminApp({
   onPublish,
   campaignStatus,
   onUploadImage,
+  residentHref = null,
   section = 'content',
 }: AdminAppProps = {}) {
   const [initialDraft] = useState(() => initialContent
@@ -94,19 +116,16 @@ function AdminApp({
   const [images, setImages] = useState(() => [...initialDraft.images])
   const [campaignItems, setCampaignItems] = useState(() => initialDraft.items.map((item) => ({ ...item })))
   const [openedAt, setOpenedAt] = useState(initialDraft.openedAt)
-  const [imageUrl, setImageUrl] = useState('')
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const imageInputRef = useRef<HTMLInputElement>(null)
-  const handledImageFileRef = useRef<File | null>(null)
   const operationLock = useRef(false)
   const [uploadingImage, setUploadingImage] = useState(false)
-  const [notice, setNotice] = useState('')
+  const [notice, setNotice] = useState<ContentNotice | null>(null)
   const [busyAction, setBusyAction] = useState<'publish' | null>(null)
   const [draftRevision, setDraftRevision] = useState(0)
   const [autoSaveCycle, setAutoSaveCycle] = useState(0)
   const [autoSaving, setAutoSaving] = useState(false)
   const [autoSaveFailedRevision, setAutoSaveFailedRevision] = useState<number | null>(null)
-  const [previewExpanded, setPreviewExpanded] = useState(false)
+  const [autoSaveError, setAutoSaveError] = useState<string | null>(null)
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
   const savedRevisionRef = useRef(0)
   const latestRevisionRef = useRef(0)
   const autoSaveInFlightRef = useRef(false)
@@ -134,11 +153,14 @@ function AdminApp({
   const amountThresholdInputValid = /^\d+(?:\.\d{0,2})?$/.test(amountThresholdInput)
     && Number(amountThresholdInput) > 0
     && Number(amountThresholdInput) <= 999999999999.99
-  const numericInputsValid = itemPricesValid && discountRulesValid && (thresholdKind === 'quantity' ? thresholdInputValid : amountThresholdInputValid)
+  const thresholdValid = thresholdKind === 'quantity' ? thresholdInputValid : amountThresholdInputValid
+  const numericInputsValid = itemPricesValid && discountRulesValid && thresholdValid
   const scheduleInputsValid = !autoCloseEnabled || (validDateInput(autoCloseDate) && autoCloseDate >= todayInTaipei())
   const arrivalLabel = buildArrivalLabel(arrivalMode, arrivalMonth, arrivalDay, arrivalPeriod)
   const autoCloseAt = autoCloseEnabled && scheduleInputsValid ? taipeiNoonIso(autoCloseDate) : null
   const draftSavePending = draftRevision !== savedRevisionRef.current
+  const itemsLocked = openedAt !== null
+  const customItemsLocked = openedAt !== null
 
   const currentContent = (): CampaignContent => ({
     title,
@@ -161,12 +183,14 @@ function AdminApp({
     items: campaignItems,
     openedAt,
   })
+
   const markDraft = () => {
     latestRevisionRef.current += 1
     setDraftRevision(latestRevisionRef.current)
     setPublicationState('draft')
     setAutoSaveFailedRevision(null)
-    setNotice('')
+    setAutoSaveError(null)
+    setNotice(null)
   }
 
   useEffect(() => {
@@ -203,13 +227,14 @@ function AdminApp({
         savedRevisionRef.current = revision
         if (latestRevisionRef.current === revision) {
           setAutoSaveFailedRevision(null)
-          setNotice('已自動暫存')
+          setAutoSaveError(null)
+          setLastSavedAt(new Date())
         }
       }).catch((error: unknown) => {
         savedRevisionRef.current = revision
         if (latestRevisionRef.current === revision) {
           setAutoSaveFailedRevision(revision)
-          setNotice(`自動暫存失敗：${messageFromError(error)}`)
+          setAutoSaveError(messageFromError(error))
         }
       }).finally(() => {
         autoSaveInFlightRef.current = false
@@ -227,7 +252,7 @@ function AdminApp({
     savedRevisionRef.current = Math.min(savedRevisionRef.current, autoSaveFailedRevision - 1)
     flushAutoSaveImmediatelyRef.current = true
     setAutoSaveFailedRevision(null)
-    setNotice('正在重試暫存…')
+    setAutoSaveError(null)
     setAutoSaveCycle((cycle) => cycle + 1)
   }
 
@@ -236,7 +261,7 @@ function AdminApp({
     const wasOpened = itemsLocked
     operationLock.current = true
     setBusyAction('publish')
-    setNotice('')
+    setNotice(null)
     try {
       if (!campaignItems.some((item) => item.active && item.name.trim())) {
         throw new Error('至少需要一個啟用且有名稱的品項')
@@ -285,254 +310,270 @@ function AdminApp({
       savedRevisionRef.current = draftRevision
       latestRevisionRef.current = draftRevision
       setPublicationState('published')
-      setNotice(wasOpened ? '住戶公告已更新' : '已發布並開團')
+      setNotice({ tone: 'info', text: wasOpened ? '住戶頁已更新' : '已發布並開團' })
     } catch (error) {
-      setNotice(`發布失敗：${messageFromError(error)}`)
+      setNotice({ tone: 'error', text: `發布失敗：${messageFromError(error)}` })
     } finally {
       operationLock.current = false
       setBusyAction(null)
     }
   }
 
-  const addImage = async () => {
-    if (images.length >= 10 || operationLock.current) return
-    const alt = `${title.trim() || '商品'}第 ${images.length + 1} 張商品圖片`
-    operationLock.current = true
-    setNotice('')
-    try {
-      setUploadingImage(true)
-      const src = onUploadImage
-        ? imageFile && await onUploadImage(imageFile)
-        : imageUrl.trim()
-      if (!src) return
-      setImages((current) => [...current, { src, alt }])
-      markDraft()
-      setImageUrl('')
-      setImageFile(null)
-      handledImageFileRef.current = null
-      if (imageInputRef.current) imageInputRef.current.value = ''
-      if (onUploadImage) setNotice('圖片已上傳，將自動暫存')
-    } catch (error) {
-      setNotice(`上傳失敗：${messageFromError(error)}`)
-    } finally {
-      operationLock.current = false
-      setUploadingImage(false)
-    }
+  const addImage = (src: string) => {
+    setImages((current) => [...current, { src, alt: `${title.trim() || '商品'}第 ${current.length + 1} 張商品圖片` }])
+    markDraft()
   }
 
-  const selectImageFile = (file: File | null) => {
-    if (file && handledImageFileRef.current === file) return
-    handledImageFileRef.current = file
-    setImageFile(file)
-    if (!file) {
-      setNotice('')
-      return
-    }
-    setNotice(`已選擇「${file.name}」，請按「上傳圖片」。`)
+  const removeImage = (index: number) => {
+    setImages((current) => current.filter((_, currentIndex) => currentIndex !== index))
+    markDraft()
   }
 
-  const itemsLocked = openedAt !== null
-  const customItemsLocked = openedAt !== null
-
-  const nextItemCode = () => {
-    let suffix = 1
-    while (campaignItems.some((item) => item.code === `ITEM${suffix}`)) suffix += 1
-    return `ITEM${suffix}`
+  const readiness = {
+    title,
+    announcement,
+    items: campaignItems,
+    itemPricesValid,
+    thresholdValid,
+    scheduleValid: scheduleInputsValid,
+    discountRulesValid,
   }
+  const blockers = publishBlockers(readiness)
+  const saveState = describeSaveState({
+    pending: draftSavePending,
+    saving: autoSaving,
+    failedMessage: autoSaveError,
+    canSave: numericInputsValid && scheduleInputsValid,
+    lastSavedAt,
+  })
+  const publishing = busyAction === 'publish'
+  const publishDisabledReason = publishing
+    ? null
+    : publishBlockReason({ blockers, uploading: uploadingImage, savePending: autoSaving || draftSavePending })
+  const priceText = unitPrice === maximumItemPrice ? `$${unitPrice}` : `$${unitPrice}～$${maximumItemPrice}`
+  const thresholdText = thresholdKind === 'amount'
+    ? `滿 NT$ ${amountThreshold.toLocaleString('zh-TW')} 成團`
+    : `結單：${threshold} ${quantityUnit}成團`
 
   return (
     <div className="admin-shell">
-      <section id="admin-settings-panel" aria-label="內容設定" hidden={section !== 'content'}>
-        <div className="admin-workspace">
-        <section className="editor-card" aria-labelledby="editor-heading">
-          <div className="admin-section-heading">
-            <div>
-              <p>開團設定</p>
-              <h2 id="editor-heading">基本資訊</h2>
-            </div>
-            <span>{publicationState === 'published' ? '已發布' : '草稿'}</span>
-          </div>
+      <section id="admin-settings-panel" className="content-editor" aria-labelledby="content-heading" hidden={section !== 'content'}>
+        <ContentTopBar
+          saveState={saveState}
+          onRetrySave={retryAutoSave}
+          retryDisabled={editorBusy || autoSaving}
+          publication={publicationStatus(openedAt, publicationState)}
+          residentHref={residentHref}
+          primaryLabel={itemsLocked ? '更新住戶頁' : '發布並開團'}
+          publishing={publishing}
+          publishDisabledReason={publishDisabledReason}
+          onPublish={() => { void publish() }}
+          notice={notice}
+        />
+        <ContentSectionNav completion={sectionCompletion(readiness)} />
+        <div className="content-layout">
+          <div className="content-form">
+            <section id="content-announcement" className="content-section" aria-labelledby="content-announcement-heading">
+              <h3 id="content-announcement-heading" tabIndex={-1}>公告與圖片</h3>
+              <FormField id="content-title" label="團購標題" required>
+                <input className="ui-input" disabled={editorBusy} value={title} onChange={(event) => { setTitle(event.target.value); markDraft() }} />
+              </FormField>
+              <FormField id="campaign-announcement" label="開團資訊" helper={`${announcement.length.toLocaleString('en-US')} / 20,000 字`}>
+                <textarea
+                  className="ui-input content-announcement"
+                  rows={10}
+                  maxLength={20000}
+                  disabled={editorBusy}
+                  value={announcement}
+                  onChange={(event) => { setAnnouncement(event.target.value); markDraft() }}
+                />
+              </FormField>
+              <h4 className="content-subheading">商品圖片</h4>
+              <ImageManager
+                images={images}
+                disabled={publishing}
+                onUploadImage={onUploadImage}
+                onAddImage={addImage}
+                onRemoveImage={removeImage}
+                onUploadingChange={setUploadingImage}
+              />
+            </section>
 
-          <div className="field-grid">
-            <label className="field full-field">
-              <span>團購標題</span>
-              <input disabled={editorBusy} value={title} onChange={(event) => { setTitle(event.target.value); markDraft() }} />
-            </label>
-            <fieldset className="field full-field schedule-fieldset">
-              <legend>團購時程</legend>
-              <div className="schedule-group">
-                <strong>預計到貨</strong>
-                <div className="threshold-kind-options">
-                  <label><input type="radio" name="arrival-mode" checked={arrivalMode === 'notice'} disabled={editorBusy} onChange={() => { setArrivalMode('notice'); markDraft() }} />貨到通知</label>
-                  <label><input type="radio" name="arrival-mode" checked={arrivalMode === 'date'} disabled={editorBusy} onChange={() => { setArrivalMode('date'); markDraft() }} />指定日期</label>
-                  <label><input type="radio" name="arrival-mode" checked={arrivalMode === 'month-period'} disabled={editorBusy} onChange={() => { setArrivalMode('month-period'); markDraft() }} />月份時段</label>
-                </div>
-                {arrivalMode !== 'notice' && (
-                  <div className="schedule-input-row">
-                    <label><span>月份</span><select aria-label="到貨月份" value={arrivalMonth} disabled={editorBusy} onChange={(event) => {
-                      const month = Number(event.target.value)
-                      setArrivalMonth(month)
-                      setArrivalDay((current) => Math.min(current, daysInMonth(month)))
+            <section id="content-items" className="content-section" aria-labelledby="content-items-heading">
+              <h3 id="content-items-heading" tabIndex={-1}>品項與價格</h3>
+              {itemsLocked
+                ? <p className="content-lock-note">已開團，品項與價格已鎖定</p>
+                : <p className="content-help">代碼會自動延伸為 A～Z、AA～AZ；每個品項都要有名稱與單價。</p>}
+              <ItemTable
+                items={campaignItems}
+                locked={itemsLocked}
+                disabled={editorBusy}
+                mixMatchEnabled={mixMatchEnabled}
+                onChange={(nextItems) => { setCampaignItems(nextItems); markDraft() }}
+              />
+            </section>
+
+            <section id="content-schedule" className="content-section" aria-labelledby="content-schedule-heading">
+              <h3 id="content-schedule-heading" tabIndex={-1}>成團與時程</h3>
+              <div className="content-field-group">
+                <span className="content-group-label" aria-hidden="true">門檻類型</span>
+                <SegmentedControl
+                  label="門檻類型"
+                  value={thresholdKind}
+                  onChange={(kind) => { setThresholdKind(kind); markDraft() }}
+                  options={[
+                    { value: 'quantity', label: '數量', disabled: editorBusy },
+                    { value: 'amount', label: '總金額', disabled: editorBusy },
+                  ]}
+                />
+              </div>
+              <div className="content-field-grid">
+                {thresholdKind === 'quantity' ? (
+                  <FormField id="content-threshold" label="成團門檻" helper="剛好達標後自動結單，超過門檻的訂單不會送出。">
+                    <input
+                      className="ui-input"
+                      disabled={editorBusy}
+                      type="number"
+                      min="1"
+                      inputMode="numeric"
+                      value={thresholdInput}
+                      onChange={(event) => {
+                        const value = event.target.value
+                        setThresholdInput(value)
+                        if (value !== '' && /^\d+$/.test(value) && Number(value) >= 1) {
+                          setThreshold(Number(value))
+                          markDraft()
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!thresholdInputValid) setThresholdInput(String(threshold))
+                      }}
+                    />
+                  </FormField>
+                ) : (
+                  <FormField id="content-amount-threshold" label="成團門檻金額" helper="只顯示成團進度，達到金額後不會自動結單。">
+                    <input
+                      className="ui-input"
+                      disabled={editorBusy}
+                      type="number"
+                      min="0.01"
+                      max="999999999999.99"
+                      step="0.01"
+                      inputMode="decimal"
+                      value={amountThresholdInput}
+                      onChange={(event) => {
+                        const value = event.target.value
+                        if (value !== '' && !/^\d+(?:\.\d{0,2})?$/.test(value)) return
+                        setAmountThresholdInput(value)
+                        if (value !== '' && Number(value) > 0 && Number(value) <= 999999999999.99) {
+                          setAmountThreshold(Number(value))
+                          markDraft()
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!amountThresholdInputValid) setAmountThresholdInput(String(amountThreshold))
+                      }}
+                    />
+                  </FormField>
+                )}
+                <FormField id="content-quantity-unit" label="數量單位" helper="套用於成團進度、訂單總數與品項彙總。">
+                  <select
+                    className="ui-input"
+                    disabled={editorBusy}
+                    value={quantityUnit}
+                    onChange={(event) => {
+                      setQuantityUnit(normalizeQuantityUnit(event.target.value))
                       markDraft()
-                    }}>{Array.from({ length: 12 }, (_, index) => index + 1).map((month) => <option key={month} value={month}>{month}月</option>)}</select></label>
+                    }}
+                  >
+                    {QUANTITY_UNITS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+                  </select>
+                </FormField>
+              </div>
+              <div className="content-field-group">
+                <span className="content-group-label" aria-hidden="true">預計到貨</span>
+                <SegmentedControl
+                  label="預計到貨"
+                  value={arrivalMode}
+                  onChange={(mode) => { setArrivalMode(mode); markDraft() }}
+                  options={ARRIVAL_OPTIONS.map((option) => ({ ...option, disabled: editorBusy }))}
+                />
+                {arrivalMode !== 'notice' && (
+                  <div className="content-inline-fields">
+                    <FormField id="content-arrival-month" label="到貨月份">
+                      <select className="ui-input" value={arrivalMonth} disabled={editorBusy} onChange={(event) => {
+                        const month = Number(event.target.value)
+                        setArrivalMonth(month)
+                        setArrivalDay((current) => Math.min(current, daysInMonth(month)))
+                        markDraft()
+                      }}>
+                        {Array.from({ length: 12 }, (_, index) => index + 1).map((month) => <option key={month} value={month}>{month}月</option>)}
+                      </select>
+                    </FormField>
                     {arrivalMode === 'date' ? (
-                      <label><span>日期</span><select aria-label="到貨日期" value={arrivalDay} disabled={editorBusy} onChange={(event) => { setArrivalDay(Number(event.target.value)); markDraft() }}>
-                        {Array.from({ length: daysInMonth(arrivalMonth) }, (_, index) => index + 1).map((day) => <option key={day} value={day}>{day}日</option>)}
-                      </select></label>
+                      <FormField id="content-arrival-day" label="到貨日期">
+                        <select className="ui-input" value={arrivalDay} disabled={editorBusy} onChange={(event) => { setArrivalDay(Number(event.target.value)); markDraft() }}>
+                          {Array.from({ length: daysInMonth(arrivalMonth) }, (_, index) => index + 1).map((day) => <option key={day} value={day}>{day}日</option>)}
+                        </select>
+                      </FormField>
                     ) : (
-                      <label><span>時段</span><select aria-label="到貨時段" value={arrivalPeriod} disabled={editorBusy} onChange={(event) => { setArrivalPeriod(event.target.value as ArrivalPeriod); markDraft() }}>
-                        <option value="初">月初</option><option value="中">月中</option><option value="底">月底</option>
-                      </select></label>
+                      <FormField id="content-arrival-period" label="到貨時段">
+                        <select className="ui-input" value={arrivalPeriod} disabled={editorBusy} onChange={(event) => { setArrivalPeriod(event.target.value as ArrivalPeriod); markDraft() }}>
+                          <option value="初">月初</option>
+                          <option value="中">月中</option>
+                          <option value="底">月底</option>
+                        </select>
+                      </FormField>
                     )}
                   </div>
                 )}
-                <small>{formatArrivalLabel(arrivalLabel)}</small>
+                <p className="content-help">{formatArrivalLabel(arrivalLabel)}</p>
               </div>
-              <div className="schedule-group">
-                <label className="custom-items-toggle">
-                  <input type="checkbox" aria-label="設定結單日期" checked={autoCloseEnabled} disabled={editorBusy} onChange={(event) => {
-                    setAutoCloseEnabled(event.target.checked)
-                    if (event.target.checked && !autoCloseDate) setAutoCloseDate(todayInTaipei())
-                    markDraft()
-                  }} />
-                  <span><strong>設定結單日期（選填）</strong><small>台灣時間當日中午12:00自動結單；若數量先達門檻，會提前結單。</small></span>
-                </label>
-                {autoCloseEnabled && <label className="threshold-value-field"><span>結單日期</span><input aria-label="結單日期" type="date" min={todayInTaipei()} value={autoCloseDate} disabled={editorBusy} onChange={(event) => { setAutoCloseDate(event.target.value); markDraft() }} /></label>}
-              </div>
-            </fieldset>
-            <fieldset className="field threshold-fieldset">
-              <legend>成團門檻</legend>
-              <div className="threshold-kind-options">
-                <label>
+              <Switch
+                label="設定結單日期"
+                description="台灣時間當日中午12:00自動結單；若數量先達門檻，會提前結單。"
+                checked={autoCloseEnabled}
+                disabled={editorBusy}
+                onChange={(checked) => {
+                  setAutoCloseEnabled(checked)
+                  if (checked && !autoCloseDate) setAutoCloseDate(todayInTaipei())
+                  markDraft()
+                }}
+              />
+              {autoCloseEnabled && (
+                <FormField id="content-auto-close" label="結單日期" error={scheduleInputsValid ? undefined : '結單日期要是今天或之後'}>
                   <input
-                    type="radio"
-                    name="threshold-kind"
-                    value="quantity"
-                    checked={thresholdKind === 'quantity'}
+                    className="ui-input content-date"
+                    type="date"
+                    min={todayInTaipei()}
+                    value={autoCloseDate}
                     disabled={editorBusy}
-                    onChange={() => { setThresholdKind('quantity'); markDraft() }}
+                    onChange={(event) => { setAutoCloseDate(event.target.value); markDraft() }}
                   />
-                  數量
-                </label>
-                <label>
-                  <input
-                    type="radio"
-                    name="threshold-kind"
-                    value="amount"
-                    checked={thresholdKind === 'amount'}
-                    disabled={editorBusy}
-                    onChange={() => { setThresholdKind('amount'); markDraft() }}
-                  />
-                  總金額
-                </label>
-              </div>
-              {thresholdKind === 'quantity' ? (
-                <label className="threshold-value-field">
-                  <span>成團門檻</span>
-                  <input
-                    aria-label="成團門檻"
-                    disabled={editorBusy}
-                    type="number"
-                    min="1"
-                    inputMode="numeric"
-                    value={thresholdInput}
-                    onChange={(event) => {
-                      const value = event.target.value
-                      setThresholdInput(value)
-                      if (value !== '' && /^\d+$/.test(value) && Number(value) >= 1) {
-                        setThreshold(Number(value))
-                        markDraft()
-                      }
-                    }}
-                    onBlur={() => {
-                      if (!thresholdInputValid) setThresholdInput(String(threshold))
-                    }}
-                  />
-                  <small>剛好達標後自動結單，超過門檻的訂單不會送出。</small>
-                </label>
-              ) : (
-                <label className="threshold-value-field">
-                  <span>成團門檻金額</span>
-                  <input
-                    aria-label="成團門檻金額"
-                    disabled={editorBusy}
-                    type="number"
-                    min="0.01"
-                    max="999999999999.99"
-                    step="0.01"
-                    inputMode="decimal"
-                    value={amountThresholdInput}
-                    onChange={(event) => {
-                      const value = event.target.value
-                      if (value !== '' && !/^\d+(?:\.\d{0,2})?$/.test(value)) return
-                      setAmountThresholdInput(value)
-                      if (value !== '' && Number(value) > 0 && Number(value) <= 999999999999.99) {
-                        setAmountThreshold(Number(value))
-                        markDraft()
-                      }
-                    }}
-                    onBlur={() => {
-                      if (!amountThresholdInputValid) setAmountThresholdInput(String(amountThreshold))
-                    }}
-                  />
-                  <small>只顯示成團進度，達到金額後不會自動結單。</small>
-                </label>
+                </FormField>
               )}
-              <label className="threshold-value-field">
-                <span>數量單位</span>
-                <select
-                  aria-label="數量單位"
-                  disabled={editorBusy}
-                  value={quantityUnit}
-                  onChange={(event) => {
-                    setQuantityUnit(normalizeQuantityUnit(event.target.value))
-                    markDraft()
-                  }}
-                >
-                  {QUANTITY_UNITS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
-                </select>
-                <small>套用於成團進度、訂單總數與品項彙總。</small>
-              </label>
-              <label className="custom-items-toggle">
-                <input
-                  type="checkbox"
-                  aria-label="允許住戶新增額外品項"
-                  checked={allowCustomItems}
-                  disabled={editorBusy || customItemsLocked}
-                  onChange={(event) => { setAllowCustomItems(event.target.checked); markDraft() }}
-                />
-                <span>
-                  <strong>允許住戶新增額外品項</strong>
-                  <small>{customItemsLocked
-                    ? '正式開團後此設定不可變更。'
-                    : '住戶可填名稱與數量，不輸入金額；額外品項不納入成團門檻。'}</small>
-                </span>
-              </label>
-            </fieldset>
-            <section className="discount-editor full-field" aria-labelledby="discount-editor-heading">
-              <div className="image-editor-heading">
-                <h3 id="discount-editor-heading">折扣優惠</h3>
-                <span>{itemsLocked ? '已鎖定' : '首次發布前可設定'}</span>
-              </div>
-              <label className="custom-items-toggle">
-                <input
-                  type="checkbox"
-                  aria-label="啟用全團基本折扣"
-                  checked={baseDiscountEnabled}
-                  disabled={editorBusy || itemsLocked}
-                  onChange={(event) => {
-                    setBaseDiscountEnabled(event.target.checked)
-                    if (event.target.checked && baseDiscountRate >= 1) setBaseDiscountRate(0.9)
-                    markDraft()
-                  }}
-                />
-                <span><strong>啟用全團基本折扣</strong><small>所有正式品項預設套用；額外品項不計價。</small></span>
-              </label>
+            </section>
+
+            <section id="content-advanced" className="content-section" aria-labelledby="content-advanced-heading">
+              <h3 id="content-advanced-heading" tabIndex={-1}>優惠與進階</h3>
+              {itemsLocked
+                ? <p className="content-lock-note">已開團，優惠與額外品項設定已鎖定</p>
+                : <p className="content-help">選填，開啟才會套用。</p>}
+              <Switch
+                label="啟用全團基本折扣"
+                description="所有正式品項預設套用；額外品項不計價。"
+                checked={baseDiscountEnabled}
+                disabled={editorBusy || itemsLocked}
+                onChange={(checked) => {
+                  setBaseDiscountEnabled(checked)
+                  if (checked && baseDiscountRate >= 1) setBaseDiscountRate(0.9)
+                  markDraft()
+                }}
+              />
               {baseDiscountEnabled && (
-                <label className="field discount-number-field">
-                  <span>基本折數</span>
+                <FormField id="content-base-discount" label="基本折數" helper="例如輸入9代表9折。" className="content-number-field">
                   <input
-                    aria-label="基本折數"
+                    className="ui-input"
                     type="number"
                     min="0.1"
                     max="10"
@@ -544,275 +585,64 @@ function AdminApp({
                       if (fold > 0 && fold <= 10) { setBaseDiscountRate(fold / 10); markDraft() }
                     }}
                   />
-                  <small>例如輸入9代表9折。</small>
-                </label>
+                </FormField>
               )}
-              <label className="custom-items-toggle">
-                <input
-                  type="checkbox"
-                  aria-label="啟用任選優惠"
-                  checked={mixMatchEnabled}
-                  disabled={editorBusy || itemsLocked}
-                  onChange={(event) => {
-                    setMixMatchEnabled(event.target.checked)
-                    if (!event.target.checked) {
-                      setCampaignItems((current) => current.map((item) => ({ ...item, discountEligible: false })))
-                    }
-                    markDraft()
-                  }}
-                />
-                <span><strong>啟用任選優惠</strong><small>同一住戶在指定品項跨品項合計達標後，指定品項全部套用優惠折數。</small></span>
-              </label>
-              {mixMatchEnabled && (
-                <>
-                  <div className="discount-rule-grid">
-                    <label className="field">
-                      <span>任選優惠名稱</span>
-                      <input aria-label="任選優惠名稱" maxLength={100} value={mixMatchName} disabled={editorBusy || itemsLocked}
-                        onChange={(event) => { setMixMatchName(event.target.value); markDraft() }} />
-                    </label>
-                    <label className="field discount-number-field">
-                      <span>任選最低件數</span>
-                      <input aria-label="任選最低件數" type="number" min="2" max="100" step="1"
-                        value={mixMatchMinimumQuantity} disabled={editorBusy || itemsLocked}
-                        onChange={(event) => { const value = Number(event.target.value); if (Number.isInteger(value) && value >= 2 && value <= 100) { setMixMatchMinimumQuantity(value); markDraft() } }} />
-                    </label>
-                    <label className="field discount-number-field">
-                      <span>任選優惠折數</span>
-                      <input aria-label="任選優惠折數" type="number" min="0.1" max="10" step="0.1"
-                        value={Number((mixMatchDiscountRate * 10).toFixed(2))} disabled={editorBusy || itemsLocked}
-                        onChange={(event) => { const fold = Number(event.target.value); if (fold > 0 && fold <= 10) { setMixMatchDiscountRate(fold / 10); markDraft() } }} />
-                    </label>
-                  </div>
-                  <fieldset className="discount-item-selector">
-                    <legend>任選優惠適用品項</legend>
-                    <p>勾選可在住戶端「任選優惠專區」共同累計件數的商品。</p>
-                    <div className="discount-item-options">
-                      {campaignItems.map((item, index) => {
-                        const label = itemLabel(index)
-                        return (
-                          <label key={item.code} className="campaign-item-discount">
-                            <input
-                              type="checkbox"
-                              aria-label={`品項 ${label} 加入任選優惠`}
-                              checked={item.discountEligible ?? false}
-                              disabled={editorBusy || itemsLocked || !item.active}
-                              onChange={(event) => {
-                                const discountEligible = event.target.checked
-                                setCampaignItems((current) => current.map((candidate) => candidate.code === item.code
-                                  ? { ...candidate, discountEligible }
-                                  : candidate))
-                                markDraft()
-                              }}
-                            />
-                            <span><strong>{label}</strong>{item.name || '未命名品項'}</span>
-                          </label>
-                        )
-                      })}
-                    </div>
-                  </fieldset>
-                </>
-              )}
-              {itemsLocked && <p>正式開團後折扣規則與適用品項不可變更。</p>}
-            </section>
-            <section className="item-editor full-field" aria-labelledby="item-editor-heading">
-              <div className="image-editor-heading">
-                <h3 id="item-editor-heading">團購品項</h3>
-                <span>{campaignItems.length} 個品項</span>
-              </div>
-              <p>代碼會自動延伸為 A～Z、AA～AZ；請為每個品項設定名稱與單價。</p>
-              <ol className={`campaign-item-list ${itemsLocked ? 'is-locked' : ''}`}>
-                {campaignItems.map((item, index) => {
-                  const label = itemLabel(index)
-                  return (
-                    <li key={item.code} className={!item.active ? 'inactive' : ''}>
-                      <strong className="campaign-item-code">{label}</strong>
-                      <label className="campaign-item-name">
-                        <span>商品名稱（口味）</span>
-                        <input
-                          aria-label={`品項 ${label} 商品名稱（口味）`}
-                          disabled={editorBusy || itemsLocked}
-                          maxLength={200}
-                          value={item.name}
-                          onChange={(event) => {
-                            const name = event.target.value
-                            setCampaignItems((current) => current.map((candidate) => candidate.code === item.code
-                              ? { ...candidate, name }
-                              : candidate))
-                            markDraft()
-                          }}
-                        />
-                      </label>
-                      <label className="campaign-item-price">
-                        <span>單價</span>
-                        <input
-                          aria-label={`品項 ${label} 單價`}
-                          disabled={editorBusy || itemsLocked}
-                          type="number"
-                          min="0"
-                          max="9999999.99"
-                          step="0.01"
-                          inputMode="decimal"
-                          value={item.unitPrice ?? ''}
-                          onChange={(event) => {
-                            const value = event.target.value
-                            if (value !== '' && !/^\d+(?:\.\d{0,2})?$/.test(value)) return
-                            const nextPrice = value === '' ? undefined : Number(value)
-                            setCampaignItems((current) => current.map((candidate) => candidate.code === item.code
-                              ? { ...candidate, unitPrice: nextPrice }
-                              : candidate))
-                            markDraft()
-                          }}
-                        />
-                      </label>
-
-                    </li>
-                  )
-                })}
-              </ol>
-              {itemsLocked ? (
-                <p>已正式開團，品項代碼、名稱與單價已鎖定。</p>
-              ) : (
-                <div className="admin-workflow-actions">
-                  <button
-                    type="button"
-                    className="workflow-action workflow-action-primary"
-                    disabled={editorBusy || campaignItems.length >= MAX_CAMPAIGN_ITEMS}
-                    onClick={() => {
-                      setCampaignItems((current) => [...current, {
-                        code: nextItemCode(),
-                        name: '新口味',
-                        unitPrice,
-                        active: true,
-                        discountEligible: false,
-                      }])
-                      markDraft()
-                    }}
-                  ><span className="workflow-action-icon" aria-hidden="true">＋</span>增加品項</button>
-                  <button
-                    type="button"
-                    className="workflow-action workflow-action-secondary"
-                    disabled={editorBusy || campaignItems.length <= 1}
-                    onClick={() => {
-                      setCampaignItems((current) => current.slice(0, -1))
-                      markDraft()
-                    }}
-                  ><span className="workflow-action-icon" aria-hidden="true">−</span>減少品項</button>
-                </div>
-              )}
-            </section>
-            <section className="image-editor full-field" aria-labelledby="image-editor-heading">
-              <div className="image-editor-heading">
-                <h3 id="image-editor-heading">商品圖片</h3>
-                <span>{images.length} / 10 張</span>
-              </div>
-              <div className="image-inputs">
-                {onUploadImage ? (
-                  <div className="field">
-                    <span>商品圖片檔案</span>
-                    <div className="image-file-control">
-                      <label className={`image-file-trigger ${editorBusy ? 'is-disabled' : ''}`}>
-                        <input
-                          ref={imageInputRef}
-                          className="image-file-input"
-                          aria-label="商品圖片檔案"
-                          type="file"
-                          disabled={editorBusy}
-                          accept="image/jpeg,image/png,image/webp"
-                          onInput={(event) => selectImageFile(event.currentTarget.files?.[0] ?? null)}
-                          onChange={(event) => selectImageFile(event.target.files?.[0] ?? null)}
-                        />
-                        <span className="workflow-action-icon" aria-hidden="true">＋</span>
-                        選擇圖片
-                      </label>
-                      <span className="image-file-name">{imageFile?.name ?? '尚未選擇圖片'}</span>
-                    </div>
-                  </div>
-                ) : (
-                  <label className="field">
-                    <span>圖片網址</span>
-                    <input disabled={editorBusy} value={imageUrl} placeholder="https://…" onChange={(event) => setImageUrl(event.target.value)} />
-                  </label>
-                )}
-                <button
-                  type="button"
-                  onClick={addImage}
-                  disabled={
-                    editorBusy
-                    || !(onUploadImage ? imageFile : imageUrl.trim())
-                    || images.length >= 10
+              <Switch
+                label="啟用任選優惠"
+                description="同一住戶在參加任選的品項合計達到最低件數後，這些品項全部套用優惠折數；參加的品項在「品項與價格」勾選。"
+                checked={mixMatchEnabled}
+                disabled={editorBusy || itemsLocked}
+                onChange={(checked) => {
+                  setMixMatchEnabled(checked)
+                  if (!checked) {
+                    setCampaignItems((current) => current.map((item) => ({ ...item, discountEligible: false })))
                   }
-                >
-                  {uploadingImage ? '上傳中…' : onUploadImage ? '上傳圖片' : '新增圖片'}
-                </button>
-              </div>
-              <ul className="image-list">
-                {images.map((image, index) => (
-                  <li key={`${image.src}-${index}`}>
-                    <span>{index + 1}</span>
-                    <div><strong>商品圖片 {index + 1}</strong><small>{image.src}</small></div>
-                    <button disabled={editorBusy} type="button" aria-label={`移除 ${image.alt}`} onClick={() => { setImages((current) => current.filter((_, currentIndex) => currentIndex !== index)); markDraft() }}>移除</button>
-                  </li>
-                ))}
-              </ul>
-            </section>
-            <div className="field full-field announcement-field">
-              <label htmlFor="campaign-announcement">開團資訊</label>
-              <textarea
-                id="campaign-announcement"
-                rows={10}
-                disabled={editorBusy}
-                value={announcement}
-                aria-describedby="announcement-count"
-                onChange={(event) => { setAnnouncement(event.target.value); markDraft() }}
+                  markDraft()
+                }}
               />
-              <small id="announcement-count">{announcement.length} / 20,000 字</small>
-            </div>
-          </div>
-          <div className="editor-actions">
-            <p role="status">{notice}</p>
-            {autoSaveFailedRevision !== null && (
-              <button type="button" className="secondary-action" onClick={retryAutoSave} disabled={editorBusy || autoSaving}>立即重試暫存</button>
-            )}
-            <button type="button" onClick={publish} disabled={editorBusy || autoSaving || draftSavePending || !numericInputsValid || !scheduleInputsValid}>
-              {busyAction === 'publish' ? '發布中…' : itemsLocked ? '更新住戶公告' : '發布並開團'}
-            </button>
-          </div>
-        </section>
-
-        <section className="resident-preview" aria-label="住戶端預覽">
-          <div className="preview-bar">
-            <span>住戶端預覽</span>
-            <button type="button" aria-expanded={previewExpanded} aria-controls="resident-preview-announcement" onClick={() => setPreviewExpanded((expanded) => !expanded)}>
-              {previewExpanded ? '收合完整預覽' : '展開完整預覽'}
-            </button>
-          </div>
-          <article className="preview-phone">
-            <div className="preview-status">
-              <span>● {campaignStatus ? campaignStatusLabel(campaignStatus) : '開團中'}</span>
-              <strong>{unitPrice === maximumItemPrice ? `$${unitPrice}` : `$${unitPrice}～$${maximumItemPrice}`}</strong>
-            </div>
-            <h2>{title || '未命名團購'}</h2>
-            <p className="preview-schedule">{formatArrivalLabel(arrivalLabel)}</p>
-            {autoCloseAt && <p className="preview-close-reminder">{formatAutoCloseReminder(autoCloseAt)}</p>}
-            <p className="preview-threshold">{thresholdKind === 'amount'
-              ? `滿 NT$ ${amountThreshold.toLocaleString('zh-TW')} 成團`
-              : `結單：${threshold} ${quantityUnit}成團`}</p>
-            {allowCustomItems && <p className="preview-custom-items">可新增自訂額外品項，金額由團主另計</p>}
-            <div className="preview-images" role="region" tabIndex={0} aria-label={`住戶端圖片預覽，共 ${images.length} 張`}>
-              {images.map((image, index) => (
-                <div className="preview-image-frame" key={`${image.src}-${index}`}>
-                  <img className="preview-image-backdrop" src={image.src} alt="" aria-hidden="true" loading="lazy" />
-                  <img className="preview-image-foreground" src={image.src} alt={image.alt} />
-                  <span className="preview-image-count" aria-hidden="true">{index + 1}／{images.length}</span>
+              {mixMatchEnabled && (
+                <div className="content-field-grid">
+                  <FormField id="content-mix-name" label="任選優惠名稱">
+                    <input className="ui-input" maxLength={100} value={mixMatchName} disabled={editorBusy || itemsLocked}
+                      onChange={(event) => { setMixMatchName(event.target.value); markDraft() }} />
+                  </FormField>
+                  <FormField id="content-mix-minimum" label="任選最低件數" className="content-number-field">
+                    <input className="ui-input" type="number" min="2" max="100" step="1" value={mixMatchMinimumQuantity} disabled={editorBusy || itemsLocked}
+                      onChange={(event) => { const value = Number(event.target.value); if (Number.isInteger(value) && value >= 2 && value <= 100) { setMixMatchMinimumQuantity(value); markDraft() } }} />
+                  </FormField>
+                  <FormField id="content-mix-rate" label="任選優惠折數" helper="例如輸入8.5代表85折。" className="content-number-field">
+                    <input className="ui-input" type="number" min="0.1" max="10" step="0.1" value={Number((mixMatchDiscountRate * 10).toFixed(2))} disabled={editorBusy || itemsLocked}
+                      onChange={(event) => { const fold = Number(event.target.value); if (fold > 0 && fold <= 10) { setMixMatchDiscountRate(fold / 10); markDraft() } }} />
+                  </FormField>
                 </div>
-              ))}
-            </div>
-            <p id="resident-preview-announcement" className={`preview-copy ${previewExpanded ? 'is-expanded' : 'is-collapsed'}`}>
-              <LinkifiedText text={announcement} />
-            </p>
-          </article>
-        </section>
+              )}
+              <Switch
+                label="允許住戶新增額外品項"
+                description={customItemsLocked
+                  ? '正式開團後此設定不可變更。'
+                  : '住戶可填名稱與數量，不輸入金額；額外品項不納入成團門檻。'}
+                checked={allowCustomItems}
+                disabled={editorBusy || customItemsLocked}
+                onChange={(checked) => { setAllowCustomItems(checked); markDraft() }}
+              />
+            </section>
+          </div>
+
+          <aside className="content-side" aria-label="住戶頁預覽與發布前檢查">
+            <ContentPreview
+              status={campaignStatus}
+              title={title}
+              priceText={priceText}
+              arrivalLabel={arrivalLabel}
+              autoCloseAt={autoCloseAt}
+              thresholdText={thresholdText}
+              allowCustomItems={allowCustomItems}
+              images={images}
+              announcement={announcement}
+              items={campaignItems}
+            />
+            <PublishChecklist blockers={blockers} />
+          </aside>
         </div>
       </section>
     </div>

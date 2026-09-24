@@ -1077,6 +1077,7 @@ export function LocalLiveAdminApp({
       >
         <AdminApp
           section={shownSection === 'content' ? 'content' : null}
+          residentHref={workspaceCampaign.residentHref}
           initialContent={content}
           initialPublicationState={publicationState}
           campaignStatus={campaignStatus}

@@ -86,7 +86,7 @@ function DemoOrganizerWorkspace({ requestedSection }: { requestedSection: Worksp
       section={section}
       onSetCampaignStatus={async (status) => setCampaignStatus(status)}
     >
-      <AdminApp section={section === 'content' ? 'content' : null} campaignStatus={campaignStatus} />
+      <AdminApp section={section === 'content' ? 'content' : null} campaignStatus={campaignStatus} residentHref={`/campaign/${DEMO_CAMPAIGN_SLUG}`} />
       {section === 'overview' && (
         <OverviewSection
           campaignId={DEMO_CAMPAIGN_ID}

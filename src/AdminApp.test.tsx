@@ -5,6 +5,8 @@ import App from './App'
 import AdminApp from './AdminApp'
 import type { CampaignContent } from './services/demoCampaignStore'
 
+const png = (name: string) => new File(['image'], name, { type: 'image/png' })
+
 beforeEach(() => localStorage.clear())
 
 describe('organizer campaign editor', () => {
@@ -19,25 +21,19 @@ describe('organizer campaign editor', () => {
     const preview = screen.getByRole('region', { name: '住戶端預覽' })
     const previewGallery = within(preview).getByRole('region', { name: '住戶端圖片預覽，共 1 張' })
     expect(previewGallery).toHaveAttribute('tabindex', '0')
-    expect(previewGallery!.querySelector('.preview-image-backdrop')).toHaveAttribute('aria-hidden', 'true')
-    expect(previewGallery!.querySelector('.preview-image-backdrop')).toHaveAttribute('loading', 'lazy')
-    expect(previewGallery!.querySelector('.preview-image-foreground')).toHaveAttribute('alt', '超厚三明治冰餅口味示意圖')
-    expect(previewGallery!.querySelector('.preview-image-count')).toHaveTextContent('1／1')
+    expect(within(previewGallery).queryByRole('button', { name: /放大檢視/ })).not.toBeInTheDocument()
   })
 
-  it('prioritizes products and images before the long campaign announcement', () => {
+  it('orders the form as announcement and images, items, schedule, then offers, with links to each section', () => {
     render(<AdminApp />)
 
-    const itemEditor = screen.getByRole('heading', { name: '團購品項' }).closest('section')
-    const imageEditor = screen.getByRole('heading', { name: '商品圖片' }).closest('section')
-    const announcement = screen.getByRole('textbox', { name: '開團資訊' })
-
-    expect(itemEditor).not.toBeNull()
-    expect(imageEditor).not.toBeNull()
-    expect(within(itemEditor!).getByRole('list')).toHaveClass('is-locked')
-    expect(itemEditor!.compareDocumentPosition(imageEditor!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
-    expect(imageEditor!.compareDocumentPosition(announcement)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
-    expect(announcement).toHaveAttribute('rows', '10')
+    const sections = ['公告與圖片', '品項與價格', '成團與時程', '優惠與進階'].map((name) => screen.getByRole('region', { name }))
+    sections.slice(1).forEach((section, index) => {
+      expect(sections[index].compareDocumentPosition(section)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    })
+    expect(within(sections[0]).getByRole('textbox', { name: '開團資訊' })).toHaveAttribute('rows', '10')
+    expect(within(sections[1]).getByText('已開團，品項與價格已鎖定')).toBeInTheDocument()
+    expect(within(screen.getByRole('navigation', { name: '內容設定段落' })).getAllByRole('link')).toHaveLength(4)
   })
 
   it('lets the organizer expand and collapse the full resident preview', async () => {
@@ -76,7 +72,7 @@ describe('organizer campaign editor', () => {
     await user.type(announcement, '新品到貨，數量有限！')
 
     expect(within(screen.getByRole('region', { name: '住戶端預覽' })).getByText('新品到貨，數量有限！')).toBeInTheDocument()
-    expect(await screen.findByText('已自動暫存')).toBeInTheDocument()
+    expect(await screen.findByText(/^已自動儲存 \d{2}:\d{2}$/)).toBeInTheDocument()
   })
 
   it('lets mobile users clear and replace numeric fields without a leading zero', async () => {
@@ -103,7 +99,7 @@ describe('organizer campaign editor', () => {
     const user = userEvent.setup()
     render(<AdminApp />)
 
-    expect(screen.getByRole('group', { name: '成團門檻' })).toBeInTheDocument()
+    expect(screen.getByRole('radiogroup', { name: '門檻類型' })).toBeInTheDocument()
     await user.click(screen.getByRole('radio', { name: '總金額' }))
     const amount = screen.getByRole<HTMLInputElement>('spinbutton', { name: '成團門檻金額' })
     await user.clear(amount)
@@ -138,7 +134,7 @@ describe('organizer campaign editor', () => {
     }
     render(<AdminApp initialContent={draft} initialPublicationState="draft" onSaveDraft={onSaveDraft} />)
 
-    const toggle = screen.getByRole('checkbox', { name: '允許住戶新增額外品項' })
+    const toggle = screen.getByRole('switch', { name: '允許住戶新增額外品項' })
     expect(toggle).not.toBeChecked()
     expect(screen.queryByText('可新增自訂額外品項，金額由團主另計')).not.toBeInTheDocument()
 
@@ -157,8 +153,9 @@ describe('organizer campaign editor', () => {
     }
     render(<AdminApp initialContent={published} initialPublicationState="published" />)
 
-    expect(screen.getByRole('checkbox', { name: '允許住戶新增額外品項' })).toBeDisabled()
+    expect(screen.getByRole('switch', { name: '允許住戶新增額外品項' })).toBeDisabled()
     expect(screen.getByText('正式開團後此設定不可變更。')).toBeInTheDocument()
+    expect(screen.getByText('已開團，優惠與額外品項設定已鎖定')).toBeInTheDocument()
   })
 
   it('lets the organizer configure a base discount and one mix-and-match group before publishing', async () => {
@@ -175,8 +172,8 @@ describe('organizer campaign editor', () => {
     }
     render(<AdminApp initialContent={draft} initialPublicationState="draft" onSaveDraft={onSaveDraft} />)
 
-    await user.click(screen.getByRole('checkbox', { name: '啟用全團基本折扣' }))
-    await user.click(screen.getByRole('checkbox', { name: '啟用任選優惠' }))
+    await user.click(screen.getByRole('switch', { name: '啟用全團基本折扣' }))
+    await user.click(screen.getByRole('switch', { name: '啟用任選優惠' }))
     await user.click(screen.getByRole('checkbox', { name: '品項 A 加入任選優惠' }))
 
     expect(screen.getByRole('spinbutton', { name: '基本折數' })).toHaveValue(9)
@@ -195,7 +192,7 @@ describe('organizer campaign editor', () => {
     }))
   })
 
-  it('keeps mix-and-match item selection inside the discount section', async () => {
+  it('shows mix-and-match participation as a column of the item table', async () => {
     const user = userEvent.setup()
     render(<AdminApp initialContent={{
       title: '分區測試', unitPrice: 100, threshold: 10,
@@ -203,12 +200,14 @@ describe('organizer campaign editor', () => {
       items: [{ code: 'A', name: '測試商品', unitPrice: 100, active: true }],
     }} initialPublicationState="draft" />)
 
-    await user.click(screen.getByRole('checkbox', { name: '啟用任選優惠' }))
+    await user.click(screen.getByRole('switch', { name: '啟用任選優惠' }))
 
-    const discountSection = screen.getByRole('region', { name: '折扣優惠' })
-    const itemSection = screen.getByRole('region', { name: '團購品項' })
-    expect(within(discountSection).getByRole('checkbox', { name: '品項 A 加入任選優惠' })).toBeInTheDocument()
-    expect(within(itemSection).queryByRole('checkbox', { name: '品項 A 加入任選優惠' })).not.toBeInTheDocument()
+    const itemSection = screen.getByRole('region', { name: '品項與價格' })
+    const offerSection = screen.getByRole('region', { name: '優惠與進階' })
+    expect(within(itemSection).getByRole('columnheader', { name: '參加任選' })).toBeInTheDocument()
+    expect(within(itemSection).getByRole('checkbox', { name: '品項 A 加入任選優惠' })).toBeInTheDocument()
+    expect(within(offerSection).queryByRole('checkbox', { name: '品項 A 加入任選優惠' })).not.toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: '發布前檢查' })).getByText('完成優惠設定；任選優惠至少要有一個參加的品項')).toBeInTheDocument()
   })
 
   it('persists the default mix-and-match rate before enabling publication without touching the rate field', async () => {
@@ -223,8 +222,8 @@ describe('organizer campaign editor', () => {
     }
     render(<AdminApp initialContent={draft} initialPublicationState="draft" onSaveDraft={onSaveDraft} onPublish={onPublish} />)
 
-    await user.click(screen.getByRole('checkbox', { name: '啟用全團基本折扣' }))
-    await user.click(screen.getByRole('checkbox', { name: '啟用任選優惠' }))
+    await user.click(screen.getByRole('switch', { name: '啟用全團基本折扣' }))
+    await user.click(screen.getByRole('switch', { name: '啟用任選優惠' }))
     await user.click(screen.getByRole('checkbox', { name: '品項 A 加入任選優惠' }))
 
     expect(screen.getByRole('spinbutton', { name: '任選優惠折數' })).toHaveValue(8.5)
@@ -256,7 +255,7 @@ describe('organizer campaign editor', () => {
     expect(screen.getByRole('checkbox', { name: '品項 A 加入任選優惠' })).toBeDisabled()
   })
 
-  it('adds and removes campaign images without requiring a visible description field', async () => {
+  it('adds and removes campaign images by address in the local demo without a description field', async () => {
     const user = userEvent.setup()
     render(<AdminApp />)
 
@@ -264,10 +263,10 @@ describe('organizer campaign editor', () => {
     expect(screen.queryByRole('textbox', { name: '圖片說明' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '新增圖片' }))
 
-    const addedImage = screen.getByRole('img', { name: /第 2 張商品圖片/ })
-    expect(addedImage).toBeInTheDocument()
+    expect(screen.getByRole('list', { name: '商品圖片，共 2 張' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: '住戶端圖片預覽，共 2 張' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /移除 .*第 2 張商品圖片/ }))
-    expect(addedImage).not.toBeInTheDocument()
+    expect(screen.getByRole('list', { name: '商品圖片，共 1 張' })).toBeInTheDocument()
   })
 
   it('keeps saved drafts private until the organizer publishes them', async () => {
@@ -276,7 +275,7 @@ describe('organizer campaign editor', () => {
     const title = screen.getByRole('textbox', { name: '團購標題' })
     await user.clear(title)
     await user.type(title, '週末限定冰餅團')
-    expect(await screen.findByText('已自動暫存')).toBeInTheDocument()
+    expect(await screen.findByText(/^已自動儲存/)).toBeInTheDocument()
     admin.unmount()
 
     const residentBeforePublish = render(<App />)
@@ -286,11 +285,11 @@ describe('organizer campaign editor', () => {
 
     const reopenedAdmin = render(<AdminApp />)
     expect(screen.getByRole('textbox', { name: '團購標題' })).toHaveValue('週末限定冰餅團')
-    await user.click(screen.getByRole('button', { name: '更新住戶公告' }))
+    await user.click(screen.getByRole('button', { name: '更新住戶頁' }))
     reopenedAdmin.unmount()
 
     const publishedAdmin = render(<AdminApp />)
-    expect(screen.getByText('已發布')).toBeInTheDocument()
+    expect(screen.getByText('住戶頁已是最新')).toBeInTheDocument()
     publishedAdmin.unmount()
 
     render(<App />)
@@ -323,11 +322,11 @@ describe('organizer campaign editor', () => {
     await user.clear(title)
     await user.type(title, 'Supabase 草稿新版')
     await waitFor(() => expect(onSaveDraft).toHaveBeenCalledWith(expect.objectContaining({ title: 'Supabase 草稿新版' })))
-    expect(screen.getByRole('status')).toHaveTextContent('已自動暫存')
+    expect(screen.getByRole('status')).toHaveTextContent(/^已自動儲存/)
 
-    await user.click(screen.getByRole('button', { name: '更新住戶公告' }))
+    await user.click(screen.getByRole('button', { name: '更新住戶頁' }))
     expect(onPublish).toHaveBeenCalledWith(expect.objectContaining({ title: 'Supabase 草稿新版' }))
-    expect(screen.getByRole('status')).toHaveTextContent('住戶公告已更新')
+    expect(await screen.findByText('住戶頁已更新')).toBeInTheDocument()
   })
 
   it('shows the actual campaign workflow state in the resident preview', () => {
@@ -338,47 +337,63 @@ describe('organizer campaign editor', () => {
     expect(screen.getByLabelText('住戶端預覽')).not.toHaveTextContent('● 開團中')
   })
 
-  it('confirms the selected image without asking for a separate description', async () => {
+  it('keeps uploaded images when one fails and autosaves once after the whole batch', async () => {
     const user = userEvent.setup()
-    render(<AdminApp onUploadImage={vi.fn().mockResolvedValue('http://storage.test/campaign/image.png')} />)
-    const file = new File(['image'], '冰餅商品照.png', { type: 'image/png' })
+    const onSaveDraft = vi.fn().mockResolvedValue(undefined)
+    let failSecond!: () => void
+    const onUploadImage = vi.fn((file: File) => file.name === 'b.png'
+      ? new Promise<string>((_, reject) => { failSecond = () => reject(new Error('圖片不可超過 5 MB')) })
+      : Promise.resolve(`https://storage.test/${file.name}`))
+    render(<AdminApp initialContent={{
+      title: '圖片團', unitPrice: 50, threshold: 10, announcement: '公告', images: [], openedAt: null,
+      items: [{ code: 'A', name: '牛奶', unitPrice: 50, active: true }],
+    }} initialPublicationState="draft" onSaveDraft={onSaveDraft} onUploadImage={onUploadImage} />)
 
-    expect(screen.getByText('選擇圖片')).toBeInTheDocument()
-    expect(screen.getByText('尚未選擇圖片')).toBeInTheDocument()
-    await user.upload(screen.getByLabelText('商品圖片檔案'), file)
+    await user.upload(screen.getByLabelText('加入圖片'), [png('a.png'), png('b.png'), png('c.png')])
+    await waitFor(() => expect(onUploadImage).toHaveBeenCalledTimes(2))
+    await new Promise((resolve) => setTimeout(resolve, 700))
+    expect(onSaveDraft).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: '發布並開團' })).toBeDisabled()
+    expect(screen.getByText('圖片上傳完成後才能發布')).toBeInTheDocument()
 
-    expect(screen.getByRole('status')).toHaveTextContent('已選擇「冰餅商品照.png」')
-    expect(screen.getByText('冰餅商品照.png')).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent('請按「上傳圖片」')
-    expect(screen.queryByRole('textbox', { name: '圖片說明' })).not.toBeInTheDocument()
+    failSecond()
+    expect(await screen.findByRole('alert')).toHaveTextContent('「b.png」上傳失敗：圖片不可超過 5 MB')
+    await waitFor(() => expect(onSaveDraft).toHaveBeenCalledTimes(1))
+    expect(onSaveDraft).toHaveBeenLastCalledWith(expect.objectContaining({
+      images: [
+        expect.objectContaining({ src: 'https://storage.test/a.png' }),
+        expect.objectContaining({ src: 'https://storage.test/c.png' }),
+      ],
+    }))
+    await new Promise((resolve) => setTimeout(resolve, 700))
+    expect(onSaveDraft).toHaveBeenCalledTimes(1)
   })
 
-  it('accepts a mobile file picker that emits input without change', () => {
-    render(<AdminApp onUploadImage={vi.fn().mockResolvedValue('http://storage.test/campaign/image.png')} />)
-    const input = screen.getByLabelText<HTMLInputElement>('商品圖片檔案')
-    const file = new File(['image'], 'Samsung照片.png', { type: 'image/png' })
+  it('accepts a mobile file picker that emits input without change', async () => {
+    const onUploadImage = vi.fn().mockResolvedValue('http://storage.test/campaign/image.png')
+    render(<AdminApp onUploadImage={onUploadImage} />)
+    const file = png('Samsung照片.png')
 
-    fireEvent.input(input, { target: { files: [file] } })
+    fireEvent.input(screen.getByLabelText('加入圖片'), { target: { files: [file] } })
 
-    expect(screen.getByRole('status')).toHaveTextContent('已選擇「Samsung照片.png」')
+    await waitFor(() => expect(onUploadImage).toHaveBeenCalledWith(file))
+    expect(onUploadImage).toHaveBeenCalledTimes(1)
   })
 
-  it('uploads a product image file and adds only its public URL to the preview', async () => {
+  it('uploads selected images right away and adds only their public URLs', async () => {
     const user = userEvent.setup()
     const onUploadImage = vi.fn().mockResolvedValue('http://storage.test/campaign/image.png')
     render(<AdminApp onUploadImage={onUploadImage} />)
-    const file = new File(['image'], '商品照.png', { type: 'image/png' })
+    const file = png('商品照.png')
 
-    await user.upload(screen.getByLabelText('商品圖片檔案'), file)
-    await user.click(screen.getByRole('button', { name: '上傳圖片' }))
+    await user.upload(screen.getByLabelText('加入圖片'), file)
 
     expect(onUploadImage).toHaveBeenCalledWith(file)
-    expect(await screen.findByRole('img', { name: /第 2 張商品圖片/ })).toHaveAttribute(
-      'src',
-      'http://storage.test/campaign/image.png',
-    )
-    expect(screen.getByText('草稿')).toBeInTheDocument()
-    expect(screen.getByLabelText<HTMLInputElement>('商品圖片檔案').files).toHaveLength(0)
+    expect(await screen.findByRole('list', { name: '商品圖片，共 2 張' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '顯示第 2 張圖片' }))
+    expect(screen.getByRole('img', { name: /第 2 張商品圖片/ })).toHaveAttribute('src', 'http://storage.test/campaign/image.png')
+    expect(screen.getByText('有未更新到住戶頁的變更')).toBeInTheDocument()
+    expect(screen.getByLabelText<HTMLInputElement>('加入圖片').files).toHaveLength(0)
   })
 
   it('blocks saving and publishing while an image upload is pending', async () => {
@@ -389,18 +404,15 @@ describe('organizer campaign editor', () => {
     }))
     render(<AdminApp onUploadImage={onUploadImage} />)
 
-    await user.upload(
-      screen.getByLabelText('商品圖片檔案'),
-      new File(['image'], '商品照.png', { type: 'image/png' }),
-    )
-    await user.click(screen.getByRole('button', { name: '上傳圖片' }))
+    await user.upload(screen.getByLabelText('加入圖片'), png('商品照.png'))
 
-    expect(screen.getByRole('button', { name: '更新住戶公告' })).toBeDisabled()
-    expect(screen.getByLabelText('商品圖片檔案')).toBeDisabled()
+    expect(screen.getByRole('button', { name: '更新住戶頁' })).toBeDisabled()
+    expect(screen.getByText('圖片上傳完成後才能發布')).toBeInTheDocument()
+    expect(screen.getByLabelText('加入圖片')).toBeDisabled()
 
     finishUpload?.('http://storage.test/campaign/pending.png')
-    expect(await screen.findByRole('img', { name: /第 2 張商品圖片/ })).toBeInTheDocument()
-    await waitFor(() => expect(screen.getByRole('button', { name: '更新住戶公告' })).toBeEnabled())
+    expect(await screen.findByRole('list', { name: '商品圖片，共 2 張' })).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('button', { name: '更新住戶頁' })).toBeEnabled())
   })
 
   it('keeps editing available but blocks publication while autosave is pending', async () => {
@@ -418,13 +430,14 @@ describe('organizer campaign editor', () => {
 
     await user.type(screen.getByRole('textbox', { name: '團購標題' }), '修改')
     await waitFor(() => expect(onSaveDraft).toHaveBeenCalled())
-    expect(screen.getByLabelText('商品圖片檔案')).toBeEnabled()
+    expect(screen.getByLabelText('加入圖片')).toBeEnabled()
     expect(screen.getByRole('textbox', { name: '團購標題' })).toBeEnabled()
-    expect(screen.getByRole('button', { name: '更新住戶公告' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '更新住戶頁' })).toBeDisabled()
+    expect(screen.getByText('儲存完成後才能發布')).toBeInTheDocument()
 
     finishSave?.()
-    expect(await screen.findByText('已自動暫存')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '更新住戶公告' })).toBeEnabled()
+    expect(await screen.findByText(/^已自動儲存/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '更新住戶頁' })).toBeEnabled()
   })
 
   it('flushes edits made during an in-flight autosave before reporting success', async () => {
@@ -442,12 +455,12 @@ describe('organizer campaign editor', () => {
 
     resolvers[0]?.()
     await waitFor(() => expect(onSaveDraft).toHaveBeenCalledTimes(2), { timeout: 250 })
-    expect(screen.getByRole('button', { name: '更新住戶公告' })).toBeDisabled()
-    expect(screen.getByRole('status')).not.toHaveTextContent('已自動暫存')
+    expect(screen.getByRole('button', { name: '更新住戶頁' })).toBeDisabled()
+    expect(screen.getByRole('status')).not.toHaveTextContent('已自動儲存')
     expect(onSaveDraft).toHaveBeenLastCalledWith(expect.objectContaining({ title: expect.stringContaining('第一版第二版') }))
 
     resolvers[1]?.()
-    expect(await screen.findByText('已自動暫存')).toBeInTheDocument()
+    expect(await screen.findByText(/^已自動儲存/)).toBeInTheDocument()
   })
 
   it('does not loop autosave retries after a failure without a new edit', async () => {
@@ -456,7 +469,7 @@ describe('organizer campaign editor', () => {
     render(<AdminApp onSaveDraft={onSaveDraft} />)
 
     await user.type(screen.getByRole('textbox', { name: '團購標題' }), '修改')
-    expect(await screen.findByText('自動暫存失敗：網路中斷')).toBeInTheDocument()
+    expect(await screen.findByText('儲存失敗：網路中斷')).toBeInTheDocument()
     await new Promise((resolve) => setTimeout(resolve, 700))
     await waitFor(() => expect(onSaveDraft).toHaveBeenCalledTimes(1))
   })
@@ -469,11 +482,11 @@ describe('organizer campaign editor', () => {
     render(<AdminApp onSaveDraft={onSaveDraft} />)
 
     await user.type(screen.getByRole('textbox', { name: '團購標題' }), '待重試修改')
-    expect(await screen.findByText('自動暫存失敗：網路中斷')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: '立即重試暫存' }))
+    expect(await screen.findByText('儲存失敗：網路中斷')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '重試' }))
 
     await waitFor(() => expect(onSaveDraft).toHaveBeenCalledTimes(2))
-    expect(await screen.findByText('已自動暫存')).toBeInTheDocument()
+    expect(await screen.findByText(/^已自動儲存/)).toBeInTheDocument()
   })
 
   it('edits item names and prices and continues labels after Z', async () => {
@@ -501,14 +514,10 @@ describe('organizer campaign editor', () => {
     await user.clear(screen.getByRole('spinbutton', { name: '品項 A 單價' }))
     await user.type(screen.getByRole('spinbutton', { name: '品項 A 單價' }), '45')
     const addItemButton = screen.getByRole('button', { name: '增加品項' })
-    const removeItemButton = screen.getByRole('button', { name: '減少品項' })
-    expect(addItemButton).toHaveClass('workflow-action-primary')
-    expect(removeItemButton).toHaveClass('workflow-action-secondary')
-    expect(addItemButton.querySelector('[aria-hidden="true"]')).toHaveTextContent('＋')
-    expect(removeItemButton.querySelector('[aria-hidden="true"]')).toHaveTextContent('−')
+    expect(screen.getByRole('button', { name: '減少品項' })).toBeInTheDocument()
     await user.click(addItemButton)
 
-    expect(screen.getByText('AA')).toBeInTheDocument()
+    expect(screen.getByRole('rowheader', { name: 'AA' })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: '品項 AA 商品名稱（口味）' })).toBeInTheDocument()
     await waitFor(() => expect(onSaveDraft).toHaveBeenCalledWith(expect.objectContaining({
       items: expect.arrayContaining([
@@ -527,8 +536,8 @@ describe('organizer campaign editor', () => {
 
     await user.click(screen.getByRole('button', { name: '發布並開團' }))
 
-    expect(screen.getByText('已正式開團，品項代碼、名稱與單價已鎖定。')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '更新住戶公告' })).toBeInTheDocument()
+    expect(screen.getByText('已開團，品項與價格已鎖定')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '更新住戶頁' })).toBeInTheDocument()
   })
 
   it('locks item structure and prices after the first opening', () => {
@@ -543,14 +552,14 @@ describe('organizer campaign editor', () => {
     }
     render(<AdminApp initialContent={content} />)
 
-    expect(screen.getByText('已正式開團，品項代碼、名稱與單價已鎖定。')).toBeInTheDocument()
+    expect(screen.getByText('已開團，品項與價格已鎖定')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '增加品項' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '減少品項' })).not.toBeInTheDocument()
     expect(screen.getByRole('spinbutton', { name: '品項 A 單價' })).toBeDisabled()
     expect(screen.getByRole('spinbutton', { name: '成團門檻' })).toBeEnabled()
     expect(screen.getByRole('textbox', { name: '開團資訊' })).toBeEnabled()
     expect(screen.queryByRole('button', { name: '儲存公告修改' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '更新住戶公告' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '更新住戶頁' })).toBeInTheDocument()
   })
 
   it('applies the canonical campaign returned by publication immediately', async () => {
@@ -572,8 +581,8 @@ describe('organizer campaign editor', () => {
     await user.click(screen.getByRole('button', { name: '發布並開團' }))
 
     expect(await screen.findByRole('textbox', { name: '品項 B 商品名稱（口味）' })).toHaveValue('歷史口味')
-    expect(screen.getByText('已正式開團，品項代碼、名稱與單價已鎖定。')).toBeInTheDocument()
-    expect(screen.getByText('已發布')).toBeInTheDocument()
+    expect(screen.getByText('已開團，品項與價格已鎖定')).toBeInTheDocument()
+    expect(screen.getByText('住戶頁已是最新')).toBeInTheDocument()
   })
 
   it('configures arrival choices and an optional noon closing date', async () => {
@@ -594,13 +603,83 @@ describe('organizer campaign editor', () => {
     await user.selectOptions(screen.getByRole('combobox', { name: '到貨日期' }), '8')
     expect(within(screen.getByRole('region', { name: '住戶端預覽' })).getByText('預計到貨：03/08')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('checkbox', { name: '設定結單日期' }))
+    await user.click(screen.getByRole('switch', { name: '設定結單日期' }))
     fireEvent.change(screen.getByLabelText('結單日期'), { target: { value: '2027-10-15' } })
     expect(within(screen.getByRole('region', { name: '住戶端預覽' })).getByText('10/15 12:00 自動結單')).toBeInTheDocument()
 
     await waitFor(() => expect(onSaveDraft).toHaveBeenLastCalledWith(expect.objectContaining({
       arrivalLabel: '03/08',
       autoCloseAt: '2027-10-15T04:00:00.000Z',
+    })))
+  })
+
+  it('lists what is missing before publishing and enables publishing once it is filled in', async () => {
+    const user = userEvent.setup()
+    render(<AdminApp initialContent={{
+      title: '', unitPrice: 50, threshold: 10, announcement: '公告', images: [], openedAt: null,
+      items: [{ code: 'ITEM1', name: '', unitPrice: 50, active: true }],
+    }} initialPublicationState="draft" onSaveDraft={vi.fn().mockResolvedValue(undefined)} />)
+
+    const checklist = screen.getByRole('region', { name: '發布前檢查' })
+    expect(within(checklist).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['填寫團購標題', '填寫品項 A 的名稱'])
+    expect(screen.getByRole('button', { name: '發布並開團' })).toBeDisabled()
+    expect(screen.getByText('還有 2 項需要處理，見「發布前檢查」')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '公告與圖片（尚未完成）' })).toBeInTheDocument()
+
+    await user.type(screen.getByRole('textbox', { name: '團購標題' }), '週末團')
+    await user.type(screen.getByRole('textbox', { name: '品項 A 商品名稱（口味）' }), '牛奶')
+
+    expect(within(checklist).getByText('必填項目都已完成')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '公告與圖片（已填妥）' })).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('button', { name: '發布並開團' })).toBeEnabled())
+    expect(screen.queryByText(/見「發布前檢查」/)).not.toBeInTheDocument()
+  })
+
+  it('shows the save state, the publication state and a link to the live resident page', async () => {
+    const user = userEvent.setup()
+    render(<AdminApp initialContent={{
+      title: '已開團', unitPrice: 50, threshold: 10, announcement: '公告', images: [],
+      items: [{ code: 'A', name: '牛奶', unitPrice: 50, active: true }], openedAt: '2026-09-20T00:00:00.000Z',
+    }} initialPublicationState="published" residentHref="/campaign/abc" onSaveDraft={vi.fn().mockResolvedValue(undefined)} />)
+
+    expect(screen.getByRole('heading', { level: 2, name: '內容設定' })).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('所有變更都已儲存')
+    expect(screen.getByText('住戶頁已是最新')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '預覽住戶頁' })).toHaveAttribute('href', '/campaign/abc')
+
+    await user.type(screen.getByRole('textbox', { name: '團購標題' }), '！')
+    expect(screen.getByText('有未更新到住戶頁的變更')).toBeInTheDocument()
+    expect(await screen.findByText(/^已自動儲存 \d{2}:\d{2}$/)).toBeInTheDocument()
+  })
+
+  it('says residents cannot see a campaign that was never published and offers no resident page link', () => {
+    render(<AdminApp initialContent={{
+      title: '新團', unitPrice: 50, threshold: 10, announcement: '', images: [],
+      items: [{ code: 'A', name: '牛奶', unitPrice: 50, active: true }], openedAt: null,
+    }} initialPublicationState="draft" residentHref={null} />)
+
+    expect(screen.getByText('草稿・住戶還看不到')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '預覽住戶頁' })).not.toBeInTheDocument()
+  })
+
+  it('adds an item row from Enter in the last price and saves it with the inherited price', async () => {
+    const user = userEvent.setup()
+    const onSaveDraft = vi.fn().mockResolvedValue(undefined)
+    render(<AdminApp initialContent={{
+      title: '品項團', unitPrice: 40, threshold: 10, announcement: '', images: [], openedAt: null,
+      items: [{ code: 'ITEM1', name: '牛奶', unitPrice: 40, active: true }],
+    }} initialPublicationState="draft" onSaveDraft={onSaveDraft} />)
+
+    await user.click(screen.getByRole('spinbutton', { name: '品項 A 單價' }))
+    await user.keyboard('{Enter}')
+    await user.keyboard('花生')
+
+    expect(screen.getByRole('textbox', { name: '品項 B 商品名稱（口味）' })).toHaveValue('花生')
+    await waitFor(() => expect(onSaveDraft).toHaveBeenLastCalledWith(expect.objectContaining({
+      items: [
+        expect.objectContaining({ code: 'ITEM1', name: '牛奶', unitPrice: 40 }),
+        expect.objectContaining({ code: 'ITEM2', name: '花生', unitPrice: 40 }),
+      ],
     })))
   })
 })

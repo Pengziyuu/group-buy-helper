@@ -99,3 +99,21 @@
   .content-section-nav a, .content-preview-link { min-height: var(--touch-target); }
   .content-publish-reason { text-align: left; }
 }
+
+.content-editor { display: grid; gap: var(--space-4); }
+.content-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); gap: var(--space-5); align-items: start; }
+.content-form, .content-side { display: grid; gap: var(--space-4); min-width: 0; }
+.content-field-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-4); }
+.content-field-group { display: grid; gap: var(--space-2); }
+.content-group-label { font-size: var(--font-size-dense); font-weight: var(--font-weight-strong); }
+.content-inline-fields { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.content-number-field .ui-input, .content-date { max-width: 200px; }
+.content-announcement { min-height: 200px; resize: vertical; }
+
+@media (max-width: 1279px) {
+  .content-layout { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 639px) {
+  .content-section { padding: var(--space-4); }
+}

@@ -511,7 +511,7 @@ describe('local Supabase visual demo apps', () => {
     const { rerender } = render(<LocalLiveAdminApp {...props} campaignId="campaign-1" />)
 
     expect(await screen.findByRole('textbox', { name: '團購標題' })).toHaveValue('第一團')
-    await user.click(screen.getByRole('button', { name: '更新住戶公告' }))
+    await user.click(screen.getByRole('button', { name: '更新住戶頁' }))
     expect(repository.publish).toHaveBeenCalledWith('campaign-1')
 
     rerender(<LocalLiveAdminApp {...props} campaignId="campaign-2" />)
@@ -722,7 +722,8 @@ describe('local Supabase visual demo apps', () => {
 
     expect(signInWithPassword).toHaveBeenCalledWith({ email: 'admin@example.test', password: 'password' })
     expect(await screen.findByRole('textbox', { name: '團購標題' })).toHaveValue('Supabase 已發布冰餅團')
-    expect(screen.getByText('已發布')).toBeInTheDocument()
+    expect(screen.getByText('住戶頁已是最新')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '預覽住戶頁' })).toHaveAttribute('href', '/campaign/82be35197b9a8c709a939627ce4c411d8de3')
     expect(screen.getByRole('link', { name: '開啟住戶頁' })).toHaveAttribute(
       'href',
       '/campaign/82be35197b9a8c709a939627ce4c411d8de3',
@@ -835,7 +836,7 @@ describe('local Supabase visual demo apps', () => {
     )
     expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
     expect(repository.loadPublished).toHaveBeenCalledTimes(1)
-    const fileInput = screen.getByLabelText<HTMLInputElement>('商品圖片檔案')
+    const fileInput = screen.getByLabelText<HTMLInputElement>('加入圖片')
     const selectedFile = new File(['image'], 'picker-return.png', { type: 'image/png' })
     await user.upload(fileInput, selectedFile)
 
@@ -843,8 +844,7 @@ describe('local Supabase visual demo apps', () => {
     await waitFor(() => expect(getUser).toHaveBeenCalledWith('refocused-token'))
 
     expect(screen.getByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
-    expect(screen.getByLabelText('商品圖片檔案')).toBe(fileInput)
-    expect(fileInput.files?.[0]).toBe(selectedFile)
+    expect(screen.getByLabelText('加入圖片')).toBe(fileInput)
     expect(screen.queryByText('載入團購草稿與訂單…')).not.toBeInTheDocument()
     expect(repository.loadPublished).toHaveBeenCalledTimes(1)
     expect(workflowRepository.loadSummary).toHaveBeenCalledTimes(1)
