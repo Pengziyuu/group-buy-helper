@@ -13,6 +13,7 @@ import {
 } from './LocalLiveApps'
 import { initialOrders, items } from './data/demo'
 import { buildOrganizerOrderSummary } from './domain/adminOrders'
+import type { OrganizerOrderSummary } from './domain/adminOrders'
 import type { AdminCampaignSupabaseClient } from './services/adminCampaignGateway'
 import type { CampaignContent } from './services/demoCampaignStore'
 import type { LineOrganizerResult } from './services/lineOrganizerGateway'
@@ -118,6 +119,11 @@ function authClient(session: unknown = null, getUserError: unknown = null, isAdm
       signOut: vi.fn().mockResolvedValue({ error: null }),
       onAuthStateChange: vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } }),
     },
+    channel: vi.fn(() => {
+      const channel = { on: vi.fn(() => channel), subscribe: vi.fn(() => channel) }
+      return channel
+    }),
+    removeChannel: vi.fn().mockResolvedValue(undefined),
   } as unknown as AdminCampaignSupabaseClient
   return { client, signInWithPassword }
 }
@@ -804,6 +810,11 @@ describe('local Supabase visual demo apps', () => {
           return { data: { subscription: { unsubscribe: vi.fn() } } }
         }),
       },
+      channel: vi.fn(() => {
+        const channel = { on: vi.fn(() => channel), subscribe: vi.fn(() => channel) }
+        return channel
+      }),
+      removeChannel: vi.fn().mockResolvedValue(undefined),
     } as unknown as AdminCampaignSupabaseClient
     const repository: LiveAdminRepository = {
       loadPublished: vi.fn().mockResolvedValue(published),
@@ -866,6 +877,11 @@ describe('local Supabase visual demo apps', () => {
           return { data: { subscription: { unsubscribe: vi.fn() } } }
         }),
       },
+      channel: vi.fn(() => {
+        const channel = { on: vi.fn(() => channel), subscribe: vi.fn(() => channel) }
+        return channel
+      }),
+      removeChannel: vi.fn().mockResolvedValue(undefined),
     } as unknown as AdminCampaignSupabaseClient
     const repository: LiveAdminRepository = {
       loadPublished: vi.fn().mockResolvedValue(published),
@@ -913,6 +929,11 @@ describe('local Supabase visual demo apps', () => {
           return { data: { subscription: { unsubscribe: vi.fn() } } }
         }),
       },
+      channel: vi.fn(() => {
+        const channel = { on: vi.fn(() => channel), subscribe: vi.fn(() => channel) }
+        return channel
+      }),
+      removeChannel: vi.fn().mockResolvedValue(undefined),
     } as unknown as AdminCampaignSupabaseClient
     const repository: LiveAdminRepository = {
       loadPublished: vi.fn().mockResolvedValue(published),
@@ -1508,6 +1529,11 @@ describe('local Supabase visual demo apps', () => {
           return { data: { subscription: { unsubscribe: vi.fn() } } }
         }),
       },
+      channel: vi.fn(() => {
+        const channel = { on: vi.fn(() => channel), subscribe: vi.fn(() => channel) }
+        return channel
+      }),
+      removeChannel: vi.fn().mockResolvedValue(undefined),
     } as unknown as AdminCampaignSupabaseClient
     const repository: LiveAdminRepository = {
       loadPublished: vi.fn().mockResolvedValue(published),
@@ -2186,5 +2212,129 @@ describe('local Supabase visual demo apps', () => {
       await Promise.resolve()
     })
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+})
+
+describe('organizer realtime', () => {
+  const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
+  const publishedRepository = (): LiveAdminRepository => ({
+    loadPublished: vi.fn().mockResolvedValue(published),
+    loadOptionalPublished: vi.fn().mockResolvedValue(published),
+    loadOptionalDraft: vi.fn().mockResolvedValue(null),
+    saveDraft: vi.fn(),
+    publish: vi.fn(),
+  })
+
+  function realtimeClient() {
+    const { client } = authClient(session)
+    const callbacks: Array<() => void> = []
+    const statusCallbacks: Array<(status: string) => void> = []
+    const channel = {
+      on: vi.fn((_event: string, _filter: unknown, callback: () => void) => {
+        callbacks.push(callback)
+        return channel
+      }),
+      subscribe: vi.fn((callback: (status: string) => void) => {
+        statusCallbacks.push(callback)
+        return channel
+      }),
+    }
+    const channelFactory = vi.fn().mockReturnValue(channel)
+    const removeChannel = vi.fn().mockResolvedValue(undefined)
+    Object.assign(client, { channel: channelFactory, removeChannel })
+    const report = (status: string) => act(() => { statusCallbacks.at(-1)?.(status) })
+    return { client, channel, channelFactory, removeChannel, callbacks, report }
+  }
+
+  it('subscribes to this campaign\'s orders and reloads the overview when they change', async () => {
+    const { client, channel, channelFactory, callbacks, report } = realtimeClient()
+    const workflow = ordersRepository()
+    render(<LocalLiveAdminApp client={client} campaignId="campaign-1" repository={publishedRepository()} ordersRepository={workflow} section="overview" />)
+
+    expect(await screen.findByRole('heading', { level: 2, name: '概況' })).toBeInTheDocument()
+    expect(channelFactory).toHaveBeenCalledWith('organizer-campaign-campaign-1')
+    expect(channel.on).toHaveBeenCalledWith('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: 'campaign_id=eq.campaign-1' }, expect.any(Function))
+    expect(channel.on).toHaveBeenCalledWith('postgres_changes', { event: '*', schema: 'public', table: 'order_item', filter: 'campaign_id=eq.campaign-1' }, expect.any(Function))
+    expect(await screen.findByText('連線中…')).toBeInTheDocument()
+
+    report('SUBSCRIBED')
+    await waitFor(() => expect(workflow.loadSummary).toHaveBeenCalledTimes(2))
+    expect(await screen.findByText('即時更新')).toBeInTheDocument()
+
+    act(() => { callbacks[0]() })
+    await waitFor(() => expect(workflow.loadSummary).toHaveBeenCalledTimes(3))
+  })
+
+  it('coalesces a burst of order events into one follow-up reload and shows the latest result', async () => {
+    const { client, callbacks, report } = realtimeClient()
+    const workflow = ordersRepository()
+    let finishSlowReload!: (summary: OrganizerOrderSummary) => void
+    vi.mocked(workflow.loadSummary)
+      .mockResolvedValueOnce(orderSummary)
+      .mockImplementationOnce(() => new Promise((resolve) => { finishSlowReload = resolve }))
+      .mockResolvedValueOnce({ ...orderSummary, orderCount: 7 })
+    render(<LocalLiveAdminApp client={client} campaignId="campaign-1" repository={publishedRepository()} ordersRepository={workflow} section="orders" />)
+    expect(await screen.findByRole('heading', { level: 2, name: '訂單' })).toBeInTheDocument()
+
+    report('SUBSCRIBED')
+    act(() => { callbacks[0](); callbacks[1](); callbacks[0]() })
+    expect(workflow.loadSummary).toHaveBeenCalledTimes(2)
+
+    await act(async () => { finishSlowReload({ ...orderSummary, orderCount: 5 }) })
+    await waitFor(() => expect(workflow.loadSummary).toHaveBeenCalledTimes(3))
+    expect(await within(screen.getByLabelText('訂單總覽')).findByText('7 筆')).toBeInTheDocument()
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
+    expect(workflow.loadSummary).toHaveBeenCalledTimes(3)
+  })
+
+  it('warns when the live connection drops and resubscribes on retry', async () => {
+    const user = userEvent.setup()
+    const { client, channelFactory, removeChannel, report } = realtimeClient()
+    render(<LocalLiveAdminApp client={client} campaignId="campaign-1" repository={publishedRepository()} ordersRepository={ordersRepository()} section="overview" />)
+    expect(await screen.findByRole('heading', { level: 2, name: '概況' })).toBeInTheDocument()
+
+    report('CHANNEL_ERROR')
+    expect(await screen.findByText('即時同步中斷，畫面可能不是最新')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '重新同步' }))
+
+    expect(removeChannel).toHaveBeenCalledOnce()
+    expect(channelFactory).toHaveBeenCalledTimes(2)
+    expect(await screen.findByText('連線中…')).toBeInTheDocument()
+  })
+
+  it('shows the warning when a live reload fails', async () => {
+    const { client, callbacks, report } = realtimeClient()
+    const workflow = ordersRepository()
+    vi.mocked(workflow.loadSummary)
+      .mockResolvedValueOnce(orderSummary)
+      .mockResolvedValueOnce(orderSummary)
+      .mockRejectedValueOnce(new Error('network'))
+    render(<LocalLiveAdminApp client={client} campaignId="campaign-1" repository={publishedRepository()} ordersRepository={workflow} section="overview" />)
+    expect(await screen.findByRole('heading', { level: 2, name: '概況' })).toBeInTheDocument()
+
+    report('SUBSCRIBED')
+    expect(await screen.findByText('即時更新')).toBeInTheDocument()
+    act(() => { callbacks[0]() })
+    expect(await screen.findByText('即時同步中斷，畫面可能不是最新')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: '概況' })).toBeInTheDocument()
+  })
+
+  it('does not subscribe for drafts and removes the channel when leaving the campaign', async () => {
+    const { client, channelFactory, removeChannel, report } = realtimeClient()
+    const draftRepository: LiveAdminRepository = {
+      ...publishedRepository(),
+      loadOptionalPublished: vi.fn().mockResolvedValue(null),
+      loadOptionalDraft: vi.fn().mockResolvedValue(published),
+    }
+    const { unmount } = render(<LocalLiveAdminApp client={client} campaignId="campaign-2" repository={draftRepository} ordersRepository={ordersRepository()} section="content" />)
+    expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+    expect(channelFactory).not.toHaveBeenCalled()
+    unmount()
+
+    const second = render(<LocalLiveAdminApp client={client} campaignId="campaign-1" repository={publishedRepository()} ordersRepository={ordersRepository()} section="overview" />)
+    expect(await screen.findByRole('heading', { level: 2, name: '概況' })).toBeInTheDocument()
+    second.unmount()
+    expect(removeChannel).toHaveBeenCalledOnce()
+    expect(() => report('SUBSCRIBED')).not.toThrow()
   })
 })

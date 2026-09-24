@@ -18,6 +18,7 @@ import { PickupSection } from './components/organizer/PickupSection'
 import { isUnboundResident } from './components/organizer/residentView'
 import type { WorkspaceCampaign } from './components/organizer/WorkspaceRail'
 import { resolveWorkspaceSection } from './components/organizer/workspaceSections'
+import type { LiveState } from './components/organizer/LiveStatus'
 import type { ResidentFilter, WorkspaceSection } from './routing'
 import './LocalLiveApps.css'
 import {
@@ -485,6 +486,10 @@ export function LocalLiveAdminApp({
   const [signOutPending, setSignOutPending] = useState(false)
   const [logoutNotice, setLogoutNotice] = useState('')
   const [fatalAuthError, setFatalAuthError] = useState('')
+  const [liveState, setLiveState] = useState<LiveState>('unavailable')
+  const [liveAttempt, setLiveAttempt] = useState(0)
+  // Points at the latest reloadOrderSummary so the subscription never calls a stale closure.
+  const orderSyncRef = useRef<(() => Promise<void>) | null>(null)
   const organizerUserId = session?.user?.id ?? null
 
   const signOutRemotely = useCallback(async (): Promise<unknown> => {
@@ -761,6 +766,55 @@ export function LocalLiveAdminApp({
     return () => { active = false }
   }, [campaignId, gateway, ordersGateway, organizerUserId])
 
+  const liveCampaignId = organizerUserId && campaignId && contentCampaignId === campaignId && publishedContent
+    ? campaignId
+    : null
+
+  useEffect(() => {
+    if (!liveCampaignId) {
+      setLiveState('unavailable')
+      return
+    }
+    let active = true
+    let running = false
+    let queued = false
+    // One reload at a time; events that arrive meanwhile collapse into a single follow-up reload.
+    const sync = async () => {
+      if (running) {
+        queued = true
+        return
+      }
+      running = true
+      try {
+        do {
+          queued = false
+          await orderSyncRef.current?.()
+        } while (queued && active)
+        if (active) setLiveState('live')
+      } catch {
+        if (active) setLiveState('offline')
+      } finally {
+        running = false
+      }
+    }
+    const filter = `campaign_id=eq.${liveCampaignId}`
+    setLiveState('connecting')
+    const channel = client
+      .channel(`organizer-campaign-${liveCampaignId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter }, () => { void sync() })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_item', filter }, () => { void sync() })
+      .subscribe((status) => {
+        if (!active) return
+        // Reload on (re)subscribing to catch changes made before the channel was ready.
+        if (status === 'SUBSCRIBED') void sync()
+        else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') setLiveState('offline')
+      })
+    return () => {
+      active = false
+      void client.removeChannel(channel)
+    }
+  }, [client, liveCampaignId, liveAttempt])
+
   const acceptSignedInSession = (signedInSession: Session | null) => {
     authValidationGeneration.current += 1
     authEventsBlocked.current = false
@@ -961,6 +1015,8 @@ export function LocalLiveAdminApp({
     if (currentCampaignIdRef.current !== requestedCampaignId) return
     setOrderSummary(summary)
   }
+  orderSyncRef.current = reloadOrderSummary
+  const retrySync = () => setLiveAttempt((current) => current + 1)
   const published = publishedContent !== null
   const shownSection = resolveWorkspaceSection(section, published, campaignStatus)
   const setOrderOrganizerNote = async (orderId: string, note: string) => {
@@ -1030,7 +1086,8 @@ export function LocalLiveAdminApp({
             openedAt={publishedContent?.openedAt ?? null}
             summary={orderSummary}
             status={campaignStatus}
-            liveState="unavailable"
+            liveState={liveState}
+            onRetrySync={retrySync}
           />
         )}
         {shownSection === 'orders' && orderSummary && (
@@ -1039,7 +1096,8 @@ export function LocalLiveAdminApp({
             openedAt={publishedContent?.openedAt ?? null}
             summary={orderSummary}
             status={campaignStatus}
-            liveState="unavailable"
+            liveState={liveState}
+            onRetrySync={retrySync}
             onSetOrderOrganizerNote={setOrderOrganizerNote}
             onCancelOrder={cancelOrder}
           />
