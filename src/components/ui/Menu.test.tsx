@@ -117,6 +117,26 @@ describe('Menu', () => {
     expect(popup.style.right).toBe(`${window.innerWidth - 300}px`)
   })
 
+  it('keeps the popup on-screen when the trigger sits near the left edge', async () => {
+    const user = userEvent.setup()
+    const offsetWidth = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.getAttribute('role') === 'menu' ? 200 : 0
+    })
+    try {
+      render(<Menu label="更多操作" items={[{ label: '刪除', onSelect: vi.fn() }]} />)
+      const trigger = screen.getByRole('button', { name: '更多操作' })
+      vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue(rect({ top: 100, bottom: 132, left: 40, right: 72 }))
+
+      await user.click(trigger)
+
+      const popup = screen.getByRole('menu', { name: '更多操作' })
+      expect(popup.style.left).toBe('8px')
+      expect(popup.style.right).toBe('auto')
+    } finally {
+      offsetWidth.mockRestore()
+    }
+  })
+
   it('opens upwards when there is no room below the trigger', async () => {
     const user = userEvent.setup()
     const offsetHeight = vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (this: HTMLElement) {

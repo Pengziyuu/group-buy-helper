@@ -42,11 +42,18 @@ export function Menu({ label, items, triggerContent = '⋯', size = 'md', classN
       if (!trigger || !popup) return
       const anchor = trigger.getBoundingClientRect()
       const height = popup.offsetHeight
+      const width = popup.offsetWidth
       const below = anchor.bottom + POPUP_GAP
       const above = anchor.top - POPUP_GAP - height
       const top = below + height > window.innerHeight - VIEWPORT_MARGIN && above >= VIEWPORT_MARGIN ? above : below
       popup.style.top = `${top}px`
-      popup.style.right = `${Math.max(VIEWPORT_MARGIN, window.innerWidth - anchor.right)}px`
+      if (anchor.right - width < VIEWPORT_MARGIN) {
+        popup.style.left = `${VIEWPORT_MARGIN}px`
+        popup.style.right = 'auto'
+      } else {
+        popup.style.right = `${Math.max(VIEWPORT_MARGIN, window.innerWidth - anchor.right)}px`
+        popup.style.left = 'auto'
+      }
     }
     place()
     window.addEventListener('resize', place)
