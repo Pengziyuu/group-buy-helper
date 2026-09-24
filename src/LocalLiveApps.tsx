@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import type { Session, SupabaseClient } from '@supabase/supabase-js'
 import AdminApp from './AdminApp'
 import NotificationTestLab from './NotificationTestLab'
@@ -488,6 +488,7 @@ export function LocalLiveAdminApp({
   const [fatalAuthError, setFatalAuthError] = useState('')
   const [liveState, setLiveState] = useState<LiveState>('unavailable')
   const [liveAttempt, setLiveAttempt] = useState(0)
+  const [reloadKey, setReloadKey] = useState(0)
   // Points at the latest reloadOrderSummary so the subscription never calls a stale closure.
   const orderSyncRef = useRef<(() => Promise<void>) | null>(null)
   const organizerUserId = session?.user?.id ?? null
@@ -723,7 +724,7 @@ export function LocalLiveAdminApp({
       if (active) setError(errorMessage(loadError))
     })
     return () => { active = false }
-  }, [campaignManagementGateway, listPage, organizerUserId, residentMemberGateway])
+  }, [campaignManagementGateway, listPage, organizerUserId, residentMemberGateway, reloadKey])
 
   useEffect(() => {
     // Clear first so a new campaign never renders with the previous campaign's draft.
@@ -764,7 +765,7 @@ export function LocalLiveAdminApp({
       if (active) setError(errorMessage(loadError))
     })
     return () => { active = false }
-  }, [campaignId, gateway, ordersGateway, organizerUserId])
+  }, [campaignId, gateway, ordersGateway, organizerUserId, reloadKey])
 
   const liveCampaignId = organizerUserId && campaignId && contentCampaignId === campaignId && publishedContent
     ? campaignId
@@ -916,9 +917,28 @@ export function LocalLiveAdminApp({
       </main>
     )
   }
-  if (error) return <LiveError message={error} />
-
   const createCampaign = (title: string) => campaignManagementGateway.create(title)
+  const shellCurrent = campaignId ? 'campaigns' : notificationLab ? 'settings' : page === 'home' ? 'campaigns' : page
+  const inShell = (children: ReactNode) => (
+    <OrganizerShell current={shellCurrent} onCreate={createCampaign}>{children}</OrganizerShell>
+  )
+  const shellLoading = (label: string) => inShell(<LoadingState label={label} variant="skeleton" rows={4} />)
+
+  if (error) {
+    return inShell(
+      <ErrorState
+        title="無法載入這一頁"
+        message={error}
+        actionLabel="重試"
+        onAction={() => {
+          setError('')
+          setReloadKey((current) => current + 1)
+        }}
+        page
+      />,
+    )
+  }
+
   const signOut = async () => {
     authValidationGeneration.current += 1
     signInGeneration.current += 1
@@ -931,7 +951,7 @@ export function LocalLiveAdminApp({
 
   if (!campaignId) {
     if (notificationLab) {
-      if (!campaigns || !testCampaignIds) return <LiveLoading label="載入通知測試中心…" />
+      if (!campaigns || !testCampaignIds) return shellLoading('載入通知測試中心…')
       return (
         <OrganizerShell current="settings" onCreate={createCampaign}>
           <NotificationTestLab
@@ -947,7 +967,7 @@ export function LocalLiveAdminApp({
       )
     }
     if (page === 'residents') {
-      if (!residentMembers) return <LiveLoading label="載入住戶…" />
+      if (!residentMembers) return shellLoading('載入住戶…')
       return (
         <OrganizerShell current="residents" onCreate={createCampaign}>
           <ResidentMemberManagementApp
@@ -970,7 +990,7 @@ export function LocalLiveAdminApp({
       )
     }
     if (page === 'settings') {
-      if (!autoCloseNotificationState) return <LiveLoading label="載入設定…" />
+      if (!autoCloseNotificationState) return shellLoading('載入設定…')
       return (
         <OrganizerShell current="settings" onCreate={createCampaign}>
           <OrganizerSettings
@@ -984,7 +1004,7 @@ export function LocalLiveAdminApp({
         </OrganizerShell>
       )
     }
-    if (!campaigns || !residentMembers || !autoCloseNotificationState) return <LiveLoading label="載入團購、住戶與通知設定…" />
+    if (!campaigns || !residentMembers || !autoCloseNotificationState) return shellLoading('載入團購、住戶與通知設定…')
     return (
       <OrganizerShell current="campaigns" onCreate={createCampaign}>
         <OrganizerHome
@@ -1000,7 +1020,7 @@ export function LocalLiveAdminApp({
       </OrganizerShell>
     )
   }
-  if (!content || !campaignStatus || contentCampaignId !== campaignId) return <LiveLoading label="載入團購草稿與訂單…" />
+  if (!content || !campaignStatus || contentCampaignId !== campaignId) return shellLoading('載入團購草稿與訂單…')
 
   const reloadOrderSummary = async () => {
     if (!publishedContent) return

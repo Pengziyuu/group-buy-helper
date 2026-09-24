@@ -2338,3 +2338,60 @@ describe('organizer realtime', () => {
     expect(() => report('SUBSCRIBED')).not.toThrow()
   })
 })
+
+describe('organizer loading and error states', () => {
+  const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
+
+  it('keeps the organizer navigation while a page loads and when it fails, and retries the load', async () => {
+    const user = userEvent.setup()
+    const { client } = authClient(session)
+    const members = [{ memberCode: 'm1', displayName: '住戶甲', pictureUrl: null, period: 2, unit: '1A1', joinedAt: '2026-09-01T00:00:00Z', blocked: false, blockedAt: null }]
+    let failLoad!: (error: Error) => void
+    const list = vi.fn()
+      .mockImplementationOnce(() => new Promise((_, reject) => { failLoad = reject }))
+      .mockResolvedValue(members)
+    render(
+      <LocalLiveAdminApp
+        client={client}
+        page="residents"
+        residentMemberRepository={{ list, setBlocked: vi.fn(), updateHousehold: vi.fn() }}
+        ordersRepository={ordersRepository()}
+      />,
+    )
+
+    expect(await screen.findByRole('status', { name: '載入住戶…' })).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: '團主後台' })).toBeInTheDocument()
+
+    await act(async () => { failLoad(new Error('讀取住戶失敗：network')) })
+    expect(await screen.findByRole('alert')).toHaveTextContent('無法載入這一頁')
+    expect(screen.getByText('讀取住戶失敗：network')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '住戶' })).toHaveAttribute('aria-current', 'page')
+
+    await user.click(screen.getByRole('button', { name: '重試' }))
+    expect(await screen.findByRole('heading', { level: 1, name: '住戶 1 位' })).toBeInTheDocument()
+    expect(list).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps the navigation while a campaign workspace loads and retries a failed load', async () => {
+    const user = userEvent.setup()
+    const { client } = authClient(session)
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalPublished: vi.fn()
+        .mockRejectedValueOnce(new Error('讀取團購失敗：network'))
+        .mockResolvedValue(published),
+      loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      saveDraft: vi.fn(),
+      publish: vi.fn(),
+    }
+    render(<LocalLiveAdminApp client={client} campaignId="campaign-1" repository={repository} ordersRepository={ordersRepository()} section="overview" />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('無法載入這一頁')
+    expect(screen.getByRole('navigation', { name: '團主後台' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '團購' })).toHaveAttribute('aria-current', 'page')
+
+    await user.click(screen.getByRole('button', { name: '重試' }))
+    expect(await screen.findByRole('heading', { level: 2, name: '概況' })).toBeInTheDocument()
+    expect(repository.loadOptionalPublished).toHaveBeenCalledTimes(2)
+  })
+})
