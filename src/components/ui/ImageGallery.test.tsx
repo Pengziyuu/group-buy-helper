@@ -50,4 +50,19 @@ describe('ImageGallery', () => {
     const { container } = render(<ImageGallery images={[]} onOpen={vi.fn()} />)
     expect(container).toBeEmptyDOMElement()
   })
+
+  it('shows the main image without a zoom button when it cannot be opened', async () => {
+    const user = userEvent.setup()
+    render(<ImageGallery images={[
+      { src: '/one.jpg', alt: '第一張' },
+      { src: '/two.jpg', alt: '第二張' },
+    ]} />)
+
+    expect(screen.queryByRole('button', { name: /放大檢視/ })).not.toBeInTheDocument()
+    expect(screen.queryByText('放大')).not.toBeInTheDocument()
+    expect(screen.getByRole('img', { name: '第一張' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '顯示第 2 張圖片' }))
+    expect(screen.getByRole('img', { name: '第二張' })).toBeInTheDocument()
+  })
 })
