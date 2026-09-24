@@ -30,22 +30,26 @@ function renderRail(props: Partial<Parameters<typeof WorkspaceRail>[0]> = {}) {
 }
 
 describe('workspace sections', () => {
-  it('opens drafts on content settings and published campaigns on orders until the overview exists', () => {
-    expect(resolveWorkspaceSection(null, false)).toBe('content')
-    expect(resolveWorkspaceSection('orders', false)).toBe('content')
-    expect(resolveWorkspaceSection('pickup', false)).toBe('content')
-    expect(resolveWorkspaceSection(null, true)).toBe('orders')
-    expect(resolveWorkspaceSection('overview', true)).toBe('orders')
-    expect(resolveWorkspaceSection('content', true)).toBe('content')
-    expect(resolveWorkspaceSection('pickup', true)).toBe('pickup')
+  it('opens drafts on content, open campaigns on the overview and closed campaigns on orders', () => {
+    expect(resolveWorkspaceSection(null, false, 'open')).toBe('content')
+    expect(resolveWorkspaceSection('overview', false, 'open')).toBe('content')
+    expect(resolveWorkspaceSection('orders', false, 'open')).toBe('content')
+    expect(resolveWorkspaceSection(null, true, 'open')).toBe('overview')
+    expect(resolveWorkspaceSection(null, true, 'closed')).toBe('orders')
+    expect(resolveWorkspaceSection(null, true, 'arrived')).toBe('orders')
+    expect(resolveWorkspaceSection('overview', true, 'closed')).toBe('overview')
+    expect(resolveWorkspaceSection('content', true, 'open')).toBe('content')
+    expect(resolveWorkspaceSection('pickup', true, 'open')).toBe('pickup')
   })
 
   it('explains why a section is unavailable', () => {
+    expect(sectionUnavailableReason('overview', 'open', false)).toBe('發布後可用')
     expect(sectionUnavailableReason('orders', 'open', false)).toBe('發布後可用')
     expect(sectionUnavailableReason('pickup', 'open', false)).toBe('發布後可用')
     expect(sectionUnavailableReason('pickup', 'open', true)).toBe('結單後才能使用')
     expect(sectionUnavailableReason('pickup', 'closed', true)).toBeNull()
     expect(sectionUnavailableReason('content', 'open', false)).toBeNull()
+    expect(sectionUnavailableReason('overview', 'open', true)).toBeNull()
     expect(sectionUnavailableReason('orders', 'open', true)).toBeNull()
   })
 })
@@ -70,7 +74,10 @@ describe('WorkspaceRail', () => {
     expect(within(nav).getByRole('link', { name: '內容設定' })).toHaveAttribute('href', '/admin/campaign/campaign-1/content')
     expect(within(nav).queryByRole('link', { name: /領取通知/ })).not.toBeInTheDocument()
     expect(within(nav).getByText('結單後才能使用')).toBeInTheDocument()
-    expect(within(nav).queryByText('概況')).not.toBeInTheDocument()
+    const overview = within(nav).getByRole('link', { name: '概況' })
+    expect(overview).toHaveAttribute('href', '/admin/campaign/campaign-1/overview')
+    expect(overview).not.toHaveAttribute('aria-current')
+    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['概況', '訂單 6', '內容設定'])
   })
 
   it('asks before closing orders and closes only after confirmation', async () => {
@@ -117,7 +124,7 @@ describe('WorkspaceRail', () => {
     expect(onSetCampaignStatus).toHaveBeenCalledWith('open')
   })
 
-  it('marks a draft and keeps order and pickup sections unavailable until publishing', () => {
+  it('marks a draft and keeps overview, order and pickup sections unavailable until publishing', () => {
     renderRail({
       campaign: { ...openCampaign, published: false, openedAt: null, orderCount: null, residentHref: null, coverImage: null },
       section: 'content',
@@ -129,7 +136,8 @@ describe('WorkspaceRail', () => {
     expect(screen.getByText('尚未發布')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: '一涼製冰所 超厚三明治冰餅尚未設定圖片' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /訂單/ })).not.toBeInTheDocument()
-    expect(screen.getAllByText('發布後可用')).toHaveLength(2)
+    expect(screen.queryByRole('link', { name: '概況' })).not.toBeInTheDocument()
+    expect(screen.getAllByText('發布後可用')).toHaveLength(3)
     expect(screen.getByRole('link', { name: '內容設定' })).toHaveAttribute('aria-current', 'page')
     expect(screen.queryByRole('button', { name: /複製住戶連結/ })).not.toBeInTheDocument()
   })

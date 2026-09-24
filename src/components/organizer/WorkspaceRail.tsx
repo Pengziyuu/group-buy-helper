@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { describeAutoClose, normalizeArrivalLabel } from '../../domain/campaignSchedule'
 import { campaignStatusAction, campaignStatusLabel, type CampaignStatus } from '../../domain/orderWorkflow'
 import { formatZhTwTimestamp } from '../../domain/timestamp'
-import { campaignSectionPath } from '../../routing'
+import { campaignSectionPath, type WorkspaceSection } from '../../routing'
 import type { CampaignImage } from '../../services/demoCampaignStore'
 import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
@@ -10,7 +10,7 @@ import { FeedbackMessage } from '../ui/FeedbackMessage'
 import { StatusBadge } from '../ui/StatusBadge'
 import { copyResidentLink } from './copyResidentLink'
 import { OrganizerLink } from './OrganizerLink'
-import { sectionUnavailableReason, type ShownSection } from './workspaceSections'
+import { sectionUnavailableReason } from './workspaceSections'
 
 export type WorkspaceCampaign = {
   id: string
@@ -27,7 +27,7 @@ export type WorkspaceCampaign = {
 
 type WorkspaceRailProps = {
   campaign: WorkspaceCampaign
-  section: ShownSection
+  section: WorkspaceSection
   now?: Date
   onSetCampaignStatus?: (status: CampaignStatus) => Promise<void>
   onCopyResidentLink?: (path: string) => Promise<void>
@@ -38,7 +38,8 @@ const STATUS_CONFIRMATIONS: Record<'open' | 'closed', { title: string; body: str
   open: { title: '確認重新開放', body: '重新開放後住戶可以再次下單與修改訂單。', confirm: '確認重新開放' },
 }
 
-const NAV_ITEMS: Array<{ section: ShownSection; label: string }> = [
+const NAV_ITEMS: Array<{ section: WorkspaceSection; label: string }> = [
+  { section: 'overview', label: '概況' },
   { section: 'orders', label: '訂單' },
   { section: 'content', label: '內容設定' },
   { section: 'pickup', label: '領取通知' },

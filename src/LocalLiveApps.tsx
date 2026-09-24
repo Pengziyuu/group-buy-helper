@@ -9,9 +9,11 @@ import ResidentCampaignListApp, {
 } from './ResidentCampaignListApp'
 import ResidentMemberManagementApp from './ResidentMemberManagementApp'
 import { CampaignWorkspace } from './components/organizer/CampaignWorkspace'
+import { OrdersSection } from './components/organizer/OrdersSection'
 import { OrganizerHome } from './components/organizer/OrganizerHome'
 import { OrganizerSettings } from './components/organizer/OrganizerSettings'
 import { OrganizerShell } from './components/organizer/OrganizerShell'
+import { OverviewSection } from './components/organizer/OverviewSection'
 import { PickupSection } from './components/organizer/PickupSection'
 import { isUnboundResident } from './components/organizer/residentView'
 import type { WorkspaceCampaign } from './components/organizer/WorkspaceRail'
@@ -960,7 +962,15 @@ export function LocalLiveAdminApp({
     setOrderSummary(summary)
   }
   const published = publishedContent !== null
-  const shownSection = resolveWorkspaceSection(section, published)
+  const shownSection = resolveWorkspaceSection(section, published, campaignStatus)
+  const setOrderOrganizerNote = async (orderId: string, note: string) => {
+    await ordersGateway.setOrderOrganizerNote(orderId, note)
+    await reloadOrderSummary()
+  }
+  const cancelOrder = async (orderId: string) => {
+    await ordersGateway.cancelOrder(orderId)
+    await reloadOrderSummary()
+  }
   const workspaceCampaign: WorkspaceCampaign = {
     id: campaignId,
     title: content.title,
@@ -990,25 +1000,11 @@ export function LocalLiveAdminApp({
         }}
       >
         <AdminApp
-          section={shownSection === 'pickup' ? null : shownSection}
+          section={shownSection === 'content' ? 'content' : null}
           initialContent={content}
           initialPublicationState={publicationState}
-          orderSummary={orderSummary}
           campaignStatus={campaignStatus}
-          campaignTitle={content.title}
           onUploadImage={(file) => imageGateway.upload(campaignId, file)}
-          onSetOrderPaid={async (orderId, paid) => {
-            await ordersGateway.setOrderPaid(orderId, paid)
-            await reloadOrderSummary()
-          }}
-          onSetOrderOrganizerNote={async (orderId, note) => {
-            await ordersGateway.setOrderOrganizerNote(orderId, note)
-            await reloadOrderSummary()
-          }}
-          onCancelOrder={async (orderId) => {
-            await ordersGateway.cancelOrder(orderId)
-            await reloadOrderSummary()
-          }}
           onSaveDraft={async (nextContent) => {
             await gateway.saveDraft(campaignId, nextContent)
           }}
@@ -1027,6 +1023,27 @@ export function LocalLiveAdminApp({
             return nextPublished
           }}
         />
+        {shownSection === 'overview' && orderSummary && (
+          <OverviewSection
+            campaignId={campaignId}
+            campaignTitle={content.title}
+            openedAt={publishedContent?.openedAt ?? null}
+            summary={orderSummary}
+            status={campaignStatus}
+            liveState="unavailable"
+          />
+        )}
+        {shownSection === 'orders' && orderSummary && (
+          <OrdersSection
+            campaignTitle={content.title}
+            openedAt={publishedContent?.openedAt ?? null}
+            summary={orderSummary}
+            status={campaignStatus}
+            liveState="unavailable"
+            onSetOrderOrganizerNote={setOrderOrganizerNote}
+            onCancelOrder={cancelOrder}
+          />
+        )}
         {shownSection === 'pickup' && (
           <PickupSection
             campaignId={campaignId}

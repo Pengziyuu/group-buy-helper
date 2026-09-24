@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import './AdminApp.css'
-import AdminOrdersPanel from './AdminOrdersPanel'
 import LinkifiedText from './components/LinkifiedText'
-import { campaign, initialOrders, items } from './data/demo'
-import { buildOrganizerOrderSummary, type OrganizerOrderSummary } from './domain/adminOrders'
+import { campaign, items } from './data/demo'
 import { campaignStatusLabel, type CampaignStatus } from './domain/orderWorkflow'
 import { itemLabel, MAX_CAMPAIGN_ITEMS } from './domain/itemLabel'
 import { normalizeQuantityUnit, QUANTITY_UNITS, type QuantityUnit } from './domain/quantityUnit'
@@ -40,12 +38,6 @@ const defaultContent: CampaignContent = {
   openedAt: campaign.openedAt,
 }
 
-const demoOrderSummary = buildOrganizerOrderSummary({
-  orders: initialOrders,
-  items,
-  threshold: campaign.threshold,
-})
-
 type PublicationState = 'draft' | 'published'
 
 type AdminAppProps = {
@@ -53,14 +45,9 @@ type AdminAppProps = {
   initialPublicationState?: PublicationState
   onSaveDraft?: (content: CampaignContent) => Promise<void>
   onPublish?: (content: CampaignContent) => Promise<CampaignContent | void>
-  orderSummary?: OrganizerOrderSummary | null
   campaignStatus?: CampaignStatus
-  campaignTitle?: string
-  onSetOrderPaid?: (orderId: string, paid: boolean) => Promise<void>
-  onSetOrderOrganizerNote?: (orderId: string, note: string) => Promise<void>
-  onCancelOrder?: (orderId: string) => Promise<void>
   onUploadImage?: (file: File) => Promise<string>
-  section?: 'content' | 'orders' | null
+  section?: 'content' | null
 }
 
 function messageFromError(error: unknown): string {
@@ -72,12 +59,7 @@ function AdminApp({
   initialPublicationState,
   onSaveDraft,
   onPublish,
-  orderSummary,
   campaignStatus,
-  campaignTitle,
-  onSetOrderPaid,
-  onSetOrderOrganizerNote,
-  onCancelOrder,
   onUploadImage,
   section = 'content',
 }: AdminAppProps = {}) {
@@ -157,7 +139,6 @@ function AdminApp({
   const arrivalLabel = buildArrivalLabel(arrivalMode, arrivalMonth, arrivalDay, arrivalPeriod)
   const autoCloseAt = autoCloseEnabled && scheduleInputsValid ? taipeiNoonIso(autoCloseDate) : null
   const draftSavePending = draftRevision !== savedRevisionRef.current
-  const resolvedOrderSummary = orderSummary === undefined ? demoOrderSummary : orderSummary
 
   const currentContent = (): CampaignContent => ({
     title,
@@ -833,24 +814,6 @@ function AdminApp({
           </article>
         </section>
         </div>
-      </section>
-      <section id="admin-orders-panel" aria-label="訂單" hidden={section !== 'orders'}>
-        {resolvedOrderSummary ? (
-          <AdminOrdersPanel
-            summary={resolvedOrderSummary}
-            campaignStatus={campaignStatus}
-            campaignTitle={campaignTitle ?? title}
-            campaignOpenedAt={openedAt}
-            onSetOrderPaid={onSetOrderPaid}
-            onSetOrderOrganizerNote={onSetOrderOrganizerNote}
-            onCancelOrder={onCancelOrder}
-          />
-        ) : (
-          <div className="admin-orders-empty">
-            <h2>訂單</h2>
-            <p>團購發布後，住戶訂單與履約狀態會顯示在這裡。</p>
-          </div>
-        )}
       </section>
     </div>
   )

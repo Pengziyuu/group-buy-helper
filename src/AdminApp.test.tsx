@@ -50,32 +50,21 @@ describe('organizer campaign editor', () => {
     expect(screen.getByRole('button', { name: '收合完整預覽' })).toHaveAttribute('aria-expanded', 'true')
   })
 
-  it('shows only the section chosen by the workspace and keeps the draft while switching', async () => {
+  it('shows the editor only in the content section and keeps the draft while hidden', async () => {
     const user = userEvent.setup()
     const { rerender } = render(<AdminApp section="content" />)
     const title = screen.getByRole('textbox', { name: '團購標題' })
     await user.clear(title)
     await user.type(title, '切換前的新標題')
-    expect(screen.queryByRole('heading', { name: '訂單統計' })).not.toBeInTheDocument()
-
-    rerender(<AdminApp section="orders" />)
-    expect(screen.getByRole('heading', { name: '訂單統計' })).toBeInTheDocument()
-    expect(screen.queryByRole('textbox', { name: '團購標題' })).not.toBeInTheDocument()
 
     rerender(<AdminApp section={null} />)
-    expect(screen.queryByRole('heading', { name: '訂單統計' })).not.toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: '團購標題' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /訂單/ })).not.toBeInTheDocument()
 
     rerender(<AdminApp section="content" />)
     expect(screen.getByRole('textbox', { name: '團購標題' })).toHaveValue('切換前的新標題')
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '登出' })).not.toBeInTheDocument()
-  })
-
-  it('uses the loaded campaign title for Excel export without a duplicate title prop', async () => {
-    render(<AdminApp campaignStatus="closed" section="orders" />)
-
-    expect(screen.getByRole('button', { name: '匯出成團明細' })).toBeEnabled()
   })
 
   it('updates the resident preview and saves the campaign draft', async () => {
@@ -501,7 +490,7 @@ describe('organizer campaign editor', () => {
       openedAt: null,
     }
     const onSaveDraft = vi.fn().mockResolvedValue(undefined)
-    render(<AdminApp initialContent={content} orderSummary={null} onSaveDraft={onSaveDraft} />)
+    render(<AdminApp initialContent={content} onSaveDraft={onSaveDraft} />)
 
     expect(screen.getByRole('textbox', { name: '品項 A 商品名稱（口味）' })).toHaveValue('口味1')
     expect(screen.getByRole('spinbutton', { name: '品項 A 單價' })).toHaveValue(10)
@@ -534,7 +523,7 @@ describe('organizer campaign editor', () => {
       title: '新團', unitPrice: 50, threshold: 10, announcement: 'A 商品', images: [],
       items: [{ code: '1', name: 'A', unitPrice: 50, active: true }], openedAt: null,
     }
-    render(<AdminApp initialContent={content} orderSummary={null} />)
+    render(<AdminApp initialContent={content} />)
 
     await user.click(screen.getByRole('button', { name: '發布並開團' }))
 
@@ -552,7 +541,7 @@ describe('organizer campaign editor', () => {
       ],
       openedAt: '2026-08-14T00:05:00Z',
     }
-    render(<AdminApp initialContent={content} orderSummary={null} />)
+    render(<AdminApp initialContent={content} />)
 
     expect(screen.getByText('已正式開團，品項代碼、名稱與單價已鎖定。')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '增加品項' })).not.toBeInTheDocument()
@@ -578,24 +567,13 @@ describe('organizer campaign editor', () => {
       ],
       openedAt: '2026-08-14T00:05:00Z',
     })
-    render(<AdminApp initialContent={content} orderSummary={null} onPublish={onPublish} />)
+    render(<AdminApp initialContent={content} onPublish={onPublish} />)
 
     await user.click(screen.getByRole('button', { name: '發布並開團' }))
 
     expect(await screen.findByRole('textbox', { name: '品項 B 商品名稱（口味）' })).toHaveValue('歷史口味')
     expect(screen.getByText('已正式開團，品項代碼、名稱與單價已鎖定。')).toBeInTheDocument()
     expect(screen.getByText('已發布')).toBeInTheDocument()
-  })
-
-  it('lets organizers cancel a resident order from the orders workspace', async () => {
-    const user = userEvent.setup()
-    const onCancelOrder = vi.fn().mockResolvedValue(undefined)
-    render(<AdminApp campaignStatus="open" section="orders" onCancelOrder={onCancelOrder} />)
-
-    await user.click(screen.getByRole('button', { name: '取消 H11 訂單' }))
-    await user.click(screen.getByRole('button', { name: '確認取消訂單' }))
-
-    expect(onCancelOrder).toHaveBeenCalledOnce()
   })
 
   it('configures arrival choices and an optional noon closing date', async () => {
@@ -609,7 +587,7 @@ describe('organizer campaign editor', () => {
       arrivalLabel: '貨到通知',
       autoCloseAt: null,
     }
-    render(<AdminApp initialContent={content} orderSummary={null} onSaveDraft={onSaveDraft} />)
+    render(<AdminApp initialContent={content} onSaveDraft={onSaveDraft} />)
 
     await user.click(screen.getByRole('radio', { name: '指定日期' }))
     await user.selectOptions(screen.getByRole('combobox', { name: '到貨月份' }), '3')

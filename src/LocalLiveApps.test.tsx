@@ -459,7 +459,9 @@ describe('local Supabase visual demo apps', () => {
     await user.clear(title)
     await user.type(title, '切換分區前的標題')
     rerender(<LocalLiveAdminApp {...props} section="orders" />)
-    expect(screen.getByRole('heading', { name: '訂單統計' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: '訂單' })).toBeInTheDocument()
+    rerender(<LocalLiveAdminApp {...props} section="overview" />)
+    expect(screen.getByRole('heading', { level: 2, name: '概況' })).toBeInTheDocument()
     rerender(<LocalLiveAdminApp {...props} section="content" />)
 
     expect(screen.getByRole('textbox', { name: '團購標題' })).toHaveValue('切換分區前的標題')
@@ -550,7 +552,7 @@ describe('local Supabase visual demo apps', () => {
     expect(repository.loadOptionalPublished).toHaveBeenCalledWith('new-campaign')
   })
 
-  it('uses the published threshold for the organizer order summary while a different draft is pending', async () => {
+  it('loads the order summary with the published threshold and reloads it after saving a note', async () => {
     const user = userEvent.setup()
     const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
     const { client } = authClient(session)
@@ -578,7 +580,7 @@ describe('local Supabase visual demo apps', () => {
       />,
     )
 
-    expect(await screen.findByRole('heading', { name: '訂單統計' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 2, name: '訂單' })).toBeInTheDocument()
     expect(workflowRepository.loadSummary).toHaveBeenCalledWith(
       'campaign-1',
       published.threshold,
@@ -587,8 +589,10 @@ describe('local Supabase visual demo apps', () => {
       published.quantityUnit,
     )
 
-    await user.click(screen.getByRole('button', { name: '標記 H11 已付款' }))
-    await user.click(screen.getByRole('button', { name: '確認標記已付款' }))
+    await user.click(screen.getByRole('button', { name: '編輯 H11 備註' }))
+    await user.type(screen.getByRole('textbox', { name: 'H11 備註' }), '放管理室{Enter}')
+    await waitFor(() => expect(workflowRepository.setOrderOrganizerNote).toHaveBeenCalledWith(expect.any(String), '放管理室'))
+    expect(workflowRepository.setOrderPaid).not.toHaveBeenCalled()
     await waitFor(() => expect(workflowRepository.loadSummary).toHaveBeenCalledTimes(2))
     expect(workflowRepository.loadSummary).toHaveBeenLastCalledWith(
       'campaign-1',
@@ -622,12 +626,34 @@ describe('local Supabase visual demo apps', () => {
       />,
     )
 
-    expect(await screen.findByRole('heading', { name: '訂單統計' })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: '取消 H11 訂單' }))
+    expect(await screen.findByRole('heading', { level: 2, name: '訂單' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '更多操作 H11・佩怡' }))
+    await user.click(screen.getByRole('menuitem', { name: '取消 H11 訂單' }))
     await user.click(screen.getByRole('button', { name: '確認取消訂單' }))
 
     await waitFor(() => expect(workflowRepository.cancelOrder).toHaveBeenCalledOnce())
     await waitFor(() => expect(workflowRepository.loadSummary).toHaveBeenCalledTimes(2))
+  })
+
+  it('opens an open published campaign on its overview and a closed one on its orders', async () => {
+    const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
+    const { client } = authClient(session)
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      saveDraft: vi.fn(),
+      publish: vi.fn(),
+    }
+    const { unmount } = render(<LocalLiveAdminApp client={client} campaignId="campaign-1" repository={repository} ordersRepository={ordersRepository()} />)
+    expect(await screen.findByRole('heading', { level: 2, name: '概況' })).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: '團購標題' })).not.toBeInTheDocument()
+    unmount()
+
+    const closedOrders = { ...ordersRepository(), loadCampaignStatus: vi.fn().mockResolvedValue('closed') }
+    render(<LocalLiveAdminApp client={client} campaignId="campaign-1" repository={repository} ordersRepository={closedOrders} />)
+    expect(await screen.findByRole('heading', { level: 2, name: '訂單' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '匯出 Excel' })).toBeEnabled()
   })
 
   it('uses LINE instead of email and shows a safe organizer approval code', async () => {

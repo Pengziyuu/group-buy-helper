@@ -3,12 +3,11 @@ import type { CampaignStatus } from '../../domain/orderWorkflow'
 import { campaignSectionPath, type WorkspaceSection } from '../../routing'
 import { useOrganizerNavigate } from './organizerNavigation'
 import { WorkspaceRail, type WorkspaceCampaign } from './WorkspaceRail'
-import type { ShownSection } from './workspaceSections'
 
 type CampaignWorkspaceProps = {
   campaign: WorkspaceCampaign
   requestedSection: WorkspaceSection | null
-  section: ShownSection
+  section: WorkspaceSection
   now?: Date
   onSetCampaignStatus?: (status: CampaignStatus) => Promise<void>
   onCopyResidentLink?: (path: string) => Promise<void>

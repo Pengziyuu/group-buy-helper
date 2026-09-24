@@ -137,8 +137,16 @@ describe('RuntimeApp localStorage organizer demo routing', () => {
     expect(screen.getByRole('heading', { level: 1, name: '團購' })).toBeInTheDocument()
     await user.click(screen.getByRole('link', { name: '一涼製冰所 超厚三明治冰餅' }))
 
-    await waitFor(() => expect(window.location.pathname).toBe(`/admin/campaign/${campaignId}/orders`))
-    expect(screen.getByRole('heading', { name: '訂單統計' })).toBeInTheDocument()
+    await waitFor(() => expect(window.location.pathname).toBe(`/admin/campaign/${campaignId}/overview`))
+    expect(screen.getByRole('heading', { level: 2, name: '概況' })).toBeInTheDocument()
+    expect(screen.queryByText('即時更新')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('link', { name: '訂單 6' }))
+    expect(window.location.pathname).toBe(`/admin/campaign/${campaignId}/orders`)
+    expect(screen.getByRole('heading', { level: 2, name: '訂單' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '編輯 H11 備註' }))
+    await user.type(screen.getByRole('textbox', { name: 'H11 備註' }), '示範備註{Enter}')
+    expect(await screen.findByRole('button', { name: '編輯 H11 備註' })).toHaveTextContent('示範備註')
 
     await user.click(screen.getByRole('link', { name: '內容設定' }))
     expect(window.location.pathname).toBe(`/admin/campaign/${campaignId}/content`)
@@ -176,7 +184,7 @@ describe('RuntimeApp localStorage organizer demo routing', () => {
 
     await user.click(screen.getByRole('link', { name: '一涼製冰所 超厚三明治冰餅' }))
 
-    await waitFor(() => expect(window.location.pathname).toBe(`/admin/campaign/${campaignId}/orders`))
+    await waitFor(() => expect(window.location.pathname).toBe(`/admin/campaign/${campaignId}/overview`))
     expect(screen.getByRole('heading', { level: 1, name: '一涼製冰所 超厚三明治冰餅' })).toHaveFocus()
   })
 })

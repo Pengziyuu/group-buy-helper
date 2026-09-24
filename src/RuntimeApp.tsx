@@ -4,11 +4,13 @@ import AdminApp from './AdminApp'
 import App from './App'
 import { LocalLiveAdminApp, LocalLiveResidentApp } from './LocalLiveApps'
 import { CampaignWorkspace } from './components/organizer/CampaignWorkspace'
+import { OrdersSection } from './components/organizer/OrdersSection'
 import { OrganizerHome } from './components/organizer/OrganizerHome'
 import { OrganizerNavigationProvider } from './components/organizer/OrganizerLink'
 import { useBrowserLocation, useFocusHeadingOnNavigate } from './components/organizer/organizerNavigation'
 import { OrganizerSettings } from './components/organizer/OrganizerSettings'
 import { OrganizerShell } from './components/organizer/OrganizerShell'
+import { OverviewSection } from './components/organizer/OverviewSection'
 import { PickupSection } from './components/organizer/PickupSection'
 import { resolveWorkspaceSection } from './components/organizer/workspaceSections'
 import ResidentMemberManagementApp from './ResidentMemberManagementApp'
@@ -66,7 +68,7 @@ function DemoOrganizerWorkspace({ requestedSection }: { requestedSection: Worksp
   const [campaignStatus, setCampaignStatus] = useState<CampaignStatus>('open')
   const [orders, setOrders] = useState<OrganizerVisibleOrder[]>(initialDemoOrganizerOrders)
   const orderSummary = buildOrganizerOrderSummary({ orders, items, threshold: campaign.threshold })
-  const section = resolveWorkspaceSection(requestedSection, true)
+  const section = resolveWorkspaceSection(requestedSection, true, campaignStatus)
 
   return (
     <CampaignWorkspace
@@ -84,17 +86,32 @@ function DemoOrganizerWorkspace({ requestedSection }: { requestedSection: Worksp
       section={section}
       onSetCampaignStatus={async (status) => setCampaignStatus(status)}
     >
-      <AdminApp
-        section={section === 'pickup' ? null : section}
-        orderSummary={orderSummary}
-        campaignStatus={campaignStatus}
-        onSetOrderPaid={async (orderId, paid) => {
-          setOrders((current) => current.map((order) => order.orderId === orderId ? { ...order, paid } : order))
-        }}
-        onSetOrderOrganizerNote={async (orderId, organizerNote) => {
-          setOrders((current) => current.map((order) => order.orderId === orderId ? { ...order, organizerNote } : order))
-        }}
-      />
+      <AdminApp section={section === 'content' ? 'content' : null} campaignStatus={campaignStatus} />
+      {section === 'overview' && (
+        <OverviewSection
+          campaignId={DEMO_CAMPAIGN_ID}
+          campaignTitle={campaign.title}
+          openedAt={campaign.openedAt}
+          summary={orderSummary}
+          status={campaignStatus}
+          liveState="unavailable"
+        />
+      )}
+      {section === 'orders' && (
+        <OrdersSection
+          campaignTitle={campaign.title}
+          openedAt={campaign.openedAt}
+          summary={orderSummary}
+          status={campaignStatus}
+          liveState="unavailable"
+          onSetOrderOrganizerNote={async (orderId, organizerNote) => {
+            setOrders((current) => current.map((order) => order.orderId === orderId ? { ...order, organizerNote } : order))
+          }}
+          onCancelOrder={async (orderId) => {
+            setOrders((current) => current.filter((order) => order.orderId !== orderId))
+          }}
+        />
+      )}
       {section === 'pickup' && (
         <PickupSection campaignId={DEMO_CAMPAIGN_ID} campaignTitle={campaign.title} campaignStatus={campaignStatus} published excludedOtherCount={0} />
       )}
