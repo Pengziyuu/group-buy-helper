@@ -94,7 +94,7 @@ VITE_LIFF_ID=YOUR_LIFF_ID
 VITE_RESIDENT_LIFF_ID=YOUR_RESIDENT_LIFF_ID
 ```
 
-Supabase URL 與 publishable/anon key 必須同時存在，否則應用程式會明確報錯，不會半套進入 live 模式。正式 live 模式的 `/admin`、`/admin/campaign/<uuid>`、`/campaign/<slug>` 與根網址全部使用 Supabase；根網址是LINE驗證住戶的全部已發布團購列表。舊版 `/join/<invite>` 僅保留網址相容性，不再作為入會憑證。
+Supabase URL 與 publishable/anon key 必須同時存在，否則應用程式會明確報錯，不會半套進入 live 模式。正式 live 模式的 `/admin`（含 `/admin/residents`、`/admin/settings`）、`/admin/campaign/<uuid>/<分區>`、`/campaign/<slug>` 與根網址全部使用 Supabase；根網址是LINE驗證住戶的全部已發布團購列表。舊版 `/join/<invite>` 僅保留網址相容性，不再作為入會憑證。
 
 Vercel 部署設定已放在 `vercel.json`；`/admin`使用團主專用HTML連結預覽，其餘SPA深層網址rewrite到`index.html`，因此直接開啟或重新整理團主管理／住戶分享連結不會由主機回傳404。
 

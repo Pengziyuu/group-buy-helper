@@ -19,8 +19,10 @@ const pages = [
   { name: 'resident-list', path: '/' },
   { name: 'resident-campaign', path: '/campaign/0123456789abcdef0123456789abcdef0123' },
   { name: 'admin-list', path: '/admin' },
-  { name: 'admin-editor', path: '/admin/campaign/01234567-89ab-cdef-0123-456789abcdef' },
-  { name: 'admin-orders', path: '/admin/campaign/01234567-89ab-cdef-0123-456789abcdef', click: '#admin-orders-tab' },
+  { name: 'admin-residents', path: '/admin/residents' },
+  { name: 'admin-settings', path: '/admin/settings' },
+  { name: 'admin-editor', path: '/admin/campaign/01234567-89ab-cdef-0123-456789abcdef/content' },
+  { name: 'admin-orders', path: '/admin/campaign/01234567-89ab-cdef-0123-456789abcdef/orders' },
 ]
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -105,7 +107,13 @@ try {
       await Promise.race([loaded, wait(15000)])
       await wait(800)
       if (page.click) {
-        await evaluate(`document.querySelector(${JSON.stringify(page.click)})?.click()`)
+        const clicked = await evaluate(`(() => {
+          const element = document.querySelector(${JSON.stringify(page.click)})
+          if (!element) return false
+          element.click()
+          return true
+        })()`)
+        if (!clicked) throw new Error(`${page.name}: click target ${page.click} not found`)
         await wait(300)
       }
       const height = await evaluate('Math.min(document.documentElement.scrollHeight, 8000)')

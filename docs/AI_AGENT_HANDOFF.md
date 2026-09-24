@@ -89,8 +89,11 @@ python scripts/start_local_live_demo.py
 
 - `/`：正式環境為LINE驗證住戶的全部已發布團購列表。
 - `/campaign/<slug>`：單一已發布團購住戶頁；slug是分享能力，不暴露資料庫UUID。
-- `/admin`：團主工作台。
-- `/admin/campaign/<uuid>`：團購管理。
+- `/admin`：團主首頁（所有團購）。
+- `/admin/residents`：住戶（`?filter=unbound|other|blocked` 開啟對應篩選）。
+- `/admin/settings`：設定（自動結單通知、通知測試中心入口、登出）。
+- `/admin/campaign/<uuid>/<分區>`：團購工作區；分區為 `orders`、`content`、`pickup`（`overview` 於第 4 階段提供，目前導向預設分區）。只有 UUID 的網址會以 `replaceState` 導向預設分區：草稿 → 內容設定，已發布 → 訂單。
+- 團主端各頁之間以 `history.pushState` 切換，不重新載入，也不重新驗證登入。
 - `/admin/notification-lab`：隔離的通知測試中心。
 - `vercel.json`將`/admin`及其子路徑rewrite到`admin.html`，其他路徑rewrite到`index.html`。
 
