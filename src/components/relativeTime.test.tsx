@@ -1,6 +1,6 @@
 import { act, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { formatRelativeTime, RelativeTime, useNow } from './relativeTime'
+import { EditedMark, formatRelativeTime, RelativeTime, useNow } from './relativeTime'
 
 const now = new Date('2026-09-25T04:00:00.000Z')
 
@@ -53,8 +53,8 @@ describe('useNow', () => {
 
 describe('RelativeTime', () => {
   it('shows the relative time with the full time as a hint', () => {
-    render(<RelativeTime value="2026-09-25T03:57:00.000Z" now={now} prefix="下單 " />)
-    const time = screen.getByText('下單 3 分鐘前')
+    render(<RelativeTime value="2026-09-25T03:57:00.000Z" now={now} />)
+    const time = screen.getByText('3 分鐘前')
     expect(time.tagName).toBe('TIME')
     expect(time).toHaveAttribute('dateTime', '2026-09-25T03:57:00.000Z')
     expect(time).toHaveAttribute('title', '2026/09/25 11:57')
@@ -62,6 +62,21 @@ describe('RelativeTime', () => {
 
   it('renders nothing for a missing time', () => {
     const { container } = render(<RelativeTime value={undefined} now={now} />)
+    expect(container).toBeEmptyDOMElement()
+  })
+})
+
+describe('EditedMark', () => {
+  it('says the order was changed and keeps the change time as a hint', () => {
+    render(<EditedMark value="2026-09-25T03:59:30.000Z" />)
+    const mark = screen.getByText('已修改')
+    expect(mark.tagName).toBe('TIME')
+    expect(mark).toHaveAttribute('dateTime', '2026-09-25T03:59:30.000Z')
+    expect(mark).toHaveAttribute('title', '最後修改 2026/09/25 11:59')
+  })
+
+  it('renders nothing for a missing time', () => {
+    const { container } = render(<EditedMark value={undefined} />)
     expect(container).toBeEmptyDOMElement()
   })
 })

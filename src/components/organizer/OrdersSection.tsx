@@ -12,7 +12,7 @@ import { OrderNoteCell } from './OrderNoteCell'
 import {
   matchesOrderSearch, orderControlLabel, orderHouseholdLabel, orderItemChips, sortOrders, wasEdited, type OrderSort,
 } from './orderView'
-import { RelativeTime, useNow } from '../relativeTime'
+import { EditedMark, RelativeTime, useNow } from '../relativeTime'
 
 const currency = (amount: number) => `$${amount.toLocaleString('en-US')}`
 
@@ -144,7 +144,7 @@ export function OrdersSection({
                         <td data-label="下單時間" className="organizer-order-time">
                           <RelativeTime value={order.orderedAt} now={currentTime} />
                           {wasEdited(order) && (
-                            <small>已修改・<RelativeTime value={order.updatedAt} now={currentTime} /></small>
+                            <small><EditedMark value={order.updatedAt} /></small>
                           )}
                         </td>
                         <td data-label="團主備註">

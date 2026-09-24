@@ -145,13 +145,14 @@ describe('resident campaign page parts', () => {
     ]
     render(<OrderWall orders={wall as never} quantityUnit="個" itemDisplayLabel={(code) => code} now={now} />)
 
-    const placed = screen.getByText('下單 5 分鐘前')
+    const placed = screen.getByText('5 分鐘前')
     expect(placed.tagName).toBe('TIME')
     expect(placed).toHaveAttribute('title', '2026/09/25 11:55')
-    expect(screen.getByText((_, element) => element?.tagName === 'SPAN' && element.textContent === '已修改・剛剛')).toBeInTheDocument()
-    expect(screen.getByText('下單 3 小時前')).toBeInTheDocument()
+    expect(screen.getByText('已修改')).toHaveAttribute('title', '最後修改 2026/09/25 11:59')
+    expect(screen.queryByText('剛剛')).not.toBeInTheDocument()
+    expect(screen.getByText('3 小時前')).toBeInTheDocument()
     expect(screen.getAllByText(/已修改/)).toHaveLength(1)
-    expect(screen.queryByText(/下單時間/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/下單/)).not.toBeInTheDocument()
   })
 
   it('binds someone outside the community and shows a safe binding error', async () => {

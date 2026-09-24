@@ -28,10 +28,16 @@ export function useNow(fixed?: Date, intervalMs = 60_000): Date {
   return fixed ?? now
 }
 
-type RelativeTimeProps = { value: string | undefined | null; now: Date; prefix?: string; className?: string }
+type RelativeTimeProps = { value: string | undefined | null; now: Date; className?: string }
 
-export function RelativeTime({ value, now, prefix = '', className }: RelativeTimeProps) {
+export function RelativeTime({ value, now, className }: RelativeTimeProps) {
   const text = formatRelativeTime(value, now)
   if (!text || !value) return null
-  return createElement('time', { dateTime: value, title: formatZhTwTimestamp(value), className }, `${prefix}${text}`)
+  return createElement('time', { dateTime: value, title: formatZhTwTimestamp(value), className }, text)
+}
+
+// The change time stays out of the way: shown only as a hover hint on the "已修改" mark.
+export function EditedMark({ value, className }: { value: string | undefined | null; className?: string }) {
+  if (parse(value) === null || !value) return null
+  return createElement('time', { dateTime: value, title: `最後修改 ${formatZhTwTimestamp(value)}`, className }, '已修改')
 }

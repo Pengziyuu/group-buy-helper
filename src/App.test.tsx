@@ -617,8 +617,9 @@ describe('customer campaign app', () => {
     render(<App />)
 
     expect(screen.getByText('已有 6 筆訂單・開團 2026/08/14 08:05')).toBeInTheDocument()
-    expect(screen.getByText('下單 08/14 08:10')).toBeInTheDocument()
-    expect(screen.getByText((_, element) => element?.tagName === 'SPAN' && element.textContent === '已修改・08/14 08:12')).toBeInTheDocument()
+    const wall = screen.getByRole('region', { name: '大家的訂單' })
+    expect(within(wall).getByText('08/14 08:10')).toBeInTheDocument()
+    expect(within(wall).getByText('已修改')).toHaveAttribute('title', '最後修改 2026/08/14 08:12')
   })
 
   it('preserves an unsent draft when another household updates through Realtime', async () => {
