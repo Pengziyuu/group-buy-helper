@@ -63,56 +63,6 @@ describe('organizer orders panel', () => {
     expect(screen.queryByText(/還差 .*盒成團/)).not.toBeInTheDocument()
   })
 
-  it('offers LINE pickup notification actions only for a closed live campaign', () => {
-    const onPreviewPickupNotification = vi.fn().mockResolvedValue({
-      previewToken: null,
-      mentionableRecipients: [],
-      unavailableRecipients: [],
-      mentionableCount: 0,
-      messageCount: 0,
-    })
-    const onCreatePickupNotificationCommand = vi.fn()
-    const { rerender } = render(
-      <AdminOrdersPanel
-        summary={summary}
-        campaignStatus="open"
-        campaignId="campaign-1"
-        campaignTitle="神農包子"
-        onPreviewPickupNotification={onPreviewPickupNotification}
-        onCreatePickupNotificationCommand={onCreatePickupNotificationCommand}
-      />,
-    )
-    expect(screen.queryByRole('heading', { name: 'LINE領取通知' })).not.toBeInTheDocument()
-
-    rerender(
-      <AdminOrdersPanel
-        summary={summary}
-        campaignStatus="closed"
-        campaignId="campaign-1"
-        campaignTitle="神農包子"
-        onPreviewPickupNotification={onPreviewPickupNotification}
-        onCreatePickupNotificationCommand={onCreatePickupNotificationCommand}
-      />,
-    )
-    expect(screen.getByRole('heading', { name: 'LINE領取通知' })).toBeInTheDocument()
-  })
-
-  it('uses only open and closed organizer workflow states while preserving legacy arrived data', () => {
-    const onSetCampaignStatus = vi.fn().mockResolvedValue(undefined)
-    const { rerender } = render(
-      <AdminOrdersPanel summary={summary} campaignStatus="closed" onSetCampaignStatus={onSetCampaignStatus} />,
-    )
-
-    expect(screen.getByText('已結單')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '重新開放' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '標記到貨' })).not.toBeInTheDocument()
-
-    rerender(<AdminOrdersPanel summary={summary} campaignStatus="arrived" onSetCampaignStatus={onSetCampaignStatus} />)
-    expect(screen.getByText('已結單')).toBeInTheDocument()
-    expect(screen.queryByText('已到貨')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '標記到貨' })).not.toBeInTheDocument()
-  })
-
   it('offers a read-only Excel export only after closing the campaign', async () => {
     const user = userEvent.setup()
     const onExportOrders = vi.fn().mockResolvedValue(undefined)
@@ -184,7 +134,6 @@ describe('organizer orders panel', () => {
 
   it('requires confirmation before changing payment and saves an organizer note explicitly', async () => {
     const user = userEvent.setup()
-    const onSetCampaignStatus = vi.fn().mockResolvedValue(undefined)
     const onSetOrderPaid = vi.fn().mockResolvedValue(undefined)
     const onSetOrderOrganizerNote = vi.fn().mockResolvedValue(undefined)
     const workflowSummary = {
@@ -201,15 +150,10 @@ describe('organizer orders panel', () => {
       <AdminOrdersPanel
         summary={workflowSummary}
         campaignStatus="open"
-        onSetCampaignStatus={onSetCampaignStatus}
         onSetOrderPaid={onSetOrderPaid}
         onSetOrderOrganizerNote={onSetOrderOrganizerNote}
       />,
     )
-
-    expect(screen.getByText('開團中')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: '結單' }))
-    expect(onSetCampaignStatus).toHaveBeenCalledWith('closed')
 
     await user.click(screen.getByRole('button', { name: '標記 H11 已付款' }))
     expect(screen.getByRole('dialog', { name: '確認付款狀態' })).toBeInTheDocument()
@@ -225,6 +169,12 @@ describe('organizer orders panel', () => {
     await user.type(note, '改放警衛室')
     await user.click(screen.getByRole('button', { name: '儲存 H11 備註' }))
     expect(onSetOrderOrganizerNote).toHaveBeenCalledWith('order-1', '改放警衛室')
+  })
+
+  it('leaves campaign status changes to the workspace rail', () => {
+    render(<AdminOrdersPanel summary={summary} campaignStatus="open" />)
+    expect(screen.queryByRole('button', { name: '結單' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'LINE領取通知' })).not.toBeInTheDocument()
   })
 
   it('keeps a rejected payment confirmation open with an alert and retry action', async () => {

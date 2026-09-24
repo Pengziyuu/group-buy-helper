@@ -11,7 +11,6 @@ describe('organizer campaign editor', () => {
   it('loads the current campaign into the editor and resident preview', () => {
     render(<AdminApp />)
 
-    expect(screen.getByRole('heading', { name: '團主後台' })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: '團購標題' })).toHaveValue('一涼製冰所 超厚三明治冰餅')
     expect(screen.getByRole('spinbutton', { name: '品項 A 單價' })).toHaveValue(45)
     expect(screen.getByRole('spinbutton', { name: '成團門檻' })).toHaveValue(100)
@@ -51,65 +50,32 @@ describe('organizer campaign editor', () => {
     expect(screen.getByRole('button', { name: '收合完整預覽' })).toHaveAttribute('aria-expanded', 'true')
   })
 
-  it('separates campaign settings and order management into exclusive tabs', async () => {
+  it('shows only the section chosen by the workspace and keeps the draft while switching', async () => {
     const user = userEvent.setup()
-    render(<AdminApp />)
-    const tabs = screen.getByRole('tablist', { name: '團主工作區' })
-    const settingsTab = within(tabs).getByRole('tab', { name: '開團設定' })
-    const ordersTab = within(tabs).getByRole('tab', { name: '訂單管理' })
-
-    expect(settingsTab).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+    const { rerender } = render(<AdminApp section="content" />)
+    const title = screen.getByRole('textbox', { name: '團購標題' })
+    await user.clear(title)
+    await user.type(title, '切換前的新標題')
     expect(screen.queryByRole('heading', { name: '訂單統計' })).not.toBeInTheDocument()
 
-    await user.click(ordersTab)
-    expect(ordersTab).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByText('查看訂單進度，處理付款狀態與訂單備註。')).toBeInTheDocument()
+    rerender(<AdminApp section="orders" />)
     expect(screen.getByRole('heading', { name: '訂單統計' })).toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: '團購標題' })).not.toBeInTheDocument()
 
-    await user.click(settingsTab)
-    expect(settingsTab).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+    rerender(<AdminApp section={null} />)
     expect(screen.queryByRole('heading', { name: '訂單統計' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: '團購標題' })).not.toBeInTheDocument()
+
+    rerender(<AdminApp section="content" />)
+    expect(screen.getByRole('textbox', { name: '團購標題' })).toHaveValue('切換前的新標題')
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '登出' })).not.toBeInTheDocument()
   })
 
   it('uses the loaded campaign title for Excel export without a duplicate title prop', async () => {
-    const user = userEvent.setup()
-    render(<AdminApp campaignStatus="closed" />)
+    render(<AdminApp campaignStatus="closed" section="orders" />)
 
-    await user.click(screen.getByRole('tab', { name: '訂單管理' }))
     expect(screen.getByRole('button', { name: '匯出成團明細' })).toBeEnabled()
-  })
-
-  it('supports keyboard navigation between organizer workspace tabs', async () => {
-    const user = userEvent.setup()
-    render(<AdminApp />)
-    const tabs = screen.getByRole('tablist', { name: '團主工作區' })
-    const settingsTab = within(tabs).getByRole('tab', { name: '開團設定' })
-    const ordersTab = within(tabs).getByRole('tab', { name: '訂單管理' })
-
-    settingsTab.focus()
-    await user.keyboard('{ArrowRight}')
-    expect(ordersTab).toHaveFocus()
-    expect(ordersTab).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('heading', { name: '訂單統計' })).toBeInTheDocument()
-
-    await user.keyboard('{ArrowRight}')
-    expect(settingsTab).toHaveFocus()
-    expect(settingsTab).toHaveAttribute('aria-selected', 'true')
-
-    await user.keyboard('{ArrowLeft}')
-    expect(ordersTab).toHaveFocus()
-    expect(ordersTab).toHaveAttribute('aria-selected', 'true')
-
-    await user.keyboard('{Home}')
-    expect(settingsTab).toHaveFocus()
-    expect(settingsTab).toHaveAttribute('aria-selected', 'true')
-
-    await user.keyboard('{End}')
-    expect(ordersTab).toHaveFocus()
-    expect(ordersTab).toHaveAttribute('aria-selected', 'true')
   })
 
   it('updates the resident preview and saves the campaign draft', async () => {
@@ -624,9 +590,8 @@ describe('organizer campaign editor', () => {
   it('lets organizers cancel a resident order from the orders workspace', async () => {
     const user = userEvent.setup()
     const onCancelOrder = vi.fn().mockResolvedValue(undefined)
-    render(<AdminApp campaignStatus="open" onCancelOrder={onCancelOrder} />)
+    render(<AdminApp campaignStatus="open" section="orders" onCancelOrder={onCancelOrder} />)
 
-    await user.click(screen.getByRole('tab', { name: '訂單管理' }))
     await user.click(screen.getByRole('button', { name: '取消 H11 訂單' }))
     await user.click(screen.getByRole('button', { name: '確認取消訂單' }))
 

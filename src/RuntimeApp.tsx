@@ -1,10 +1,18 @@
 import { useState } from 'react'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import AdminApp from './AdminApp'
-import CampaignListApp from './CampaignListApp'
 import App from './App'
 import { LocalLiveAdminApp, LocalLiveResidentApp } from './LocalLiveApps'
-import { parseAppRoute, selectAppMode } from './routing'
+import { CampaignWorkspace } from './components/organizer/CampaignWorkspace'
+import { OrganizerHome } from './components/organizer/OrganizerHome'
+import { OrganizerNavigationProvider } from './components/organizer/OrganizerLink'
+import { useBrowserLocation } from './components/organizer/organizerNavigation'
+import { OrganizerSettings } from './components/organizer/OrganizerSettings'
+import { OrganizerShell } from './components/organizer/OrganizerShell'
+import { PickupSection } from './components/organizer/PickupSection'
+import { resolveWorkspaceSection } from './components/organizer/workspaceSections'
+import ResidentMemberManagementApp from './ResidentMemberManagementApp'
+import { parseAppRoute, parseResidentFilter, selectAppMode, type WorkspaceSection } from './routing'
 import type { RuntimeConfig } from './services/runtime'
 import { usesSupabaseBackend } from './services/runtime'
 import type { Database } from './types/database'
@@ -54,39 +62,63 @@ const initialDemoOrganizerOrders: OrganizerVisibleOrder[] = initialOrders.map((o
   organizerNote: '',
 }))
 
-function DemoOrganizerEditor() {
+function DemoOrganizerWorkspace({ requestedSection }: { requestedSection: WorkspaceSection | null }) {
   const [campaignStatus, setCampaignStatus] = useState<CampaignStatus>('open')
   const [orders, setOrders] = useState<OrganizerVisibleOrder[]>(initialDemoOrganizerOrders)
-  const orderSummary = buildOrganizerOrderSummary({
-    orders,
-    items,
-    threshold: campaign.threshold,
-  })
+  const orderSummary = buildOrganizerOrderSummary({ orders, items, threshold: campaign.threshold })
+  const section = resolveWorkspaceSection(requestedSection, true)
 
   return (
-    <AdminApp
-      orderSummary={orderSummary}
-      campaignStatus={campaignStatus}
+    <CampaignWorkspace
+      campaign={{
+        id: DEMO_CAMPAIGN_ID,
+        title: campaign.title,
+        status: campaignStatus,
+        published: true,
+        coverImage: campaign.images[0] ?? null,
+        openedAt: campaign.openedAt,
+        orderCount: orders.length,
+        residentHref: `/campaign/${DEMO_CAMPAIGN_SLUG}`,
+      }}
+      requestedSection={requestedSection}
+      section={section}
       onSetCampaignStatus={async (status) => setCampaignStatus(status)}
-      onSetOrderPaid={async (orderId, paid) => {
-        setOrders((current) => current.map((order) => order.orderId === orderId ? { ...order, paid } : order))
-      }}
-      onSetOrderOrganizerNote={async (orderId, organizerNote) => {
-        setOrders((current) => current.map((order) => order.orderId === orderId ? { ...order, organizerNote } : order))
-      }}
-      residentHref={`/campaign/${DEMO_CAMPAIGN_SLUG}`}
-    />
+    >
+      <AdminApp
+        section={section === 'pickup' ? null : section}
+        orderSummary={orderSummary}
+        campaignStatus={campaignStatus}
+        onSetOrderPaid={async (orderId, paid) => {
+          setOrders((current) => current.map((order) => order.orderId === orderId ? { ...order, paid } : order))
+        }}
+        onSetOrderOrganizerNote={async (orderId, organizerNote) => {
+          setOrders((current) => current.map((order) => order.orderId === orderId ? { ...order, organizerNote } : order))
+        }}
+      />
+      {section === 'pickup' && (
+        <PickupSection campaignId={DEMO_CAMPAIGN_ID} campaignTitle={campaign.title} campaignStatus={campaignStatus} published excludedOtherCount={0} />
+      )}
+    </CampaignWorkspace>
   )
 }
 
 export type RuntimeAppProps = {
   config: RuntimeConfig
   pathname: string
+  search?: string
   client?: SupabaseClient<Database>
   liffClient?: LiffClient
 }
 
-export default function RuntimeApp({ config, pathname, client, liffClient }: RuntimeAppProps) {
+export default function RuntimeApp({ config, pathname, search = '', client, liffClient }: RuntimeAppProps) {
+  const [location, navigate] = useBrowserLocation({ pathname, search })
+  const routes = <RuntimeRoutes config={config} pathname={location.pathname} search={location.search} client={client} liffClient={liffClient} />
+  return selectAppMode(location.pathname) === 'admin'
+    ? <OrganizerNavigationProvider navigate={navigate}>{routes}</OrganizerNavigationProvider>
+    : routes
+}
+
+function RuntimeRoutes({ config, pathname, search, client, liffClient }: RuntimeAppProps & { search: string }) {
   const appMode = selectAppMode(pathname)
   const appRoute = parseAppRoute(pathname)
   if (appRoute.kind === 'not-found') {
@@ -103,15 +135,18 @@ export default function RuntimeApp({ config, pathname, client, liffClient }: Run
   }
   if (usesSupabaseBackend(config) && config.mode !== 'demo') {
     if (!client) throw new Error('Supabase client未初始化')
-    if (appRoute.kind === 'admin-list' || appRoute.kind === 'admin-residents' || appRoute.kind === 'admin-settings') {
-      return <LocalLiveAdminApp client={client} liffId={config.mode === 'live' ? config.liffId : undefined} liffClient={liffClient} authStorage={getBrowserAuthStorage()} logoutFallbackStorage={getBrowserSessionStorage()} />
+    const adminProps = {
+      client,
+      liffId: config.mode === 'live' ? config.liffId : undefined,
+      liffClient,
+      authStorage: getBrowserAuthStorage(),
+      logoutFallbackStorage: getBrowserSessionStorage(),
     }
-    if (appRoute.kind === 'admin-notification-lab') {
-      return <LocalLiveAdminApp client={client} notificationLab liffId={config.mode === 'live' ? config.liffId : undefined} liffClient={liffClient} authStorage={getBrowserAuthStorage()} logoutFallbackStorage={getBrowserSessionStorage()} />
-    }
-    if (appRoute.kind === 'admin-campaign') {
-      return <LocalLiveAdminApp client={client} campaignId={appRoute.campaignId} liffId={config.mode === 'live' ? config.liffId : undefined} liffClient={liffClient} authStorage={getBrowserAuthStorage()} logoutFallbackStorage={getBrowserSessionStorage()} />
-    }
+    if (appRoute.kind === 'admin-list') return <LocalLiveAdminApp {...adminProps} page="home" />
+    if (appRoute.kind === 'admin-residents') return <LocalLiveAdminApp {...adminProps} page="residents" residentFilter={parseResidentFilter(search)} />
+    if (appRoute.kind === 'admin-settings') return <LocalLiveAdminApp {...adminProps} page="settings" />
+    if (appRoute.kind === 'admin-notification-lab') return <LocalLiveAdminApp {...adminProps} notificationLab />
+    if (appRoute.kind === 'admin-campaign') return <LocalLiveAdminApp {...adminProps} campaignId={appRoute.campaignId} section={appRoute.section} />
     if (appRoute.kind === 'resident-campaign') {
       return <LocalLiveResidentApp client={client} campaignSlug={appRoute.campaignSlug} liffId={config.mode === 'live' ? config.residentLiffId : undefined} liffClient={liffClient} />
     }
@@ -137,31 +172,53 @@ export default function RuntimeApp({ config, pathname, client, liffClient }: Run
       </main>
     )
   }
+  const createDemoCampaign = async () => ({ id: DEMO_CAMPAIGN_ID })
   if (appRoute.kind === 'admin-notification-lab') {
     return (
-      <main className="live-state-shell">
-        <EmptyState
-          title="通知測試中心僅提供Live模式使用"
-          description="本機示範資料不會模擬LINE測試通知，請使用已連接Supabase的團主入口。"
-          action={<a className="ui-button" data-variant="secondary" href="/admin">回到團主後台</a>}
-          page
-        />
-      </main>
+      <OrganizerShell current="settings" onCreate={createDemoCampaign}>
+        <main className="live-state-shell">
+          <EmptyState
+            title="通知測試中心僅提供Live模式使用"
+            description="本機示範資料不會模擬LINE測試通知，請使用已連接Supabase的團主入口。"
+            action={<a className="ui-button" data-variant="secondary" href="/admin">回到團主後台</a>}
+            page
+          />
+        </main>
+      </OrganizerShell>
     )
   }
-  if (appRoute.kind === 'admin-list' || appRoute.kind === 'admin-residents' || appRoute.kind === 'admin-settings') {
+  if (appRoute.kind === 'admin-list') {
     return (
-      <CampaignListApp
-        campaigns={[demoOrganizerCampaign]}
-        onCreate={async (title) => ({ ...demoOrganizerCampaign, title, openedAt: null })}
-        residentMembers={demoResidentMembers}
-        onSetResidentBlocked={async () => undefined}
-        onUpdateResidentHousehold={async () => undefined}
-      />
+      <OrganizerShell current="campaigns" onCreate={createDemoCampaign}>
+        <OrganizerHome campaigns={[demoOrganizerCampaign]} autoCloseNotificationState="current_user" unboundResidentCount={0} />
+      </OrganizerShell>
+    )
+  }
+  if (appRoute.kind === 'admin-residents') {
+    return (
+      <OrganizerShell current="residents" onCreate={createDemoCampaign}>
+        <ResidentMemberManagementApp
+          members={demoResidentMembers}
+          initialFilter={parseResidentFilter(search)}
+          onSetBlocked={async () => undefined}
+          onUpdateHousehold={async () => undefined}
+        />
+      </OrganizerShell>
+    )
+  }
+  if (appRoute.kind === 'admin-settings') {
+    return (
+      <OrganizerShell current="settings" onCreate={createDemoCampaign}>
+        <OrganizerSettings autoCloseNotificationState="current_user" onSelectCurrentUserForAutoCloseNotification={async () => undefined} />
+      </OrganizerShell>
     )
   }
   if (appRoute.kind === 'admin-campaign') {
-    return <DemoOrganizerEditor />
+    return (
+      <OrganizerShell current="campaigns" onCreate={createDemoCampaign}>
+        <DemoOrganizerWorkspace requestedSection={appRoute.section} />
+      </OrganizerShell>
+    )
   }
   if (appRoute.kind === 'resident-default') {
     return (

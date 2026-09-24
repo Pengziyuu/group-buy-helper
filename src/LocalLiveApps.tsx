@@ -1,13 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import type { Session, SupabaseClient } from '@supabase/supabase-js'
 import AdminApp from './AdminApp'
-import CampaignListApp from './CampaignListApp'
 import NotificationTestLab from './NotificationTestLab'
 import App from './App'
 import ResidentCampaignListApp, {
   type ResidentCampaignListItem,
   type ResidentLineIdentity,
 } from './ResidentCampaignListApp'
+import ResidentMemberManagementApp from './ResidentMemberManagementApp'
+import { CampaignWorkspace } from './components/organizer/CampaignWorkspace'
+import { OrganizerHome } from './components/organizer/OrganizerHome'
+import { OrganizerSettings } from './components/organizer/OrganizerSettings'
+import { OrganizerShell } from './components/organizer/OrganizerShell'
+import { PickupSection } from './components/organizer/PickupSection'
+import { isUnboundResident } from './components/organizer/residentView'
+import type { WorkspaceCampaign } from './components/organizer/WorkspaceRail'
+import { resolveWorkspaceSection } from './components/organizer/workspaceSections'
+import type { ResidentFilter, WorkspaceSection } from './routing'
 import './LocalLiveApps.css'
 import {
   createAdminCampaignGateway,
@@ -380,6 +389,9 @@ export function LocalLiveAdminApp({
   liffClient,
   lineOrganizerGateway,
   notificationLab = false,
+  page = 'home',
+  section = null,
+  residentFilter = 'all',
 }: LocalLiveAppProps & {
   repository?: LiveAdminRepository
   ordersRepository?: LiveAdminOrdersRepository
@@ -394,6 +406,9 @@ export function LocalLiveAdminApp({
   liffClient?: LiffClient
   lineOrganizerGateway?: { signIn(): Promise<LineOrganizerResult> }
   notificationLab?: boolean
+  page?: 'home' | 'residents' | 'settings'
+  section?: WorkspaceSection | null
+  residentFilter?: ResidentFilter
 }) {
   const gateway = useMemo(
     () => repository ?? createAdminCampaignGateway(client as AdminCampaignSupabaseClient),
@@ -439,8 +454,6 @@ export function LocalLiveAdminApp({
       : null),
     [client, liffClient, liffId, lineOrganizerGateway],
   )
-  const activeCampaignManagementGateway = campaignId ? null : campaignManagementGateway
-  const activeResidentMemberGateway = campaignId || notificationLab ? null : residentMemberGateway
   const authValidationGeneration = useRef(0)
   const signInGeneration = useRef(0)
   const signOutGeneration = useRef(0)
@@ -450,6 +463,7 @@ export function LocalLiveAdminApp({
   const validatedOrganizerId = useRef<string | null>(null)
   const [session, setSession] = useState<Session | null | undefined>(undefined)
   const [content, setContent] = useState<CampaignContent | null>(null)
+  const [contentCampaignId, setContentCampaignId] = useState<string | null>(null)
   const [publishedContent, setPublishedContent] = useState<CampaignContent | null>(null)
   const [orderSummary, setOrderSummary] = useState<OrganizerOrderSummary | null>(null)
   const [campaignStatus, setCampaignStatus] = useState<CampaignStatus | null>(null)
@@ -654,58 +668,65 @@ export function LocalLiveAdminApp({
     }
   }, [authStorage, client, logoutFallbackStorage, signOutRemotely])
 
+  const listPage = campaignId ? null : notificationLab ? 'notification-lab' : page
+
   useEffect(() => {
     if (!organizerUserId) {
-      setContent(null)
-      setOrderSummary(null)
-      setCampaignStatus(null)
       setCampaigns(null)
       setTestCampaignIds(null)
       setResidentMembers(null)
       setAutoCloseNotificationState(null)
-      setResidentSlug(null)
       return
     }
+    if (!listPage) return
     let active = true
     setError('')
-    if (!campaignId) {
-      setContent(null)
-      setPublishedContent(null)
-      setOrderSummary(null)
-      setCampaignStatus(null)
-      setResidentSlug(null)
-      if (!activeCampaignManagementGateway) return
-      if (notificationLab) {
-        void Promise.all([
-          activeCampaignManagementGateway.list(),
-          testCampaignGatewayRef.current.list(),
-        ]).then(([items, markedIds]) => {
-          if (active) {
-            setCampaigns(items)
-            setTestCampaignIds(markedIds)
-          }
-        }).catch((loadError: unknown) => {
-          if (active) setError(errorMessage(loadError))
-        })
-        return () => { active = false }
-      }
-      if (!activeResidentMemberGateway) return
-      void Promise.all([
-        activeCampaignManagementGateway.list(),
-        activeResidentMemberGateway.list(),
-        autoCloseNotificationSettingsGatewayRef.current.getState(),
-      ]).then(([items, members, notificationState]) => {
+    const loaders: Record<'notification-lab' | 'home' | 'residents' | 'settings', () => Promise<void>> = {
+      'notification-lab': async () => {
+        const [items, markedIds] = await Promise.all([campaignManagementGateway.list(), testCampaignGatewayRef.current.list()])
+        if (active) {
+          setCampaigns(items)
+          setTestCampaignIds(markedIds)
+        }
+      },
+      residents: async () => {
+        const members = await residentMemberGateway.list()
+        if (active) setResidentMembers(members)
+      },
+      settings: async () => {
+        const notificationState = await autoCloseNotificationSettingsGatewayRef.current.getState()
+        if (active) setAutoCloseNotificationState(notificationState)
+      },
+      home: async () => {
+        const [items, members, notificationState] = await Promise.all([
+          campaignManagementGateway.list(),
+          residentMemberGateway.list(),
+          autoCloseNotificationSettingsGatewayRef.current.getState(),
+        ])
         if (active) {
           setCampaigns(items)
           setResidentMembers(members)
           setAutoCloseNotificationState(notificationState)
         }
-      }).catch((loadError: unknown) => {
-        if (active) setError(errorMessage(loadError))
-      })
-      return () => { active = false }
+      },
     }
-    setCampaigns(null)
+    loaders[listPage]().catch((loadError: unknown) => {
+      if (active) setError(errorMessage(loadError))
+    })
+    return () => { active = false }
+  }, [campaignManagementGateway, listPage, organizerUserId, residentMemberGateway])
+
+  useEffect(() => {
+    // Clear first so a new campaign never renders with the previous campaign's draft.
+    setContentCampaignId(null)
+    setContent(null)
+    setPublishedContent(null)
+    setOrderSummary(null)
+    setCampaignStatus(null)
+    setResidentSlug(null)
+    if (!organizerUserId || !campaignId) return
+    let active = true
+    setError('')
     const publishedPromise = gateway.loadOptionalPublished
       ? gateway.loadOptionalPublished(campaignId)
       : gateway.loadPublished(campaignId)
@@ -723,6 +744,7 @@ export function LocalLiveAdminApp({
         ? await ordersGateway.loadSummary(campaignId, published.threshold, published.thresholdKind, published.amountThreshold, published.quantityUnit)
         : null
       if (!active) return
+      setContentCampaignId(campaignId)
       setContent(editableContent)
       setPublishedContent(published)
       setOrderSummary(summary)
@@ -732,10 +754,8 @@ export function LocalLiveAdminApp({
     }).catch((loadError: unknown) => {
       if (active) setError(errorMessage(loadError))
     })
-    return () => {
-      active = false
-    }
-  }, [activeCampaignManagementGateway, activeResidentMemberGateway, campaignId, gateway, notificationLab, ordersGateway, organizerUserId])
+    return () => { active = false }
+  }, [campaignId, gateway, ordersGateway, organizerUserId])
 
   const acceptSignedInSession = (signedInSession: Session | null) => {
     authValidationGeneration.current += 1
@@ -839,61 +859,89 @@ export function LocalLiveAdminApp({
     )
   }
   if (error) return <LiveError message={error} />
+
+  const createCampaign = (title: string) => campaignManagementGateway.create(title)
+  const signOut = async () => {
+    authValidationGeneration.current += 1
+    signInGeneration.current += 1
+    authEventsBlocked.current = true
+    validatedOrganizerId.current = null
+    setError('')
+    setSession(null)
+    await signOutRemotely()
+  }
+
   if (!campaignId) {
     if (notificationLab) {
       if (!campaigns || !testCampaignIds) return <LiveLoading label="載入通知測試中心…" />
       return (
-        <NotificationTestLab
-          campaigns={campaigns}
-          testCampaignIds={testCampaignIds}
-          onSetTestCampaign={async (targetCampaignId, enabled) => {
-            await testCampaignGateway.setEnabled(targetCampaignId, enabled)
-          }}
-          onPreview={(targetCampaignId, audience, message) => pickupNotificationTestGateway.preview(targetCampaignId, audience, message)}
-          onCreateCommand={(targetCampaignId, audience, message, previewToken) => pickupNotificationTestGateway.createCommand(targetCampaignId, audience, message, previewToken)}
-        />
+        <OrganizerShell current="settings" onCreate={createCampaign}>
+          <NotificationTestLab
+            campaigns={campaigns}
+            testCampaignIds={testCampaignIds}
+            onSetTestCampaign={async (targetCampaignId, enabled) => {
+              await testCampaignGateway.setEnabled(targetCampaignId, enabled)
+            }}
+            onPreview={(targetCampaignId, audience, message) => pickupNotificationTestGateway.preview(targetCampaignId, audience, message)}
+            onCreateCommand={(targetCampaignId, audience, message, previewToken) => pickupNotificationTestGateway.createCommand(targetCampaignId, audience, message, previewToken)}
+          />
+        </OrganizerShell>
+      )
+    }
+    if (page === 'residents') {
+      if (!residentMembers) return <LiveLoading label="載入住戶…" />
+      return (
+        <OrganizerShell current="residents" onCreate={createCampaign}>
+          <ResidentMemberManagementApp
+            members={residentMembers}
+            initialFilter={residentFilter}
+            onRefreshGroupStatuses={residentMemberGateway.refreshGroupStatuses
+              ? (memberCodes) => residentMemberGateway.refreshGroupStatuses!(memberCodes)
+              : undefined}
+            onSetBlocked={async (memberCode, blocked) => {
+              await residentMemberGateway.setBlocked(memberCode, blocked)
+              setResidentMembers(await residentMemberGateway.list())
+            }}
+            onUpdateHousehold={async (memberCode, household) => {
+              await residentMemberGateway.updateHousehold(memberCode, household)
+              setResidentMembers(await residentMemberGateway.list())
+            }}
+          />
+        </OrganizerShell>
+      )
+    }
+    if (page === 'settings') {
+      if (!autoCloseNotificationState) return <LiveLoading label="載入設定…" />
+      return (
+        <OrganizerShell current="settings" onCreate={createCampaign}>
+          <OrganizerSettings
+            autoCloseNotificationState={autoCloseNotificationState}
+            onSelectCurrentUserForAutoCloseNotification={async () => {
+              await autoCloseNotificationSettingsGateway.selectCurrentUser()
+              setAutoCloseNotificationState(await autoCloseNotificationSettingsGateway.getState())
+            }}
+            onSignOut={signOut}
+          />
+        </OrganizerShell>
       )
     }
     if (!campaigns || !residentMembers || !autoCloseNotificationState) return <LiveLoading label="載入團購、住戶與通知設定…" />
     return (
-      <CampaignListApp
-        campaigns={campaigns}
-        residentMembers={residentMembers}
-        autoCloseNotificationState={autoCloseNotificationState}
-        onSelectCurrentUserForAutoCloseNotification={async () => {
-          await autoCloseNotificationSettingsGateway.selectCurrentUser()
-          setAutoCloseNotificationState(await autoCloseNotificationSettingsGateway.getState())
-        }}
-        onRefreshResidentGroupStatuses={residentMemberGateway.refreshGroupStatuses
-          ? (memberCodes) => residentMemberGateway.refreshGroupStatuses!(memberCodes)
-          : undefined}
-        onSetResidentBlocked={async (memberCode, blocked) => {
-          await residentMemberGateway.setBlocked(memberCode, blocked)
-          setResidentMembers(await residentMemberGateway.list())
-        }}
-        onUpdateResidentHousehold={async (memberCode, household) => {
-          await residentMemberGateway.updateHousehold(memberCode, household)
-          setResidentMembers(await residentMemberGateway.list())
-        }}
-        onCreate={(title) => campaignManagementGateway.create(title)}
-        onDelete={async (campaignId) => {
-          const result = await campaignManagementGateway.delete(campaignId)
-          setCampaigns((current) => current?.filter((campaign) => campaign.id !== campaignId) ?? null)
-          return result
-        }}
-        onSignOut={async () => {
-          authValidationGeneration.current += 1
-          signInGeneration.current += 1
-          authEventsBlocked.current = true
-          validatedOrganizerId.current = null
-          setError('')
-          setSession(null)
-          await signOutRemotely()
-        }}
-      />
+      <OrganizerShell current="campaigns" onCreate={createCampaign}>
+        <OrganizerHome
+          campaigns={campaigns}
+          autoCloseNotificationState={autoCloseNotificationState}
+          unboundResidentCount={residentMembers.filter(isUnboundResident).length}
+          onDelete={async (targetCampaignId) => {
+            const result = await campaignManagementGateway.delete(targetCampaignId)
+            setCampaigns((current) => current?.filter((campaign) => campaign.id !== targetCampaignId) ?? null)
+            return result
+          }}
+        />
+      </OrganizerShell>
     )
   }
-  if (!content || !campaignStatus) return <LiveLoading label="載入團購草稿與訂單…" />
+  if (!content || !campaignStatus || contentCampaignId !== campaignId) return <LiveLoading label="載入團購草稿與訂單…" />
 
   const reloadOrderSummary = async () => {
     if (!publishedContent) return
@@ -905,57 +953,79 @@ export function LocalLiveAdminApp({
       publishedContent.quantityUnit,
     ))
   }
+  const published = publishedContent !== null
+  const shownSection = resolveWorkspaceSection(section, published)
+  const workspaceCampaign: WorkspaceCampaign = {
+    id: campaignId,
+    title: content.title,
+    status: campaignStatus,
+    published,
+    coverImage: content.images[0] ?? null,
+    openedAt: publishedContent?.openedAt ?? null,
+    autoCloseAt: content.autoCloseAt,
+    arrivalLabel: content.arrivalLabel,
+    orderCount: orderSummary?.orderCount ?? null,
+    residentHref: residentSlug ? `/campaign/${residentSlug}` : null,
+  }
 
   return (
-    <AdminApp
-      initialContent={content}
-      initialPublicationState={publicationState}
-      orderSummary={orderSummary}
-      campaignStatus={campaignStatus}
-      campaignId={campaignId}
-      campaignTitle={content.title}
-      residentHref={residentSlug ? `/campaign/${residentSlug}` : null}
-      onPreviewPickupNotification={(audience, message) => pickupNotificationGateway.preview(campaignId, audience, message)}
-      onCreatePickupNotificationCommand={(audience, message, previewToken) => pickupNotificationGateway.createCommand(campaignId, audience, message, previewToken)}
-      onUploadImage={(file) => imageGateway.upload(campaignId, file)}
-      onSetCampaignStatus={async (status) => {
-        await ordersGateway.setCampaignStatus(campaignId, status)
-        setCampaignStatus(await ordersGateway.loadCampaignStatus(campaignId))
-      }}
-      onSetOrderPaid={async (orderId, paid) => {
-        await ordersGateway.setOrderPaid(orderId, paid)
-        await reloadOrderSummary()
-      }}
-      onSetOrderOrganizerNote={async (orderId, note) => {
-        await ordersGateway.setOrderOrganizerNote(orderId, note)
-        await reloadOrderSummary()
-      }}
-      onCancelOrder={async (orderId) => {
-        await ordersGateway.cancelOrder(orderId)
-        await reloadOrderSummary()
-      }}
-      onSaveDraft={async (nextContent) => {
-        await gateway.saveDraft(campaignId, nextContent)
-      }}
-      onPublish={async (nextContent) => {
-        await gateway.saveDraft(campaignId, nextContent)
-        const published = await gateway.publish(campaignId)
-        setContent(published)
-        setPublishedContent(published)
-        setResidentSlug(await gateway.loadResidentSlug?.(campaignId) ?? null)
-        setOrderSummary(await ordersGateway.loadSummary(campaignId, published.threshold, published.thresholdKind, published.amountThreshold, published.quantityUnit))
-        return published
-      }}
-      onSignOut={async () => {
-        authValidationGeneration.current += 1
-        signInGeneration.current += 1
-        authEventsBlocked.current = true
-        validatedOrganizerId.current = null
-        setError('')
-        setSession(null)
-        await signOutRemotely()
-      }}
-    />
+    <OrganizerShell current="campaigns" onCreate={createCampaign}>
+      <CampaignWorkspace
+        key={campaignId}
+        campaign={workspaceCampaign}
+        requestedSection={section}
+        section={shownSection}
+        onSetCampaignStatus={async (status) => {
+          await ordersGateway.setCampaignStatus(campaignId, status)
+          setCampaignStatus(await ordersGateway.loadCampaignStatus(campaignId))
+        }}
+      >
+        <AdminApp
+          section={shownSection === 'pickup' ? null : shownSection}
+          initialContent={content}
+          initialPublicationState={publicationState}
+          orderSummary={orderSummary}
+          campaignStatus={campaignStatus}
+          campaignTitle={content.title}
+          onUploadImage={(file) => imageGateway.upload(campaignId, file)}
+          onSetOrderPaid={async (orderId, paid) => {
+            await ordersGateway.setOrderPaid(orderId, paid)
+            await reloadOrderSummary()
+          }}
+          onSetOrderOrganizerNote={async (orderId, note) => {
+            await ordersGateway.setOrderOrganizerNote(orderId, note)
+            await reloadOrderSummary()
+          }}
+          onCancelOrder={async (orderId) => {
+            await ordersGateway.cancelOrder(orderId)
+            await reloadOrderSummary()
+          }}
+          onSaveDraft={async (nextContent) => {
+            await gateway.saveDraft(campaignId, nextContent)
+          }}
+          onPublish={async (nextContent) => {
+            await gateway.saveDraft(campaignId, nextContent)
+            const nextPublished = await gateway.publish(campaignId)
+            setContent(nextPublished)
+            setPublishedContent(nextPublished)
+            setResidentSlug(await gateway.loadResidentSlug?.(campaignId) ?? null)
+            setOrderSummary(await ordersGateway.loadSummary(campaignId, nextPublished.threshold, nextPublished.thresholdKind, nextPublished.amountThreshold, nextPublished.quantityUnit))
+            return nextPublished
+          }}
+        />
+        {shownSection === 'pickup' && (
+          <PickupSection
+            campaignId={campaignId}
+            campaignTitle={content.title}
+            campaignStatus={campaignStatus}
+            published={published}
+            excludedOtherCount={orderSummary?.orderRows.filter((row) => row.householdKind === 'other').length ?? 0}
+            onPreview={(audience, message) => pickupNotificationGateway.preview(campaignId, audience, message)}
+            onCreateCommand={(audience, message, previewToken) => pickupNotificationGateway.createCommand(campaignId, audience, message, previewToken)}
+          />
+        )}
+      </CampaignWorkspace>
+    </OrganizerShell>
   )
 }
 

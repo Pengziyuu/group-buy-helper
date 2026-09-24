@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
-import { render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import RuntimeApp from './RuntimeApp'
 import type { Database } from './types/database'
@@ -9,10 +9,10 @@ import type { Database } from './types/database'
 const { createClient } = vi.hoisted(() => ({ createClient: vi.fn(() => ({ auth: {} })) }))
 vi.mock('@supabase/supabase-js', () => ({ createClient }))
 vi.mock('./LocalLiveApps', () => ({
-  LocalLiveAdminApp: ({ campaignId, liffId, liffClient, notificationLab }: { campaignId?: string; liffId?: string; liffClient?: unknown; notificationLab?: boolean }) => notificationLab
+  LocalLiveAdminApp: ({ campaignId, section, page, residentFilter, liffId, liffClient, notificationLab }: { campaignId?: string; section?: string | null; page?: string; residentFilter?: string; liffId?: string; liffClient?: unknown; notificationLab?: boolean }) => notificationLab
     ? <div>supabase-admin:notification-lab</div>
     : (
-      <div>supabase-admin:{campaignId ?? 'list'}:{liffId ?? 'no-liff'}:{liffClient ? 'client' : 'no-client'}</div>
+      <div>supabase-admin:{campaignId ? `${campaignId}/${section ?? 'default'}` : `${page}/${residentFilter ?? 'all'}`}:{liffId ?? 'no-liff'}:{liffClient ? 'client' : 'no-client'}</div>
     ),
   LocalLiveResidentApp: ({ campaignSlug, inviteSlug, liffId, liffClient }: { campaignSlug?: string; inviteSlug?: string; liffId?: string; liffClient?: unknown }) => (
     <div>supabase-resident:{campaignSlug ?? 'list'}:{inviteSlug ?? 'no-invite'}:{liffId ?? 'no-liff'}:{liffClient ? 'client' : 'no-client'}</div>
@@ -31,15 +31,24 @@ describe('RuntimeApp production live routing', () => {
   it('injects LIFF only into the production organizer app', () => {
     const config = { ...liveConfig, liffId: '2011099887-PlmOrmYw' }
     render(<RuntimeApp config={config} pathname="/admin" client={stableClient} liffClient={stableLiff as never} />)
-    expect(screen.getByText('supabase-admin:list:2011099887-PlmOrmYw:client')).toBeInTheDocument()
+    expect(screen.getByText('supabase-admin:home/all:2011099887-PlmOrmYw:client')).toBeInTheDocument()
   })
 
-  it('connects the admin list and editor to the Supabase-backed app', () => {
+  it('connects every organizer page and workspace section to the Supabase-backed app', () => {
     const { rerender } = render(<RuntimeApp config={liveConfig} pathname="/admin" client={stableClient} />)
-    expect(screen.getByText('supabase-admin:list:no-liff:no-client')).toBeInTheDocument()
+    expect(screen.getByText('supabase-admin:home/all:no-liff:no-client')).toBeInTheDocument()
+
+    rerender(<RuntimeApp config={liveConfig} pathname="/admin/residents" search="?filter=unbound" client={stableClient} />)
+    expect(screen.getByText('supabase-admin:residents/unbound:no-liff:no-client')).toBeInTheDocument()
+
+    rerender(<RuntimeApp config={liveConfig} pathname="/admin/settings" client={stableClient} />)
+    expect(screen.getByText('supabase-admin:settings/all:no-liff:no-client')).toBeInTheDocument()
 
     rerender(<RuntimeApp config={liveConfig} pathname="/admin/campaign/8d2f0f6a-1111-4222-8333-123456789abc" client={stableClient} />)
-    expect(screen.getByText('supabase-admin:8d2f0f6a-1111-4222-8333-123456789abc:no-liff:no-client')).toBeInTheDocument()
+    expect(screen.getByText('supabase-admin:8d2f0f6a-1111-4222-8333-123456789abc/default:no-liff:no-client')).toBeInTheDocument()
+
+    rerender(<RuntimeApp config={liveConfig} pathname="/admin/campaign/8d2f0f6a-1111-4222-8333-123456789abc/pickup" client={stableClient} />)
+    expect(screen.getByText('supabase-admin:8d2f0f6a-1111-4222-8333-123456789abc/pickup:no-liff:no-client')).toBeInTheDocument()
   })
 
   it('connects the isolated notification lab to the Supabase-backed organizer app', () => {
@@ -101,21 +110,34 @@ describe('RuntimeApp localStorage resident demo routing', () => {
 })
 
 describe('RuntimeApp localStorage organizer demo routing', () => {
-  it('opens the organizer list before entering a campaign editor', async () => {
+  afterEach(() => { window.history.replaceState(null, '', '/') })
+
+  it('moves from the organizer home into a campaign workspace and back without reloading', async () => {
     const user = userEvent.setup()
     const config = { mode: 'demo' as const }
     const campaignId = '01234567-89ab-cdef-0123-456789abcdef'
-    const { rerender } = render(<RuntimeApp config={config} pathname="/admin" />)
+    render(<RuntimeApp config={config} pathname="/admin" />)
 
-    expect(screen.getByRole('heading', { name: '團主工作台' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '管理團購 一涼製冰所 超厚三明治冰餅' })).toHaveAttribute('href', `/admin/campaign/${campaignId}`)
+    expect(screen.getByRole('heading', { level: 1, name: '團購' })).toBeInTheDocument()
+    await user.click(screen.getByRole('link', { name: '一涼製冰所 超厚三明治冰餅' }))
 
-    rerender(<RuntimeApp config={config} pathname={`/admin/campaign/${campaignId}`} />)
-    expect(screen.getByRole('heading', { name: '團主後台' })).toBeInTheDocument()
-    expect(screen.getByRole('tablist', { name: '團主工作區' })).toBeInTheDocument()
-    await user.click(screen.getByRole('tab', { name: '訂單管理' }))
-    await user.click(screen.getByRole('button', { name: '標記 H11 已付款' }))
-    await user.click(screen.getByRole('button', { name: '確認標記已付款' }))
-    expect(await screen.findByRole('button', { name: '標記 H11 未付款' })).toBeInTheDocument()
+    await waitFor(() => expect(window.location.pathname).toBe(`/admin/campaign/${campaignId}/orders`))
+    expect(screen.getByRole('heading', { name: '訂單統計' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('link', { name: '內容設定' }))
+    expect(window.location.pathname).toBe(`/admin/campaign/${campaignId}/content`)
+    expect(screen.getByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('link', { name: '所有團購' }))
+    expect(screen.getByRole('heading', { level: 1, name: '團購' })).toBeInTheDocument()
+  })
+
+  it('opens the demo residents and settings pages', () => {
+    const config = { mode: 'demo' as const }
+    const { rerender } = render(<RuntimeApp config={config} pathname="/admin/residents" />)
+    expect(screen.getByRole('heading', { level: 1, name: '住戶 1 位' })).toBeInTheDocument()
+
+    rerender(<RuntimeApp config={config} pathname="/admin/settings" />)
+    expect(screen.getByRole('heading', { level: 1, name: '設定' })).toBeInTheDocument()
   })
 })

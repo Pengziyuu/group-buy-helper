@@ -1,11 +1,9 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import './AdminApp.css'
 import AdminOrdersPanel from './AdminOrdersPanel'
 import LinkifiedText from './components/LinkifiedText'
 import { campaign, initialOrders, items } from './data/demo'
 import { buildOrganizerOrderSummary, type OrganizerOrderSummary } from './domain/adminOrders'
-import type { PickupNotificationAudience } from './domain/pickupNotification'
-import type { PickupNotificationCommand, PickupNotificationResponse } from './services/pickupNotificationGateway'
 import { campaignStatusLabel, type CampaignStatus } from './domain/orderWorkflow'
 import { itemLabel, MAX_CAMPAIGN_ITEMS } from './domain/itemLabel'
 import { normalizeQuantityUnit, QUANTITY_UNITS, type QuantityUnit } from './domain/quantityUnit'
@@ -55,19 +53,14 @@ type AdminAppProps = {
   initialPublicationState?: PublicationState
   onSaveDraft?: (content: CampaignContent) => Promise<void>
   onPublish?: (content: CampaignContent) => Promise<CampaignContent | void>
-  onSignOut?: () => Promise<void>
   orderSummary?: OrganizerOrderSummary | null
   campaignStatus?: CampaignStatus
-  campaignId?: string
   campaignTitle?: string
-  onSetCampaignStatus?: (status: CampaignStatus) => Promise<void>
   onSetOrderPaid?: (orderId: string, paid: boolean) => Promise<void>
   onSetOrderOrganizerNote?: (orderId: string, note: string) => Promise<void>
   onCancelOrder?: (orderId: string) => Promise<void>
-  onPreviewPickupNotification?: (audience: PickupNotificationAudience, message: string) => Promise<PickupNotificationResponse>
-  onCreatePickupNotificationCommand?: (audience: PickupNotificationAudience, message: string, previewToken: string) => Promise<PickupNotificationCommand>
   onUploadImage?: (file: File) => Promise<string>
-  residentHref?: string | null
+  section?: 'content' | 'orders' | null
 }
 
 function messageFromError(error: unknown): string {
@@ -79,19 +72,14 @@ function AdminApp({
   initialPublicationState,
   onSaveDraft,
   onPublish,
-  onSignOut,
   orderSummary,
   campaignStatus,
-  campaignId,
   campaignTitle,
-  onSetCampaignStatus,
   onSetOrderPaid,
   onSetOrderOrganizerNote,
   onCancelOrder,
-  onPreviewPickupNotification,
-  onCreatePickupNotificationCommand,
   onUploadImage,
-  residentHref = '/',
+  section = 'content',
 }: AdminAppProps = {}) {
   const [initialDraft] = useState(() => initialContent
     ? normalizeCampaignContent(initialContent)
@@ -127,19 +115,16 @@ function AdminApp({
   const [imageUrl, setImageUrl] = useState('')
   const [imageFile, setImageFile] = useState<File | null>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
-  const settingsTabRef = useRef<HTMLButtonElement>(null)
-  const ordersTabRef = useRef<HTMLButtonElement>(null)
   const handledImageFileRef = useRef<File | null>(null)
   const operationLock = useRef(false)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [notice, setNotice] = useState('')
-  const [busyAction, setBusyAction] = useState<'publish' | 'signout' | null>(null)
+  const [busyAction, setBusyAction] = useState<'publish' | null>(null)
   const [draftRevision, setDraftRevision] = useState(0)
   const [autoSaveCycle, setAutoSaveCycle] = useState(0)
   const [autoSaving, setAutoSaving] = useState(false)
   const [autoSaveFailedRevision, setAutoSaveFailedRevision] = useState<number | null>(null)
   const [previewExpanded, setPreviewExpanded] = useState(false)
-  const [activeWorkspace, setActiveWorkspace] = useState<'settings' | 'orders'>('settings')
   const savedRevisionRef = useRef(0)
   const latestRevisionRef = useRef(0)
   const autoSaveInFlightRef = useRef(false)
@@ -328,20 +313,6 @@ function AdminApp({
     }
   }
 
-  const signOut = async () => {
-    if (!onSignOut || operationLock.current) return
-    operationLock.current = true
-    setBusyAction('signout')
-    try {
-      await onSignOut()
-      operationLock.current = false
-    } catch (error) {
-      operationLock.current = false
-      setNotice(`登出失敗：${messageFromError(error)}`)
-      setBusyAction(null)
-    }
-  }
-
   const addImage = async () => {
     if (images.length >= 10 || operationLock.current) return
     const alt = `${title.trim() || '商品'}第 ${images.length + 1} 張商品圖片`
@@ -388,67 +359,9 @@ function AdminApp({
     return `ITEM${suffix}`
   }
 
-  const handleWorkspaceTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
-    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
-    event.preventDefault()
-    const nextWorkspace = event.key === 'Home'
-      ? 'settings'
-      : event.key === 'End'
-        ? 'orders'
-        : activeWorkspace === 'settings' ? 'orders' : 'settings'
-    setActiveWorkspace(nextWorkspace)
-    ;(nextWorkspace === 'settings' ? settingsTabRef : ordersTabRef).current?.focus()
-  }
-
-
   return (
-    <main className="admin-shell">
-      <header className="admin-header">
-        <div>
-          <p className="admin-eyebrow">GROUP BUY HELPER</p>
-          <h1>團主後台</h1>
-          <p>{activeWorkspace === 'settings'
-            ? '編輯開團內容，右側即時確認住戶看到的畫面。'
-            : '查看訂單進度，處理付款狀態與訂單備註。'}</p>
-        </div>
-        <div className="admin-header-actions">
-          <a href="/admin" className="resident-link">團購列表</a>
-          {residentHref && <a href={residentHref} className="resident-link">查看住戶端 ↗</a>}
-          {onSignOut && <button type="button" onClick={signOut} disabled={editorBusy}>登出</button>}
-        </div>
-      </header>
-
-      <div className="admin-workspace-tabs" role="tablist" aria-label="團主工作區">
-        <button
-          ref={settingsTabRef}
-          type="button"
-          role="tab"
-          id="admin-settings-tab"
-          aria-controls="admin-settings-panel"
-          aria-selected={activeWorkspace === 'settings'}
-          tabIndex={activeWorkspace === 'settings' ? 0 : -1}
-          onClick={() => setActiveWorkspace('settings')}
-          onKeyDown={handleWorkspaceTabKeyDown}
-        >開團設定</button>
-        <button
-          ref={ordersTabRef}
-          type="button"
-          role="tab"
-          id="admin-orders-tab"
-          aria-controls="admin-orders-panel"
-          aria-selected={activeWorkspace === 'orders'}
-          tabIndex={activeWorkspace === 'orders' ? 0 : -1}
-          onClick={() => setActiveWorkspace('orders')}
-          onKeyDown={handleWorkspaceTabKeyDown}
-        >訂單管理</button>
-      </div>
-
-      <section
-        id="admin-settings-panel"
-        role="tabpanel"
-        aria-labelledby="admin-settings-tab"
-        hidden={activeWorkspace !== 'settings'}
-      >
+    <div className="admin-shell">
+      <section id="admin-settings-panel" aria-label="內容設定" hidden={section !== 'content'}>
         <div className="admin-workspace">
         <section className="editor-card" aria-labelledby="editor-heading">
           <div className="admin-section-heading">
@@ -921,34 +834,25 @@ function AdminApp({
         </section>
         </div>
       </section>
-      <section
-        id="admin-orders-panel"
-        role="tabpanel"
-        aria-labelledby="admin-orders-tab"
-        hidden={activeWorkspace !== 'orders'}
-      >
+      <section id="admin-orders-panel" aria-label="訂單" hidden={section !== 'orders'}>
         {resolvedOrderSummary ? (
           <AdminOrdersPanel
             summary={resolvedOrderSummary}
             campaignStatus={campaignStatus}
-            campaignId={campaignId}
             campaignTitle={campaignTitle ?? title}
             campaignOpenedAt={openedAt}
-            onSetCampaignStatus={onSetCampaignStatus}
             onSetOrderPaid={onSetOrderPaid}
             onSetOrderOrganizerNote={onSetOrderOrganizerNote}
             onCancelOrder={onCancelOrder}
-            onPreviewPickupNotification={onPreviewPickupNotification}
-            onCreatePickupNotificationCommand={onCreatePickupNotificationCommand}
           />
         ) : (
           <div className="admin-orders-empty">
-            <h2>訂單管理</h2>
+            <h2>訂單</h2>
             <p>團購發布後，住戶訂單與履約狀態會顯示在這裡。</p>
           </div>
         )}
       </section>
-    </main>
+    </div>
   )
 }
 

@@ -38,6 +38,7 @@ createRoot(document.getElementById('root')!).render(
     <RuntimeApp
       config={runtimeConfig}
       pathname={resolveLiffPath(window.location.pathname, window.location.search)}
+      search={window.location.search}
       client={supabaseClient}
       liffClient={liffClient}
     />

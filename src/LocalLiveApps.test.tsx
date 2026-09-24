@@ -6,6 +6,7 @@ import {
   LocalLiveResidentApp,
   type LiveAdminOrdersRepository,
   type LiveAdminRepository,
+  type LiveAutoCloseNotificationSettingsRepository,
   type LiveCampaignManagementRepository,
   type LivePickupNotificationTestCampaignRepository,
   type LiveResidentMemberRepository,
@@ -73,6 +74,10 @@ const ordersRepository = (): LiveAdminOrdersRepository => ({
   setOrderPaid: vi.fn().mockResolvedValue(undefined),
   setOrderOrganizerNote: vi.fn().mockResolvedValue(undefined),
   cancelOrder: vi.fn().mockResolvedValue(undefined),
+})
+const settingsRepository = (): LiveAutoCloseNotificationSettingsRepository => ({
+  getState: vi.fn().mockResolvedValue('current_user'),
+  selectCurrentUser: vi.fn().mockResolvedValue(undefined),
 })
 
 function memoryAuthStorage(initial: Record<string, string> = {}) {
@@ -355,7 +360,6 @@ describe('local Supabase visual demo apps', () => {
   })
 
   it('shows the campaign list after organizer authentication when no campaign is selected', async () => {
-    const user = userEvent.setup()
     const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
     const { client } = authClient(session)
     const managementRepository: LiveCampaignManagementRepository = {
@@ -387,13 +391,75 @@ describe('local Supabase visual demo apps', () => {
       />,
     )
 
-    expect(await screen.findByRole('heading', { name: '團主工作台' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: '歷史冰餅團' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: '團購' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '歷史冰餅團' })).toBeInTheDocument()
     expect(managementRepository.list).toHaveBeenCalledTimes(1)
     expect(residentMemberRepository.list).toHaveBeenCalledTimes(1)
-    await user.click(screen.getByRole('button', { name: '住戶與戶號 1' }))
-    expect(screen.getByRole('heading', { level: 1, name: '住戶 1 位' })).toBeInTheDocument()
-    expect(screen.getByText('住戶甲')).toBeInTheDocument()
+  })
+
+  it('loads only resident members on the residents page and opens the linked filter', async () => {
+    const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
+    const { client } = authClient(session)
+    const managementRepository: LiveCampaignManagementRepository = { list: vi.fn(), create: vi.fn(), delete: vi.fn() }
+    const residentMemberRepository: LiveResidentMemberRepository = {
+      list: vi.fn().mockResolvedValue([
+        { memberCode: 'abcdef0123456789abcdef0123456789abcd', displayName: '住戶甲', pictureUrl: null, period: 2, unit: '2K13', joinedAt: '2026-08-14T00:00:00Z', blocked: false, blockedAt: null },
+        { memberCode: '0123456789abcdef0123456789abcdef0123', displayName: '住戶丁', pictureUrl: null, period: null, unit: null, joinedAt: '2026-08-15T00:00:00Z', blocked: false, blockedAt: null },
+      ]),
+      setBlocked: vi.fn(),
+      updateHousehold: vi.fn(),
+    }
+
+    render(<LocalLiveAdminApp client={client} page="residents" residentFilter="unbound" managementRepository={managementRepository} residentMemberRepository={residentMemberRepository} />)
+
+    expect(await screen.findByRole('heading', { level: 1, name: '住戶 2 位' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: '未填戶號 1' })).toBeChecked()
+    expect(screen.getByRole('article', { name: '住戶丁' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '住戶' })).toHaveAttribute('aria-current', 'page')
+    expect(managementRepository.list).not.toHaveBeenCalled()
+  })
+
+  it('keeps unsaved content edits while switching workspace sections', async () => {
+    const user = userEvent.setup()
+    const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
+    const { client } = authClient(session)
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      saveDraft: vi.fn(() => new Promise<CampaignContent>(() => {})),
+      publish: vi.fn(),
+    }
+    const props = { client, campaignId: 'campaign-1', repository, ordersRepository: ordersRepository() }
+    const { rerender } = render(<LocalLiveAdminApp {...props} section="content" />)
+
+    const title = await screen.findByRole('textbox', { name: '團購標題' })
+    await user.clear(title)
+    await user.type(title, '切換分區前的標題')
+    rerender(<LocalLiveAdminApp {...props} section="orders" />)
+    expect(screen.getByRole('heading', { name: '訂單統計' })).toBeInTheDocument()
+    rerender(<LocalLiveAdminApp {...props} section="content" />)
+
+    expect(screen.getByRole('textbox', { name: '團購標題' })).toHaveValue('切換分區前的標題')
+  })
+
+  it('loads the next campaign instead of showing the previous draft when the campaign changes', async () => {
+    const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
+    const { client } = authClient(session)
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn(async (id: string) => ({ ...published, title: id === 'campaign-1' ? '第一團' : '第二團' })),
+      loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      saveDraft: vi.fn(),
+      publish: vi.fn(),
+    }
+    const props = { client, repository, ordersRepository: ordersRepository(), section: 'content' as const }
+    const { rerender } = render(<LocalLiveAdminApp {...props} campaignId="campaign-1" />)
+    expect(await screen.findByRole('textbox', { name: '團購標題' })).toHaveValue('第一團')
+
+    rerender(<LocalLiveAdminApp {...props} campaignId="campaign-2" />)
+
+    expect(await screen.findByRole('textbox', { name: '團購標題' })).toHaveValue('第二團')
+    const rail = screen.getByRole('complementary', { name: '團購工作區' })
+    expect(within(rail).getByRole('heading', { level: 1, name: '第二團' })).toBeInTheDocument()
   })
 
   it('opens a newly created draft before it has a published snapshot', async () => {
@@ -417,6 +483,7 @@ describe('local Supabase visual demo apps', () => {
         campaignId="new-campaign"
         repository={repository}
         ordersRepository={ordersRepository()}
+        section="content"
       />,
     )
 
@@ -452,10 +519,11 @@ describe('local Supabase visual demo apps', () => {
         campaignId="campaign-1"
         repository={repository}
         ordersRepository={workflowRepository}
+        section="orders"
       />,
     )
 
-    expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '訂單統計' })).toBeInTheDocument()
     expect(workflowRepository.loadSummary).toHaveBeenCalledWith(
       'campaign-1',
       published.threshold,
@@ -464,7 +532,6 @@ describe('local Supabase visual demo apps', () => {
       published.quantityUnit,
     )
 
-    await user.click(screen.getByRole('tab', { name: '訂單管理' }))
     await user.click(screen.getByRole('button', { name: '標記 H11 已付款' }))
     await user.click(screen.getByRole('button', { name: '確認標記已付款' }))
     await waitFor(() => expect(workflowRepository.loadSummary).toHaveBeenCalledTimes(2))
@@ -496,11 +563,11 @@ describe('local Supabase visual demo apps', () => {
         campaignId="campaign-1"
         repository={repository}
         ordersRepository={workflowRepository}
+        section="orders"
       />,
     )
 
-    expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
-    await user.click(screen.getByRole('tab', { name: '訂單管理' }))
+    expect(await screen.findByRole('heading', { name: '訂單統計' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '取消 H11 訂單' }))
     await user.click(screen.getByRole('button', { name: '確認取消訂單' }))
 
@@ -528,6 +595,7 @@ describe('local Supabase visual demo apps', () => {
         liffId="2011099887-PlmOrmYw"
         liffClient={{} as LiffClient}
         lineOrganizerGateway={{ signIn }}
+        section="content"
       />,
     )
 
@@ -556,6 +624,7 @@ describe('local Supabase visual demo apps', () => {
         campaignId="campaign-1"
         repository={repository}
         ordersRepository={workflowRepository}
+        section="content"
       />,
     )
     expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
@@ -567,12 +636,12 @@ describe('local Supabase visual demo apps', () => {
     expect(signInWithPassword).toHaveBeenCalledWith({ email: 'admin@example.test', password: 'password' })
     expect(await screen.findByRole('textbox', { name: '團購標題' })).toHaveValue('Supabase 已發布冰餅團')
     expect(screen.getByText('已發布')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '查看住戶端 ↗' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: '開啟住戶頁' })).toHaveAttribute(
       'href',
       '/campaign/82be35197b9a8c709a939627ce4c411d8de3',
     )
-    await user.click(screen.getByRole('tab', { name: '訂單管理' }))
     await user.click(screen.getByRole('button', { name: '結單' }))
+    await user.click(screen.getByRole('button', { name: '確認結單' }))
     expect(workflowRepository.setCampaignStatus).toHaveBeenCalledWith('campaign-1', 'closed')
   })
 
@@ -591,6 +660,7 @@ describe('local Supabase visual demo apps', () => {
         campaignId="campaign-1"
         repository={repository}
         ordersRepository={ordersRepository()}
+        section="content"
       />,
     )
 
@@ -668,6 +738,7 @@ describe('local Supabase visual demo apps', () => {
         campaignId="campaign-1"
         repository={repository}
         ordersRepository={workflowRepository}
+        section="content"
       />,
     )
     expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
@@ -728,6 +799,7 @@ describe('local Supabase visual demo apps', () => {
         campaignId="campaign-1"
         repository={repository}
         ordersRepository={ordersRepository()}
+        section="content"
       />,
     )
     const editor = await screen.findByRole('textbox', { name: '團購標題' })
@@ -774,6 +846,7 @@ describe('local Supabase visual demo apps', () => {
         campaignId="campaign-1"
         repository={repository}
         ordersRepository={ordersRepository()}
+        section="content"
       />,
     )
     expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
@@ -803,12 +876,13 @@ describe('local Supabase visual demo apps', () => {
     render(
       <LocalLiveAdminApp
         client={client}
-        campaignId="campaign-1"
+        page="settings"
         repository={repository}
         ordersRepository={ordersRepository()}
+        autoCloseNotificationSettingsRepository={settingsRepository()}
       />,
     )
-    expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: '設定' })).toBeInTheDocument()
     const authStateCallback = vi.mocked(client.auth.onAuthStateChange).mock.calls[0][0] as (
       event: string,
       nextSession: unknown,
@@ -825,7 +899,7 @@ describe('local Supabase visual demo apps', () => {
     })
     expect(client.auth.getUser).toHaveBeenCalledTimes(1)
     expect(screen.getByText('登出中…')).toBeInTheDocument()
-    expect(repository.loadPublished).toHaveBeenCalledTimes(1)
+    expect(repository.loadPublished).not.toHaveBeenCalled()
 
     await act(async () => {
       finishSignOut?.()
@@ -853,25 +927,27 @@ describe('local Supabase visual demo apps', () => {
     const view = render(
       <LocalLiveAdminApp
         client={first}
-        campaignId="campaign-1"
+        page="settings"
         repository={repository}
         ordersRepository={ordersRepository()}
         authStorage={primary.storage}
         logoutFallbackStorage={fallback.storage}
+        autoCloseNotificationSettingsRepository={settingsRepository()}
       />,
     )
-    expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: '設定' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '登出' }))
     expect(await screen.findByText('登出中…')).toBeInTheDocument()
 
     view.rerender(
       <LocalLiveAdminApp
         client={second}
-        campaignId="campaign-1"
+        page="settings"
         repository={repository}
         ordersRepository={ordersRepository()}
         authStorage={primary.storage}
         logoutFallbackStorage={fallback.storage}
+        autoCloseNotificationSettingsRepository={settingsRepository()}
       />,
     )
     expect(screen.getByText('登出中…')).toBeInTheDocument()
@@ -902,13 +978,14 @@ describe('local Supabase visual demo apps', () => {
     render(
       <LocalLiveAdminApp
         client={client}
-        campaignId="campaign-1"
+        page="settings"
         repository={repository}
         ordersRepository={ordersRepository()}
         authStorage={storage}
+        autoCloseNotificationSettingsRepository={settingsRepository()}
       />,
     )
-    expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: '設定' })).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '登出' }))
 
@@ -936,13 +1013,14 @@ describe('local Supabase visual demo apps', () => {
     render(
       <LocalLiveAdminApp
         client={client}
-        campaignId="campaign-1"
+        page="settings"
         repository={repository}
         ordersRepository={ordersRepository()}
         authStorage={storage}
+        autoCloseNotificationSettingsRepository={settingsRepository()}
       />,
     )
-    expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: '設定' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '登出' }))
 
     expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
@@ -972,13 +1050,14 @@ describe('local Supabase visual demo apps', () => {
     render(
       <LocalLiveAdminApp
         client={client}
-        campaignId="campaign-1"
+        page="settings"
         repository={repository}
         ordersRepository={ordersRepository()}
         authStorage={storage}
+        autoCloseNotificationSettingsRepository={settingsRepository()}
       />,
     )
-    expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: '設定' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '登出' }))
     expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
 
@@ -1028,14 +1107,15 @@ describe('local Supabase visual demo apps', () => {
     render(
       <LocalLiveAdminApp
         client={client}
-        campaignId="campaign-1"
+        page="settings"
         repository={repository}
         ordersRepository={ordersRepository()}
         authStorage={storage}
         logoutFallbackStorage={fallback.storage}
+        autoCloseNotificationSettingsRepository={settingsRepository()}
       />,
     )
-    expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: '設定' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '登出' }))
 
     expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
@@ -1068,14 +1148,15 @@ describe('local Supabase visual demo apps', () => {
     const firstView = render(
       <LocalLiveAdminApp
         client={first}
-        campaignId="campaign-1"
+        page="settings"
         repository={repository}
         ordersRepository={ordersRepository()}
         authStorage={primary.storage}
         logoutFallbackStorage={fallback.storage}
+        autoCloseNotificationSettingsRepository={settingsRepository()}
       />,
     )
-    expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: '設定' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '登出' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('無法清除本機登入資料')
@@ -1088,16 +1169,17 @@ describe('local Supabase visual demo apps', () => {
     render(
       <LocalLiveAdminApp
         client={second}
-        campaignId="campaign-1"
+        page="settings"
         repository={repository}
         ordersRepository={ordersRepository()}
         authStorage={primary.storage}
         logoutFallbackStorage={fallback.storage}
+        autoCloseNotificationSettingsRepository={settingsRepository()}
       />,
     )
     expect(await screen.findByRole('alert')).toHaveTextContent('無法清除本機登入資料')
     expect(second.auth.getSession).not.toHaveBeenCalled()
-    expect(repository.loadPublished).toHaveBeenCalledTimes(1)
+    expect(repository.loadPublished).not.toHaveBeenCalled()
     expect(fallback.values.get(LOGOUT_TOMBSTONE_KEY)).toBe('1')
   })
 
@@ -1116,13 +1198,14 @@ describe('local Supabase visual demo apps', () => {
     const firstView = render(
       <LocalLiveAdminApp
         client={first}
-        campaignId="campaign-1"
+        page="settings"
         repository={repository}
         ordersRepository={ordersRepository()}
         authStorage={storage}
+        autoCloseNotificationSettingsRepository={settingsRepository()}
       />,
     )
-    expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: '設定' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '登出' }))
     expect(await screen.findByText('登出中…')).toBeInTheDocument()
     expect(values.get(LOGOUT_TOMBSTONE_KEY)).toBe('1')
@@ -1132,16 +1215,17 @@ describe('local Supabase visual demo apps', () => {
     render(
       <LocalLiveAdminApp
         client={second}
-        campaignId="campaign-1"
+        page="settings"
         repository={repository}
         ordersRepository={ordersRepository()}
         authStorage={storage}
+        autoCloseNotificationSettingsRepository={settingsRepository()}
       />,
     )
 
     expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
     expect(second.auth.getSession).not.toHaveBeenCalled()
-    expect(repository.loadPublished).toHaveBeenCalledTimes(1)
+    expect(repository.loadPublished).not.toHaveBeenCalled()
     expect(values.has(SUPABASE_AUTH_STORAGE_KEY)).toBe(false)
     expect(values.has(LOGOUT_TOMBSTONE_KEY)).toBe(false)
     expect(screen.getByRole('alert')).toHaveTextContent('先前的登出已在本機完成')
@@ -1149,7 +1233,7 @@ describe('local Supabase visual demo apps', () => {
     await user.type(screen.getByRole('textbox', { name: 'Email' }), 'admin@example.test')
     await user.type(screen.getByLabelText('密碼'), 'password')
     await user.click(screen.getByRole('button', { name: '登入' }))
-    expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: '設定' })).toBeInTheDocument()
     const recoveredAuthCallback = vi.mocked(second.auth.onAuthStateChange).mock.calls[0][0] as (
       event: string,
       nextSession: unknown,
@@ -1187,6 +1271,7 @@ describe('local Supabase visual demo apps', () => {
         campaignId="campaign-1"
         repository={repository}
         ordersRepository={ordersRepository()}
+        section="content"
       />,
     )
     expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
@@ -1200,6 +1285,7 @@ describe('local Supabase visual demo apps', () => {
         campaignId="campaign-1"
         repository={repository}
         ordersRepository={ordersRepository()}
+        section="content"
       />,
     )
     expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
@@ -1231,6 +1317,7 @@ describe('local Supabase visual demo apps', () => {
         campaignId="campaign-1"
         repository={repository}
         ordersRepository={workflowRepository}
+        section="content"
       />,
     )
     expect(await screen.findByRole('textbox', { name: '團購標題' })).toBeInTheDocument()
@@ -1241,6 +1328,7 @@ describe('local Supabase visual demo apps', () => {
         campaignId="campaign-1"
         repository={repository}
         ordersRepository={workflowRepository}
+        section="content"
       />,
     )
 
@@ -1269,6 +1357,7 @@ describe('local Supabase visual demo apps', () => {
         campaignId="campaign-1"
         repository={repository}
         ordersRepository={workflowRepository}
+        section="content"
       />,
     )
 
@@ -1314,6 +1403,7 @@ describe('local Supabase visual demo apps', () => {
         campaignId="campaign-1"
         repository={repository}
         ordersRepository={workflowRepository}
+        section="content"
       />,
     )
     await waitFor(() => expect(getUser).toHaveBeenCalled())
@@ -1369,6 +1459,7 @@ describe('local Supabase visual demo apps', () => {
         campaignId="campaign-1"
         repository={repository}
         ordersRepository={ordersRepository()}
+        section="content"
       />,
     )
     await waitFor(() => expect(getUser).toHaveBeenCalledWith('old-token'))
@@ -1407,6 +1498,7 @@ describe('local Supabase visual demo apps', () => {
         campaignId="campaign-1"
         repository={repository}
         ordersRepository={ordersRepository()}
+        section="content"
       />,
     )
 
@@ -1432,6 +1524,7 @@ describe('local Supabase visual demo apps', () => {
         campaignId="campaign-1"
         repository={repository}
         ordersRepository={workflowRepository}
+        section="content"
       />,
     )
 
@@ -1478,6 +1571,7 @@ describe('local Supabase visual demo apps', () => {
         campaignId="campaign-1"
         repository={repository}
         ordersRepository={ordersRepository()}
+        section="content"
       />,
     )
 
@@ -1515,6 +1609,7 @@ describe('local Supabase visual demo apps', () => {
         campaignId="campaign-1"
         repository={repository}
         ordersRepository={ordersRepository()}
+        section="content"
       />,
     )
     await waitFor(() => expect(getUser).toHaveBeenCalled())

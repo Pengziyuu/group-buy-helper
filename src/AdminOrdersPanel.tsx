@@ -1,16 +1,9 @@
 import { useRef, useState } from 'react'
 import type { OrganizerOrderSummary, OrganizerOrderRow } from './domain/adminOrders'
-import type { PickupNotificationAudience } from './domain/pickupNotification'
-import type { PickupNotificationCommand, PickupNotificationResponse } from './services/pickupNotificationGateway'
-import PickupNotificationPanel from './PickupNotificationPanel'
 import { ConfirmDialog } from './components/ui/ConfirmDialog'
 import { buildOrderExportRows, downloadOrderExport } from './services/orderExport'
 import { formatHousehold } from './domain/household'
-import {
-  campaignStatusAction,
-  campaignStatusLabel,
-  type CampaignStatus,
-} from './domain/orderWorkflow'
+import type { CampaignStatus } from './domain/orderWorkflow'
 import './AdminOrdersPanel.css'
 
 const currency = (amount: number) => `$${amount.toLocaleString('en-US')}`
@@ -18,31 +11,23 @@ const currency = (amount: number) => `$${amount.toLocaleString('en-US')}`
 type AdminOrdersPanelProps = {
   summary: OrganizerOrderSummary
   campaignStatus?: CampaignStatus
-  campaignId?: string
   campaignTitle?: string
   campaignOpenedAt?: string | null
   onExportOrders?: () => Promise<void>
-  onSetCampaignStatus?: (status: CampaignStatus) => Promise<void>
   onSetOrderPaid?: (orderId: string, paid: boolean) => Promise<void>
   onSetOrderOrganizerNote?: (orderId: string, note: string) => Promise<void>
   onCancelOrder?: (orderId: string) => Promise<void>
-  onPreviewPickupNotification?: (audience: PickupNotificationAudience, message: string) => Promise<PickupNotificationResponse>
-  onCreatePickupNotificationCommand?: (audience: PickupNotificationAudience, message: string, previewToken: string) => Promise<PickupNotificationCommand>
 }
 
 function AdminOrdersPanel({
   summary,
   campaignStatus,
-  campaignId,
   campaignTitle,
   campaignOpenedAt,
   onExportOrders,
-  onSetCampaignStatus,
   onSetOrderPaid,
   onSetOrderOrganizerNote,
   onCancelOrder,
-  onPreviewPickupNotification,
-  onCreatePickupNotificationCommand,
 }: AdminOrdersPanelProps) {
   const [busyKeys, setBusyKeys] = useState<Set<string>>(() => new Set())
   const busyKeysRef = useRef(new Set<string>())
@@ -78,7 +63,6 @@ function AdminOrdersPanel({
     return run(`order-${order.orderId}`, () => onSetOrderOrganizerNote(order.orderId, note))
   }
 
-  const statusAction = campaignStatus ? campaignStatusAction(campaignStatus) : null
   const pendingOrders = summary.orderRows.filter((order) => !order.paid)
   const visibleOrders = orderFilter === 'pending' ? pendingOrders : summary.orderRows
   const exportVisible = Boolean(
@@ -110,41 +94,21 @@ function AdminOrdersPanel({
         </span>
       </header>
 
-      {campaignStatus && (
+      {exportVisible && (
         <div className="admin-workflow-bar">
-          <div>
-            <span>活動狀態</span>
-            <strong>{campaignStatusLabel(campaignStatus)}</strong>
+          <div className="admin-workflow-actions">
+            <button
+              type="button"
+              className="workflow-action workflow-action-export"
+              aria-label="匯出成團明細"
+              disabled={!hasExportRows || busyKeys.has('export')}
+              title={!hasExportRows ? '目前沒有可匯出的訂單' : undefined}
+              onClick={() => run('export', exportOrders)}
+            >
+              <span className="workflow-action-icon" aria-hidden="true">↓</span>
+              {busyKeys.has('export') ? '建立Excel中…' : '匯出成團明細'}
+            </button>
           </div>
-          {(onSetCampaignStatus && statusAction || exportVisible) && (
-            <div className="admin-workflow-actions">
-              {onSetCampaignStatus && statusAction && (
-                <button
-                  type="button"
-                  className="workflow-action workflow-action-secondary"
-                  disabled={busyKeys.has('campaign')}
-                  onClick={() => run('campaign', () => onSetCampaignStatus(statusAction.next))}
-                >
-                  <span className="workflow-action-icon" aria-hidden="true">↻</span>
-                  {statusAction.label}
-                </button>
-              )}
-
-              {exportVisible && (
-                <button
-                  type="button"
-                  className="workflow-action workflow-action-export"
-                  aria-label="匯出成團明細"
-                  disabled={!hasExportRows || busyKeys.has('export')}
-                  title={!hasExportRows ? '目前沒有可匯出的訂單' : undefined}
-                  onClick={() => run('export', exportOrders)}
-                >
-                  <span className="workflow-action-icon" aria-hidden="true">↓</span>
-                  {busyKeys.has('export') ? '建立Excel中…' : '匯出成團明細'}
-                </button>
-              )}
-            </div>
-          )}
         </div>
       )}
 
@@ -168,17 +132,6 @@ function AdminOrdersPanel({
           : `${summary.quantity} ${summary.quantityUnit} / ${summary.threshold} ${summary.quantityUnit}`}</strong><span>{summary.progressPercent}%</span></div>
         <div className="admin-progress-track"><span style={{ width: `${summary.progressPercent}%` }} /></div>
       </div>
-
-      {campaignStatus && campaignId && campaignTitle && onPreviewPickupNotification && onCreatePickupNotificationCommand && (
-        <PickupNotificationPanel
-          campaignId={campaignId}
-          campaignTitle={campaignTitle}
-          campaignStatus={campaignStatus}
-          excludedOtherCount={summary.orderRows.filter((row) => row.householdKind === 'other').length}
-          onPreview={onPreviewPickupNotification}
-          onCreateCommand={onCreatePickupNotificationCommand}
-        />
-      )}
 
       <div className="admin-order-sections">
         <section aria-labelledby="item-summary-heading">
