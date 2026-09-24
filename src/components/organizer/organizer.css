@@ -65,3 +65,10 @@
   .organizer-table tbody td[data-label]::before { content: attr(data-label); color: var(--color-text-secondary); font-size: var(--font-size-caption); }
   .organizer-row-actions { justify-content: flex-start; }
 }
+
+/* Organizer settings: one card per setting group. */
+.organizer-settings { display: grid; gap: var(--space-4); max-width: 800px; }
+.organizer-settings-section { display: grid; gap: var(--space-2); padding: var(--space-4) var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-surface); background: var(--color-surface); }
+.organizer-settings-section h2 { margin: 0; font-size: var(--font-size-base); font-weight: var(--font-weight-strong); }
+.organizer-settings-section p { margin: 0; color: var(--color-text-secondary); }
+.organizer-settings-section .ui-button { justify-self: start; }
