@@ -1041,10 +1041,13 @@ export function LocalLiveAdminApp({
   const shownSection = resolveWorkspaceSection(section, published, campaignStatus)
   // The write already succeeded; a failed refresh only means the list may be stale, which the live status reports.
   const refreshAfterWrite = async () => {
+    const requestedCampaignId = campaignId
     try {
       await reloadOrderSummary()
     } catch {
-      setLiveState('offline')
+      // A late failure for a campaign the organizer has since navigated away
+      // from must not mark the campaign now on screen as offline.
+      if (currentCampaignIdRef.current === requestedCampaignId) setLiveState('offline')
     }
   }
   const setOrderOrganizerNote = async (orderId: string, note: string) => {

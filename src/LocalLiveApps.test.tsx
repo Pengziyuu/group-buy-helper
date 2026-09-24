@@ -2362,6 +2362,40 @@ describe('organizer realtime', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: '確認取消訂單' })).not.toBeInTheDocument())
     expect(workflow.cancelOrder).toHaveBeenCalledOnce()
   })
+
+  it('does not mark the new campaign offline when a stale refresh for the previous one fails', async () => {
+    const user = userEvent.setup()
+    const { client } = realtimeClient()
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn(async (id: string) => ({ ...published, title: id === 'campaign-1' ? '第一團' : '第二團' })),
+      loadOptionalPublished: vi.fn(async (id: string) => ({ ...published, title: id === 'campaign-1' ? '第一團' : '第二團' })),
+      loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      saveDraft: vi.fn(),
+      publish: vi.fn(),
+    }
+    const workflow = ordersRepository()
+    let rejectStaleSummary: ((error: unknown) => void) | undefined
+    vi.mocked(workflow.loadSummary)
+      .mockResolvedValueOnce(orderSummary) // campaign-1's initial load
+      .mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectStaleSummary = reject })) // refreshAfterWrite for the note saved on campaign-1
+      .mockResolvedValue(orderSummary) // campaign-2's loads afterward
+
+    const { rerender } = render(<LocalLiveAdminApp client={client} campaignId="campaign-1" repository={repository} ordersRepository={workflow} section="orders" />)
+    expect(await screen.findByRole('heading', { level: 1, name: '第一團' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '編輯 H11 備註' }))
+    await user.type(screen.getByRole('textbox', { name: 'H11 備註' }), '放管理室{Enter}')
+    await waitFor(() => expect(workflow.setOrderOrganizerNote).toHaveBeenCalledOnce())
+    await waitFor(() => expect(rejectStaleSummary).toBeDefined())
+
+    rerender(<LocalLiveAdminApp client={client} campaignId="campaign-2" repository={repository} ordersRepository={workflow} section="orders" />)
+    expect(await screen.findByRole('heading', { level: 1, name: '第二團' })).toBeInTheDocument()
+
+    await act(async () => { rejectStaleSummary?.(new Error('network')) })
+
+    expect(screen.queryByText('即時同步中斷，畫面可能不是最新')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: '第二團' })).toBeInTheDocument()
+  })
 })
 
 describe('organizer loading and error states', () => {

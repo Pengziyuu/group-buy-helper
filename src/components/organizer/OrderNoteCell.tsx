@@ -56,7 +56,11 @@ export function OrderNoteCell({ order, controlLabel, disabled, onSave, onSavingC
     try {
       await onSave(draft)
       setSavedNote(draft)
-      finish(returnFocus)
+      // The input is readOnly while saving, so the organizer can Tab away to
+      // something else (e.g. the row's 更多操作 menu) before this resolves.
+      // Only pull focus back to the note button if it is still where this
+      // edit left it (the input) or nothing claimed it (document.body).
+      finish(returnFocus && (document.activeElement === inputRef.current || document.activeElement === document.body))
       return true
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : '儲存備註失敗')

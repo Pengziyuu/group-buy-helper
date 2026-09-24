@@ -180,6 +180,28 @@ describe('OrdersSection', () => {
     await waitFor(() => expect(rowOf(/H11/)).not.toHaveAttribute('aria-busy'))
   })
 
+  it('does not pull focus back to the note button when the organizer tabbed away mid-save', async () => {
+    const user = userEvent.setup()
+    let finish: (() => void) | undefined
+    const onSetOrderOrganizerNote = vi.fn().mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
+    renderOrders({ onSetOrderOrganizerNote })
+
+    await user.click(screen.getByRole('button', { name: '編輯 H11 備註' }))
+    await user.type(screen.getByRole('textbox', { name: 'H11 備註' }), '！{Enter}')
+    expect(screen.getByRole('textbox', { name: 'H11 備註' })).toHaveAttribute('readonly')
+
+    // The organizer moves on to another control (e.g. the row's 更多操作 menu)
+    // while the save is still pending.
+    const elsewhere = screen.getByRole('button', { name: '編輯 1E7 備註' })
+    elsewhere.focus()
+    expect(elsewhere).toHaveFocus()
+
+    finish?.()
+    await waitFor(() => expect(onSetOrderOrganizerNote).toHaveBeenCalledWith('order-1', '請放管理室！'))
+    await waitFor(() => expect(screen.getByRole('button', { name: '編輯 H11 備註' })).toBeInTheDocument())
+    expect(elsewhere).toHaveFocus()
+  })
+
   it('cancels a whole order only while open and only after confirmation', async () => {
     const user = userEvent.setup()
     const onCancelOrder = vi.fn().mockResolvedValue(undefined)
