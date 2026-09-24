@@ -137,6 +137,23 @@ describe('resident campaign page parts', () => {
     expect(within(wall).getAllByRole('listitem')).toHaveLength(23)
   })
 
+  it('shows how long ago each order was placed and changed on the order wall', () => {
+    const now = new Date('2026-09-25T04:00:00.000Z')
+    const wall = [
+      { customerId: 'c1', name: '住戶甲', items: { A: 1 }, orderedAt: '2026-09-25T03:55:00.000Z', updatedAt: '2026-09-25T03:59:30.000Z' },
+      { customerId: 'c2', name: '住戶乙', items: { A: 2 }, orderedAt: '2026-09-25T01:00:00.000Z', updatedAt: '2026-09-25T01:00:00.000Z' },
+    ]
+    render(<OrderWall orders={wall as never} quantityUnit="個" itemDisplayLabel={(code) => code} now={now} />)
+
+    const placed = screen.getByText('下單 5 分鐘前')
+    expect(placed.tagName).toBe('TIME')
+    expect(placed).toHaveAttribute('title', '2026/09/25 11:55')
+    expect(screen.getByText((_, element) => element?.tagName === 'SPAN' && element.textContent === '已修改・剛剛')).toBeInTheDocument()
+    expect(screen.getByText('下單 3 小時前')).toBeInTheDocument()
+    expect(screen.getAllByText(/已修改/)).toHaveLength(1)
+    expect(screen.queryByText(/下單時間/)).not.toBeInTheDocument()
+  })
+
   it('binds someone outside the community and shows a safe binding error', async () => {
     const user = userEvent.setup()
     const onBind = vi.fn()

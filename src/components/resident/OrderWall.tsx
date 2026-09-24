@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { VisibleOrder } from '../../data/demo'
-import { formatZhTwTimestamp, wasMeaningfullyUpdated } from '../../domain/timestamp'
+import { wasMeaningfullyUpdated } from '../../domain/timestamp'
+import { RelativeTime, useNow } from '../relativeTime'
 import { Button } from '../ui/Button'
 
 const WALL_PREVIEW_COUNT = 20
@@ -10,12 +11,14 @@ type OrderWallProps = {
   currentCustomerId?: string
   quantityUnit: string
   itemDisplayLabel: (code: string) => string
+  now?: Date
 }
 
 const orderQuantity = (items: Record<string, number>) => Object.values(items).reduce((sum, quantity) => sum + quantity, 0)
 
-export function OrderWall({ orders, currentCustomerId, quantityUnit, itemDisplayLabel }: OrderWallProps) {
+export function OrderWall({ orders, currentCustomerId, quantityUnit, itemDisplayLabel, now }: OrderWallProps) {
   const [showAll, setShowAll] = useState(false)
+  const currentTime = useNow(now)
   const sorted = [...orders].sort((left, right) => Date.parse(left.orderedAt) - Date.parse(right.orderedAt)
     || left.customerId.localeCompare(right.customerId))
   const visible = showAll ? sorted : sorted.slice(0, WALL_PREVIEW_COUNT)
@@ -47,9 +50,9 @@ export function OrderWall({ orders, currentCustomerId, quantityUnit, itemDisplay
                     <p className="resident-wall-custom">{customItems.map((item) => `${item.name}×${item.quantity}（另計）`).join('、')}</p>
                   )}
                   <p className="resident-wall-time">
-                    下單時間 {formatZhTwTimestamp(order.orderedAt)}
+                    <RelativeTime value={order.orderedAt} now={currentTime} prefix="下單 " />
                     {wasMeaningfullyUpdated(order.orderedAt, order.updatedAt) && (
-                      <span>已修改・最後修改 {formatZhTwTimestamp(order.updatedAt)}</span>
+                      <span>已修改・<RelativeTime value={order.updatedAt} now={currentTime} /></span>
                     )}
                   </p>
                 </div>
