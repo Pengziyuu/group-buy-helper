@@ -25,6 +25,7 @@ export type ContentReadiness = {
 export function publishBlockers(input: ContentReadiness): string[] {
   const blockers: string[] = []
   if (!input.title.trim()) blockers.push('填寫團購標題')
+  if (!input.announcement.trim()) blockers.push('填寫開團資訊')
   if (!input.items.some((item) => item.active)) blockers.push('至少需要一個品項')
   input.items.forEach((item, index) => {
     if (item.active && !item.name.trim()) blockers.push(`填寫品項 ${itemLabel(index)} 的名稱`)

@@ -216,7 +216,7 @@ describe('organizer campaign editor', () => {
     const onPublish = vi.fn().mockImplementation(async (content: CampaignContent) => content)
     const draft: CampaignContent = {
       title: '預設折數測試', unitPrice: 170, threshold: 100,
-      announcement: '', images: [],
+      announcement: '公告', images: [],
       items: [{ code: 'A', name: '五花肉片', unitPrice: 170, active: true }],
       openedAt: null,
     }
@@ -569,7 +569,7 @@ describe('organizer campaign editor', () => {
   it('applies the canonical campaign returned by publication immediately', async () => {
     const user = userEvent.setup()
     const content: CampaignContent = {
-      title: 'Canonical團', unitPrice: 50, threshold: 10, announcement: '', images: [],
+      title: 'Canonical團', unitPrice: 50, threshold: 10, announcement: '公告', images: [],
       items: [{ code: 'KEEP', name: '保留口味', active: true }], openedAt: null,
     }
     const onPublish = vi.fn().mockResolvedValue({

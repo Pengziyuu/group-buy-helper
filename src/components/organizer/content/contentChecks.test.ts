@@ -35,6 +35,7 @@ describe('publishBlockers', () => {
     expect(publishBlockers({
       ...ready,
       title: '  ',
+      announcement: ' ',
       items: [
         { code: 'A', name: '牛奶', unitPrice: 45, active: true },
         { code: 'B', name: ' ', unitPrice: 45, active: true },
@@ -46,6 +47,7 @@ describe('publishBlockers', () => {
       discountRulesValid: false,
     })).toEqual([
       '填寫團購標題',
+      '填寫開團資訊',
       '填寫品項 B 的名稱',
       '每個品項都要有有效的單價',
       '填寫有效的成團門檻',
@@ -59,8 +61,9 @@ describe('publishBlockers', () => {
       .toEqual(['至少需要一個品項'])
   })
 
-  it('does not require an announcement or images', () => {
-    expect(publishBlockers({ ...ready, announcement: '' })).toEqual([])
+  it('requires the announcement but not images', () => {
+    expect(publishBlockers({ ...ready, announcement: ' \n ' })).toEqual(['填寫開團資訊'])
+    expect(publishBlockers(ready)).toEqual([])
   })
 })
 
