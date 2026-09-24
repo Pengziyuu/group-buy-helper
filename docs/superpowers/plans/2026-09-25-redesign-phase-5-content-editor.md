@@ -2959,3 +2959,26 @@ Expected: 24 張；`report.json` 每頁沒有水平溢出。
 git add docs/AI_AGENT_HANDOFF.md README.md docs/superpowers/plans/2026-09-25-redesign-phase-5-content-editor.md
 git commit -m "docs: describe the new content editor and record phase 5 results"
 ```
+
+## 執行結果（2026-09-24）
+
+- **commit 範圍**：`0e4f391..3519fe6`（`2834769`、`cb1b636`、`4c5c5bb`、`961106b`、`10d1195`、`b2e9843`、`3b267f3`、`3519fe6`），加上本次 Task 8 的文件 commit。
+- **測試檔數與測試數**：95 個測試檔、694 個測試，`npm test` 全數通過。`npx tsc -b`、`npm run lint`（oxlint）、`npm run build` 均成功；`npm run build` 有一則既有的 Vite chunk-size 警告（`exceljs.min` 929.58 kB），與本階段改動無關，不是 lint／型別錯誤。
+- **截圖結果**：24 張 + `report.json`，`scripts/capture-pages.mjs` 回報全部頁面 `offenders=0`，沒有水平溢出。與 `before` 逐檔 md5 比對，僅 `admin-editor-375.png`、`admin-editor-768.png`、`admin-editor-1440.png` 三張不同，其餘 21 張與改版前逐位元組相同。
+  - **1440px**：左側為表單（公告與圖片／品項與價格／成團與時程／優惠與進階），右側為住戶頁預覽（可切手機／電腦），上方固定列（標題、儲存狀態、預覽住戶頁、更新住戶頁）與跳段標籤都在最上方，符合預期。
+  - **768px／375px**：皆為單欄版面，預覽移到表單之後；375px 的品項表已轉為逐列小卡（代碼／商品名稱／單價分行顯示），沒有水平捲動。
+  - 其餘 21 張（admin-list、admin-orders、admin-overview、admin-residents、admin-settings、resident-list、resident-campaign 各 3 個寬度）與 `before` 完全相同，符合「除了內容設定頁，其他頁不該有變化」的預期。
+- **執行中對計畫的修正**：
+  - Task 3 的「參加任選」checkbox 在 1024px 以下量到 28px 可點範圍（margin 不會擴大熱區），改為包在 `<label>` 內並設最小 24px／44px 熱區。
+  - Task 7 刪除品項相關 class 斷言時留下一個未使用變數（「減少品項」按鈕存在的斷言），保留該斷言避免未使用變數。
+- **延後的小問題**：
+  - Task 1～2 的實作報告誇大了完整測試套件的證據（聲稱已跑過全部），實際是由 controller 補跑確認全數通過。
+  - 未啟用（已結單／已達門檻等）品項列文字對比：已檢查 `src/styles/tokens.css` 的 `--color-text-tertiary`（`#6e6e73`）在白底上的對比為約 **5.07:1**，高於 4.5:1 門檻，不需調整。
+  - `src/LocalLiveApps.tsx` 的「編輯器保持掛載」測試現在會觸發一個未斷言的上傳失敗，未來若要斷言上傳失敗訊息需要另外補測試。
+  - `ContentTopBar` 只憑 `residentHref` 是否為真來決定要不要顯示「預覽住戶頁」連結；呼叫端在未發布時要記得傳 `null`。
+  - 公告欄位新增了 `maxLength=20000` 的輸入限制（對應產品規則的 2 萬字上限）。
+  - `.admin-shell` 已不再有獨立頁面的 padding（因為目前沒有獨立頁面在用它），如未來新增獨立頁面需重新確認樣式。
+- **需要團主在正式環境確認的事項**：
+  1. 用 LINE 登入的團主一次選多張圖片上傳，確認全部成功上傳、失敗的圖片有個別檔名與原因說明。
+  2. 已開團的團改公告後按「更新住戶頁」，確認住戶頁確實更新。
+  3. Controller 已在瀏覽器中確認電腦版預覽以 1024px 版面等比縮小放入右側欄，沒有橫向溢出；正式環境仍建議團主實際開啟一次確認視覺效果。
