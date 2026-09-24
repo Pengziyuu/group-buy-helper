@@ -1039,13 +1039,21 @@ export function LocalLiveAdminApp({
   const retrySync = () => setLiveAttempt((current) => current + 1)
   const published = publishedContent !== null
   const shownSection = resolveWorkspaceSection(section, published, campaignStatus)
+  // The write already succeeded; a failed refresh only means the list may be stale, which the live status reports.
+  const refreshAfterWrite = async () => {
+    try {
+      await reloadOrderSummary()
+    } catch {
+      setLiveState('offline')
+    }
+  }
   const setOrderOrganizerNote = async (orderId: string, note: string) => {
     await ordersGateway.setOrderOrganizerNote(orderId, note)
-    await reloadOrderSummary()
+    await refreshAfterWrite()
   }
   const cancelOrder = async (orderId: string) => {
     await ordersGateway.cancelOrder(orderId)
-    await reloadOrderSummary()
+    await refreshAfterWrite()
   }
   const workspaceCampaign: WorkspaceCampaign = {
     id: campaignId,

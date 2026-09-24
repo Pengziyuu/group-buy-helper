@@ -2337,6 +2337,31 @@ describe('organizer realtime', () => {
     expect(removeChannel).toHaveBeenCalledOnce()
     expect(() => report('SUBSCRIBED')).not.toThrow()
   })
+
+  it('keeps a saved note and a cancelled order as done when only the refresh afterwards fails', async () => {
+    const user = userEvent.setup()
+    const { client } = realtimeClient()
+    const workflow = ordersRepository()
+    vi.mocked(workflow.loadSummary)
+      .mockResolvedValueOnce(orderSummary)
+      .mockRejectedValue(new Error('network'))
+    render(<LocalLiveAdminApp client={client} campaignId="campaign-1" repository={publishedRepository()} ordersRepository={workflow} section="orders" />)
+    expect(await screen.findByRole('heading', { level: 2, name: '訂單' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '編輯 H11 備註' }))
+    await user.type(screen.getByRole('textbox', { name: 'H11 備註' }), '放管理室{Enter}')
+
+    expect(await screen.findByRole('button', { name: '編輯 H11 備註' })).toHaveTextContent('放管理室')
+    expect(screen.queryByText(/儲存備註失敗|network/)).not.toBeInTheDocument()
+    expect(screen.getByText('即時同步中斷，畫面可能不是最新')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '更多操作 H11・佩怡' }))
+    await user.click(screen.getByRole('menuitem', { name: '取消 H11 訂單' }))
+    await user.click(screen.getByRole('button', { name: '確認取消訂單' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '確認取消訂單' })).not.toBeInTheDocument())
+    expect(workflow.cancelOrder).toHaveBeenCalledOnce()
+  })
 })
 
 describe('organizer loading and error states', () => {
