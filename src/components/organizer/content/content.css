@@ -1,0 +1,24 @@
+/* Organizer content editor: sections, item table, images, preview, top bar and checklist. */
+.content-section { display: grid; gap: var(--space-4); padding: var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-surface); background: var(--color-surface); scroll-margin-top: 140px; }
+.content-section h3 { margin: 0; font-size: var(--font-size-title); font-weight: var(--font-weight-strong); line-height: var(--line-height-heading); }
+.content-section h3:focus { outline: none; }
+.content-section h3:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.content-subheading { margin: var(--space-2) 0 0; font-size: var(--font-size-base); font-weight: var(--font-weight-strong); }
+.content-help { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-dense); }
+.content-lock-note { margin: 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-control); background: var(--color-neutral-subtle); color: var(--color-neutral); font-size: var(--font-size-dense); }
+
+.content-items { display: grid; gap: var(--space-3); }
+.content-item-tools { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-2); }
+.content-bulk-price { display: grid; gap: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-dense); }
+.content-bulk-price .ui-input { width: 140px; }
+.content-item-table .content-item-code { width: 56px; font-weight: var(--font-weight-strong); font-variant-numeric: tabular-nums; }
+.content-item-table .ui-input { width: 100%; min-width: 0; }
+.content-item-table .content-item-price { max-width: 140px; }
+.content-item-table tr.is-inactive { color: var(--color-text-tertiary); }
+.content-item-mix { width: 24px; height: 24px; margin: 0; accent-color: var(--color-primary); }
+.content-item-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.content-item-actions small { color: var(--color-text-secondary); font-size: var(--font-size-caption); }
+
+@media (max-width: 1023px) {
+  .content-item-mix { width: 28px; height: 28px; margin: 8px; }
+}
