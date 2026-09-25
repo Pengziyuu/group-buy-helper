@@ -15,7 +15,7 @@ function errorMessage(error: unknown): string {
   return String(error)
 }
 
-function createCompatibleUuid(): string {
+export function createCompatibleUuid(): string {
   if (typeof globalThis.crypto?.randomUUID === 'function') {
     return globalThis.crypto.randomUUID()
   }
