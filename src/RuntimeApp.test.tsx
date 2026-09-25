@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import RuntimeApp from './RuntimeApp'
@@ -126,6 +126,7 @@ describe('RuntimeApp localStorage resident demo routing', () => {
 })
 
 describe('RuntimeApp localStorage organizer demo routing', () => {
+  beforeEach(() => localStorage.clear())
   afterEach(() => { window.history.replaceState(null, '', '/') })
 
   it('moves from the organizer home into a campaign workspace and back without reloading', async () => {
@@ -186,5 +187,23 @@ describe('RuntimeApp localStorage organizer demo routing', () => {
 
     await waitFor(() => expect(window.location.pathname).toBe(`/admin/campaign/${campaignId}/overview`))
     expect(screen.getByRole('heading', { level: 1, name: '一涼製冰所 超厚三明治冰餅' })).toHaveFocus()
+  })
+
+  it('saves the demo campaign as a template and shows it on the settings page', async () => {
+    const user = userEvent.setup()
+    const config = { mode: 'demo' as const }
+    const campaignId = '01234567-89ab-cdef-0123-456789abcdef'
+    const { unmount } = render(<RuntimeApp config={config} pathname={`/admin/campaign/${campaignId}/overview`} />)
+
+    await user.click(screen.getByRole('button', { name: '存成範本' }))
+    const dialog = screen.getByRole('dialog', { name: '存成範本' })
+    await user.clear(within(dialog).getByRole('textbox', { name: '範本名稱' }))
+    await user.type(within(dialog).getByRole('textbox', { name: '範本名稱' }), '示範範本')
+    await user.click(within(dialog).getByRole('button', { name: '儲存範本' }))
+    expect(await screen.findByText('已存成範本「示範範本」')).toBeInTheDocument()
+    unmount()
+
+    render(<RuntimeApp config={config} pathname="/admin/settings" />)
+    expect(await screen.findByRole('rowheader', { name: '示範範本' })).toBeInTheDocument()
   })
 })

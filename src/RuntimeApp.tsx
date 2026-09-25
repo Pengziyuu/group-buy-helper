@@ -24,6 +24,8 @@ import ResidentCampaignListApp from './ResidentCampaignListApp'
 import { campaign, initialOrders, items } from './data/demo'
 import { buildOrganizerOrderSummary, type OrganizerVisibleOrder } from './domain/adminOrders'
 import type { CampaignStatus } from './domain/orderWorkflow'
+import { createDemoTemplateRepository } from './services/demoTemplateStore'
+import { loadDraftCampaign, saveDraftCampaign, type CampaignContent } from './services/demoCampaignStore'
 
 import type { LiffClient } from './services/liffIdentity'
 
@@ -64,6 +66,27 @@ const initialDemoOrganizerOrders: OrganizerVisibleOrder[] = initialOrders.map((o
   organizerNote: '',
 }))
 
+const demoFallbackContent: CampaignContent = {
+  title: campaign.title,
+  unitPrice: campaign.unitPrice,
+  threshold: campaign.threshold,
+  announcement: campaign.announcement,
+  images: campaign.images,
+  items,
+  openedAt: campaign.openedAt,
+}
+// The demo has one campaign, so creating from a template rewrites its draft.
+const demoTemplates = createDemoTemplateRepository({
+  createCampaign: async (content) => {
+    saveDraftCampaign(content)
+    return { id: DEMO_CAMPAIGN_ID }
+  },
+})
+const demoCreateFromTemplate = {
+  list: () => demoTemplates.list(),
+  create: (templateId: string, title: string) => demoTemplates.createCampaign(templateId, title),
+}
+
 function DemoOrganizerWorkspace({ requestedSection }: { requestedSection: WorkspaceSection | null }) {
   const [campaignStatus, setCampaignStatus] = useState<CampaignStatus>('open')
   const [orders, setOrders] = useState<OrganizerVisibleOrder[]>(initialDemoOrganizerOrders)
@@ -85,6 +108,11 @@ function DemoOrganizerWorkspace({ requestedSection }: { requestedSection: Worksp
       requestedSection={requestedSection}
       section={section}
       onSetCampaignStatus={async (status) => setCampaignStatus(status)}
+      saveTemplate={{
+        loadTemplates: () => demoTemplates.list(),
+        saveNew: (name) => demoTemplates.create(name, loadDraftCampaign(demoFallbackContent)),
+        replace: (templateId) => demoTemplates.replace(templateId, loadDraftCampaign(demoFallbackContent)),
+      }}
     >
       <AdminApp section={section === 'content' ? 'content' : null} campaignStatus={campaignStatus} residentHref={`/campaign/${DEMO_CAMPAIGN_SLUG}`} />
       {section === 'overview' && (
@@ -197,7 +225,7 @@ function RuntimeRoutes({ config, pathname, search, client, liffClient }: Runtime
   const createDemoCampaign = async () => ({ id: DEMO_CAMPAIGN_ID })
   if (appRoute.kind === 'admin-notification-lab') {
     return (
-      <OrganizerShell current="settings" onCreate={createDemoCampaign}>
+      <OrganizerShell current="settings" onCreate={createDemoCampaign} templates={demoCreateFromTemplate}>
         <main className="live-state-shell">
           <EmptyState
             title="通知測試中心僅提供Live模式使用"
@@ -211,14 +239,14 @@ function RuntimeRoutes({ config, pathname, search, client, liffClient }: Runtime
   }
   if (appRoute.kind === 'admin-list') {
     return (
-      <OrganizerShell current="campaigns" onCreate={createDemoCampaign}>
+      <OrganizerShell current="campaigns" onCreate={createDemoCampaign} templates={demoCreateFromTemplate}>
         <OrganizerHome campaigns={[demoOrganizerCampaign]} autoCloseNotificationState="current_user" unboundResidentCount={0} />
       </OrganizerShell>
     )
   }
   if (appRoute.kind === 'admin-residents') {
     return (
-      <OrganizerShell current="residents" onCreate={createDemoCampaign}>
+      <OrganizerShell current="residents" onCreate={createDemoCampaign} templates={demoCreateFromTemplate}>
         <ResidentMemberManagementApp
           key={parseResidentFilter(search)}
           members={demoResidentMembers}
@@ -231,14 +259,22 @@ function RuntimeRoutes({ config, pathname, search, client, liffClient }: Runtime
   }
   if (appRoute.kind === 'admin-settings') {
     return (
-      <OrganizerShell current="settings" onCreate={createDemoCampaign}>
-        <OrganizerSettings autoCloseNotificationState="current_user" onSelectCurrentUserForAutoCloseNotification={async () => undefined} />
+      <OrganizerShell current="settings" onCreate={createDemoCampaign} templates={demoCreateFromTemplate}>
+        <OrganizerSettings
+          autoCloseNotificationState="current_user"
+          onSelectCurrentUserForAutoCloseNotification={async () => undefined}
+          templateActions={{
+            list: () => demoTemplates.list(),
+            rename: (templateId, name) => demoTemplates.rename(templateId, name),
+            remove: (templateId) => demoTemplates.delete(templateId),
+          }}
+        />
       </OrganizerShell>
     )
   }
   if (appRoute.kind === 'admin-campaign') {
     return (
-      <OrganizerShell current="campaigns" onCreate={createDemoCampaign}>
+      <OrganizerShell current="campaigns" onCreate={createDemoCampaign} templates={demoCreateFromTemplate}>
         <DemoOrganizerWorkspace requestedSection={appRoute.section} />
       </OrganizerShell>
     )

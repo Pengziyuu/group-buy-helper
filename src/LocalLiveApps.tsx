@@ -45,6 +45,7 @@ import {
   createCampaignManagementGateway,
   type CampaignListItem,
 } from './services/campaignManagementGateway'
+import { createCampaignTemplateGateway, type CampaignTemplateRepository } from './services/campaignTemplateGateway'
 import { createLineOrganizerGateway, type LineOrganizerResult } from './services/lineOrganizerGateway'
 import { createLineResidentGateway, ResidentAdmissionError, type LineResidentSignInResult } from './services/lineResidentGateway'
 import {
@@ -386,6 +387,7 @@ export function LocalLiveAdminApp({
   managementRepository,
   residentMemberRepository,
   autoCloseNotificationSettingsRepository,
+  templateRepository,
   authStorage = null,
   logoutFallbackStorage = null,
   liffId,
@@ -403,6 +405,7 @@ export function LocalLiveAdminApp({
   managementRepository?: LiveCampaignManagementRepository
   residentMemberRepository?: LiveResidentMemberRepository
   autoCloseNotificationSettingsRepository?: LiveAutoCloseNotificationSettingsRepository
+  templateRepository?: CampaignTemplateRepository
   authStorage?: AuthSessionStorage | null
   logoutFallbackStorage?: AuthSessionStorage | null
   liffId?: string
@@ -451,6 +454,13 @@ export function LocalLiveAdminApp({
   )
   const autoCloseNotificationSettingsGatewayRef = useRef(autoCloseNotificationSettingsGateway)
   autoCloseNotificationSettingsGatewayRef.current = autoCloseNotificationSettingsGateway
+  const templateGateway = useMemo(
+    () => templateRepository ?? createCampaignTemplateGateway(client, {
+      createCampaign: (title) => campaignManagementGateway.create(title),
+      saveDraft: (campaignId, content) => gateway.saveDraft(campaignId, content),
+    }),
+    [campaignManagementGateway, client, gateway, templateRepository],
+  )
   const activeLineOrganizerGateway = useMemo(
     () => lineOrganizerGateway ?? (liffId && liffClient
       ? createLineOrganizerGateway(client, liffClient, liffId)
@@ -918,9 +928,13 @@ export function LocalLiveAdminApp({
     )
   }
   const createCampaign = (title: string) => campaignManagementGateway.create(title)
+  const createFromTemplate = {
+    list: () => templateGateway.list(),
+    create: (templateId: string, title: string) => templateGateway.createCampaign(templateId, title),
+  }
   const shellCurrent = campaignId ? 'campaigns' : notificationLab ? 'settings' : page === 'home' ? 'campaigns' : page
   const inShell = (children: ReactNode) => (
-    <OrganizerShell current={shellCurrent} onCreate={createCampaign}>{children}</OrganizerShell>
+    <OrganizerShell current={shellCurrent} onCreate={createCampaign} templates={createFromTemplate}>{children}</OrganizerShell>
   )
   const shellLoading = (label: string) => inShell(<LoadingState label={label} variant="skeleton" rows={4} />)
 
@@ -953,7 +967,7 @@ export function LocalLiveAdminApp({
     if (notificationLab) {
       if (!campaigns || !testCampaignIds) return shellLoading('載入通知測試中心…')
       return (
-        <OrganizerShell current="settings" onCreate={createCampaign}>
+        <OrganizerShell current="settings" onCreate={createCampaign} templates={createFromTemplate}>
           <NotificationTestLab
             campaigns={campaigns}
             testCampaignIds={testCampaignIds}
@@ -969,7 +983,7 @@ export function LocalLiveAdminApp({
     if (page === 'residents') {
       if (!residentMembers) return shellLoading('載入住戶…')
       return (
-        <OrganizerShell current="residents" onCreate={createCampaign}>
+        <OrganizerShell current="residents" onCreate={createCampaign} templates={createFromTemplate}>
           <ResidentMemberManagementApp
             key={residentFilter}
             members={residentMembers}
@@ -992,7 +1006,7 @@ export function LocalLiveAdminApp({
     if (page === 'settings') {
       if (!autoCloseNotificationState) return shellLoading('載入設定…')
       return (
-        <OrganizerShell current="settings" onCreate={createCampaign}>
+        <OrganizerShell current="settings" onCreate={createCampaign} templates={createFromTemplate}>
           <OrganizerSettings
             autoCloseNotificationState={autoCloseNotificationState}
             onSelectCurrentUserForAutoCloseNotification={async () => {
@@ -1000,13 +1014,18 @@ export function LocalLiveAdminApp({
               setAutoCloseNotificationState(await autoCloseNotificationSettingsGateway.getState())
             }}
             onSignOut={signOut}
+            templateActions={{
+              list: () => templateGateway.list(),
+              rename: (templateId, name) => templateGateway.rename(templateId, name),
+              remove: (templateId) => templateGateway.delete(templateId),
+            }}
           />
         </OrganizerShell>
       )
     }
     if (!campaigns || !residentMembers || !autoCloseNotificationState) return shellLoading('載入團購、住戶與通知設定…')
     return (
-      <OrganizerShell current="campaigns" onCreate={createCampaign}>
+      <OrganizerShell current="campaigns" onCreate={createCampaign} templates={createFromTemplate}>
         <OrganizerHome
           campaigns={campaigns}
           autoCloseNotificationState={autoCloseNotificationState}
@@ -1071,13 +1090,26 @@ export function LocalLiveAdminApp({
     residentHref: residentSlug ? `/campaign/${residentSlug}` : null,
   }
 
+  // Templates are taken from what is stored, so an unsaved edit in the editor is not included.
+  const loadSavedContent = async () => {
+    const draft = await gateway.loadOptionalDraft(campaignId)
+    if (draft) return draft
+    const publishedContentForTemplate = gateway.loadOptionalPublished ? await gateway.loadOptionalPublished(campaignId) : null
+    return publishedContentForTemplate ?? gateway.loadPublished(campaignId)
+  }
+
   return (
-    <OrganizerShell current="campaigns" onCreate={createCampaign}>
+    <OrganizerShell current="campaigns" onCreate={createCampaign} templates={createFromTemplate}>
       <CampaignWorkspace
         key={campaignId}
         campaign={workspaceCampaign}
         requestedSection={section}
         section={shownSection}
+        saveTemplate={{
+          loadTemplates: () => templateGateway.list(),
+          saveNew: async (name) => templateGateway.create(name, await loadSavedContent()),
+          replace: async (templateId) => templateGateway.replace(templateId, await loadSavedContent()),
+        }}
         onSetCampaignStatus={async (status) => {
           const requestedCampaignId = campaignId
           await ordersGateway.setCampaignStatus(campaignId, status)

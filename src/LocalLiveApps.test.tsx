@@ -14,6 +14,7 @@ import {
 import { initialOrders, items } from './data/demo'
 import { buildOrganizerOrderSummary } from './domain/adminOrders'
 import type { OrganizerOrderSummary } from './domain/adminOrders'
+import { templateContentFromCampaign } from './domain/campaignTemplate'
 import type { AdminCampaignSupabaseClient } from './services/adminCampaignGateway'
 import type { CampaignContent } from './services/demoCampaignStore'
 import type { LineOrganizerResult } from './services/lineOrganizerGateway'
@@ -2452,5 +2453,55 @@ describe('organizer loading and error states', () => {
     await user.click(screen.getByRole('button', { name: '重試' }))
     expect(await screen.findByRole('heading', { level: 2, name: '概況' })).toBeInTheDocument()
     expect(repository.loadOptionalPublished).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('campaign templates', () => {
+  const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
+  const repository = (): LiveAdminRepository => ({
+    loadPublished: vi.fn().mockResolvedValue(published),
+    loadOptionalPublished: vi.fn().mockResolvedValue(published),
+    loadOptionalDraft: vi.fn().mockResolvedValue({ ...published, title: '草稿標題' }),
+    saveDraft: vi.fn(),
+    publish: vi.fn(),
+  })
+  const templateRepository = () => ({
+    list: vi.fn(async () => []),
+    create: vi.fn(async (name: string) => ({ id: 't1', name, content: { ...templateContentFromCampaign(published) }, updatedAt: '2026-09-25T00:00:00.000Z' })),
+    replace: vi.fn(),
+    rename: vi.fn(),
+    delete: vi.fn(async () => ({ warning: null })),
+    createCampaign: vi.fn(async () => ({ id: 'campaign-2', missingImages: 0, contentError: null })),
+  })
+
+  it('saves the campaign’s saved draft as a template from the workspace', async () => {
+    const user = userEvent.setup()
+    const { client } = authClient(session)
+    const templates = templateRepository()
+    render(<LocalLiveAdminApp client={client} campaignId="campaign-1" repository={repository()} ordersRepository={ordersRepository()} templateRepository={templates} section="overview" />)
+
+    await user.click(await screen.findByRole('button', { name: '存成範本' }))
+    const dialog = screen.getByRole('dialog', { name: '存成範本' })
+    await waitFor(() => expect(templates.list).toHaveBeenCalled())
+    await user.click(within(dialog).getByRole('button', { name: '儲存範本' }))
+
+    await waitFor(() => expect(templates.create).toHaveBeenCalledWith('草稿標題', expect.objectContaining({ title: '草稿標題' })))
+  })
+
+  it('lists templates on the settings page and creates a campaign from one', async () => {
+    const user = userEvent.setup()
+    const { client } = authClient(session)
+    const templates = templateRepository()
+    templates.list.mockResolvedValue([{ id: 't1', name: '冰餅', content: templateContentFromCampaign(published), updatedAt: '2026-09-25T00:00:00.000Z' }] as never)
+    render(<LocalLiveAdminApp client={client} page="settings" repository={repository()} ordersRepository={ordersRepository()} templateRepository={templates} autoCloseNotificationSettingsRepository={settingsRepository()} />)
+
+    expect(await screen.findByRole('rowheader', { name: '冰餅' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '建立新團' }))
+    const dialog = screen.getByRole('dialog', { name: '建立新團' })
+    await user.click(within(dialog).getByRole('radio', { name: '從範本建立' }))
+    await within(dialog).findByRole('combobox', { name: '範本' })
+    await user.click(within(dialog).getByRole('button', { name: '建立並編輯' }))
+
+    expect(templates.createCampaign).toHaveBeenCalledWith('t1', published.title)
   })
 })
