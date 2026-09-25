@@ -418,6 +418,33 @@ export type Database = {
           },
         ]
       }
+      campaign_template: {
+        Row: {
+          content: Json
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          content: Json
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       community: {
         Row: {
           active: boolean
@@ -1958,8 +1985,16 @@ export type Database = {
         Args: { p_campaign_id: string; p_custom_items?: Json; p_items: Json }
         Returns: Json
       }
+      template_image_path_is_live: {
+        Args: { p_name: string }
+        Returns: boolean
+      }
       valid_campaign_images: { Args: { p_images: Json }; Returns: boolean }
       valid_campaign_items: { Args: { p_items: Json }; Returns: boolean }
+      valid_campaign_template_content: {
+        Args: { p_content: Json }
+        Returns: boolean
+      }
       valid_custom_order_items: { Args: { value: Json }; Returns: boolean }
       valid_resident_household: {
         Args: { p_period: number; p_unit: string }
@@ -2100,3 +2135,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
