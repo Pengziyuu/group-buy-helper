@@ -10,6 +10,11 @@ type Row = { id: string; name: string; content: Record<string, unknown>; updated
 function fakeClient(options: { failCopy?: (from: string) => boolean; failUpdate?: boolean } = {}) {
   const failCopy = options.failCopy ?? (() => false)
   const failUpdate = { current: options.failUpdate ?? false }
+  const failDelete = { current: false }
+  const failRemove = { current: false }
+  // `null` means "reflect the real rows"; set to an array to simulate a stale/racy read that
+  // missed a row another request just inserted or renamed.
+  let staleList: Row[] | null = null
   const rows = new Map<string, Row>()
   const objects = new Set<string>(['campaign-1/a.png', 'campaign-1/b.png'])
   const copies: Array<[string, string]> = []
@@ -17,7 +22,7 @@ function fakeClient(options: { failCopy?: (from: string) => boolean; failUpdate?
   let nextId = 1
   const table = {
     select: () => ({
-      order: async () => ({ data: [...rows.values()], error: null }),
+      order: async () => ({ data: staleList ?? [...rows.values()], error: null }),
       eq: (_column: string, id: string) => ({
         single: async () => rows.has(id) ? { data: rows.get(id), error: null } : { data: null, error: { message: 'not found' } },
       }),
@@ -39,6 +44,10 @@ function fakeClient(options: { failCopy?: (from: string) => boolean; failUpdate?
         select: () => ({
           single: async () => {
             if (failUpdate.current) return { data: null, error: { message: 'update failed' } }
+            if (typeof patch.name === 'string'
+              && [...rows.values()].some((row) => row.id !== id && row.name.trim().toLowerCase() === patch.name!.trim().toLowerCase())) {
+              return { data: null, error: { code: '23505', message: 'duplicate key' } }
+            }
             const row = { ...rows.get(id)!, ...patch, updated_at: '2026-09-25T01:00:00.000Z' }
             rows.set(id, row)
             return { data: row, error: null }
@@ -48,6 +57,7 @@ function fakeClient(options: { failCopy?: (from: string) => boolean; failUpdate?
     }),
     delete: () => ({
       eq: async (_column: string, id: string) => {
+        if (failDelete.current) return { error: { message: 'delete failed' } }
         rows.delete(id)
         return { error: null }
       },
@@ -62,6 +72,7 @@ function fakeClient(options: { failCopy?: (from: string) => boolean; failUpdate?
       return { data: { path: to }, error: null }
     },
     remove: async (paths: string[]) => {
+      if (failRemove.current) return { data: null, error: { message: 'remove failed' } }
       removed.push(...paths)
       paths.forEach((path) => objects.delete(path))
       return { data: [], error: null }
@@ -72,8 +83,17 @@ function fakeClient(options: { failCopy?: (from: string) => boolean; failUpdate?
     }),
   }
   const client = { from: () => table, storage: { from: () => bucket } }
-  const setFailUpdate = (value: boolean) => { failUpdate.current = value }
-  return { client: client as never, rows, objects, copies, removed, setFailUpdate }
+  return {
+    client: client as never,
+    rows,
+    objects,
+    copies,
+    removed,
+    setFailUpdate: (value: boolean) => { failUpdate.current = value },
+    setFailDelete: (value: boolean) => { failDelete.current = value },
+    setFailRemove: (value: boolean) => { failRemove.current = value },
+    setStaleList: (value: Row[] | null) => { staleList = value },
+  }
 }
 
 const campaign: CampaignContent = {
@@ -127,7 +147,7 @@ describe('campaignTemplateGateway', () => {
     expect([...fake.objects].some((path) => path.startsWith('templates/'))).toBe(false)
   })
 
-  it('rejects a duplicate name before writing anything, and maps the database duplicate error the same way', async () => {
+  it('rejects a duplicate name before writing anything', async () => {
     const fake = fakeClient()
     const gateway = createCampaignTemplateGateway(fake.client, deps(), createId)
     await gateway.create('一涼冰餅', campaign)
@@ -135,6 +155,46 @@ describe('campaignTemplateGateway', () => {
 
     await expect(gateway.create(' 一涼冰餅 ', campaign)).rejects.toThrow('已經有叫「一涼冰餅」的範本，請改名，或選擇取代既有範本')
     expect(fake.copies.length).toBe(copiesBefore)
+  })
+
+  it('maps a duplicate-name insert error the same way when the pre-check missed the race', async () => {
+    const fake = fakeClient()
+    const gateway = createCampaignTemplateGateway(fake.client, deps(), createId)
+    await gateway.create('一涼冰餅', campaign)
+    // Simulate another request's row landing between our pre-check read and our insert:
+    // the pre-check's list() sees a stale snapshot without it, but insert() still collides.
+    fake.setStaleList([])
+
+    await expect(gateway.create('一涼冰餅', { ...campaign, images: [] })).rejects.toThrow('已經有叫「一涼冰餅」的範本，請改名，或選擇取代既有範本')
+  })
+
+  it('maps a duplicate-name rename error the same way when the pre-check missed the race', async () => {
+    const fake = fakeClient()
+    const gateway = createCampaignTemplateGateway(fake.client, deps(), createId)
+    const first = await gateway.create('冰餅', campaign)
+    await gateway.create('包子', { ...campaign, images: [] })
+    fake.setStaleList([])
+
+    await expect(gateway.rename(first.id, '包子')).rejects.toThrow('已經有叫「包子」的範本，請改名，或選擇取代既有範本')
+  })
+
+  it('reports that the half-saved template could not be removed automatically when rollback fails to delete the row', async () => {
+    const fake = fakeClient({ failCopy: (from) => from === 'campaign-1/b.png' })
+    fake.setFailDelete(true)
+    const gateway = createCampaignTemplateGateway(fake.client, deps(), createId)
+
+    await expect(gateway.create('一涼冰餅範本', campaign))
+      .rejects.toThrow('存成範本失敗：copy failed: campaign-1/b.png；已建立的範本「一涼冰餅範本」未能自動移除，請到設定頁刪除')
+  })
+
+  it('reports that copied images could not be cleared when rollback deletes the row but not the images', async () => {
+    const fake = fakeClient({ failCopy: (from) => from === 'campaign-1/b.png' })
+    fake.setFailRemove(true)
+    const gateway = createCampaignTemplateGateway(fake.client, deps(), createId)
+
+    await expect(gateway.create('一涼冰餅範本', campaign))
+      .rejects.toThrow('存成範本失敗：copy failed: campaign-1/b.png；部分已複製的圖片未能清除')
+    expect(fake.rows.size).toBe(0)
   })
 
   it('replaces a template, keeping its name and deleting only its own images that are no longer used', async () => {

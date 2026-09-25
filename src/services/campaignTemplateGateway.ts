@@ -120,18 +120,23 @@ export function createCampaignTemplateGateway(
       if (error) throw new Error(isDuplicateName(error) ? duplicateTemplateNameMessage(name) : `存成範本失敗：${errorMessage(error)}`)
       const template = toTemplate(data)
       const copied = await copyImages(snapshot.images, `templates/${template.id}`)
-      const rollback = async () => {
-        await removePaths(copied.copied)
-        await table().delete().eq('id', template.id)
+      // Reports what it could not undo, so a failed rollback doesn't silently leave a half-saved
+      // template behind (which would also block retrying under the same name).
+      const rollback = async (): Promise<string> => {
+        const removeError = await removePaths(copied.copied)
+        const { error: deleteError } = await table().delete().eq('id', template.id)
+        if (deleteError) return `；已建立的範本「${template.name}」未能自動移除，請到設定頁刪除`
+        if (removeError) return `；部分已複製的圖片未能清除`
+        return ''
       }
       if (copied.failures.length > 0) {
-        await rollback()
-        throw new Error(`存成範本失敗：${copied.failures[0]}`)
+        const rollbackSuffix = await rollback()
+        throw new Error(`存成範本失敗：${copied.failures[0]}${rollbackSuffix}`)
       }
       const updated = await writeContent(template.id, { ...snapshot, images: copied.images })
       if (updated.error) {
-        await rollback()
-        throw new Error(`存成範本失敗：${errorMessage(updated.error)}`)
+        const rollbackSuffix = await rollback()
+        throw new Error(`存成範本失敗：${errorMessage(updated.error)}${rollbackSuffix}`)
       }
       return toTemplate(updated.data)
     },
