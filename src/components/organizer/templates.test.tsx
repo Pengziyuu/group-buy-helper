@@ -5,6 +5,7 @@ import type { CampaignTemplate, CampaignTemplateContent } from '../../domain/cam
 import { CampaignWorkspace } from './CampaignWorkspace'
 import { rememberCampaignNotice } from './campaignNotices'
 import { OrganizerNavigationProvider } from './OrganizerLink'
+import { OrganizerSettings } from './OrganizerSettings'
 import type { WorkspaceCampaign } from './WorkspaceRail'
 
 const templateContent: CampaignTemplateContent = {
@@ -103,5 +104,68 @@ describe('save as template', () => {
 
     renderWorkspace(undefined, target)
     expect(screen.queryByText('有 1 張範本圖片沒有複製成功，請重新加入')).not.toBeInTheDocument()
+  })
+})
+
+describe('template settings', () => {
+  const actions = (templates: CampaignTemplate[]) => ({
+    list: vi.fn(async () => templates),
+    rename: vi.fn(async (id: string, name: string) => ({ ...templates.find((item) => item.id === id)!, name })),
+    remove: vi.fn(async () => ({ warning: null })),
+  })
+
+  it('lists templates with item counts and update times, and explains when there are none', async () => {
+    const { unmount } = render(<OrganizerSettings templateActions={actions([template('t1', '冰餅')])} />)
+    const section = screen.getByRole('region', { name: '團購範本' })
+    const row = (await within(section).findByRole('rowheader', { name: '冰餅' })).closest('tr') as HTMLElement
+    expect(within(row).getByText('1 個')).toBeInTheDocument()
+    expect(within(row).getByText('2026/09/24 10:00')).toBeInTheDocument()
+    unmount()
+
+    render(<OrganizerSettings templateActions={actions([])} />)
+    expect(await screen.findByText('還沒有範本。在團購工作區按「存成範本」就會出現在這裡。')).toBeInTheDocument()
+  })
+
+  it('renames a template in place and blocks a duplicate name', async () => {
+    const user = userEvent.setup()
+    const templateActions = actions([template('t1', '冰餅'), template('t2', '包子')])
+    render(<OrganizerSettings templateActions={templateActions} />)
+
+    await user.click(await screen.findByRole('button', { name: '改名 冰餅' }))
+    const input = screen.getByRole('textbox', { name: '冰餅 的新名稱' })
+    await user.clear(input)
+    await user.type(input, ' 包子 {Enter}')
+    expect(screen.getByRole('alert')).toHaveTextContent('已經有叫「包子」的範本')
+    expect(templateActions.rename).not.toHaveBeenCalled()
+
+    await user.clear(input)
+    await user.type(input, '冰餅（每月）{Enter}')
+    expect(templateActions.rename).toHaveBeenCalledWith('t1', '冰餅（每月）')
+    expect(await screen.findByRole('rowheader', { name: '冰餅（每月）' })).toBeInTheDocument()
+  })
+
+  it('deletes a template after confirmation', async () => {
+    const user = userEvent.setup()
+    const templateActions = actions([template('t1', '冰餅')])
+    render(<OrganizerSettings templateActions={templateActions} />)
+
+    await user.click(await screen.findByRole('button', { name: '刪除 冰餅' }))
+    const dialog = screen.getByRole('dialog', { name: '刪除範本' })
+    expect(dialog).toHaveTextContent('刪除範本「冰餅」？已用這個範本建立的團購不受影響。')
+    await user.click(within(dialog).getByRole('button', { name: '刪除範本' }))
+
+    expect(templateActions.remove).toHaveBeenCalledWith('t1')
+    expect(await screen.findByText('已刪除範本「冰餅」')).toBeInTheDocument()
+    expect(screen.queryByRole('rowheader', { name: '冰餅' })).not.toBeInTheDocument()
+  })
+
+  it('offers a retry when the list cannot be read', async () => {
+    const user = userEvent.setup()
+    const list = vi.fn().mockRejectedValueOnce(new Error('讀取範本失敗：network')).mockResolvedValue([template('t1', '冰餅')])
+    render(<OrganizerSettings templateActions={{ list, rename: vi.fn(), remove: vi.fn() }} />)
+
+    expect(await screen.findByText('讀取範本失敗：network')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '重試' }))
+    expect(await screen.findByRole('rowheader', { name: '冰餅' })).toBeInTheDocument()
   })
 })

@@ -4,14 +4,16 @@ import type { AutoCloseNotificationSettingState } from '../../services/autoClose
 import { Button } from '../ui/Button'
 import { FeedbackMessage } from '../ui/FeedbackMessage'
 import { OrganizerLink } from './OrganizerLink'
+import { TemplateSettings, type TemplateSettingsActions } from './TemplateSettings'
 
 type OrganizerSettingsProps = {
   autoCloseNotificationState?: AutoCloseNotificationSettingState
   onSelectCurrentUserForAutoCloseNotification?: () => Promise<void>
   onSignOut?: () => Promise<void>
+  templateActions?: TemplateSettingsActions
 }
 
-export function OrganizerSettings({ autoCloseNotificationState, onSelectCurrentUserForAutoCloseNotification, onSignOut }: OrganizerSettingsProps) {
+export function OrganizerSettings({ autoCloseNotificationState, onSelectCurrentUserForAutoCloseNotification, onSignOut, templateActions }: OrganizerSettingsProps) {
   const [signingOut, setSigningOut] = useState(false)
   const [signOutError, setSignOutError] = useState<string | null>(null)
 
@@ -24,6 +26,7 @@ export function OrganizerSettings({ autoCloseNotificationState, onSelectCurrentU
           onSelectCurrentUser={onSelectCurrentUserForAutoCloseNotification}
         />
       )}
+      {templateActions && <TemplateSettings actions={templateActions} />}
       <section className="organizer-settings-section" aria-labelledby="notification-lab-heading">
         <h2 id="notification-lab-heading">通知測試中心</h2>
         <p>用測試群組試發領取通知，不會通知正式社區。</p>
