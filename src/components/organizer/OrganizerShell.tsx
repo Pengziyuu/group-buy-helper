@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Button } from '../ui/Button'
-import { CreateCampaignDialog } from './CreateCampaignDialog'
+import { CreateCampaignDialog, type CreateFromTemplateActions } from './CreateCampaignDialog'
 import { OrganizerLink } from './OrganizerLink'
 import './organizer.css'
 
@@ -15,10 +15,11 @@ const NAV_ITEMS: Array<{ key: OrganizerSection; label: string; href: string }> =
 type OrganizerShellProps = {
   current: OrganizerSection
   onCreate?: (title: string) => Promise<{ id: string }>
+  templates?: CreateFromTemplateActions
   children: ReactNode
 }
 
-export function OrganizerShell({ current, onCreate, children }: OrganizerShellProps) {
+export function OrganizerShell({ current, onCreate, templates, children }: OrganizerShellProps) {
   const [creating, setCreating] = useState(false)
 
   return (
@@ -39,7 +40,7 @@ export function OrganizerShell({ current, onCreate, children }: OrganizerShellPr
         )}
       </header>
       {children}
-      {creating && onCreate && <CreateCampaignDialog onCreate={onCreate} onClose={() => setCreating(false)} />}
+      {creating && onCreate && <CreateCampaignDialog onCreate={onCreate} templates={templates} onClose={() => setCreating(false)} />}
     </div>
   )
 }

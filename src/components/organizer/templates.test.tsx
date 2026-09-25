@@ -3,9 +3,10 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { CampaignTemplate, CampaignTemplateContent } from '../../domain/campaignTemplate'
 import { CampaignWorkspace } from './CampaignWorkspace'
-import { rememberCampaignNotice } from './campaignNotices'
+import { peekCampaignNotice, rememberCampaignNotice } from './campaignNotices'
 import { OrganizerNavigationProvider } from './OrganizerLink'
 import { OrganizerSettings } from './OrganizerSettings'
+import { OrganizerShell } from './OrganizerShell'
 import type { WorkspaceCampaign } from './WorkspaceRail'
 
 const templateContent: CampaignTemplateContent = {
@@ -167,5 +168,76 @@ describe('template settings', () => {
     expect(await screen.findByText('讀取範本失敗：network')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '重試' }))
     expect(await screen.findByRole('rowheader', { name: '冰餅' })).toBeInTheDocument()
+  })
+})
+
+describe('create from a template', () => {
+  function renderShell(templates?: Parameters<typeof OrganizerShell>[0]['templates']) {
+    const navigate = vi.fn()
+    const onCreate = vi.fn(async () => ({ id: 'blank-1' }))
+    render(
+      <OrganizerNavigationProvider navigate={navigate}>
+        <OrganizerShell current="campaigns" onCreate={onCreate} templates={templates}><p>首頁</p></OrganizerShell>
+      </OrganizerNavigationProvider>,
+    )
+    return { navigate, onCreate }
+  }
+
+  it('creates a draft from the chosen template with the template title prefilled', async () => {
+    const user = userEvent.setup()
+    const create = vi.fn(async () => ({ id: 'new-1', missingImages: 0, contentError: null }))
+    const { navigate, onCreate } = renderShell({ list: vi.fn(async () => [template('t1', '冰餅')]), create })
+
+    await user.click(screen.getByRole('button', { name: '建立新團' }))
+    const dialog = screen.getByRole('dialog', { name: '建立新團' })
+    await user.click(within(dialog).getByRole('radio', { name: '從範本建立' }))
+    await user.selectOptions(await within(dialog).findByRole('combobox', { name: '範本' }), 't1')
+    expect(within(dialog).getByRole('textbox', { name: '團購標題' })).toHaveValue('一涼冰餅')
+    await user.clear(within(dialog).getByRole('textbox', { name: '團購標題' }))
+    await user.type(within(dialog).getByRole('textbox', { name: '團購標題' }), '十月冰餅團')
+    await user.click(within(dialog).getByRole('button', { name: '建立並編輯' }))
+
+    expect(create).toHaveBeenCalledWith('t1', '十月冰餅團')
+    expect(onCreate).not.toHaveBeenCalled()
+    expect(navigate).toHaveBeenCalledWith('/admin/campaign/new-1/content')
+    expect(peekCampaignNotice('new-1')).toBeNull()
+  })
+
+  it('leaves a notice for the new campaign when images or content did not come across', async () => {
+    const user = userEvent.setup()
+    const create = vi.fn(async () => ({ id: 'new-2', missingImages: 2, contentError: null }))
+    renderShell({ list: vi.fn(async () => [template('t1', '冰餅')]), create })
+
+    await user.click(screen.getByRole('button', { name: '建立新團' }))
+    const dialog = screen.getByRole('dialog', { name: '建立新團' })
+    await user.click(within(dialog).getByRole('radio', { name: '從範本建立' }))
+    await within(dialog).findByRole('combobox', { name: '範本' })
+    await user.click(within(dialog).getByRole('button', { name: '建立並編輯' }))
+
+    expect(peekCampaignNotice('new-2')).toBe('有 2 張範本圖片沒有複製成功，請重新加入')
+  })
+
+  it('keeps blank creation as before and explains when there are no templates', async () => {
+    const user = userEvent.setup()
+    const { onCreate, navigate } = renderShell({ list: vi.fn(async () => []), create: vi.fn() })
+
+    await user.click(screen.getByRole('button', { name: '建立新團' }))
+    const dialog = screen.getByRole('dialog', { name: '建立新團' })
+    expect(within(dialog).getByRole('radio', { name: '空白團購' })).toBeChecked()
+    await user.click(within(dialog).getByRole('radio', { name: '從範本建立' }))
+    expect(await within(dialog).findByText('還沒有範本，可以先在團購工作區按「存成範本」。')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: '建立並編輯' })).toBeDisabled()
+
+    await user.click(within(dialog).getByRole('radio', { name: '空白團購' }))
+    await user.click(within(dialog).getByRole('button', { name: '建立並編輯' }))
+    expect(onCreate).toHaveBeenCalledWith('未命名團購')
+    expect(navigate).toHaveBeenCalledWith('/admin/campaign/blank-1/content')
+  })
+
+  it('shows no template choice when templates are not available', async () => {
+    const user = userEvent.setup()
+    renderShell(undefined)
+    await user.click(screen.getByRole('button', { name: '建立新團' }))
+    expect(screen.queryByRole('radio', { name: '從範本建立' })).not.toBeInTheDocument()
   })
 })
