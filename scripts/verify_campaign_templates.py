@@ -7,6 +7,7 @@ import json
 import os
 import urllib.error
 import urllib.request
+import uuid
 
 API_URL = os.environ["API_URL"]
 ANON_KEY = os.environ["ANON_KEY"]
@@ -117,12 +118,23 @@ def main() -> None:
     resident_cannot_create = status in (401, 403)
     assert resident_cannot_create, status
 
-    status, raw = insert_template(admin_token, "  驗證範本  ".upper(), content())
-    status_lower, raw_lower = insert_template(admin_token, " 驗證範本 ", content())
-    duplicate_name_rejected = status_lower == 409 and '23505' in json.dumps(raw_lower)
+    # Case-insensitive duplicate rejection: only ASCII differs in case here, so this fails
+    # if the unique index were `(btrim(name))` without `lower()`.
+    status, raw = insert_template(admin_token, "Tmpl A", content())
+    latin_template_created = status == 201 and isinstance(raw, list)
+    assert latin_template_created, (status, raw)
+    created_ids.append(raw[0]["id"])
+
+    status, raw = insert_template(admin_token, " tmpl a ", content())
+    case_insensitive_duplicate_rejected = status == 409 and '23505' in json.dumps(raw)
+    assert case_insensitive_duplicate_rejected, (status, raw)
+
+    # Whitespace-only duplicate rejection (same name, only leading/trailing spaces differ).
+    status, raw = insert_template(admin_token, "  驗證範本  ", content())
+    whitespace_duplicate_rejected = status == 409 and '23505' in json.dumps(raw)
     if status == 201 and isinstance(raw, list):
         created_ids.append(raw[0]["id"])
-    assert duplicate_name_rejected, (status_lower, raw_lower)
+    assert whitespace_duplicate_rejected, (status, raw)
 
     bad_contents = {
         "blank_item_name": content(items=[{"code": "ITEM1", "name": " ", "unitPrice": 45, "active": True}]),
@@ -145,13 +157,13 @@ def main() -> None:
     admin_can_rename = status == 200 and json.loads(raw)[0]["name"] == "改名後範本"
     assert admin_can_rename, (status, raw)
 
-    missing_template_path = "templates/00000000-0000-4000-8000-000000000000/missing.png"
+    missing_template_path = f"templates/00000000-0000-4000-8000-000000000000/{uuid.uuid4()}.png"
     status, _ = request("POST", f"/storage/v1/object/campaign-images/{missing_template_path}",
                         ANON_KEY, token=admin_token, body=PNG, content_type="image/png")
     upload_blocked_without_template = status in (400, 401, 403)
     assert upload_blocked_without_template, status
 
-    template_path = f"templates/{template_id}/{admin_id}.png"
+    template_path = f"templates/{template_id}/{uuid.uuid4()}.png"
     status, _ = request("POST", f"/storage/v1/object/campaign-images/{template_path}",
                         ANON_KEY, token=resident_token, body=PNG, content_type="image/png")
     resident_cannot_upload = status in (400, 401, 403)
@@ -163,13 +175,25 @@ def main() -> None:
     assert admin_can_upload, (status, raw)
     uploaded.append(template_path)
 
-    copy_path = f"templates/{template_id}/{admin_id}-copy.png"
+    copy_path = f"templates/{template_id}/{uuid.uuid4()}.png"
     status, raw = request("POST", "/storage/v1/object/copy", ANON_KEY, token=admin_token,
                           body=json.dumps({"bucketId": "campaign-images", "sourceKey": template_path,
                                            "destinationKey": copy_path}).encode())
     admin_can_copy = status == 200
     assert admin_can_copy, (status, raw)
     uploaded.append(copy_path)
+
+    malformed_path_blocked = {}
+    nested_path = f"templates/{template_id}/nested/{uuid.uuid4()}.png"
+    status, _ = request("POST", f"/storage/v1/object/campaign-images/{nested_path}",
+                        ANON_KEY, token=admin_token, body=PNG, content_type="image/png")
+    malformed_path_blocked["nested"] = status in (400, 401, 403)
+
+    wrong_extension_path = f"templates/{template_id}/{uuid.uuid4()}.gif"
+    status, _ = request("POST", f"/storage/v1/object/campaign-images/{wrong_extension_path}",
+                        ANON_KEY, token=admin_token, body=PNG, content_type="image/gif")
+    malformed_path_blocked["wrong_extension"] = status in (400, 401, 403)
+    assert all(malformed_path_blocked.values()), malformed_path_blocked
 
     status, raw = request("DELETE", f"/rest/v1/campaign_template?id=eq.{template_id}", ANON_KEY,
                           token=admin_token, prefer="return=representation")
@@ -179,24 +203,38 @@ def main() -> None:
 
     status, raw = request("DELETE", "/storage/v1/object/campaign-images", ANON_KEY, token=admin_token,
                           body=json.dumps({"prefixes": [template_path, copy_path]}).encode())
-    images_removed_after_delete = status in (200, 204)
-    assert images_removed_after_delete, (status, raw)
+    deleted_objects = json.loads(raw) if raw else []
+    deleted_names = {item.get("name") for item in deleted_objects}
+    status_list, raw_list = request(
+        "POST", "/storage/v1/object/list/campaign-images", ANON_KEY, token=admin_token,
+        body=json.dumps({"prefix": f"templates/{template_id}", "limit": 100, "offset": 0}).encode(),
+    )
+    remaining_objects = json.loads(raw_list) if status_list == 200 else [{"error": status_list}]
+    images_removed_after_delete = (
+        status in (200, 204)
+        and template_path in deleted_names
+        and copy_path in deleted_names
+        and remaining_objects == []
+    )
+    assert images_removed_after_delete, (status, raw, remaining_objects)
     uploaded.clear()
 
     print(json.dumps({
-        "checks": 13,
+        "checks": 19,
         "admin_can_create": admin_can_create,
         "admin_can_read": admin_can_read,
         "resident_cannot_read": resident_cannot_read,
         "anon_cannot_read": anon_cannot_read,
         "resident_cannot_create": resident_cannot_create,
-        "duplicate_name_rejected": duplicate_name_rejected,
+        "case_insensitive_duplicate_rejected": case_insensitive_duplicate_rejected,
+        "whitespace_duplicate_rejected": whitespace_duplicate_rejected,
         "bad_content_rejected": bad_content_rejected,
         "admin_can_rename": admin_can_rename,
         "upload_blocked_without_template": upload_blocked_without_template,
         "resident_cannot_upload": resident_cannot_upload,
         "admin_can_upload": admin_can_upload,
         "admin_can_copy": admin_can_copy,
+        "malformed_path_blocked": malformed_path_blocked,
         "admin_can_delete_and_clean_images": admin_can_delete and images_removed_after_delete,
     }, ensure_ascii=False))
 

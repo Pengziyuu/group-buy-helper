@@ -56,25 +56,34 @@ revoke all on table public.campaign_template from anon, authenticated;
 grant select, insert, update, delete on table public.campaign_template to authenticated;
 grant all on table public.campaign_template to service_role;
 
--- Template images may only be written while the template row exists, mirroring campaign_image_path_is_live.
+-- Template images may only be written while the template row exists, mirroring the
+-- hardened shape of campaign_image_path_is_live (restrict_campaign_image_paths.sql):
+-- a fixed templates/<template id>/<file id>.<ext> shape, admin-only.
 create or replace function public.template_image_path_is_live(p_name text)
 returns boolean
-language sql
-stable
+language plpgsql
+volatile
 security definer
 set search_path = public, pg_temp
 as $$
-  select public.is_admin()
-    and split_part(p_name, '/', 1) = 'templates'
-    and exists (
-      select 1
-      from public.campaign_template t
-      where t.id = case
-        when split_part(p_name, '/', 2) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-          then split_part(p_name, '/', 2)::uuid
-        else null
-      end
-    );
+declare
+  v_template_id uuid;
+begin
+  if not public.is_admin() then
+    return false;
+  end if;
+  if p_name !~* '^templates/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|jpeg|png|webp)$' then
+    return false;
+  end if;
+
+  v_template_id := split_part(p_name, '/', 2)::uuid;
+
+  return exists (
+    select 1
+    from public.campaign_template t
+    where t.id = v_template_id
+  );
+end;
 $$;
 
 revoke all on function public.template_image_path_is_live(text) from public, anon;
