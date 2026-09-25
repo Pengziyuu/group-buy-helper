@@ -67,6 +67,7 @@ python scripts/start_local_live_demo.py
 - `src/NotificationTestLab.tsx`：與正式通知介面隔離的通知測試中心。
 - `src/services/`：Supabase gateway、Excel匯出與migration／Edge Function契約測試。
 - `src/domain/`：價格、折扣、戶籍、時間、門檻與訂單純領域邏輯。
+- `src/domain/campaignTemplate.ts`、`src/services/campaignTemplateGateway.ts`：團購範本。範本內容是 `CampaignContent` 的子集；**團購日後新增可重用的設定時，要同時加進 `templateContentFromCampaign` 與 `campaignContentFromTemplate`**。範本圖片放在 `campaign-images/templates/<範本 id>/`，由 `template_image_path_is_live` 控制上傳。
 - `src/types/database.ts`：由Supabase schema產生，不要手寫猜測RPC型別。
 
 ### Supabase

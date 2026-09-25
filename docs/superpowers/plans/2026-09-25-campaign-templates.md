@@ -2641,3 +2641,47 @@ Expected：全部通過；新腳本 13 項 `true`。
 2. `npx supabase db push`，只套用 `20260925010000_campaign_templates.sql`。
 3. 以正式環境的 URL 與金鑰跑 `scripts/verify_campaign_templates.py`（腳本會建立並清除臨時使用者與範本）。
 4. `git push origin main`，確認 Vercel 部署成功。
+
+---
+
+## 執行結果（2026-09-25）
+
+**Commit 範圍：** `b0e9723..e1b1e4d`（`2f83e2f`、`a253f11` DB、`60a0136` 規則、`a6efaf3`、`7afe143` gateway、`9ed8518` demo+提示、`367f8d9` 存成範本視窗、`eeffae3` 設定頁、`406c508` 從範本建立、`e1b1e4d` 接線）。Task 9 文件變更另開一個 commit。
+
+**測試與型別／建置：**
+- `npm test`：102 個測試檔、758 項測試全過。
+- `npx tsc -b`：無錯誤。
+- `npm run lint`（oxlint）：無錯誤。
+- `npm run build`：成功（既有的 chunk 過大警告與本次改動無關）。
+
+**本機 Supabase 驗證腳本**（`/c/Users/user/anaconda3/python.exe`，因為 `python`/`py` 在本機是 Windows Store 的空殼）：
+- `verify_campaign_templates.py`：19 項全 `true`（涵蓋團主可建立／讀取／改名／刪除範本、住戶與匿名者讀寫皆被擋、同名不分大小寫與含空白皆被擋、四種壞內容被擋、範本不存在時擋上傳、住戶不能上傳、團主可上傳與複製圖片、兩種壞路徑格式被擋、刪除範本連帶清乾淨圖片）。
+- `verify_storage.py`：5 項全 `true`。
+- `verify_campaign_management.py`：9 項全 `true`。
+
+**截圖：** `node scripts/capture-pages.mjs .superpowers/qa/templates/after` 產出 24 張，三種寬度（375/768/1440）皆 `scrollWidth` 等於視窗寬、offenders=0，無水平溢出。與 `before` 逐檔比對（像素差異）：
+- `admin-list-*`、`admin-residents-*`、`resident-list-*`、`resident-campaign-*`（各 3 張）：與 before 完全相同，符合預期。
+- `admin-editor-*`、`admin-orders-*`、`admin-overview-*`（各 3 張）：僅左側欄多出「存成範本」按鈕，其餘不變；375/768 因新按鈕撐高版面而整頁變高，1440 差異區塊精準落在按鈕位置。
+- `admin-settings-*`：新增「團購範本」卡片（示範模式無範本時顯示空狀態文案「還沒有範本。在團購工作區按『存成範本』就會出現在這裡。」），其餘區塊不變。
+- 「存成範本」按鈕實測可點範圍：768px（<1024）下量得約 82×44px，滿足 ≥44px；1440px（≥1024）下明顯大於 24px。設定頁「團購範本」空狀態卡片在 375px 下無溢出、文字對比正常。未發現版面缺陷。
+
+**執行中的修正（相對原始 brief 的調整，已由 controller 核准）：**
+- 驗證腳本從 13 項強化為 19 項：新增大小寫不分的同名檢查（原本用 `upper()` 對 CJK 無效，改成針對英文字母的大小寫案例）、以內容核對（而非單純看狀態碼）確認複製圖片被清乾淨、限制範本圖片路徑必須符合 `templates/<uuid>/<uuid>.(jpg|jpeg|png|webp)` 並擋掉巢狀路徑與錯誤副檔名。
+- Gateway 的復原（rollback）邏輯補上：失敗時回報「哪些操作沒能復原」，而不是靜默吞掉；另外針對資料庫層級同名競速（race）補了測試。
+- 部分 commit message 重新編輯過，以符合本計畫要求的 trailer 格式。
+
+**延後的小問題（已記錄，未在本次修正）：**
+- 上傳範本圖片與刪除範本之間沒有 advisory lock，理論上可能競速。
+- 「替換更新」失敗時語意含糊，有極小機率誤刪還在使用中的正式圖片複本。
+- 用範本圖片替換後，舊圖的清理沒有警告使用者。
+- gateway 的 `delete()` 在刪除 0 筆時仍回報成功。
+- 改名草稿如果因為刪除了另一筆資料而被連帶放棄，屬於靜默行為，沒有提示。
+- 示範模式下、在示範工作區用範本建立新團後，編輯器可能顯示過期內容（僅限 demo）。
+- `demoFallbackContent` 與 `AdminApp` 的 `defaultContent` 有重複定義。
+- 少數測試覆蓋率缺口（非核心路徑）。
+
+**部署步驟與團主確認事項（尚未執行，需團主同意後由 controller 進行）：**
+1. `npx supabase db push` 只套用 `20260925010000_campaign_templates.sql` 到正式資料庫（`ynezmoyjovjeeimjdizr`）——需團主同意。
+2. 在正式環境（實際 URL 與金鑰）跑一次 `scripts/verify_campaign_templates.py`。
+3. `git push origin main`，確認 Vercel 部署成功。
+4. 團主實機驗收：把一團存成範本、從範本建立新團、確認圖片都在；刪除原團後範本仍可用。
