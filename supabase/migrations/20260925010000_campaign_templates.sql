@@ -1,6 +1,10 @@
 -- Organizer-only campaign templates: a JSON snapshot of reusable campaign content,
 -- with images copied under templates/<template id>/ in the campaign-images bucket.
 
+-- The storage.objects policy statements below take an AccessExclusiveLock; fail fast
+-- instead of queuing behind a slow query holding that table.
+set lock_timeout = '5s';
+
 create or replace function public.valid_campaign_template_content(p_content jsonb)
 returns boolean
 language plpgsql

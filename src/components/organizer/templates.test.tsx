@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { CampaignTemplate, CampaignTemplateContent } from '../../domain/campaignTemplate'
@@ -77,6 +77,21 @@ describe('save as template', () => {
 
     expect(replace).toHaveBeenCalledWith('t2')
     expect(screen.getByText('已存成範本「包子」')).toBeInTheDocument()
+  })
+
+  it('preselects the template whose name matches the campaign title, not the most recent one', async () => {
+    const user = userEvent.setup()
+    const replace = vi.fn(async (id: string) => template(id, '十月冰餅團'))
+    renderWorkspace({ loadTemplates: vi.fn(async () => [template('t1', '冰餅'), template('t2', '十月冰餅團')]), saveNew: vi.fn(), replace })
+
+    await user.click(screen.getByRole('button', { name: '存成範本' }))
+    const dialog = screen.getByRole('dialog', { name: '存成範本' })
+    await user.click(await within(dialog).findByRole('radio', { name: '取代既有範本' }))
+    expect(within(dialog).getByRole('combobox', { name: '要取代的範本' })).toHaveValue('t2')
+
+    await user.click(within(dialog).getByRole('button', { name: '儲存範本' }))
+
+    expect(replace).toHaveBeenCalledWith('t2')
   })
 
   it('keeps the dialog open with the reason when saving fails', async () => {
@@ -169,6 +184,51 @@ describe('template settings', () => {
     await user.click(screen.getByRole('button', { name: '重試' }))
     expect(await screen.findByRole('rowheader', { name: '冰餅' })).toBeInTheDocument()
   })
+
+  it('links the rename error to the input for screen readers', async () => {
+    const user = userEvent.setup()
+    const templateActions = actions([template('t1', '冰餅'), template('t2', '包子')])
+    render(<OrganizerSettings templateActions={templateActions} />)
+
+    await user.click(await screen.findByRole('button', { name: '改名 冰餅' }))
+    const input = screen.getByRole('textbox', { name: '冰餅 的新名稱' })
+    expect(input).toHaveAttribute('aria-invalid', 'false')
+    await user.clear(input)
+    await user.type(input, '包子{Enter}')
+
+    const alert = screen.getByRole('alert')
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(input.getAttribute('aria-describedby')).toBe(alert.id)
+  })
+
+  it('returns focus to the row button after a rename saves or is cancelled', async () => {
+    const user = userEvent.setup()
+    const templateActions = actions([template('t1', '冰餅')])
+    render(<OrganizerSettings templateActions={templateActions} />)
+
+    await user.click(await screen.findByRole('button', { name: '改名 冰餅' }))
+    const input = screen.getByRole('textbox', { name: '冰餅 的新名稱' })
+    await user.clear(input)
+    await user.type(input, '冰餅（每月）{Enter}')
+
+    await waitFor(() => expect(screen.getByRole('button', { name: '改名 冰餅（每月）' })).toHaveFocus())
+
+    await user.click(screen.getByRole('button', { name: '改名 冰餅（每月）' }))
+    await user.click(screen.getByRole('button', { name: '取消' }))
+    expect(screen.getByRole('button', { name: '改名 冰餅（每月）' })).toHaveFocus()
+  })
+
+  it('moves focus to the section heading after deleting a template', async () => {
+    const user = userEvent.setup()
+    const templateActions = actions([template('t1', '冰餅')])
+    render(<OrganizerSettings templateActions={templateActions} />)
+
+    await user.click(await screen.findByRole('button', { name: '刪除 冰餅' }))
+    const dialog = screen.getByRole('dialog', { name: '刪除範本' })
+    await user.click(within(dialog).getByRole('button', { name: '刪除範本' }))
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: '團購範本' })).toHaveFocus())
+  })
 })
 
 describe('create from a template', () => {
@@ -239,5 +299,25 @@ describe('create from a template', () => {
     renderShell(undefined)
     await user.click(screen.getByRole('button', { name: '建立新團' }))
     expect(screen.queryByRole('radio', { name: '從範本建立' })).not.toBeInTheDocument()
+  })
+
+  it('does not let a late template list overwrite the title after switching back to blank', async () => {
+    const user = userEvent.setup()
+    let resolveList: (templates: CampaignTemplate[]) => void = () => {}
+    const list = vi.fn(() => new Promise<CampaignTemplate[]>((resolve) => { resolveList = resolve }))
+    renderShell({ list, create: vi.fn() })
+
+    await user.click(screen.getByRole('button', { name: '建立新團' }))
+    const dialog = screen.getByRole('dialog', { name: '建立新團' })
+    await user.click(within(dialog).getByRole('radio', { name: '從範本建立' }))
+    await user.click(within(dialog).getByRole('radio', { name: '空白團購' }))
+
+    await act(async () => {
+      resolveList([template('t1', '冰餅')])
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(within(dialog).getByRole('textbox', { name: '團購標題' })).toHaveValue('未命名團購')
   })
 })

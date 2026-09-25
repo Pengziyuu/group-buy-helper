@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { templateNameError, type CampaignTemplate } from '../../domain/campaignTemplate'
 import { formatZhTwTimestamp } from '../../domain/timestamp'
 import { ErrorState, LoadingState } from '../ui/AsyncState'
@@ -29,6 +29,10 @@ export function TemplateSettings({ actions }: { actions: TemplateSettingsActions
   const [deleteError, setDeleteError] = useState('')
   const [notice, setNotice] = useState<{ tone: 'success' | 'warning'; text: string } | null>(null)
   const renameInputRef = useRef<HTMLInputElement>(null)
+  const renameErrorId = useId()
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  const renameButtonRefs = useRef(new Map<string, HTMLButtonElement>())
+  const focusAfterRenameId = useRef<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -40,7 +44,12 @@ export function TemplateSettings({ actions }: { actions: TemplateSettingsActions
   }, [reloadKey])
 
   useEffect(() => {
-    if (editingId) renameInputRef.current?.focus()
+    if (editingId) {
+      renameInputRef.current?.focus()
+    } else if (focusAfterRenameId.current) {
+      renameButtonRefs.current.get(focusAfterRenameId.current)?.focus()
+      focusAfterRenameId.current = null
+    }
   }, [editingId])
 
   const startRename = (template: CampaignTemplate) => {
@@ -48,6 +57,11 @@ export function TemplateSettings({ actions }: { actions: TemplateSettingsActions
     setDraftName(template.name)
     setRenameError('')
     setNotice(null)
+  }
+
+  const cancelRename = (templateId: string) => {
+    focusAfterRenameId.current = templateId
+    setEditingId(null)
   }
 
   const saveName = async (template: CampaignTemplate) => {
@@ -60,6 +74,7 @@ export function TemplateSettings({ actions }: { actions: TemplateSettingsActions
     try {
       const updated = await actions.rename(template.id, draftName.trim())
       setTemplates((current) => (current ?? []).map((candidate) => candidate.id === updated.id ? updated : candidate))
+      focusAfterRenameId.current = updated.id
       setEditingId(null)
       setNotice({ tone: 'success', text: `已改名為「${updated.name}」` })
     } catch (renameFailure) {
@@ -77,8 +92,10 @@ export function TemplateSettings({ actions }: { actions: TemplateSettingsActions
     try {
       const result = await actions.remove(target.id)
       setTemplates((current) => (current ?? []).filter((candidate) => candidate.id !== target.id))
+      renameButtonRefs.current.delete(target.id)
       setDeleting(null)
       setNotice(result.warning ? { tone: 'warning', text: result.warning } : { tone: 'success', text: `已刪除範本「${target.name}」` })
+      headingRef.current?.focus()
     } catch (deleteFailure) {
       setDeleteError(messageOf(deleteFailure))
     } finally {
@@ -88,7 +105,7 @@ export function TemplateSettings({ actions }: { actions: TemplateSettingsActions
 
   return (
     <section className="organizer-settings-section organizer-template-settings" aria-labelledby="template-settings-heading">
-      <h2 id="template-settings-heading">團購範本</h2>
+      <h2 id="template-settings-heading" ref={headingRef} tabIndex={-1}>團購範本</h2>
       {loadError ? (
         <ErrorState title="無法讀取範本" message={loadError} actionLabel="重試" onAction={() => { setTemplates(null); setReloadKey((key) => key + 1) }} />
       ) : templates === null ? (
@@ -118,6 +135,8 @@ export function TemplateSettings({ actions }: { actions: TemplateSettingsActions
                             ref={renameInputRef}
                             className="ui-input"
                             aria-label={`${template.name} 的新名稱`}
+                            aria-invalid={renameError ? 'true' : 'false'}
+                            aria-describedby={renameError ? renameErrorId : undefined}
                             maxLength={100}
                             value={draftName}
                             readOnly={renaming}
@@ -125,10 +144,10 @@ export function TemplateSettings({ actions }: { actions: TemplateSettingsActions
                             onKeyDown={(event) => {
                               if (event.nativeEvent.isComposing || renaming) return
                               if (event.key === 'Enter') { event.preventDefault(); void saveName(template) }
-                              if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setEditingId(null) }
+                              if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); cancelRename(template.id) }
                             }}
                           />
-                          {renameError && <small role="alert">{renameError}</small>}
+                          {renameError && <small id={renameErrorId} role="alert">{renameError}</small>}
                         </div>
                       ) : template.name}
                     </th>
@@ -138,11 +157,20 @@ export function TemplateSettings({ actions }: { actions: TemplateSettingsActions
                       {editing ? (
                         <>
                           <Button size="sm" loading={renaming} loadingLabel="儲存中…" onClick={() => { void saveName(template) }}>儲存</Button>
-                          <Button size="sm" variant="utility" disabled={renaming} onClick={() => setEditingId(null)}>取消</Button>
+                          <Button size="sm" variant="utility" disabled={renaming} onClick={() => cancelRename(template.id)}>取消</Button>
                         </>
                       ) : (
                         <>
-                          <Button size="sm" variant="utility" aria-label={`改名 ${template.name}`} onClick={() => startRename(template)}>改名</Button>
+                          <Button
+                            ref={(node) => {
+                              if (node) renameButtonRefs.current.set(template.id, node)
+                              else renameButtonRefs.current.delete(template.id)
+                            }}
+                            size="sm"
+                            variant="utility"
+                            aria-label={`改名 ${template.name}`}
+                            onClick={() => startRename(template)}
+                          >改名</Button>
                           <Button size="sm" variant="danger" aria-label={`刪除 ${template.name}`} onClick={() => { setDeleteError(''); setNotice(null); setDeleting(template) }}>刪除</Button>
                         </>
                       )}

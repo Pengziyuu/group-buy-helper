@@ -30,6 +30,8 @@ export function CreateCampaignDialog({ onCreate, templates, onClose }: CreateCam
   const templateFieldId = useId()
   const [title, setTitle] = useState('未命名團購')
   const [source, setSource] = useState<'blank' | 'template'>('blank')
+  const sourceRef = useRef(source)
+  sourceRef.current = source
   const [templateList, setTemplateList] = useState<CampaignTemplate[] | null>(null)
   const [templateId, setTemplateId] = useState('')
   const [busy, setBusy] = useState(false)
@@ -50,7 +52,7 @@ export function CreateCampaignDialog({ onCreate, templates, onClose }: CreateCam
     templates.list()
       .then((list) => {
         setTemplateList(list)
-        if (list[0]) chooseTemplate(list[0].id, list)
+        if (sourceRef.current === 'template' && list[0]) chooseTemplate(list[0].id, list)
       })
       .catch((loadError: unknown) => setError(`讀取範本失敗：${messageOf(loadError)}`))
   }

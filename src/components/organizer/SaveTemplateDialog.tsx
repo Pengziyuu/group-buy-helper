@@ -24,6 +24,8 @@ export function SaveTemplateDialog({ defaultName, loadTemplates, saveNew, replac
   const dialogRef = useRef<HTMLElement>(null)
   const nameRef = useRef<HTMLInputElement>(null)
   const loadRef = useRef(loadTemplates)
+  const defaultNameRef = useRef(defaultName)
+  defaultNameRef.current = defaultName
   const titleId = useId()
   const nameId = useId()
   const targetId = useId()
@@ -43,7 +45,9 @@ export function SaveTemplateDialog({ defaultName, loadTemplates, saveNew, replac
       .then((list) => {
         if (!active) return
         setTemplates(list)
-        setTarget(list[0]?.id ?? '')
+        const defaultKey = defaultNameRef.current.trim().toLowerCase()
+        const matching = list.find((candidate) => candidate.name.trim().toLowerCase() === defaultKey)
+        setTarget(matching?.id ?? list[0]?.id ?? '')
       })
       .catch((loadFailure: unknown) => { if (active) setLoadError(messageOf(loadFailure)) })
     return () => { active = false }
