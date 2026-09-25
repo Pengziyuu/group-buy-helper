@@ -10,6 +10,7 @@ import { FeedbackMessage } from '../ui/FeedbackMessage'
 import { StatusBadge } from '../ui/StatusBadge'
 import { copyResidentLink } from './copyResidentLink'
 import { OrganizerLink } from './OrganizerLink'
+import { SaveTemplateDialog, type SaveTemplateActions } from './SaveTemplateDialog'
 import { sectionUnavailableReason } from './workspaceSections'
 
 export type WorkspaceCampaign = {
@@ -31,6 +32,7 @@ type WorkspaceRailProps = {
   now?: Date
   onSetCampaignStatus?: (status: CampaignStatus) => Promise<void>
   onCopyResidentLink?: (path: string) => Promise<void>
+  saveTemplate?: SaveTemplateActions
 }
 
 const STATUS_CONFIRMATIONS: Record<'open' | 'closed', { title: string; body: string; confirm: string }> = {
@@ -45,12 +47,14 @@ const NAV_ITEMS: Array<{ section: WorkspaceSection; label: string }> = [
   { section: 'pickup', label: '領取通知' },
 ]
 
-export function WorkspaceRail({ campaign, section, now, onSetCampaignStatus, onCopyResidentLink }: WorkspaceRailProps) {
+export function WorkspaceRail({ campaign, section, now, onSetCampaignStatus, onCopyResidentLink, saveTemplate }: WorkspaceRailProps) {
   const [confirming, setConfirming] = useState(false)
   const [changing, setChanging] = useState(false)
   const [statusError, setStatusError] = useState('')
   const [copyFeedback, setCopyFeedback] = useState('')
   const [copyError, setCopyError] = useState('')
+  const [savingTemplate, setSavingTemplate] = useState(false)
+  const [templateFeedback, setTemplateFeedback] = useState('')
   const action = campaignStatusAction(campaign.status)
   const confirmation = STATUS_CONFIRMATIONS[action.next === 'closed' ? 'closed' : 'open']
   const isOpen = campaign.status === 'open'
@@ -128,6 +132,20 @@ export function WorkspaceRail({ campaign, section, now, onSetCampaignStatus, onC
           )
         })}
       </nav>
+      {saveTemplate && (
+        <div className="organizer-rail-template">
+          <Button variant="secondary" size="sm" onClick={() => { setTemplateFeedback(''); setSavingTemplate(true) }}>存成範本</Button>
+          {templateFeedback && <FeedbackMessage tone="success">{templateFeedback}</FeedbackMessage>}
+        </div>
+      )}
+      {savingTemplate && saveTemplate && (
+        <SaveTemplateDialog
+          {...saveTemplate}
+          defaultName={campaign.title}
+          onSaved={(saved) => setTemplateFeedback(`已存成範本「${saved.name}」`)}
+          onClose={() => setSavingTemplate(false)}
+        />
+      )}
       {campaign.residentHref && (
         <div className="organizer-rail-share">
           <span>住戶連結</span>
