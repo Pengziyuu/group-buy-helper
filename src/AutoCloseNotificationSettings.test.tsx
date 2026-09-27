@@ -46,4 +46,13 @@ describe('AutoCloseNotificationSettings', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('暫時無法儲存')
     expect(screen.getByRole('button', { name: '將我設為通知接收者' })).toBeEnabled()
   })
+
+  it('uses the shared settings card, badge and button styles', () => {
+    render(<AutoCloseNotificationSettings state="current_user" onSelectCurrentUser={vi.fn()} />)
+
+    expect(screen.getByRole('region', { name: '自動結單通知' })).toHaveClass('organizer-settings-section')
+    expect(screen.getByText('單一收件者')).toHaveAttribute('data-tone', 'neutral')
+    expect(screen.getByText('目前由你的LINE帳號接收自動結單通知。')).toHaveAttribute('data-tone', 'success')
+    expect(screen.getByRole('button', { name: '你目前是通知接收者' })).toHaveClass('ui-button')
+  })
 })

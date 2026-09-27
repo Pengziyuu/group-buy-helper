@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 import PickupNotificationPanel from './PickupNotificationPanel'
+import { OrganizerLink } from './components/organizer/OrganizerLink'
+import { Button } from './components/ui/Button'
 import { ConfirmDialog } from './components/ui/ConfirmDialog'
 import { FeedbackMessage } from './components/ui/FeedbackMessage'
+import { StatusBadge } from './components/ui/StatusBadge'
 import type { PickupNotificationAudience } from './domain/pickupNotification'
 import type { CampaignListItem } from './services/campaignManagementGateway'
 import type { PickupNotificationCommand, PickupNotificationResponse } from './services/pickupNotificationGateway'
@@ -53,14 +56,12 @@ export default function NotificationTestLab({
   }
 
   return (
-    <main className="notification-lab-shell">
+    <main className="organizer-page notification-lab">
+      <OrganizerLink className="notification-lab-back" href="/admin/settings"><span aria-hidden="true">‹ </span>返回設定</OrganizerLink>
       <header className="notification-lab-header">
-        <div>
-          <p className="admin-eyebrow">TEST ENVIRONMENT</p>
-          <h1>通知測試中心</h1>
-          <p>此頁只能產生測試群組使用的指令；通知會在您將指令貼到測試群組後，由機器人回覆。</p>
-        </div>
-        <a href="/admin">返回團主後台</a>
+        <p className="admin-eyebrow">TEST ENVIRONMENT</p>
+        <h1>通知測試中心</h1>
+        <p className="organizer-muted">此頁只能產生測試群組使用的指令；通知會在您將指令貼到測試群組後，由機器人回覆。</p>
       </header>
 
       <FeedbackMessage tone="warning" urgent>
@@ -83,22 +84,26 @@ export default function NotificationTestLab({
       )}
 
       <section className="notification-lab-list" aria-label="可測試的已完成團購">
-        {eligibleCampaigns.length === 0 && <p>目前沒有已結單的團購可供測試。</p>}
-        {eligibleCampaigns.map((campaign) => (
+        {eligibleCampaigns.length === 0 && <p className="organizer-muted">目前沒有已結單的團購可供測試。</p>}
+        {eligibleCampaigns.map((campaign) => {
+          const marked = markedIds.has(campaign.id)
+          return (
           <article key={campaign.id} className="notification-lab-card">
             <div className="notification-lab-card-heading">
               <div>
-                <span>{markedIds.has(campaign.id) ? '測試團購' : '尚未標記'}</span>
+                <StatusBadge tone={marked ? 'warning' : 'neutral'}>{marked ? '測試團購' : '尚未標記'}</StatusBadge>
                 <h2>{campaign.title}</h2>
               </div>
-              <button
-                type="button"
-                onClick={() => { setError(''); setTarget({ campaign, enabled: !markedIds.has(campaign.id) }) }}
+              <Button
+                variant="secondary"
+                size="sm"
+                aria-label={`將${campaign.title}${marked ? '移出' : '加入'}通知測試中心`}
+                onClick={() => { setError(''); setTarget({ campaign, enabled: !marked }) }}
               >
-                將{campaign.title}{markedIds.has(campaign.id) ? '移出' : '加入'}通知測試中心
-              </button>
+                {marked ? '移出測試中心' : '加入測試中心'}
+              </Button>
             </div>
-            {markedIds.has(campaign.id) && (
+            {marked && (
               <PickupNotificationPanel
                 campaignId={campaign.id}
                 campaignTitle={campaign.title}
@@ -109,7 +114,8 @@ export default function NotificationTestLab({
               />
             )}
           </article>
-        ))}
+          )
+        })}
       </section>
     </main>
   )

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
+import { Button } from './components/ui/Button'
 import { FeedbackMessage } from './components/ui/FeedbackMessage'
+import { StatusBadge } from './components/ui/StatusBadge'
 import type { AutoCloseNotificationSettingState } from './services/autoCloseNotificationSettingsGateway'
 import './AutoCloseNotificationSettings.css'
 
@@ -49,22 +51,25 @@ export default function AutoCloseNotificationSettings({ state, onSelectCurrentUs
       : '將我設為通知接收者'
 
   return (
-    <section className="auto-close-notification-settings" aria-labelledby="auto-close-notification-heading">
+    <section className="organizer-settings-section auto-close-notification-settings" aria-labelledby="auto-close-notification-heading">
       <div className="auto-close-notification-heading">
         <div>
-          <p>LINE主動通知</p>
+          <p className="auto-close-notification-eyebrow">LINE主動通知</p>
           <h2 id="auto-close-notification-heading">自動結單通知</h2>
         </div>
-        <span>單一收件者</span>
+        <StatusBadge tone="neutral">單一收件者</StatusBadge>
       </div>
-      <p className="auto-close-notification-help">每次因結單時間到期或數量達標而自動結單時，只通知一位團主，約使用1則主動訊息。</p>
-      <p className={`auto-close-notification-state is-${currentState}`}>{stateMessage[currentState]}</p>
-      <button
-        type="button"
-        className="auto-close-notification-save"
-        disabled={saving || currentState === 'current_user'}
+      <p>每次因結單時間到期或數量達標而自動結單時，只通知一位團主，約使用1則主動訊息。</p>
+      <p className="auto-close-notification-state" data-tone={currentState === 'current_user' ? 'success' : 'neutral'}>
+        {stateMessage[currentState]}
+      </p>
+      <Button
+        size="sm"
+        disabled={currentState === 'current_user'}
+        loading={saving}
+        loadingLabel="設定中…"
         onClick={() => { void selectCurrentUser() }}
-      >{saving ? '設定中…' : buttonLabel}</button>
+      >{buttonLabel}</Button>
       {feedback && <FeedbackMessage tone="success">{feedback}</FeedbackMessage>}
       {error && <FeedbackMessage tone="error">{error}</FeedbackMessage>}
     </section>

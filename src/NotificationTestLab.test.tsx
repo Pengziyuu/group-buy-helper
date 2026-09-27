@@ -59,4 +59,25 @@ describe('notification test lab', () => {
     expect(screen.getByRole('button', { name: '預覽既有測試團二期測試通知' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '預覽候選團二期測試通知' })).toBeInTheDocument()
   })
+
+  it('shows campaign status as badges, short button labels and an in-app link back to settings', () => {
+    render(
+      <NotificationTestLab
+        campaigns={campaigns}
+        testCampaignIds={['test-id']}
+        onSetTestCampaign={vi.fn()}
+        onPreview={vi.fn()}
+        onCreateCommand={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByRole('heading', { level: 1, name: '通知測試中心' })).toBeInTheDocument()
+    expect(screen.getByText('測試團購')).toHaveAttribute('data-tone', 'warning')
+    expect(screen.getByText('尚未標記')).toHaveAttribute('data-tone', 'neutral')
+    const add = screen.getByRole('button', { name: '將候選團加入通知測試中心' })
+    expect(add).toHaveTextContent(/^加入測試中心$/)
+    expect(screen.getByRole('button', { name: '將既有測試團移出通知測試中心' })).toHaveTextContent(/^移出測試中心$/)
+    expect(screen.getByRole('link', { name: '返回設定' })).toHaveAttribute('href', '/admin/settings')
+    expect(screen.queryByRole('link', { name: '返回團主後台' })).not.toBeInTheDocument()
+  })
 })
