@@ -108,6 +108,45 @@ describe('organizer campaign editor', () => {
     expect(within(screen.getByRole('region', { name: '住戶端預覽' })).getByText('滿 NT$ 5,000 成團')).toBeInTheDocument()
   })
 
+  it('requires a new campaign to set its threshold and item before publishing, even when database placeholders exist', async () => {
+    const user = userEvent.setup()
+    const onSaveDraft = vi.fn().mockResolvedValue(undefined)
+    render(<AdminApp initialContent={{
+      title: '新團', unitPrice: 0, threshold: 1, thresholdConfigured: false,
+      itemNameConfigured: false, itemPriceConfigured: false,
+      announcement: '公告', images: [], openedAt: null,
+      items: [{ code: 'ITEM1', name: 'A', unitPrice: 0, active: true }],
+    }} initialPublicationState="draft" onSaveDraft={onSaveDraft} />)
+    const checklist = screen.getByRole('region', { name: '發布前檢查' })
+    expect(within(checklist).getByText('設定品項名稱')).toBeInTheDocument()
+    expect(within(checklist).getByText('設定品項單價')).toBeInTheDocument()
+    expect(within(checklist).getByText('設定成團門檻')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '品項與價格（尚未完成）' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '成團與時程（尚未完成）' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '發布並開團' })).toBeDisabled()
+    await user.clear(screen.getByRole('textbox', { name: '品項 A 商品名稱（口味）' }))
+    await user.type(screen.getByRole('textbox', { name: '品項 A 商品名稱（口味）' }), '牛奶')
+    await user.clear(screen.getByRole('spinbutton', { name: '品項 A 單價' }))
+    await user.type(screen.getByRole('spinbutton', { name: '品項 A 單價' }), '0')
+    await user.clear(screen.getByRole('spinbutton', { name: '成團門檻' }))
+    await user.type(screen.getByRole('spinbutton', { name: '成團門檻' }), '1')
+    expect(within(checklist).getByText('必填項目都已完成')).toBeInTheDocument()
+    await waitFor(() => expect(onSaveDraft).toHaveBeenLastCalledWith(expect.objectContaining({ thresholdConfigured: true, threshold: 1 })))
+  })
+
+  it('shows only the selected threshold input, and separates schedule and advanced subsettings', async () => {
+    const user = userEvent.setup()
+    render(<AdminApp />)
+    const schedule = screen.getByRole('region', { name: '成團與時程' })
+    expect(within(schedule).getByRole('spinbutton', { name: '成團門檻' })).toBeInTheDocument()
+    expect(within(schedule).queryByRole('spinbutton', { name: '成團門檻金額' })).not.toBeInTheDocument()
+    await user.click(within(schedule).getByRole('radio', { name: '總金額' }))
+    expect(within(schedule).getByRole('spinbutton', { name: '成團門檻金額' })).toBeInTheDocument()
+    expect(within(schedule).queryByRole('spinbutton', { name: '成團門檻' })).not.toBeInTheDocument()
+    expect(schedule.querySelectorAll('.content-subsetting')).toHaveLength(3)
+    expect(screen.getByRole('region', { name: '優惠與進階' }).querySelectorAll('.content-subsetting')).toHaveLength(3)
+  })
+
   it('lets the organizer choose a common quantity unit and saves it with the draft', async () => {
     const user = userEvent.setup()
     const onSaveDraft = vi.fn().mockResolvedValue(undefined)

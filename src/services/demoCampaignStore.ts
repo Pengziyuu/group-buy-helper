@@ -26,6 +26,9 @@ export type CampaignContent = {
   title: string
   unitPrice: number
   threshold: number
+  thresholdConfigured?: boolean
+  itemNameConfigured?: boolean
+  itemPriceConfigured?: boolean
   thresholdKind?: CampaignThresholdKind
   amountThreshold?: number | null
   quantityUnit?: QuantityUnit
@@ -57,6 +60,9 @@ function isCampaignContent(value: unknown): value is CampaignContent {
     && typeof candidate.threshold === 'number'
     && Number.isInteger(candidate.threshold)
     && candidate.threshold > 0
+    && (candidate.thresholdConfigured === undefined || typeof candidate.thresholdConfigured === 'boolean')
+    && (candidate.itemNameConfigured === undefined || typeof candidate.itemNameConfigured === 'boolean')
+    && (candidate.itemPriceConfigured === undefined || typeof candidate.itemPriceConfigured === 'boolean')
     && (candidate.thresholdKind === undefined || candidate.thresholdKind === 'quantity' || candidate.thresholdKind === 'amount')
     && (candidate.amountThreshold === undefined || candidate.amountThreshold === null
       || (typeof candidate.amountThreshold === 'number' && Number.isFinite(candidate.amountThreshold) && candidate.amountThreshold > 0))
@@ -142,6 +148,9 @@ export function campaignContentEquals(left: CampaignContent, right: CampaignCont
   return left.title === right.title
     && left.unitPrice === right.unitPrice
     && left.threshold === right.threshold
+    && (left.thresholdConfigured ?? true) === (right.thresholdConfigured ?? true)
+    && (left.itemNameConfigured ?? true) === (right.itemNameConfigured ?? true)
+    && (left.itemPriceConfigured ?? true) === (right.itemPriceConfigured ?? true)
     && (left.thresholdKind ?? 'quantity') === (right.thresholdKind ?? 'quantity')
     && (left.amountThreshold ?? null) === (right.amountThreshold ?? null)
     && normalizeQuantityUnit(left.quantityUnit) === normalizeQuantityUnit(right.quantityUnit)

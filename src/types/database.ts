@@ -278,11 +278,14 @@ export type Database = {
           created_at: string
           images: Json
           items: Json
+          item_name_configured: boolean
+          item_price_configured: boolean
           mix_match_discount_rate: number | null
           mix_match_min_quantity: number | null
           mix_match_name: string | null
           quantity_unit: string
           threshold: number
+          threshold_configured: boolean
           threshold_kind: string
           title: string
           unit_price: number
@@ -300,11 +303,14 @@ export type Database = {
           created_at?: string
           images?: Json
           items?: Json
+          item_name_configured?: boolean
+          item_price_configured?: boolean
           mix_match_discount_rate?: number | null
           mix_match_min_quantity?: number | null
           mix_match_name?: string | null
           quantity_unit?: string
           threshold: number
+          threshold_configured?: boolean
           threshold_kind?: string
           title: string
           unit_price: number
@@ -322,11 +328,14 @@ export type Database = {
           created_at?: string
           images?: Json
           items?: Json
+          item_name_configured?: boolean
+          item_price_configured?: boolean
           mix_match_discount_rate?: number | null
           mix_match_min_quantity?: number | null
           mix_match_name?: string | null
           quantity_unit?: string
           threshold?: number
+          threshold_configured?: boolean
           threshold_kind?: string
           title?: string
           unit_price?: number

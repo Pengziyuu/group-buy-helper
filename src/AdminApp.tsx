@@ -93,7 +93,8 @@ function AdminApp({
     : loadPublishedCampaign(defaultContent))
   const [title, setTitle] = useState(initialDraft.title)
   const [threshold, setThreshold] = useState(initialDraft.threshold)
-  const [thresholdInput, setThresholdInput] = useState(String(initialDraft.threshold))
+  const [thresholdConfigured, setThresholdConfigured] = useState(initialDraft.thresholdConfigured !== false)
+  const [thresholdInput, setThresholdInput] = useState(initialDraft.thresholdConfigured === false ? '' : String(initialDraft.threshold))
   const [thresholdKind, setThresholdKind] = useState<'quantity' | 'amount'>(initialDraft.thresholdKind ?? 'quantity')
   const [quantityUnit, setQuantityUnit] = useState<QuantityUnit>(() => normalizeQuantityUnit(initialDraft.quantityUnit))
   const [allowCustomItems, setAllowCustomItems] = useState(initialDraft.allowCustomItems ?? false)
@@ -104,7 +105,7 @@ function AdminApp({
   const [mixMatchMinimumQuantity, setMixMatchMinimumQuantity] = useState(initialDraft.mixMatchDiscount?.minimumQuantity ?? 3)
   const [mixMatchDiscountRate, setMixMatchDiscountRate] = useState(initialDraft.mixMatchDiscount?.rate ?? 0.85)
   const [amountThreshold, setAmountThreshold] = useState(initialDraft.amountThreshold ?? Math.max(1, initialDraft.threshold * initialDraft.unitPrice))
-  const [amountThresholdInput, setAmountThresholdInput] = useState(String(initialDraft.amountThreshold ?? Math.max(1, initialDraft.threshold * initialDraft.unitPrice)))
+  const [amountThresholdInput, setAmountThresholdInput] = useState(initialDraft.thresholdConfigured === false ? '' : String(initialDraft.amountThreshold ?? Math.max(1, initialDraft.threshold * initialDraft.unitPrice)))
   const [announcement, setAnnouncement] = useState(initialDraft.announcement)
   const initialArrival = parseArrivalLabel(initialDraft.arrivalLabel)
   const [arrivalMode, setArrivalMode] = useState<ArrivalMode>(initialArrival.mode)
@@ -115,6 +116,8 @@ function AdminApp({
   const [autoCloseDate, setAutoCloseDate] = useState(() => taipeiDateInputFromIso(initialDraft.autoCloseAt))
   const [images, setImages] = useState(() => [...initialDraft.images])
   const [campaignItems, setCampaignItems] = useState(() => initialDraft.items.map((item) => ({ ...item })))
+  const [itemNameConfigured, setItemNameConfigured] = useState(initialDraft.itemNameConfigured !== false)
+  const [itemPriceConfigured, setItemPriceConfigured] = useState(initialDraft.itemPriceConfigured !== false)
   const [openedAt, setOpenedAt] = useState(initialDraft.openedAt)
   const operationLock = useRef(false)
   const [uploadingImage, setUploadingImage] = useState(false)
@@ -155,7 +158,8 @@ function AdminApp({
     && Number(amountThresholdInput) <= 999999999999.99
   const thresholdValid = thresholdKind === 'quantity' ? thresholdInputValid : amountThresholdInputValid
   const itemNamesValid = campaignItems.every((item) => item.name.trim().length > 0)
-  const numericInputsValid = itemPricesValid && discountRulesValid && thresholdValid
+  const numericInputsValid = itemPricesValid && discountRulesValid
+    && (thresholdValid || (thresholdKind === 'quantity' && !thresholdConfigured && thresholdInput === ''))
   const scheduleInputsValid = !autoCloseEnabled || (validDateInput(autoCloseDate) && autoCloseDate >= todayInTaipei())
   const arrivalLabel = buildArrivalLabel(arrivalMode, arrivalMonth, arrivalDay, arrivalPeriod)
   const autoCloseAt = autoCloseEnabled && scheduleInputsValid ? taipeiNoonIso(autoCloseDate) : null
@@ -167,6 +171,9 @@ function AdminApp({
     title,
     unitPrice,
     threshold,
+    thresholdConfigured,
+    itemNameConfigured,
+    itemPriceConfigured,
     thresholdKind,
     amountThreshold: thresholdKind === 'amount' ? amountThreshold : null,
     quantityUnit,
@@ -206,6 +213,9 @@ function AdminApp({
         title,
         unitPrice,
         threshold,
+        thresholdConfigured,
+        itemNameConfigured,
+        itemPriceConfigured,
         thresholdKind,
         amountThreshold: thresholdKind === 'amount' ? amountThreshold : null,
         quantityUnit,
@@ -249,7 +259,7 @@ function AdminApp({
       })
     }, delay)
     return () => window.clearTimeout(timer)
-  }, [allowCustomItems, amountThreshold, announcement, arrivalLabel, autoCloseAt, autoSaveCycle, baseDiscountEnabled, baseDiscountRate, campaignItems, draftRevision, editorBusy, images, itemNamesValid, mixMatchDiscountRate, mixMatchEnabled, mixMatchMinimumQuantity, mixMatchName, numericInputsValid, onSaveDraft, openedAt, quantityUnit, scheduleInputsValid, threshold, thresholdKind, title, unitPrice])
+  }, [allowCustomItems, amountThreshold, announcement, arrivalLabel, autoCloseAt, autoSaveCycle, baseDiscountEnabled, baseDiscountRate, campaignItems, draftRevision, editorBusy, images, itemNameConfigured, itemNamesValid, itemPriceConfigured, mixMatchDiscountRate, mixMatchEnabled, mixMatchMinimumQuantity, mixMatchName, numericInputsValid, onSaveDraft, openedAt, quantityUnit, scheduleInputsValid, threshold, thresholdConfigured, thresholdKind, title, unitPrice])
 
   const retryAutoSave = () => {
     if (autoSaveFailedRevision === null || editorBusy || autoSaveInFlightRef.current) return
@@ -286,6 +296,7 @@ function AdminApp({
       if (canonical) {
         setTitle(canonical.title)
         setThreshold(canonical.threshold)
+        setThresholdConfigured(true)
         setThresholdInput(String(canonical.threshold))
         setThresholdKind(canonical.thresholdKind ?? 'quantity')
         setQuantityUnit(normalizeQuantityUnit(canonical.quantityUnit))
@@ -309,6 +320,8 @@ function AdminApp({
         setAnnouncement(canonical.announcement)
         setImages([...canonical.images])
         setCampaignItems(canonical.items.map((item) => ({ ...item })))
+        setItemNameConfigured(true)
+        setItemPriceConfigured(true)
         setOpenedAt(canonical.openedAt)
       }
       savedRevisionRef.current = draftRevision
@@ -338,7 +351,10 @@ function AdminApp({
     announcement,
     items: campaignItems,
     itemPricesValid,
+    itemNameConfigured,
+    itemPriceConfigured,
     thresholdValid,
+    thresholdConfigured,
     scheduleValid: scheduleInputsValid,
     discountRulesValid,
   }
@@ -379,9 +395,12 @@ function AdminApp({
           <div className="content-form">
             <section id="content-announcement" className="content-section" aria-labelledby="content-announcement-heading">
               <h3 id="content-announcement-heading" tabIndex={-1}>公告與圖片</h3>
+              <div className="content-subsetting">
               <FormField id="content-title" label="團購標題" required>
                 <input className="ui-input" disabled={editorBusy} value={title} onChange={(event) => { setTitle(event.target.value); markDraft() }} />
               </FormField>
+              </div>
+              <div className="content-subsetting">
               <FormField id="campaign-announcement" label="開團資訊" helper={`${announcement.length.toLocaleString('en-US')} / 20,000 字`}>
                 <textarea
                   className="ui-input content-announcement"
@@ -392,6 +411,8 @@ function AdminApp({
                   onChange={(event) => { setAnnouncement(event.target.value); markDraft() }}
                 />
               </FormField>
+              </div>
+              <div className="content-subsetting">
               <h4 className="content-subheading">商品圖片</h4>
               <ImageManager
                 images={images}
@@ -401,30 +422,47 @@ function AdminApp({
                 onRemoveImage={removeImage}
                 onUploadingChange={setUploadingImage}
               />
+              </div>
             </section>
 
             <section id="content-items" className="content-section" aria-labelledby="content-items-heading">
               <h3 id="content-items-heading" tabIndex={-1}>品項與價格</h3>
               {itemsLocked
                 ? <p className="content-lock-note">已開團，品項與價格已鎖定</p>
-                : <p className="content-help">代碼會自動延伸為 A～Z、AA～AZ；每個品項都要有名稱與單價。</p>}
+                : <p className="content-help">代碼會自動延伸為 A～Z、AA～AZ；每個品項都要有名稱與單價。{(!itemNameConfigured || !itemPriceConfigured) && ' 請將新團預設品項的名稱與單價改成實際商品。'}</p>}
+              <div className="content-subsetting">
               <ItemTable
                 items={campaignItems}
                 locked={itemsLocked}
                 disabled={editorBusy}
                 mixMatchEnabled={mixMatchEnabled}
-                onChange={(nextItems) => { setCampaignItems(nextItems); markDraft() }}
+                onChange={(nextItems) => {
+                  if (nextItems[0]?.name !== campaignItems[0]?.name && nextItems[0]?.name.trim()) setItemNameConfigured(true)
+                  if (nextItems[0]?.unitPrice !== campaignItems[0]?.unitPrice && nextItems[0]?.unitPrice !== undefined) setItemPriceConfigured(true)
+                  setCampaignItems(nextItems)
+                  markDraft()
+                }}
               />
+              </div>
             </section>
 
             <section id="content-schedule" className="content-section" aria-labelledby="content-schedule-heading">
               <h3 id="content-schedule-heading" tabIndex={-1}>成團與時程</h3>
+              <div className="content-subsetting">
               <div className="content-field-group">
                 <span className="content-group-label" aria-hidden="true">門檻類型</span>
                 <SegmentedControl
                   label="門檻類型"
                   value={thresholdKind}
-                  onChange={(kind) => { setThresholdKind(kind); markDraft() }}
+                  onChange={(kind) => {
+                    setThresholdKind(kind)
+                    if (!itemsLocked) {
+                      setThresholdConfigured(false)
+                      if (kind === 'amount') setAmountThresholdInput('')
+                      else setThresholdInput('')
+                    }
+                    markDraft()
+                  }}
                   options={[
                     { value: 'quantity', label: '數量', disabled: editorBusy },
                     { value: 'amount', label: '總金額', disabled: editorBusy },
@@ -446,11 +484,12 @@ function AdminApp({
                         setThresholdInput(value)
                         if (value !== '' && /^\d+$/.test(value) && Number(value) >= 1) {
                           setThreshold(Number(value))
+                          setThresholdConfigured(true)
                           markDraft()
                         }
                       }}
                       onBlur={() => {
-                        if (!thresholdInputValid) setThresholdInput(String(threshold))
+                        if (!thresholdInputValid) setThresholdInput(thresholdConfigured ? String(threshold) : '')
                       }}
                     />
                   </FormField>
@@ -471,11 +510,12 @@ function AdminApp({
                         setAmountThresholdInput(value)
                         if (value !== '' && Number(value) > 0 && Number(value) <= 999999999999.99) {
                           setAmountThreshold(Number(value))
+                          setThresholdConfigured(true)
                           markDraft()
                         }
                       }}
                       onBlur={() => {
-                        if (!amountThresholdInputValid) setAmountThresholdInput(String(amountThreshold))
+                        if (!amountThresholdInputValid) setAmountThresholdInput(thresholdConfigured ? String(amountThreshold) : '')
                       }}
                     />
                   </FormField>
@@ -494,6 +534,8 @@ function AdminApp({
                   </select>
                 </FormField>
               </div>
+              </div>
+              <div className="content-subsetting">
               <div className="content-field-group">
                 <span className="content-group-label" aria-hidden="true">預計到貨</span>
                 <SegmentedControl
@@ -533,6 +575,8 @@ function AdminApp({
                 )}
                 <p className="content-help">{formatArrivalLabel(arrivalLabel)}</p>
               </div>
+              </div>
+              <div className="content-subsetting">
               <Switch
                 label="設定結單日期"
                 description="台灣時間當日中午12:00自動結單；若數量先達門檻，會提前結單。"
@@ -556,6 +600,7 @@ function AdminApp({
                   />
                 </FormField>
               )}
+              </div>
             </section>
 
             <section id="content-advanced" className="content-section" aria-labelledby="content-advanced-heading">
@@ -563,6 +608,7 @@ function AdminApp({
               {itemsLocked
                 ? <p className="content-lock-note">已開團，優惠與額外品項設定已鎖定</p>
                 : <p className="content-help">選填，開啟才會套用。</p>}
+              <div className="content-subsetting">
               <Switch
                 label="啟用全團基本折扣"
                 description="所有正式品項預設套用；額外品項不計價。"
@@ -591,6 +637,8 @@ function AdminApp({
                   />
                 </FormField>
               )}
+              </div>
+              <div className="content-subsetting">
               <Switch
                 label="啟用任選優惠"
                 description="同一住戶在參加任選的品項合計達到最低件數後，這些品項全部套用優惠折數；參加的品項在「品項與價格」勾選。"
@@ -620,6 +668,8 @@ function AdminApp({
                   </FormField>
                 </div>
               )}
+              </div>
+              <div className="content-subsetting">
               <Switch
                 label="允許住戶新增額外品項"
                 description={customItemsLocked
@@ -629,6 +679,7 @@ function AdminApp({
                 disabled={editorBusy || customItemsLocked}
                 onChange={(checked) => { setAllowCustomItems(checked); markDraft() }}
               />
+              </div>
             </section>
           </div>
 

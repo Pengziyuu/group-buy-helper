@@ -9,6 +9,9 @@ type DraftRow = {
   title: string
   unit_price: number
   threshold: number
+  threshold_configured?: boolean
+  item_name_configured?: boolean
+  item_price_configured?: boolean
   threshold_kind?: string
   amount_threshold?: number | null
   quantity_unit?: string | null
@@ -50,6 +53,9 @@ function toContent(data: unknown): CampaignContent {
     title: row.title,
     unitPrice: row.unit_price,
     threshold: row.threshold,
+    thresholdConfigured: row.threshold_configured ?? true,
+    itemNameConfigured: row.item_name_configured ?? true,
+    itemPriceConfigured: row.item_price_configured ?? true,
     ...(row.threshold_kind === 'amount'
       ? { thresholdKind: 'amount' as const, amountThreshold: row.amount_threshold ?? null }
       : row.threshold_kind === 'quantity'
@@ -80,8 +86,8 @@ function toContent(data: unknown): CampaignContent {
   }
 }
 
-const draftColumns = 'title,unit_price,threshold,threshold_kind,amount_threshold,quantity_unit,allow_custom_items,base_discount_rate,mix_match_name,mix_match_min_quantity,mix_match_discount_rate,arrival_label,auto_close_at,announcement,images,items'
-const publishedColumns = `${draftColumns},opened_at`
+const publishedColumns = 'title,unit_price,threshold,threshold_kind,amount_threshold,quantity_unit,allow_custom_items,base_discount_rate,mix_match_name,mix_match_min_quantity,mix_match_discount_rate,arrival_label,auto_close_at,announcement,images,items,opened_at'
+const draftColumns = `${publishedColumns.replace(',opened_at', '')},threshold_configured,item_name_configured,item_price_configured`
 
 export function createAdminCampaignGateway(client: AdminCampaignSupabaseClient) {
   return {
@@ -151,6 +157,9 @@ export function createAdminCampaignGateway(client: AdminCampaignSupabaseClient) 
           title: content.title,
           unit_price: minimumPrice,
           threshold: content.threshold,
+          threshold_configured: content.thresholdConfigured ?? true,
+          item_name_configured: content.itemNameConfigured ?? true,
+          item_price_configured: content.itemPriceConfigured ?? true,
           threshold_kind: content.thresholdKind ?? 'quantity',
           amount_threshold: content.thresholdKind === 'amount' ? content.amountThreshold : null,
           quantity_unit: normalizeQuantityUnit(content.quantityUnit),

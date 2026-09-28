@@ -16,7 +16,10 @@ export type ContentReadiness = {
   announcement: string
   items: CampaignItem[]
   itemPricesValid: boolean
+  itemNameConfigured?: boolean
+  itemPriceConfigured?: boolean
   thresholdValid: boolean
+  thresholdConfigured?: boolean
   scheduleValid: boolean
   discountRulesValid: boolean
 }
@@ -30,8 +33,11 @@ export function publishBlockers(input: ContentReadiness): string[] {
   input.items.forEach((item, index) => {
     if (item.active && !item.name.trim()) blockers.push(`填寫品項 ${itemLabel(index)} 的名稱`)
   })
+  if (input.itemNameConfigured === false && input.items.every((item) => !item.active || item.name.trim())) blockers.push('設定品項名稱')
+  if (input.itemPriceConfigured === false) blockers.push('設定品項單價')
   if (!input.itemPricesValid) blockers.push('每個品項都要有有效的單價')
-  if (!input.thresholdValid) blockers.push('填寫有效的成團門檻')
+  if (input.thresholdConfigured === false) blockers.push('設定成團門檻')
+  else if (!input.thresholdValid) blockers.push('填寫有效的成團門檻')
   if (!input.scheduleValid) blockers.push('結單日期要是今天或之後')
   if (!input.discountRulesValid) blockers.push('完成優惠設定；任選優惠至少要有一個參加的品項')
   return blockers
@@ -42,8 +48,8 @@ export function sectionCompletion(input: ContentReadiness): Record<ContentSectio
     announcement: input.title.trim().length > 0 && input.announcement.trim().length > 0,
     items: input.items.some((item) => item.active)
       && input.items.every((item) => !item.active || item.name.trim().length > 0)
-      && input.itemPricesValid,
-    schedule: input.thresholdValid && input.scheduleValid,
+      && input.itemPricesValid && input.itemNameConfigured !== false && input.itemPriceConfigured !== false,
+    schedule: input.thresholdValid && input.thresholdConfigured !== false && input.scheduleValid,
     advanced: input.discountRulesValid,
   }
 }

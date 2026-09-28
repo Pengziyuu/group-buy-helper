@@ -105,6 +105,8 @@
 .content-form, .content-side { display: grid; gap: var(--space-4); min-width: 0; }
 .content-field-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-4); }
 .content-field-group { display: grid; gap: var(--space-2); }
+.content-subsetting { display: grid; gap: var(--space-3); min-width: 0; padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface-subtle); }
+.content-subsetting .content-field-grid { min-width: 0; }
 .content-group-label { font-size: var(--font-size-dense); font-weight: var(--font-weight-strong); }
 .content-inline-fields { display: flex; flex-wrap: wrap; gap: var(--space-3); }
 .content-number-field .ui-input, .content-date { max-width: 200px; }
@@ -116,4 +118,5 @@
 
 @media (max-width: 639px) {
   .content-section { padding: var(--space-4); }
+  .content-subsetting { padding: var(--space-3); }
 }
