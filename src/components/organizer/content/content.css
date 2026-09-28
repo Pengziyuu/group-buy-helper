@@ -112,6 +112,10 @@
 .content-number-field .ui-input, .content-date { max-width: 200px; }
 .content-field-grid > .content-number-field { min-width: 0; }
 .content-field-grid > .content-number-field .ui-input { width: 100%; max-width: none; }
+.content-section#content-schedule .content-subsetting { width: 100%; max-width: 560px; box-sizing: border-box; }
+.content-section#content-schedule .content-field-group > .ui-segmented { justify-self: start; max-width: 100%; }
+.content-section#content-schedule .content-field-grid .ui-input,
+.content-section#content-schedule #content-quantity-unit { width: 100%; max-width: 280px; }
 .content-announcement { min-height: 200px; resize: vertical; }
 
 @media (max-width: 1279px) {
