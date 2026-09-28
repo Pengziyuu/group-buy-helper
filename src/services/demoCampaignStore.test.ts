@@ -89,6 +89,13 @@ describe('demo campaign draft and publishing store', () => {
     expect(campaignContentEquals(original, { ...original, openedAt: null })).toBe(true)
   })
 
+  it('stores an empty new draft but refuses to publish it', () => {
+    const blank = { ...original, openedAt: null, items: [], unitPrice: 0, itemNameConfigured: false, itemPriceConfigured: false }
+    saveDraftCampaign(blank)
+    expect(loadDraftCampaign(original).items).toEqual([])
+    expect(() => publishCampaign(blank)).toThrow('團購資料格式錯誤')
+  })
+
   it('rejects content without an active named item', () => {
     const invalid = {
       ...original,

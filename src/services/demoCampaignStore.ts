@@ -92,7 +92,7 @@ function isCampaignContent(value: unknown): value is CampaignContent {
       && typeof image.src === 'string'
       && typeof image.alt === 'string')
     && Array.isArray(candidate.items)
-    && candidate.items.length > 0
+    && (candidate.items.length > 0 || candidate.openedAt === null)
     && candidate.items.length <= 100
     && candidate.items.every((item) => Boolean(item)
       && typeof item === 'object'
@@ -106,7 +106,7 @@ function isCampaignContent(value: unknown): value is CampaignContent {
       && typeof item.active === 'boolean'
       && (item.discountEligible === undefined || typeof item.discountEligible === 'boolean'))
     && new Set(candidate.items.map((item) => item.code)).size === candidate.items.length
-    && candidate.items.some((item) => item.active && item.name.trim().length > 0)
+    && (candidate.items.length === 0 || candidate.items.some((item) => item.active && item.name.trim().length > 0))
     && (candidate.openedAt === null
       || (typeof candidate.openedAt === 'string' && Number.isFinite(Date.parse(candidate.openedAt))))
 }
@@ -183,6 +183,7 @@ export function saveDraftCampaign(content: CampaignContent, storage?: Storage | 
 }
 
 export function publishCampaign(content: CampaignContent, storage?: Storage | null): void {
+  if (content.items.length === 0) throw new Error('團購資料格式錯誤')
   saveCampaign(DRAFT_KEY, content, storage)
   saveCampaign(PUBLISHED_KEY, content, storage)
 }

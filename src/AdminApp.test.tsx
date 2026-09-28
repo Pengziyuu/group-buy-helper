@@ -134,6 +134,73 @@ describe('organizer campaign editor', () => {
     await waitFor(() => expect(onSaveDraft).toHaveBeenLastCalledWith(expect.objectContaining({ thresholdConfigured: true, threshold: 1 })))
   })
 
+  it('starts a new campaign without a prefilled item, then lets the organizer add A', async () => {
+    const user = userEvent.setup()
+    const onSaveDraft = vi.fn().mockResolvedValue(undefined)
+    render(<AdminApp initialContent={{
+      title: '新團', unitPrice: 0, threshold: 1, thresholdConfigured: false,
+      itemNameConfigured: false, itemPriceConfigured: false,
+      announcement: '公告', images: [], openedAt: null, items: [],
+    }} initialPublicationState="draft" onSaveDraft={onSaveDraft} />)
+    expect(screen.queryByRole('textbox', { name: '品項 A 商品名稱（口味）' })).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: '發布前檢查' })).toHaveTextContent('至少需要一個品項')
+    expect(screen.getByRole('button', { name: '發布並開團' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: '增加品項' }))
+    expect(screen.getByRole('textbox', { name: '品項 A 商品名稱（口味）' })).toHaveValue('')
+    await user.type(screen.getByRole('textbox', { name: '品項 A 商品名稱（口味）' }), '牛奶')
+    await user.type(screen.getByRole('spinbutton', { name: '品項 A 單價' }), '100')
+    await waitFor(() => expect(onSaveDraft).toHaveBeenCalledWith(expect.objectContaining({
+      items: [expect.objectContaining({ code: 'ITEM1', name: '牛奶', unitPrice: 100 })],
+    })))
+  })
+
+  it('uses integer currency and separates the quantity unit from an amount threshold', async () => {
+    const user = userEvent.setup()
+    render(<AdminApp initialContent={{
+      title: '整數團', unitPrice: 100, threshold: 10, announcement: '', images: [], openedAt: null,
+      items: [{ code: 'ITEM1', name: '商品', unitPrice: 100, active: true }],
+    }} initialPublicationState="draft" />)
+    await user.click(screen.getByRole('radio', { name: '總金額' }))
+    const amount = screen.getByRole('spinbutton', { name: '成團門檻金額' })
+    expect(amount).toHaveAttribute('step', '1')
+    expect(amount).toHaveAttribute('min', '1')
+    expect(screen.getByRole('combobox', { name: '數量單位' }).closest('.content-subsetting')).not.toBe(amount.closest('.content-subsetting'))
+    expect(screen.getByRole('spinbutton', { name: '統一單價' })).toHaveAttribute('step', '1')
+  })
+
+  it('updates the generated mix-and-match name as quantity and discount change', async () => {
+    const user = userEvent.setup()
+    render(<AdminApp initialContent={{
+      title: '測試團', unitPrice: 100, threshold: 10, announcement: '', images: [], openedAt: null,
+      items: [{ code: 'ITEM1', name: '商品', unitPrice: 100, active: true }],
+    }} initialPublicationState="draft" />)
+    await user.click(screen.getByRole('switch', { name: '啟用任選優惠' }))
+    const name = screen.getByRole('textbox', { name: '任選優惠名稱' })
+    expect(name).toHaveValue('任選三件85折')
+    expect(name).toHaveAttribute('readOnly')
+    fireEvent.change(screen.getByRole('spinbutton', { name: '任選最低件數' }), { target: { value: '4' } })
+    fireEvent.change(screen.getByRole('spinbutton', { name: '任選優惠折數' }), { target: { value: '8' } })
+    expect(name).toHaveValue('任選四件8折')
+    fireEvent.change(screen.getByRole('spinbutton', { name: '任選優惠折數' }), { target: { value: '0.5' } })
+    expect(name).toHaveValue('任選四件0.5折')
+    fireEvent.change(screen.getByRole('spinbutton', { name: '任選優惠折數' }), { target: { value: '1.5' } })
+    expect(name).toHaveValue('任選四件1.5折')
+  })
+
+  it('preserves previously published decimal prices when editing unrelated fields', async () => {
+    const user = userEvent.setup()
+    const onSaveDraft = vi.fn().mockResolvedValue(undefined)
+    render(<AdminApp initialContent={{
+      title: '舊團', unitPrice: 45.5, threshold: 10, announcement: '舊公告', images: [],
+      items: [{ code: 'A', name: '舊品項', unitPrice: 45.5, active: true }],
+      openedAt: '2026-09-12T00:00:00.000Z',
+    }} initialPublicationState="published" onSaveDraft={onSaveDraft} />)
+    await user.type(screen.getByRole('textbox', { name: '開團資訊' }), '更新')
+    await waitFor(() => expect(onSaveDraft).toHaveBeenCalledWith(expect.objectContaining({
+      announcement: '舊公告更新', items: [expect.objectContaining({ unitPrice: 45.5 })],
+    })))
+  })
+
   it('shows only the selected threshold input, and separates schedule and advanced subsettings', async () => {
     const user = userEvent.setup()
     render(<AdminApp />)
@@ -143,7 +210,7 @@ describe('organizer campaign editor', () => {
     await user.click(within(schedule).getByRole('radio', { name: '總金額' }))
     expect(within(schedule).getByRole('spinbutton', { name: '成團門檻金額' })).toBeInTheDocument()
     expect(within(schedule).queryByRole('spinbutton', { name: '成團門檻' })).not.toBeInTheDocument()
-    expect(schedule.querySelectorAll('.content-subsetting')).toHaveLength(3)
+    expect(schedule.querySelectorAll('.content-subsetting')).toHaveLength(4)
     expect(screen.getByRole('region', { name: '優惠與進階' }).querySelectorAll('.content-subsetting')).toHaveLength(3)
   })
 
@@ -648,11 +715,12 @@ describe('organizer campaign editor', () => {
 
     await user.click(screen.getByRole('switch', { name: '設定結單日期' }))
     fireEvent.change(screen.getByLabelText('結單日期'), { target: { value: '2027-10-15' } })
-    expect(within(screen.getByRole('region', { name: '住戶端預覽' })).getByText('10/15 12:00 自動結單')).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('結單時間'), { target: { value: '18:30' } })
+    expect(within(screen.getByRole('region', { name: '住戶端預覽' })).getByText('10/15 18:30 自動結單')).toBeInTheDocument()
 
     await waitFor(() => expect(onSaveDraft).toHaveBeenLastCalledWith(expect.objectContaining({
       arrivalLabel: '03/08',
-      autoCloseAt: '2027-10-15T04:00:00.000Z',
+      autoCloseAt: '2027-10-15T10:30:00.000Z',
     })))
   })
 

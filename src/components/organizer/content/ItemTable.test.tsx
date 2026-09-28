@@ -101,7 +101,7 @@ describe('ItemTable', () => {
 
     expect(screen.queryByRole('rowheader', { name: 'B' })).not.toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: '品項 A 商品名稱（口味）' })).toHaveValue('牛奶')
-    expect(screen.getByRole('button', { name: '減少品項' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '減少品項' })).toBeEnabled()
   })
 
   it('offers the mix-and-match column only when that discount is on, and not for inactive items', async () => {

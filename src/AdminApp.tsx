@@ -26,9 +26,11 @@ import {
   formatArrivalLabel,
   parseArrivalLabel,
   taipeiDateInputFromIso,
-  taipeiNoonIso,
+  taipeiDateTimeIso,
+  taipeiTimeInputFromIso,
   todayInTaipei,
   validDateInput,
+  validTimeInput,
   type ArrivalMode,
   type ArrivalPeriod,
 } from './domain/campaignSchedule'
@@ -75,6 +77,15 @@ const ARRIVAL_OPTIONS: Array<{ value: ArrivalMode; label: string }> = [
   { value: 'month-period', label: '月份時段' },
 ]
 
+function promotionName(quantity: number, rate: number): string {
+  const digits = '零一二三四五六七八九'
+  const count = quantity < 10 ? digits[quantity]
+    : quantity === 100 ? '一百'
+      : `${quantity >= 20 ? `${digits[Math.floor(quantity / 10)]}十` : '十'}${quantity % 10 ? digits[quantity % 10] : ''}`
+  const tenth = Number((rate * 10).toFixed(2))
+  return `任選${count}件${tenth < 2 || Number.isInteger(tenth) ? tenth : Number((rate * 100).toFixed(2))}折`
+}
+
 function AdminApp({
   initialContent,
   initialPublicationState,
@@ -114,6 +125,7 @@ function AdminApp({
   const [arrivalPeriod, setArrivalPeriod] = useState<ArrivalPeriod>(initialArrival.period)
   const [autoCloseEnabled, setAutoCloseEnabled] = useState(Boolean(initialDraft.autoCloseAt))
   const [autoCloseDate, setAutoCloseDate] = useState(() => taipeiDateInputFromIso(initialDraft.autoCloseAt))
+  const [autoCloseTime, setAutoCloseTime] = useState(() => taipeiTimeInputFromIso(initialDraft.autoCloseAt) || '23:59')
   const [images, setImages] = useState(() => [...initialDraft.images])
   const [campaignItems, setCampaignItems] = useState(() => initialDraft.items.map((item) => ({ ...item })))
   const [itemNameConfigured, setItemNameConfigured] = useState(initialDraft.itemNameConfigured !== false)
@@ -143,7 +155,9 @@ function AdminApp({
     .flatMap((item) => item.unitPrice === undefined ? [] : [item.unitPrice])
   const unitPrice = activeItemPrices.length > 0 ? Math.min(...activeItemPrices) : 0
   const maximumItemPrice = activeItemPrices.length > 0 ? Math.max(...activeItemPrices) : 0
-  const itemPricesValid = campaignItems.every((item) => Number.isFinite(item.unitPrice) && (item.unitPrice ?? -1) >= 0)
+  const itemPricesValid = campaignItems.every((item) =>
+    (Number.isInteger(item.unitPrice) || (item.unitPrice === initialDraft.items.find((original) => original.code === item.code)?.unitPrice))
+    && Number.isFinite(item.unitPrice) && (item.unitPrice ?? -1) >= 0 && (item.unitPrice ?? 0) <= 9999999.99)
   const discountRulesValid = (!baseDiscountEnabled || (baseDiscountRate > 0 && baseDiscountRate <= 1))
     && (!mixMatchEnabled || (mixMatchName.trim().length > 0
       && mixMatchName.length <= 100
@@ -153,16 +167,18 @@ function AdminApp({
       && mixMatchDiscountRate <= (baseDiscountEnabled ? baseDiscountRate : 1)
       && campaignItems.some((item) => item.active && item.discountEligible)))
   const thresholdInputValid = /^\d+$/.test(thresholdInput) && Number(thresholdInput) >= 1
-  const amountThresholdInputValid = /^\d+(?:\.\d{0,2})?$/.test(amountThresholdInput)
+  const amountThresholdInputValid = (/^\d+$/.test(amountThresholdInput)
+    || (initialDraft.thresholdKind === 'amount' && Number(amountThresholdInput) === initialDraft.amountThreshold))
     && Number(amountThresholdInput) > 0
-    && Number(amountThresholdInput) <= 999999999999.99
+    && Number(amountThresholdInput) <= 999999999999
   const thresholdValid = thresholdKind === 'quantity' ? thresholdInputValid : amountThresholdInputValid
   const itemNamesValid = campaignItems.every((item) => item.name.trim().length > 0)
   const numericInputsValid = itemPricesValid && discountRulesValid
     && (thresholdValid || (thresholdKind === 'quantity' && !thresholdConfigured && thresholdInput === ''))
-  const scheduleInputsValid = !autoCloseEnabled || (validDateInput(autoCloseDate) && autoCloseDate >= todayInTaipei())
+  const scheduleInputsValid = !autoCloseEnabled || (validDateInput(autoCloseDate) && validTimeInput(autoCloseTime)
+    && Date.parse(taipeiDateTimeIso(autoCloseDate, autoCloseTime)) > Date.now())
   const arrivalLabel = buildArrivalLabel(arrivalMode, arrivalMonth, arrivalDay, arrivalPeriod)
-  const autoCloseAt = autoCloseEnabled && scheduleInputsValid ? taipeiNoonIso(autoCloseDate) : null
+  const autoCloseAt = autoCloseEnabled && scheduleInputsValid ? taipeiDateTimeIso(autoCloseDate, autoCloseTime) : null
   const draftSavePending = draftRevision !== savedRevisionRef.current
   const itemsLocked = openedAt !== null
   const customItemsLocked = openedAt !== null
@@ -314,6 +330,7 @@ function AdminApp({
         setArrivalPeriod(canonicalArrival.period)
         setAutoCloseEnabled(Boolean(canonical.autoCloseAt))
         setAutoCloseDate(taipeiDateInputFromIso(canonical.autoCloseAt))
+        setAutoCloseTime(taipeiTimeInputFromIso(canonical.autoCloseAt) || '23:59')
         const canonicalAmountThreshold = canonical.amountThreshold ?? Math.max(1, canonical.threshold * canonical.unitPrice)
         setAmountThreshold(canonicalAmountThreshold)
         setAmountThresholdInput(String(canonicalAmountThreshold))
@@ -429,7 +446,7 @@ function AdminApp({
               <h3 id="content-items-heading" tabIndex={-1}>品項與價格</h3>
               {itemsLocked
                 ? <p className="content-lock-note">已開團，品項與價格已鎖定</p>
-                : <p className="content-help">代碼會自動延伸為 A～Z、AA～AZ；每個品項都要有名稱與單價。{(!itemNameConfigured || !itemPriceConfigured) && ' 請將新團預設品項的名稱與單價改成實際商品。'}</p>}
+                : <p className="content-help">按「＋增加品項」建立商品，代碼會自動延伸為 A～Z、AA～AZ；每個品項都要有名稱與整數單價。</p>}
               <div className="content-subsetting">
               <ItemTable
                 items={campaignItems}
@@ -499,16 +516,16 @@ function AdminApp({
                       className="ui-input"
                       disabled={editorBusy}
                       type="number"
-                      min="0.01"
-                      max="999999999999.99"
-                      step="0.01"
-                      inputMode="decimal"
+                      min="1"
+                      max="999999999999"
+                      step="1"
+                      inputMode="numeric"
                       value={amountThresholdInput}
                       onChange={(event) => {
                         const value = event.target.value
-                        if (value !== '' && !/^\d+(?:\.\d{0,2})?$/.test(value)) return
+                        if (value !== '' && !/^\d+$/.test(value)) return
                         setAmountThresholdInput(value)
-                        if (value !== '' && Number(value) > 0 && Number(value) <= 999999999999.99) {
+                        if (value !== '' && Number(value) > 0 && Number(value) <= 999999999999) {
                           setAmountThreshold(Number(value))
                           setThresholdConfigured(true)
                           markDraft()
@@ -520,7 +537,10 @@ function AdminApp({
                     />
                   </FormField>
                 )}
-                <FormField id="content-quantity-unit" label="數量單位" helper="套用於成團進度、訂單總數與品項彙總。">
+              </div>
+              </div>
+              <div className="content-subsetting">
+                <FormField id="content-quantity-unit" label="數量單位" helper="套用於商品數量、訂單總數與品項彙總。">
                   <select
                     className="ui-input"
                     disabled={editorBusy}
@@ -533,7 +553,6 @@ function AdminApp({
                     {QUANTITY_UNITS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
                   </select>
                 </FormField>
-              </div>
               </div>
               <div className="content-subsetting">
               <div className="content-field-group">
@@ -579,7 +598,7 @@ function AdminApp({
               <div className="content-subsetting">
               <Switch
                 label="設定結單日期"
-                description="台灣時間當日中午12:00自動結單；若數量先達門檻，會提前結單。"
+                description="依設定的台灣日期與時間自動結單；若數量先達門檻，會提前結單。"
                 checked={autoCloseEnabled}
                 disabled={editorBusy}
                 onChange={(checked) => {
@@ -589,7 +608,8 @@ function AdminApp({
                 }}
               />
               {autoCloseEnabled && (
-                <FormField id="content-auto-close" label="結單日期" error={scheduleInputsValid ? undefined : '結單日期要是今天或之後'}>
+                <div className="content-inline-fields">
+                <FormField id="content-auto-close" label="結單日期" error={scheduleInputsValid ? undefined : '結單日期與時間必須晚於現在'}>
                   <input
                     className="ui-input content-date"
                     type="date"
@@ -599,6 +619,11 @@ function AdminApp({
                     onChange={(event) => { setAutoCloseDate(event.target.value); markDraft() }}
                   />
                 </FormField>
+                <FormField id="content-auto-close-time" label="結單時間">
+                  <input className="ui-input content-date" type="time" step="60" value={autoCloseTime}
+                    disabled={editorBusy} onChange={(event) => { setAutoCloseTime(event.target.value); markDraft() }} />
+                </FormField>
+                </div>
               )}
               </div>
             </section>
@@ -655,16 +680,15 @@ function AdminApp({
               {mixMatchEnabled && (
                 <div className="content-field-grid">
                   <FormField id="content-mix-name" label="任選優惠名稱">
-                    <input className="ui-input" maxLength={100} value={mixMatchName} disabled={editorBusy || itemsLocked}
-                      onChange={(event) => { setMixMatchName(event.target.value); markDraft() }} />
+                    <input className="ui-input" value={mixMatchName} readOnly aria-readonly="true" />
                   </FormField>
                   <FormField id="content-mix-minimum" label="任選最低件數" className="content-number-field">
                     <input className="ui-input" type="number" min="2" max="100" step="1" value={mixMatchMinimumQuantity} disabled={editorBusy || itemsLocked}
-                      onChange={(event) => { const value = Number(event.target.value); if (Number.isInteger(value) && value >= 2 && value <= 100) { setMixMatchMinimumQuantity(value); markDraft() } }} />
+                      onChange={(event) => { const value = Number(event.target.value); if (Number.isInteger(value) && value >= 2 && value <= 100) { setMixMatchMinimumQuantity(value); setMixMatchName(promotionName(value, mixMatchDiscountRate)); markDraft() } }} />
                   </FormField>
                   <FormField id="content-mix-rate" label="任選優惠折數" helper="例如輸入8.5代表85折。" className="content-number-field">
                     <input className="ui-input" type="number" min="0.1" max="10" step="0.1" value={Number((mixMatchDiscountRate * 10).toFixed(2))} disabled={editorBusy || itemsLocked}
-                      onChange={(event) => { const fold = Number(event.target.value); if (fold > 0 && fold <= 10) { setMixMatchDiscountRate(fold / 10); markDraft() } }} />
+                      onChange={(event) => { const fold = Number(event.target.value); if (fold > 0 && fold <= 10) { setMixMatchDiscountRate(fold / 10); setMixMatchName(promotionName(mixMatchMinimumQuantity, fold / 10)); markDraft() } }} />
                   </FormField>
                 </div>
               )}

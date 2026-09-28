@@ -73,14 +73,29 @@ def main() -> None:
             ANON_KEY,
             token=admin_token,
         )
-        # create_campaign_draft seeds a single item named "A" carrying a unitPrice
-        # (20260901_000020_item_names_and_prices.sql), not the older bare "A號".
+        # A new draft contains no products until the organizer adds one.
         assert status == 200 and drafts == [{
             "title": "API 新團購",
             "unit_price": 0,
             "threshold": 1,
-            "items": [{"code": "ITEM1", "name": "A", "unitPrice": 0, "active": True}],
+            "items": [],
         }], (status, drafts)
+
+        # The frontend upserts without the server-owned validation flag.
+        # Verify PostgREST preserves it on conflict rather than resetting it.
+        status, full_rows = call("GET", f"/rest/v1/campaign_draft?campaign_id=eq.{campaign_id}&select=*",
+                                 ANON_KEY, token=admin_token)
+        assert status == 200 and full_rows[0]["integer_currency_required"] is True, (status, full_rows)
+        fields = ("campaign_id", "title", "unit_price", "threshold", "threshold_configured",
+                  "item_name_configured", "item_price_configured", "threshold_kind", "amount_threshold",
+                  "quantity_unit", "allow_custom_items", "base_discount_rate", "mix_match_name",
+                  "mix_match_min_quantity", "mix_match_discount_rate", "arrival_label", "auto_close_at",
+                  "announcement", "images", "items")
+        status, upserted = call("POST", "/rest/v1/campaign_draft?on_conflict=campaign_id",
+                                ANON_KEY, token=admin_token,
+                                body={key: full_rows[0][key] for key in fields},
+                                prefer="resolution=merge-duplicates,return=representation")
+        assert status in (200, 201) and upserted[0]["integer_currency_required"] is True, (status, upserted)
 
         # has_campaign_access requires a campaign_access row AND community membership
         # AND a published campaign. Without the membership the resident is denied by
@@ -133,10 +148,11 @@ def main() -> None:
         assert status == 200 and payload == [], (status, payload)
 
         print(json.dumps({
-            "checks": 9,
+            "checks": 10,
             "resident_cannot_create": True,
             "admin_can_create": True,
-            "default_a_item_created": True,
+            "new_draft_items_empty": True,
+            "upsert_preserves_integer_currency_guard": True,
             "admin_list_contains_campaign": True,
             "admin_list_uses_latest_draft_title": True,
             "legacy_access_cannot_read_unpublished": True,

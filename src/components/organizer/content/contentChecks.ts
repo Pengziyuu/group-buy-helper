@@ -38,7 +38,7 @@ export function publishBlockers(input: ContentReadiness): string[] {
   if (!input.itemPricesValid) blockers.push('每個品項都要有有效的單價')
   if (input.thresholdConfigured === false) blockers.push('設定成團門檻')
   else if (!input.thresholdValid) blockers.push('填寫有效的成團門檻')
-  if (!input.scheduleValid) blockers.push('結單日期要是今天或之後')
+  if (!input.scheduleValid) blockers.push('結單日期與時間必須晚於現在')
   if (!input.discountRulesValid) blockers.push('完成優惠設定；任選優惠至少要有一個參加的品項')
   return blockers
 }

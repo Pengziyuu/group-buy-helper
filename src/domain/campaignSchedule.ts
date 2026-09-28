@@ -68,8 +68,16 @@ export function validDateInput(value: string): boolean {
 }
 
 export function taipeiNoonIso(dateInput: string): string {
-  if (!validDateInput(dateInput)) throw new Error('結單日期格式錯誤')
-  return new Date(`${dateInput}T12:00:00+08:00`).toISOString()
+  return taipeiDateTimeIso(dateInput, '12:00')
+}
+
+export function validTimeInput(value: string): boolean {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value)
+}
+
+export function taipeiDateTimeIso(dateInput: string, timeInput: string): string {
+  if (!validDateInput(dateInput) || !validTimeInput(timeInput)) throw new Error('結單日期或時間格式錯誤')
+  return new Date(`${dateInput}T${timeInput}:00+08:00`).toISOString()
 }
 
 export function taipeiDateInputFromIso(value: string | null | undefined): string {
@@ -85,11 +93,18 @@ export function todayInTaipei(): string {
   return taipeiDateInputFromIso(new Date().toISOString())
 }
 
+export function taipeiTimeInputFromIso(value: string | null | undefined): string {
+  if (!value || !Number.isFinite(Date.parse(value))) return ''
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).format(new Date(value))
+}
+
 export function formatAutoCloseReminder(value: string): string {
   const date = taipeiDateInputFromIso(value)
   if (!date) return ''
   const [, month, day] = date.split('-')
-  return `${month}/${day} 12:00 自動結單`
+  return `${month}/${day} ${taipeiTimeInputFromIso(value)} 自動結單`
 }
 
 const taipeiWeekdayFormatter = new Intl.DateTimeFormat('zh-TW', { timeZone: 'Asia/Taipei', weekday: 'narrow' })
@@ -100,10 +115,11 @@ export function describeAutoClose(
 ): { when: string; soon: boolean } | null {
   const date = taipeiDateInputFromIso(value)
   if (!date) return null
-  if (date === taipeiDateInputFromIso(now.toISOString())) return { when: '今天 12:00', soon: true }
+  const time = taipeiTimeInputFromIso(value)
+  if (date === taipeiDateInputFromIso(now.toISOString())) return { when: `今天 ${time}`, soon: true }
   const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000)
-  if (date === taipeiDateInputFromIso(tomorrow.toISOString())) return { when: '明天 12:00', soon: true }
+  if (date === taipeiDateInputFromIso(tomorrow.toISOString())) return { when: `明天 ${time}`, soon: true }
   const [, month, day] = date.split('-')
   const weekday = taipeiWeekdayFormatter.format(new Date(value as string))
-  return { when: `${Number(month)}/${Number(day)}（${weekday}）12:00`, soon: false }
+  return { when: `${Number(month)}/${Number(day)}（${weekday}）${time}`, soon: false }
 }

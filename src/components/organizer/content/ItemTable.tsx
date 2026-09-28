@@ -4,8 +4,8 @@ import type { CampaignItem } from '../../../services/demoCampaignStore'
 import { Button } from '../../ui/Button'
 import { appendItem, applyPriceToAll, nextItemCode } from './contentChecks'
 
-const PRICE_PATTERN = /^\d+(?:\.\d{0,2})?$/
-const MAX_PRICE = 9999999.99
+const PRICE_PATTERN = /^\d+$/
+const MAX_PRICE = 9999999
 
 type ItemTableProps = {
   items: CampaignItem[]
@@ -51,8 +51,8 @@ export function ItemTable({ items, locked, disabled, mixMatchEnabled, onChange }
               type="number"
               min="0"
               max={MAX_PRICE}
-              step="0.01"
-              inputMode="decimal"
+              step="1"
+              inputMode="numeric"
               value={bulkPrice}
               disabled={disabled}
               onChange={(event) => {
@@ -107,8 +107,8 @@ export function ItemTable({ items, locked, disabled, mixMatchEnabled, onChange }
                       type="number"
                       min="0"
                       max={MAX_PRICE}
-                      step="0.01"
-                      inputMode="decimal"
+                      step="1"
+                      inputMode="numeric"
                       value={item.unitPrice ?? ''}
                       disabled={!editable}
                       onChange={(event) => {
@@ -151,7 +151,7 @@ export function ItemTable({ items, locked, disabled, mixMatchEnabled, onChange }
           <Button
             variant="utility"
             size="sm"
-            disabled={!editable || items.length <= 1}
+            disabled={!editable || items.length === 0}
             onClick={() => onChange(items.slice(0, -1))}
           >
             <span aria-hidden="true">−</span>減少品項
