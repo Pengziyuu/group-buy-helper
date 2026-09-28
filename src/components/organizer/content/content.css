@@ -116,6 +116,11 @@
 .content-section#content-schedule .content-field-group > .ui-segmented { justify-self: start; max-width: 100%; }
 .content-section#content-schedule .content-field-grid .ui-input,
 .content-section#content-schedule #content-quantity-unit { width: 100%; max-width: 280px; }
+.content-section#content-schedule .content-inline-fields { align-items: flex-end; }
+.content-time-fields { min-width: 0; margin: 0; padding: 0; border: 0; }
+.content-time-fields legend { padding: 0; margin-bottom: var(--space-2); font-size: var(--font-size-dense); font-weight: var(--font-weight-strong); }
+.content-time-parts { display: flex; gap: var(--space-2); }
+.content-time-parts .ui-input { width: 84px; }
 .content-announcement { min-height: 200px; resize: vertical; }
 
 @media (max-width: 1279px) {

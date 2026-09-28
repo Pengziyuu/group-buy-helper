@@ -77,6 +77,9 @@ const ARRIVAL_OPTIONS: Array<{ value: ArrivalMode; label: string }> = [
   { value: 'month-period', label: '月份時段' },
 ]
 
+const HOURS = Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, '0'))
+const MINUTES = Array.from({ length: 60 }, (_, minute) => String(minute).padStart(2, '0'))
+
 function promotionName(quantity: number, rate: number): string {
   const digits = '零一二三四五六七八九'
   const count = quantity < 10 ? digits[quantity]
@@ -125,7 +128,8 @@ function AdminApp({
   const [arrivalPeriod, setArrivalPeriod] = useState<ArrivalPeriod>(initialArrival.period)
   const [autoCloseEnabled, setAutoCloseEnabled] = useState(Boolean(initialDraft.autoCloseAt))
   const [autoCloseDate, setAutoCloseDate] = useState(() => taipeiDateInputFromIso(initialDraft.autoCloseAt))
-  const [autoCloseTime, setAutoCloseTime] = useState(() => taipeiTimeInputFromIso(initialDraft.autoCloseAt) || '23:59')
+  const [autoCloseTime, setAutoCloseTime] = useState(() => taipeiTimeInputFromIso(initialDraft.autoCloseAt) || '23:00')
+  const [autoCloseHour, autoCloseMinute] = autoCloseTime.split(':')
   const [images, setImages] = useState(() => [...initialDraft.images])
   const [campaignItems, setCampaignItems] = useState(() => initialDraft.items.map((item) => ({ ...item })))
   const [itemNameConfigured, setItemNameConfigured] = useState(initialDraft.itemNameConfigured !== false)
@@ -330,7 +334,7 @@ function AdminApp({
         setArrivalPeriod(canonicalArrival.period)
         setAutoCloseEnabled(Boolean(canonical.autoCloseAt))
         setAutoCloseDate(taipeiDateInputFromIso(canonical.autoCloseAt))
-        setAutoCloseTime(taipeiTimeInputFromIso(canonical.autoCloseAt) || '23:59')
+        setAutoCloseTime(taipeiTimeInputFromIso(canonical.autoCloseAt) || '23:00')
         const canonicalAmountThreshold = canonical.amountThreshold ?? Math.max(1, canonical.threshold * canonical.unitPrice)
         setAmountThreshold(canonicalAmountThreshold)
         setAmountThresholdInput(String(canonicalAmountThreshold))
@@ -619,10 +623,23 @@ function AdminApp({
                     onChange={(event) => { setAutoCloseDate(event.target.value); markDraft() }}
                   />
                 </FormField>
-                <FormField id="content-auto-close-time" label="結單時間">
-                  <input className="ui-input content-date" type="time" step="60" value={autoCloseTime}
-                    disabled={editorBusy} onChange={(event) => { setAutoCloseTime(event.target.value); markDraft() }} />
-                </FormField>
+                <fieldset className="content-time-fields" aria-label="結單時間（24 小時制）">
+                  <legend>結單時間（24 小時制）</legend>
+                  <div className="content-time-parts">
+                    <FormField id="content-auto-close-hour" label="小時">
+                      <select className="ui-input" value={autoCloseHour} disabled={editorBusy}
+                        onChange={(event) => { setAutoCloseTime(`${event.target.value}:${autoCloseMinute}`); markDraft() }}>
+                        {HOURS.map((hour) => <option key={hour} value={hour}>{hour}</option>)}
+                      </select>
+                    </FormField>
+                    <FormField id="content-auto-close-minute" label="分鐘">
+                      <select className="ui-input" value={autoCloseMinute} disabled={editorBusy}
+                        onChange={(event) => { setAutoCloseTime(`${autoCloseHour}:${event.target.value}`); markDraft() }}>
+                        {MINUTES.map((minute) => <option key={minute} value={minute}>{minute}</option>)}
+                      </select>
+                    </FormField>
+                  </div>
+                </fieldset>
                 </div>
               )}
               </div>

@@ -695,7 +695,7 @@ describe('organizer campaign editor', () => {
     expect(screen.getByText('住戶頁已是最新')).toBeInTheDocument()
   })
 
-  it('configures arrival choices and an optional noon closing date', async () => {
+  it('configures arrival choices and an optional Taipei closing time', async () => {
     const user = userEvent.setup()
     const onSaveDraft = vi.fn().mockResolvedValue(undefined)
     const content: CampaignContent = {
@@ -715,13 +715,47 @@ describe('organizer campaign editor', () => {
 
     await user.click(screen.getByRole('switch', { name: '設定結單日期' }))
     fireEvent.change(screen.getByLabelText('結單日期'), { target: { value: '2027-10-15' } })
-    fireEvent.change(screen.getByLabelText('結單時間'), { target: { value: '18:30' } })
+    const time = screen.getByRole('group', { name: '結單時間（24 小時制）' })
+    await user.selectOptions(within(time).getByRole('combobox', { name: '小時' }), '18')
+    await user.selectOptions(within(time).getByRole('combobox', { name: '分鐘' }), '30')
     expect(within(screen.getByRole('region', { name: '住戶端預覽' })).getByText('10/15 18:30 自動結單')).toBeInTheDocument()
 
     await waitFor(() => expect(onSaveDraft).toHaveBeenLastCalledWith(expect.objectContaining({
       arrivalLabel: '03/08',
       autoCloseAt: '2027-10-15T10:30:00.000Z',
     })))
+  })
+
+  it('defaults a new closing time to a full hour and presents unambiguous 24-hour choices', async () => {
+    const user = userEvent.setup()
+    render(<AdminApp initialContent={{
+      title: '新時程', unitPrice: 50, threshold: 10, announcement: '', images: [],
+      items: [{ code: 'A', name: '商品', unitPrice: 50, active: true }], openedAt: null,
+      autoCloseAt: null,
+    }} />)
+    await user.click(screen.getByRole('switch', { name: '設定結單日期' }))
+    const time = screen.getByRole('group', { name: '結單時間（24 小時制）' })
+    expect(within(time).getByRole('combobox', { name: '小時' })).toHaveValue('23')
+    expect(within(time).getByRole('combobox', { name: '分鐘' })).toHaveValue('00')
+    expect(within(time).getByRole('combobox', { name: '小時' })).toHaveTextContent('00')
+    expect(within(time).getByRole('combobox', { name: '小時' })).toHaveTextContent('12')
+    expect(screen.queryByDisplayValue('23:59')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    { iso: '2027-10-15T16:00:00.000Z', date: '2027-10-16', hour: '00' },
+    { iso: '2027-10-15T04:00:00.000Z', date: '2027-10-15', hour: '12' },
+    { iso: '2027-10-15T15:59:00.000Z', date: '2027-10-15', hour: '23', minute: '59' },
+  ])('preserves a saved $hour closing time without changing its date or minutes', ({ iso, date, hour, minute = '00' }) => {
+    render(<AdminApp initialContent={{
+      title: '既有時程', unitPrice: 50, threshold: 10, announcement: '', images: [],
+      items: [{ code: 'A', name: '商品', unitPrice: 50, active: true }], openedAt: null,
+      autoCloseAt: iso,
+    }} />)
+    expect(screen.getByLabelText('結單日期')).toHaveValue(date)
+    const time = screen.getByRole('group', { name: '結單時間（24 小時制）' })
+    expect(within(time).getByRole('combobox', { name: '小時' })).toHaveValue(hour)
+    expect(within(time).getByRole('combobox', { name: '分鐘' })).toHaveValue(minute)
   })
 
   it('lists what is missing before publishing and enables publishing once it is filled in', async () => {
