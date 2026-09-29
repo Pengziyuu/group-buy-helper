@@ -1,12 +1,15 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, jsonResponse, readJsonBodyWithLimit } from './http.ts'
 import {
+  assertPickupReplyPayloadSize,
   buildPickupMentionMessages,
+  buildPickupDualModeMessages,
   generatePickupReplyCommandCode,
   getLineGroupMemberIdsForCandidates,
   MAX_PICKUP_NOTIFICATION_RECIPIENTS,
   openPickupRecipientSnapshot,
   pickupRecipientSnapshotHash,
+  pickupPeriodSnapshotMatches,
   sealPickupRecipientSnapshot,
   sealPickupReplyPayload,
   technicalSha256,
@@ -68,13 +71,25 @@ export function createPickupNotificationHandler(destination: 'production' | 'tes
       const body = await readJsonBodyWithLimit(request, 16_384)
       const action = body.action
       const campaignId = typeof body.campaignId === 'string' ? body.campaignId : ''
-      const audience = body.audience
-      const message = typeof body.message === 'string' ? body.message : ''
+      const mode = body.mode
+      const audience = mode === 'ambient' ? 'all' : mode === 'cold' ? 'combined' : typeof body.audience === 'string' ? body.audience : ''
+      const dual = mode === 'ambient' || mode === 'cold'
+      const bodies = body.messages as Record<string, unknown> | undefined
+      const message = dual ? JSON.stringify(bodies) : typeof body.message === 'string' ? body.message : ''
       const previewToken = typeof body.previewToken === 'string' ? body.previewToken : ''
       if (action !== 'preview' && action !== 'create-command') return jsonResponse({ error: '通知動作格式錯誤' }, 400)
       if (!UUID.test(campaignId)) return jsonResponse({ error: '團購識別格式錯誤' }, 400)
-      if (audience !== 'phase13' && audience !== 'phase2') return jsonResponse({ error: '通知期別格式錯誤' }, 400)
-      if (destination === 'test' && !message.startsWith('【測試】\n')) return jsonResponse({ error: '測試通知必須保留【測試】前綴' }, 400)
+      if (!['phase13', 'phase2', 'all', 'combined'].includes(audience)) return jsonResponse({ error: '通知期別格式錯誤' }, 400)
+      if (dual && (!bodies || typeof bodies !== 'object' || Array.isArray(bodies)
+        || (mode === 'ambient' ? Object.keys(bodies).length !== 1 || typeof bodies.all !== 'string'
+          : Object.keys(bodies).length !== 2 || typeof bodies.phase13 !== 'string' || typeof bodies.phase2 !== 'string'))) {
+        return jsonResponse({ error: '通知內容格式錯誤' }, 400)
+      }
+      if (destination === 'test' && (dual
+        ? Object.values(bodies as Record<string, string>).some((text) => !text.startsWith('【測試】\n'))
+        : !message.startsWith('【測試】\n'))) return jsonResponse({ error: '測試通知必須保留【測試】前綴' }, 400)
+      // Fail before reserving/finalizing a preview that cannot fit the SQL ciphertext cap.
+      assertPickupReplyPayloadSize(message)
 
       const channelAccessToken = Deno.env.get('LINE_MESSAGING_CHANNEL_ACCESS_TOKEN') ?? ''
       const intentSecret = Deno.env.get('PICKUP_NOTIFICATION_INTENT_SECRET') ?? ''
@@ -118,6 +133,8 @@ export function createPickupNotificationHandler(destination: 'production' | 'tes
           if (reservationError.message.includes('approved LINE organizer')) return jsonResponse({ error: '需要已核准的LINE團主身分' }, 403)
           throw reservationError
         }
+        if (!reservation || typeof reservation !== 'object' || !('token' in reservation) || !('line_group_id' in reservation)
+          || typeof reservation.token !== 'string' || typeof reservation.line_group_id !== 'string') throw new Error('invalid reservation')
         reservedToken = reservation.token
         groupId = reservation.line_group_id
       } else {
@@ -168,7 +185,9 @@ export function createPickupNotificationHandler(destination: 'production' | 'tes
           return jsonResponse({ error: `單次最多可＠${MAX_PICKUP_NOTIFICATION_RECIPIENTS}位住戶` }, 409)
         }
         const messages = mentionable.length > 0
-          ? buildPickupMentionMessages(mentionable.map((recipient) => ({ lineUserId: recipient.line_user_id })), message)
+          ? dual
+            ? buildPickupDualModeMessages(mode as 'ambient' | 'cold', mentionable.map((recipient) => ({ lineUserId: recipient.line_user_id, period: recipient.period })), bodies as { all: string } | { phase13: string; phase2: string })
+            : buildPickupMentionMessages(mentionable.map((recipient) => ({ lineUserId: recipient.line_user_id })), message)
           : []
         const recipientHash = await pickupRecipientSnapshotHash(groupId, mentionable.map((recipient) => recipient.line_user_id))
 
@@ -187,7 +206,9 @@ export function createPickupNotificationHandler(destination: 'production' | 'tes
           if (finalizeError) throw finalizeError
           reservedToken = null
           const responsePreviewToken = finalized === true && finalizedToken
-            ? await sealPickupRecipientSnapshot(intentSecret, finalizedToken, destination, groupId, mentionable.map((recipient) => recipient.line_user_id))
+            ? await sealPickupRecipientSnapshot(intentSecret, finalizedToken, destination, groupId,
+              mentionable.map((recipient) => recipient.line_user_id),
+              dual ? mentionable.map((recipient) => recipient.period) : undefined)
             : null
           return jsonResponse({
             previewToken: responsePreviewToken,
@@ -201,6 +222,10 @@ export function createPickupNotificationHandler(destination: 'production' | 'tes
         if (!sealedSnapshot || messages.length === 0) return jsonResponse({ error: '目前沒有可在群組＠的購買者' }, 409)
         const sealedHash = await pickupRecipientSnapshotHash(sealedSnapshot.groupId, sealedSnapshot.lineUserIds)
         if (sealedHash !== recipientHash) return jsonResponse({ error: '通知名單已變更，請重新預覽' }, 409)
+        if (dual && !pickupPeriodSnapshotMatches(sealedSnapshot,
+          mentionable.map((recipient) => ({ lineUserId: recipient.line_user_id, period: recipient.period })))) {
+          return jsonResponse({ error: '通知期別已變更，請重新預覽' }, 409)
+        }
 
         const commandCode = generatePickupReplyCommandCode(destination)
         const commandHash = await technicalSha256(`pickup-command:${commandCode}`)
@@ -223,6 +248,8 @@ export function createPickupNotificationHandler(destination: 'production' | 'tes
           if (issueError.message.includes('approved LINE organizer')) return jsonResponse({ error: '需要已核准的LINE團主身分' }, 403)
           throw issueError
         }
+        if (!issued || typeof issued !== 'object' || !('expires_at' in issued) || !('recipient_count' in issued) || !('message_count' in issued)
+          || typeof issued.expires_at !== 'string' || typeof issued.recipient_count !== 'number' || typeof issued.message_count !== 'number') throw new Error('invalid command response')
         return jsonResponse({
           status: 'awaiting_group_command',
           command: `${destination === 'test' ? '測試領取通知' : '發送領取通知'} ${commandCode}`,
@@ -237,6 +264,7 @@ export function createPickupNotificationHandler(destination: 'production' | 'tes
     } catch (error) {
       const message = error instanceof Error ? error.message : ''
       if (message === '請求內容過大') return jsonResponse({ error: message }, 413)
+      if (message.includes('超過單一指令5則上限') || message.includes('單次最多可＠')) return jsonResponse({ error: message }, 409)
       if (message.includes('通知內容') || message.includes('沒有可＠') || message.includes('LINE住戶')) return jsonResponse({ error: message }, 400)
       if (message.startsWith('無法確認LINE群組成員') || message.startsWith('LINE群組成員')) {
         return jsonResponse({ error: '無法確認購買者是否仍在LINE群組，請檢查官方帳號與群組設定' }, 502)

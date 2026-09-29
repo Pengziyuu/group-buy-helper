@@ -1,7 +1,7 @@
 import type { CampaignStatus } from '../../domain/orderWorkflow'
-import type { PickupNotificationAudience } from '../../domain/pickupNotification'
+import type { PickupNotificationAudience, PickupNotificationPlan } from '../../domain/pickupNotification'
 import PickupNotificationPanel from '../../PickupNotificationPanel'
-import type { PickupNotificationCommand, PickupNotificationResponse } from '../../services/pickupNotificationGateway'
+import type { PickupNotificationCommand, PickupNotificationPlanPreview, PickupNotificationResponse } from '../../services/pickupNotificationGateway'
 import { EmptyState } from '../ui/AsyncState'
 
 type PickupSectionProps = {
@@ -12,9 +12,11 @@ type PickupSectionProps = {
   excludedOtherCount: number
   onPreview?: (audience: PickupNotificationAudience, message: string) => Promise<PickupNotificationResponse>
   onCreateCommand?: (audience: PickupNotificationAudience, message: string, previewToken: string) => Promise<PickupNotificationCommand>
+  onPreviewPlan?: (plan: PickupNotificationPlan) => Promise<PickupNotificationPlanPreview>
+  onCreatePlanCommand?: (plan: PickupNotificationPlan, previewToken: string) => Promise<PickupNotificationCommand>
 }
 
-export function PickupSection({ campaignId, campaignTitle, campaignStatus, published, excludedOtherCount, onPreview, onCreateCommand }: PickupSectionProps) {
+export function PickupSection({ campaignId, campaignTitle, campaignStatus, published, excludedOtherCount, onPreview, onCreateCommand, onPreviewPlan, onCreatePlanCommand }: PickupSectionProps) {
   return (
     <section className="organizer-section" aria-labelledby="pickup-section-heading">
       <h2 id="pickup-section-heading">領取通知</h2>
@@ -30,6 +32,8 @@ export function PickupSection({ campaignId, campaignTitle, campaignStatus, publi
           excludedOtherCount={excludedOtherCount}
           onPreview={onPreview}
           onCreateCommand={onCreateCommand}
+          onPreviewPlan={onPreviewPlan}
+          onCreatePlanCommand={onCreatePlanCommand}
         />
       ) : (
         <EmptyState title="本機示範不提供LINE領取通知" description="連接 Supabase 的團主後台才能產生領取通知指令。" />

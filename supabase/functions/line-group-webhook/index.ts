@@ -2,6 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import { jsonResponse } from '../_shared/http.ts'
 import {
   buildPickupMentionMessages,
+  buildPickupDualModeMessages,
   getLineGroupMemberIdsForCandidates,
   openPickupReplyPayload,
   pickupEligibleRecipientSnapshotHash,
@@ -28,7 +29,7 @@ type LineWebhookEvent = {
 type ReplyCommand = {
   intent_token: string
   campaign_id: string
-  audience: 'phase13' | 'phase2'
+  audience: 'phase13' | 'phase2' | 'all' | 'combined'
   binding_kind: 'test' | 'production'
   payload_ciphertext: string
   message_hash: string
@@ -37,7 +38,7 @@ type ReplyCommand = {
   message_count: number
 }
 
-type RecipientRow = { line_user_id: string }
+type RecipientRow = { line_user_id: string; period: number }
 
 async function replyMessages(channelAccessToken: string, replyToken: string, messages: LineTextV2Message[] | { type: 'text'; text: string }[]) {
   try {
@@ -139,11 +140,31 @@ Deno.serve(async (request) => {
         }
 
         const recipientHash = await pickupRecipientSnapshotHash(groupId, confirmedIds)
-        const eligibleHash = await pickupEligibleRecipientSnapshotHash(candidates.map((row) => row.line_user_id))
+        const eligibleHash = await pickupEligibleRecipientSnapshotHash(
+          command.audience === 'all' || command.audience === 'combined'
+            ? candidates.map((row) => ({ lineUserId: row.line_user_id, period: row.period }))
+            : candidates.map((row) => row.line_user_id),
+          command.audience,
+        )
         const messageHash = await technicalSha256(message)
         let messages: LineTextV2Message[] = []
         try {
-          messages = buildPickupMentionMessages(confirmedIds.map((lineUserId) => ({ lineUserId })), message)
+          if (command.audience === 'all' || command.audience === 'combined') {
+            const bodies: unknown = JSON.parse(message)
+            if (!bodies || typeof bodies !== 'object' || Array.isArray(bodies)) throw new Error('invalid bodies')
+            const values = bodies as Record<string, unknown>
+            if (command.audience === 'all'
+              ? Object.keys(values).length !== 1 || typeof values.all !== 'string'
+              : Object.keys(values).length !== 2 || typeof values.phase13 !== 'string' || typeof values.phase2 !== 'string') throw new Error('invalid bodies')
+            const confirmed = new Set(confirmedIds)
+            messages = buildPickupDualModeMessages(
+              command.audience === 'all' ? 'ambient' : 'cold',
+              candidates.filter((row) => confirmed.has(row.line_user_id)).map((row) => ({ lineUserId: row.line_user_id, period: row.period })),
+              values as { all: string } | { phase13: string; phase2: string },
+            )
+          } else {
+            messages = buildPickupMentionMessages(confirmedIds.map((lineUserId) => ({ lineUserId })), message)
+          }
         } catch {
           // The command is consumed below through the same safe changed-list path.
         }

@@ -1,4 +1,16 @@
 export type PickupNotificationAudience = 'phase13' | 'phase2'
+export type PickupNotificationMode = 'ambient' | 'cold'
+export type PickupNotificationPlan =
+  | { mode: 'ambient'; messages: { all: string } }
+  | { mode: 'cold'; messages: Record<PickupNotificationAudience, string> }
+
+export function pickupNotificationPlan(mode: PickupNotificationMode, campaignTitle: string): PickupNotificationPlan {
+  if (mode === 'ambient') return {
+    mode,
+    messages: { all: `🔔 溫馨提醒有購買【${campaignTitle.trim()}】的鄰居：商品已到貨，請依團主公告的時間與地點領取。\n\n尚未付款的鄰居，有空再麻煩 LINE Pay，感恩 🙏❤️🙇` },
+  }
+  return { mode, messages: { phase13: pickupNotificationTemplate('phase13', campaignTitle), phase2: pickupNotificationTemplate('phase2', campaignTitle) } }
+}
 
 export type PickupNotificationRecipient = {
   memberCode: string

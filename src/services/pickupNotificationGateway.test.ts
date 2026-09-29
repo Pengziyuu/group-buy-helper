@@ -20,6 +20,30 @@ const command = {
 }
 
 describe('pickup notification gateway', () => {
+  it('shows a bounded over-five warning returned by the backend', async () => {
+    const invoke = vi.fn().mockResolvedValue({ data: null, error: { context: new Response(JSON.stringify({ error: '需要6則訊息，超過單一指令5則上限；目前無法產生涵蓋全部住戶的指令' })) } })
+    const gateway = createPickupNotificationGateway({ functions: { invoke } } as never)
+    await expect(gateway.previewPlan('campaign', { mode: 'cold', messages: { phase13: '一三', phase2: '二' } })).rejects.toThrow('需要6則訊息，超過單一指令5則上限；目前無法產生涵蓋全部住戶的指令')
+  })
+  it('adapts a flat backend preview into mode-specific lists without exposing identities', async () => {
+    const second = { ...preview.mentionableRecipients[0], memberCode: 'member-b', period: 2 }
+    const flat = { ...preview, mentionableRecipients: [preview.mentionableRecipients[0], second], mentionableCount: 2, messageCount: 2 }
+    const gateway = createPickupNotificationGateway({ functions: { invoke: vi.fn().mockResolvedValue({ data: flat, error: null }) } } as never)
+    const result = await gateway.previewPlan('campaign', { mode: 'cold', messages: { phase13: '第一則', phase2: '第二則' } })
+    expect(result.groups.phase13?.mentionableRecipients.map((item) => item.memberCode)).toEqual(['member-a'])
+    expect(result.groups.phase2?.mentionableRecipients.map((item) => item.memberCode)).toEqual(['member-b'])
+    expect(result.messageCount).toBe(2)
+  })
+  it('sends both cold messages in one sealed preview and command request', async () => {
+    const plan = { mode: 'cold' as const, messages: { phase13: '一期三期通知', phase2: '二期通知' } }
+    const combined = { previewToken: preview.previewToken, messageCount: 2, groups: { phase13: preview, phase2: preview } }
+    const invoke = vi.fn().mockResolvedValueOnce({ data: combined, error: null }).mockResolvedValueOnce({ data: { ...command, messageCount: 2 }, error: null })
+    const gateway = createPickupNotificationGateway({ functions: { invoke } } as never)
+    await expect(gateway.previewPlan('campaign', plan)).resolves.toEqual(combined)
+    expect(invoke).toHaveBeenCalledWith('send-pickup-notification', { body: { action: 'preview', campaignId: 'campaign', mode: 'cold', messages: plan.messages } })
+    await gateway.createPlanCommand('campaign', plan, preview.previewToken)
+    expect(invoke).toHaveBeenCalledWith('send-pickup-notification', { body: { action: 'create-command', campaignId: 'campaign', mode: 'cold', messages: plan.messages, previewToken: preview.previewToken } })
+  })
   it('previews then creates a one-time group command without a send action', async () => {
     const invoke = vi.fn().mockResolvedValue({ data: preview, error: null })
     const gateway = createPickupNotificationGateway({ functions: { invoke } } as never)

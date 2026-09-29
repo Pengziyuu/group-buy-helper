@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   groupPickupNotificationRecipients,
   pickupNotificationTemplate,
+  pickupNotificationPlan,
   type PickupNotificationRecipient,
 } from './pickupNotification'
 
@@ -13,6 +14,16 @@ const recipients: PickupNotificationRecipient[] = [
 ]
 
 describe('pickup notification domain', () => {
+  it('uses a neutral shared ambient message and distinct cold-period messages', () => {
+    expect(pickupNotificationPlan('ambient', '神農包子')).toEqual({ mode: 'ambient', messages: { all: expect.stringContaining('神農包子') } })
+    const ambientPlan = pickupNotificationPlan('ambient', '神農包子')
+    const ambient = ambientPlan.mode === 'ambient' ? ambientPlan.messages.all : ''
+    expect(ambient).not.toMatch(/一期|二期|三期|寄櫃|退冰/)
+    expect(pickupNotificationPlan('cold', '神農包子').messages).toEqual({
+      phase13: pickupNotificationTemplate('phase13', '神農包子'),
+      phase2: pickupNotificationTemplate('phase2', '神農包子'),
+    })
+  })
   it('groups unique purchasers into phase one plus three and phase two audiences', () => {
     const grouped = groupPickupNotificationRecipients(recipients)
 

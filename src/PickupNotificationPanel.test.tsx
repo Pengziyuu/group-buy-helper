@@ -33,6 +33,43 @@ const baseProps = {
 }
 
 describe('pickup notification panel', () => {
+  it('previews ambient as one combined list and cold as two independently editable lists with one command', async () => {
+    const user = userEvent.setup()
+    const onPreviewPlan = vi.fn().mockImplementation(async (plan: { mode: string }) => ({
+      previewToken: preview.previewToken,
+      messageCount: plan.mode === 'ambient' ? 1 : 2,
+      groups: plan.mode === 'ambient' ? { all: preview } : { phase13: preview, phase2: { ...preview, mentionableRecipients: [preview.mentionableRecipients[0]], mentionableCount: 1 } },
+    }))
+    const onCreatePlanCommand = vi.fn().mockResolvedValue(command)
+    render(<PickupNotificationPanel {...baseProps} onPreviewPlan={onPreviewPlan} onCreatePlanCommand={onCreatePlanCommand} />)
+    await user.click(screen.getByRole('button', { name: '預覽常溫通知' }))
+    expect(await screen.findByRole('heading', { name: '一期、二期、三期合併名單' })).toBeInTheDocument()
+    expect(screen.getAllByRole('textbox', { name: '通知內容' })).toHaveLength(1)
+    expect((screen.getByRole('textbox', { name: '通知內容' }) as HTMLTextAreaElement).value).not.toMatch(/寄櫃|退冰/)
+    expect(onPreviewPlan).toHaveBeenLastCalledWith({ mode: 'ambient', messages: { all: expect.any(String) } })
+    await user.click(screen.getByRole('button', { name: '切換冷凍冷藏' }))
+    await user.click(screen.getByRole('button', { name: '預覽冷凍冷藏通知' }))
+    expect(await screen.findByRole('heading', { name: '一期、三期名單' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '二期名單' })).toBeInTheDocument()
+    const first = screen.getByRole('textbox', { name: '一期、三期通知內容' })
+    await user.clear(first)
+    await user.type(first, '第一則通知')
+    await user.click(screen.getByRole('button', { name: /產生.*群組指令/ }))
+    expect(onCreatePlanCommand).toHaveBeenCalledWith({ mode: 'cold', messages: { phase13: '第一則通知', phase2: expect.any(String) } }, preview.previewToken)
+    expect(await screen.findByDisplayValue(command.command)).toBeInTheDocument()
+  })
+  it('blocks a combined command when bubbles exceed five without dropping recipients', async () => {
+    const user = userEvent.setup()
+    const phase13 = { ...preview, messageCount: 5, mentionableCount: 81, mentionableRecipients: Array.from({ length: 81 }, (_, i) => ({ ...preview.mentionableRecipients[0], memberCode: `member-${i}` })) }
+    const phase2 = { ...preview, messageCount: 1, mentionableCount: 1, mentionableRecipients: [{ ...preview.mentionableRecipients[0], memberCode: 'phase2', period: 2 }] }
+    render(<PickupNotificationPanel {...baseProps} onPreviewPlan={vi.fn().mockResolvedValue({ previewToken: null, messageCount: 6, groups: { phase13, phase2 } })} onCreatePlanCommand={vi.fn()} />)
+    await user.click(screen.getByRole('button', { name: '切換冷凍冷藏' }))
+    await user.click(screen.getByRole('button', { name: '預覽冷凍冷藏通知' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('超過單一指令5則上限')
+    expect(screen.getByRole('button', { name: /產生.*群組指令/ })).toBeDisabled()
+    expect(screen.getByRole('heading', { name: '一期、三期名單' }).closest('section')?.querySelector('.pickup-recipient-list')?.querySelectorAll('li')).toHaveLength(81)
+    expect(screen.getByRole('heading', { name: '二期名單' }).closest('section')?.querySelector('.pickup-recipient-list')?.querySelectorAll('li')).toHaveLength(1)
+  })
   it('is hidden before closing and offers two audience previews after closing', () => {
     const props = { ...baseProps, campaignStatus: 'open' as const }
     const { rerender } = render(<PickupNotificationPanel {...props} />)

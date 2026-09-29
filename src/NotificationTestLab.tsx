@@ -7,7 +7,8 @@ import { FeedbackMessage } from './components/ui/FeedbackMessage'
 import { StatusBadge } from './components/ui/StatusBadge'
 import type { PickupNotificationAudience } from './domain/pickupNotification'
 import type { CampaignListItem } from './services/campaignManagementGateway'
-import type { PickupNotificationCommand, PickupNotificationResponse } from './services/pickupNotificationGateway'
+import type { PickupNotificationCommand, PickupNotificationPlanPreview, PickupNotificationResponse } from './services/pickupNotificationGateway'
+import type { PickupNotificationPlan } from './domain/pickupNotification'
 import './NotificationTestLab.css'
 
 type NotificationTestLabProps = {
@@ -16,6 +17,8 @@ type NotificationTestLabProps = {
   onSetTestCampaign: (campaignId: string, enabled: boolean) => Promise<void>
   onPreview: (campaignId: string, audience: PickupNotificationAudience, message: string) => Promise<PickupNotificationResponse>
   onCreateCommand: (campaignId: string, audience: PickupNotificationAudience, message: string, previewToken: string) => Promise<PickupNotificationCommand>
+  onPreviewPlan?: (campaignId: string, plan: PickupNotificationPlan) => Promise<PickupNotificationPlanPreview>
+  onCreatePlanCommand?: (campaignId: string, plan: PickupNotificationPlan, token: string) => Promise<PickupNotificationCommand>
 }
 
 export default function NotificationTestLab({
@@ -24,6 +27,8 @@ export default function NotificationTestLab({
   onSetTestCampaign,
   onPreview,
   onCreateCommand,
+  onPreviewPlan,
+  onCreatePlanCommand,
 }: NotificationTestLabProps) {
   const [markedIds, setMarkedIds] = useState(() => new Set(testCampaignIds))
   const [target, setTarget] = useState<{ campaign: CampaignListItem; enabled: boolean } | null>(null)
@@ -111,6 +116,8 @@ export default function NotificationTestLab({
                 mode="test"
                 onPreview={(audience, message) => onPreview(campaign.id, audience, message)}
                 onCreateCommand={(audience, message, previewToken) => onCreateCommand(campaign.id, audience, message, previewToken)}
+                onPreviewPlan={onPreviewPlan && ((plan) => onPreviewPlan(campaign.id, plan))}
+                onCreatePlanCommand={onCreatePlanCommand && ((plan, token) => onCreatePlanCommand(campaign.id, plan, token))}
               />
             )}
           </article>

@@ -1,0 +1,105 @@
+import { useEffect, useState } from 'react'
+import { Button } from './components/ui/Button'
+import { pickupNotificationPlan, type PickupNotificationMode, type PickupNotificationPlan } from './domain/pickupNotification'
+import type { PickupNotificationCommand, PickupNotificationPlanPreview } from './services/pickupNotificationGateway'
+import { formatResidentPeriod } from './domain/household'
+
+type Props = {
+  campaignTitle: string
+  campaignStatus: string
+  mode: 'production' | 'test'
+  onPreviewPlan: (plan: PickupNotificationPlan) => Promise<PickupNotificationPlanPreview>
+  onCreatePlanCommand: (plan: PickupNotificationPlan, token: string) => Promise<PickupNotificationCommand>
+}
+
+const labels = { all: '一期、二期、三期合併', phase13: '一期、三期', phase2: '二期' } as const
+
+export default function PickupNotificationPlanPanel({ campaignTitle, campaignStatus, mode, onPreviewPlan, onCreatePlanCommand }: Props) {
+  const [notificationMode, setNotificationMode] = useState<PickupNotificationMode>('ambient')
+  const [plan, setPlan] = useState<PickupNotificationPlan>(() => pickupNotificationPlan('ambient', campaignTitle))
+  const [preview, setPreview] = useState<PickupNotificationPlanPreview | null>(null)
+  const [command, setCommand] = useState<PickupNotificationCommand | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [copyStatus, setCopyStatus] = useState('')
+  const [revision, setRevision] = useState(0)
+  useEffect(() => {
+    if (campaignStatus === 'open') {
+      setPreview(null)
+      setCommand(null)
+      setRevision((value) => value + 1)
+    }
+  }, [campaignStatus])
+  if (campaignStatus === 'open') return null
+  const keys = notificationMode === 'ambient' ? ['all'] as const : ['phase13', 'phase2'] as const
+  const total = preview ? Object.values(preview.groups).reduce((sum, group) => sum + (group?.mentionableCount ?? 0), 0) : 0
+  const outboundPlan = (): PickupNotificationPlan => mode === 'test'
+    ? notificationMode === 'ambient'
+      ? { mode: 'ambient', messages: { all: `【測試】\n${(plan as Extract<PickupNotificationPlan, { mode: 'ambient' }>).messages.all}` } }
+      : { mode: 'cold', messages: Object.fromEntries((['phase13', 'phase2'] as const).map((key) => [key, `【測試】\n${(plan as Extract<PickupNotificationPlan, { mode: 'cold' }>).messages[key]}`])) as Record<'phase13' | 'phase2', string> }
+    : plan
+  const selectMode = (next: PickupNotificationMode) => {
+    if (busy) return
+    setNotificationMode(next)
+    setPlan(pickupNotificationPlan(next, campaignTitle))
+    setPreview(null)
+    setCommand(null)
+    setError('')
+    setRevision((value) => value + 1)
+  }
+  const changeMessage = (key: 'all' | 'phase13' | 'phase2', text: string) => {
+    setPlan((current) => current.mode === 'ambient'
+      ? { mode: 'ambient', messages: { all: text } }
+      : { mode: 'cold', messages: { ...current.messages, [key]: text } })
+    setCommand(null)
+    setError('')
+  }
+  const readPreview = async () => {
+    if (busy) return
+    setBusy(true)
+    setError('')
+    setCommand(null)
+    try {
+      setPreview(await onPreviewPlan(outboundPlan()))
+    } catch (cause) {
+      setPreview(null)
+      setError(cause instanceof Error ? cause.message : '目前無法讀取通知名單，請稍後再試。')
+    } finally { setBusy(false) }
+  }
+  const createCommand = async () => {
+    if (busy || !preview?.previewToken || preview.messageCount > 5 || total === 0) return
+    setBusy(true)
+    setError('')
+    try { setCommand(await onCreatePlanCommand(outboundPlan(), preview.previewToken)) }
+    catch (cause) { setError(cause instanceof Error ? cause.message : '目前無法產生通知指令，請稍後再試。') }
+    finally { setBusy(false) }
+  }
+  return <section className="pickup-notification-panel" aria-label="LINE領取通知">
+    <h3>{mode === 'test' ? `LINE通知測試：${campaignTitle}` : 'LINE領取通知'}</h3>
+    <p>發送方式：複製一次性指令並貼到{mode === 'test' ? '測試群組' : '正式社區群組'}，此頁不會直接發送。</p>
+    <div className="pickup-step-actions" role="group" aria-label="通知模式">
+      <Button variant={notificationMode === 'ambient' ? 'primary' : 'secondary'} disabled={busy} onClick={() => selectMode('ambient')}>切換常溫</Button>
+      <Button variant={notificationMode === 'cold' ? 'primary' : 'secondary'} disabled={busy} onClick={() => selectMode('cold')}>切換冷凍冷藏</Button>
+    </div>
+    <p>{notificationMode === 'ambient' ? '常溫：一期、二期、三期合併一份通知。' : '冷凍冷藏：一期、三期與二期分別確認名單與訊息。'}</p>
+    <Button disabled={busy} onClick={() => { void readPreview() }}>{busy ? '處理中…' : `預覽${notificationMode === 'ambient' ? '常溫' : '冷凍冷藏'}通知`}</Button>
+    {error && <p role="alert" className="pickup-notification-error">{error}</p>}
+    {preview && <div key={revision} className="pickup-steps">
+      {keys.map((key) => {
+        const group = preview.groups[key]
+        const body = plan.mode === 'ambient' ? plan.messages.all : plan.messages[key as 'phase13' | 'phase2']
+        return <section className="pickup-step" key={key} aria-label={`${labels[key]}通知`}>
+          <h4>{labels[key]}名單</h4>
+          <p>可＠{group?.mentionableCount ?? 0}位；此名單將分成{group?.messageCount ?? 0}則LINE訊息（每則最多20位）。</p>
+          {group?.mentionableRecipients.length ? <ul className="pickup-recipient-list">{group.mentionableRecipients.map((recipient) => <li key={recipient.memberCode}>{formatResidentPeriod(recipient.period)}・{recipient.unit}・{recipient.displayName}</li>)}</ul> : <p>目前沒有可＠的購買者。</p>}
+          {Boolean(group?.unavailableRecipients.length) && <div className="pickup-unavailable"><p>以下{group?.unavailableRecipients.length}位無法＠，不會包含於指令：</p><ul className="pickup-recipient-list">{group?.unavailableRecipients.map((recipient) => <li key={recipient.memberCode}>{formatResidentPeriod(recipient.period)}・{recipient.unit}・{recipient.displayName}</li>)}</ul></div>}
+          <label className="pickup-message-field"><span>{key === 'all' ? '通知內容' : `${labels[key]}通知內容`}</span><textarea aria-label={key === 'all' ? '通知內容' : `${labels[key]}通知內容`} maxLength={mode === 'test' ? 4495 : 4500} rows={5} disabled={busy || Boolean(command)} value={body} onChange={(event) => changeMessage(key, event.target.value)} /></label>
+        </section>
+      })}
+      <p>合計可＠{total}位，預計{preview.messageCount}則LINE訊息；每則至多20位，最多5則。</p>
+      {preview.messageCount > 5 && <p role="alert" className="pickup-notification-error">需要{preview.messageCount}則訊息，超過單一指令5則上限；目前無法產生涵蓋全部住戶的指令。</p>}
+      {!command && <Button disabled={busy || !preview.previewToken || preview.messageCount > 5 || total === 0 || keys.some((key) => !(plan.mode === 'ambient' ? plan.messages.all : plan.messages[key as 'phase13' | 'phase2']).trim())} onClick={() => { void createCommand() }}>產生{mode === 'test' ? '測試' : '正式'}群組指令並＠{total}位住戶</Button>}
+      {command && <section className="pickup-command-result" aria-label="一次性LINE群組指令"><strong>指令已產生，等待貼到群組；通知尚未發送。</strong><input className="ui-input" aria-label="一次性LINE群組指令" readOnly value={command.command} onFocus={(event) => event.currentTarget.select()} /><div className="pickup-step-actions"><Button onClick={() => { void navigator.clipboard.writeText(command.command).then(() => setCopyStatus('指令已複製，等待貼到群組。'), () => setError('無法自動複製，請手動選取指令複製。')) }}>複製指令</Button><Button variant="secondary" onClick={() => { setPreview(null); setCommand(null) }}>完成</Button></div>{copyStatus && <p role="status">{copyStatus}</p>}</section>}
+    </div>}
+  </section>
+}

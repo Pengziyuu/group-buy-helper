@@ -1,4 +1,4 @@
-import type { PickupNotificationAudience, PickupNotificationRecipient } from '../domain/pickupNotification'
+import type { PickupNotificationAudience, PickupNotificationPlan, PickupNotificationRecipient } from '../domain/pickupNotification'
 
 export type PickupNotificationDestination = 'production' | 'test'
 
@@ -19,6 +19,11 @@ export type PickupNotificationCommand = {
 }
 
 export type PickupNotificationResponse = PickupNotificationPreview
+export type PickupNotificationPlanPreview = {
+  previewToken: string | null
+  messageCount: number
+  groups: Partial<Record<'all' | PickupNotificationAudience, PickupNotificationPreview>>
+}
 
 type PickupNotificationClient = {
   functions: {
@@ -32,13 +37,13 @@ function record(value: unknown): Record<string, unknown> | null {
 
 const SAFE_PROVIDER_ERRORS = new Set([
   '需要團主登入', '團主登入已失效', '需要團主權限', '需要已核准的LINE團主身分',
-  '通知動作格式錯誤', '團購識別格式錯誤', '通知期別格式錯誤', '測試通知必須保留【測試】前綴',
+  '通知動作格式錯誤', '團購識別格式錯誤', '通知期別格式錯誤', '通知內容格式錯誤', '通知內容不能空白', '測試通知必須保留【測試】前綴',
   'LINE通知服務尚未設定', 'LINE通知預覽加密尚未設定', '預覽憑證無效，請重新預覽',
   '預覽已失效，請重新預覽', '通知名單已變更，請重新預覽', '通知名單或群組已變更，請重新預覽',
   '尚未綁定LINE通知群組', '團購結單後才能發送領取通知', '找不到團購', '目前沒有可在群組＠的購買者',
   '測試團購不能從正式介面產生指令', '此團購尚未加入通知測試中心',
   '預覽次數過於頻繁，請稍後再試', '產生指令過於頻繁，請稍後再試',
-  '無法確認購買者是否仍在LINE群組，請檢查官方帳號與群組設定',
+  '無法確認購買者是否仍在LINE群組，請檢查官方帳號與群組設定', '單次最多可＠100位住戶',
 ])
 
 async function functionErrorMessage(error: unknown): Promise<string> {
@@ -47,7 +52,8 @@ async function functionErrorMessage(error: unknown): Promise<string> {
   if (context && typeof context === 'object' && 'clone' in context) {
     try {
       const payload = record(await (context as Response).clone().json())
-      if (typeof payload?.error === 'string' && SAFE_PROVIDER_ERRORS.has(payload.error)) return payload.error
+      if (typeof payload?.error === 'string' && (SAFE_PROVIDER_ERRORS.has(payload.error)
+        || /^需要[1-9][0-9]{0,2}則訊息，超過單一指令5則上限；目前無法產生涵蓋全部住戶的指令$/.test(payload.error))) return payload.error
     } catch {
       // Use a fixed fallback; never expose arbitrary provider text.
     }
@@ -103,6 +109,34 @@ function parseCommand(value: unknown, destination: PickupNotificationDestination
   return data as PickupNotificationCommand
 }
 
+function parsePlanPreview(value: unknown, plan: PickupNotificationPlan): PickupNotificationPlanPreview {
+  const data = record(value)
+  const keys = plan.mode === 'ambient' ? ['all'] : ['phase13', 'phase2']
+  const groups = record(data?.groups)
+  // The Edge function returns one flat display-safe roster. Partition only for presentation;
+  // the server owns the sealed token, eligibility and actual Text v2 payload.
+  if (data && !groups) {
+    const flat = parsePreview(value)
+    const partition = (key: string, recipient: PickupNotificationRecipient) => key === 'all'
+      || (key === 'phase2' ? recipient.period === 2 : recipient.period === 1 || recipient.period === 3)
+    const parsed = Object.fromEntries(keys.map((key) => {
+      const mentionableRecipients = flat.mentionableRecipients.filter((item) => partition(key, item))
+      const unavailableRecipients = flat.unavailableRecipients.filter((item) => partition(key, item))
+      return [key, { ...flat, mentionableRecipients, unavailableRecipients, mentionableCount: mentionableRecipients.length, messageCount: Math.ceil(mentionableRecipients.length / 20) }]
+    })) as PickupNotificationPlanPreview['groups']
+    if (Object.values(parsed).reduce((sum, group) => sum + (group?.messageCount ?? 0), 0) !== flat.messageCount) throw new Error('LINE通知回傳格式錯誤')
+    return { previewToken: flat.previewToken, messageCount: flat.messageCount, groups: parsed }
+  }
+  if (!data || Object.keys(data).some((key) => !['previewToken', 'messageCount', 'groups'].includes(key))
+    || !groups || Object.keys(groups).some((key) => !keys.includes(key))
+    || keys.some((key) => !(key in groups)) || !validCount(data.messageCount, 5)
+    || !(data.previewToken === null || (typeof data.previewToken === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.[A-Za-z0-9_-]{20,12000}$/i.test(data.previewToken)))) throw new Error('LINE通知回傳格式錯誤')
+  const parsed = Object.fromEntries(keys.map((key) => [key, parsePreview(groups[key])])) as PickupNotificationPlanPreview['groups']
+  const total = Object.values(parsed).reduce((sum, group) => sum + (group?.messageCount ?? 0), 0)
+  if (total !== data.messageCount) throw new Error('LINE通知回傳格式錯誤')
+  return { previewToken: data.previewToken as string | null, messageCount: data.messageCount as number, groups: parsed }
+}
+
 export function createPickupNotificationGateway(client: PickupNotificationClient, destination: PickupNotificationDestination = 'production') {
   const functionName = destination === 'test' ? 'send-test-pickup-notification' : 'send-pickup-notification'
   const invoke = async (body: Record<string, unknown>) => {
@@ -111,6 +145,8 @@ export function createPickupNotificationGateway(client: PickupNotificationClient
     return response.data
   }
   return {
+    previewPlan: async (campaignId: string, plan: PickupNotificationPlan) => parsePlanPreview(await invoke({ action: 'preview', campaignId, mode: plan.mode, messages: plan.messages }), plan),
+    createPlanCommand: async (campaignId: string, plan: PickupNotificationPlan, previewToken: string) => parseCommand(await invoke({ action: 'create-command', campaignId, mode: plan.mode, messages: plan.messages, previewToken }), destination),
     preview: async (campaignId: string, audience: PickupNotificationAudience, message: string) => parsePreview(await invoke({ action: 'preview', campaignId, audience, message })),
     createCommand: async (campaignId: string, audience: PickupNotificationAudience, message: string, previewToken: string) => parseCommand(await invoke({ action: 'create-command', campaignId, audience, message, previewToken }), destination),
   }

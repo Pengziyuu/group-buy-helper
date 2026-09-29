@@ -1,13 +1,15 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Button } from './components/ui/Button'
+import PickupNotificationPlanPanel from './PickupNotificationPlanPanel'
 import type { CampaignStatus } from './domain/orderWorkflow'
 import {
   pickupNotificationAudienceLabel,
   pickupNotificationTemplate,
   type PickupNotificationAudience,
+  type PickupNotificationPlan,
   type PickupNotificationRecipient,
 } from './domain/pickupNotification'
-import type { PickupNotificationCommand, PickupNotificationResponse } from './services/pickupNotificationGateway'
+import type { PickupNotificationCommand, PickupNotificationPlanPreview, PickupNotificationResponse } from './services/pickupNotificationGateway'
 import { formatResidentPeriod } from './domain/household'
 import './PickupNotificationPanel.css'
 
@@ -19,6 +21,8 @@ type PickupNotificationPanelProps = {
   excludedOtherCount?: number
   onPreview: (audience: PickupNotificationAudience, message: string) => Promise<PickupNotificationResponse>
   onCreateCommand: (audience: PickupNotificationAudience, message: string, previewToken: string) => Promise<PickupNotificationCommand>
+  onPreviewPlan?: (plan: PickupNotificationPlan) => Promise<PickupNotificationPlanPreview>
+  onCreatePlanCommand?: (plan: PickupNotificationPlan, previewToken: string) => Promise<PickupNotificationCommand>
 }
 
 type FocusTarget = 'step-two' | 'copy' | 'command' | 'first-choice' | 'second-choice'
@@ -42,7 +46,7 @@ function RecipientList({ recipients }: { recipients: PickupNotificationRecipient
   )
 }
 
-function PickupNotificationPanel({ campaignId, campaignTitle, campaignStatus, mode = 'production', excludedOtherCount, onPreview, onCreateCommand }: PickupNotificationPanelProps) {
+function PickupNotificationPanel({ campaignId, campaignTitle, campaignStatus, mode = 'production', excludedOtherCount, onPreview, onCreateCommand, onPreviewPlan, onCreatePlanCommand }: PickupNotificationPanelProps) {
   const isTest = mode === 'test'
   const messageLimit = 4500 - (isTest ? '【測試】\n'.length : 0)
   const idPrefix = useId()
@@ -95,6 +99,10 @@ function PickupNotificationPanel({ campaignId, campaignTitle, campaignStatus, mo
   }, [audience, busy, command, error, preview])
 
   if (campaignStatus === 'open') return null
+  if (onPreviewPlan && onCreatePlanCommand) return <div data-campaign-id={campaignId}>
+    {Boolean(excludedOtherCount) && <p className="pickup-notification-excluded">本團另有 {excludedOtherCount} 位「其他」身分的訂購者不會收到通知，請自行聯繫。</p>}
+    <PickupNotificationPlanPanel key={campaignId} campaignTitle={campaignTitle} campaignStatus={campaignStatus} mode={mode} onPreviewPlan={onPreviewPlan} onCreatePlanCommand={onCreatePlanCommand} />
+  </div>
 
   const outboundMessage = (body: string) => isTest ? `【測試】\n${body}` : body
 

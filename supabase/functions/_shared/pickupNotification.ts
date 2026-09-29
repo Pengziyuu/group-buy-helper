@@ -52,6 +52,7 @@ export type SealedPickupRecipientSnapshot = {
   destination: 'test' | 'production'
   groupId: string
   lineUserIds: string[]
+  periods?: number[]
 }
 
 export async function sealPickupRecipientSnapshot(
@@ -60,17 +61,20 @@ export async function sealPickupRecipientSnapshot(
   destination: 'test' | 'production',
   groupId: string,
   lineUserIds: string[],
+  periods?: number[],
 ): Promise<string> {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(intentId)
     || (destination !== 'test' && destination !== 'production')
     || !/^C[0-9a-f]{32}$/iu.test(groupId)
     || lineUserIds.length < 1 || lineUserIds.length > MAX_PICKUP_NOTIFICATION_RECIPIENTS
     || lineUserIds.some((id) => !/^U[0-9a-f]{32}$/iu.test(id))
-    || new Set(lineUserIds).size !== lineUserIds.length) {
+    || new Set(lineUserIds).size !== lineUserIds.length
+    || (periods !== undefined && (periods.length !== lineUserIds.length || periods.some((period) => ![1, 2, 3].includes(period))))) {
     throw new Error('通知預覽快照格式錯誤')
   }
   const iv = crypto.getRandomValues(new Uint8Array(12))
-  const plaintext = new TextEncoder().encode(JSON.stringify([destination, groupId, lineUserIds]))
+  const plaintext = new TextEncoder().encode(JSON.stringify(periods === undefined
+    ? [destination, groupId, lineUserIds] : [destination, groupId, lineUserIds, periods]))
   const ciphertext = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv, additionalData: new TextEncoder().encode(intentId) },
     await snapshotEncryptionKey(secret),
@@ -100,19 +104,31 @@ export async function openPickupRecipientSnapshot(
       packed.slice(12),
     )
     const parsed: unknown = JSON.parse(new TextDecoder().decode(plaintext))
-    if (!Array.isArray(parsed) || parsed.length !== 3) throw new Error('invalid token')
-    const [destination, groupId, lineUserIds] = parsed
+    if (!Array.isArray(parsed) || ![3, 4].includes(parsed.length)) throw new Error('invalid token')
+    const [destination, groupId, lineUserIds, periods] = parsed
     if ((destination !== 'test' && destination !== 'production')
       || typeof groupId !== 'string' || !/^C[0-9a-f]{32}$/iu.test(groupId)
       || !Array.isArray(lineUserIds) || lineUserIds.length < 1
       || lineUserIds.length > MAX_PICKUP_NOTIFICATION_RECIPIENTS
       || lineUserIds.some((id) => typeof id !== 'string' || !/^U[0-9a-f]{32}$/iu.test(id))
-      || new Set(lineUserIds).size !== lineUserIds.length) throw new Error('invalid token')
-    return { intentId, destination, groupId, lineUserIds: lineUserIds as string[] }
+      || new Set(lineUserIds).size !== lineUserIds.length
+      || (parsed.length === 4 && (!Array.isArray(periods) || periods.length !== lineUserIds.length
+        || periods.some((period) => ![1, 2, 3].includes(period))))) throw new Error('invalid token')
+    return { intentId, destination, groupId, lineUserIds: lineUserIds as string[],
+      ...(parsed.length === 4 ? { periods: periods as number[] } : {}) }
   } catch (error) {
     if (error instanceof Error && error.message === '通知預覽加密尚未設定') throw error
     throw new Error('預覽憑證無效')
   }
+}
+
+export function pickupPeriodSnapshotMatches(
+  snapshot: SealedPickupRecipientSnapshot,
+  recipients: { lineUserId: string; period: number }[],
+): boolean {
+  return !!snapshot.periods && snapshot.periods.length === recipients.length
+    && recipients.every((recipient, index) => recipient.lineUserId === snapshot.lineUserIds[index]
+      && recipient.period === snapshot.periods![index])
 }
 
 export function generatePickupReplyCommandCode(destination: 'test' | 'production'): string {
@@ -122,7 +138,8 @@ export function generatePickupReplyCommandCode(destination: 'test' | 'production
 
 export async function sealPickupReplyPayload(secret: string, intentId: string, message: string): Promise<string> {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(intentId)
-    || !message.trim() || message.length > 4_500) throw new Error('通知指令內容格式錯誤')
+    || !message.trim()) throw new Error('通知指令內容格式錯誤')
+  assertPickupReplyPayloadSize(message)
   const iv = crypto.getRandomValues(new Uint8Array(12))
   const additionalData = new TextEncoder().encode(`pickup-reply:${intentId}`)
   const ciphertext = await crypto.subtle.encrypt(
@@ -133,7 +150,16 @@ export async function sealPickupReplyPayload(secret: string, intentId: string, m
   const packed = new Uint8Array(iv.byteLength + ciphertext.byteLength)
   packed.set(iv)
   packed.set(new Uint8Array(ciphertext), iv.byteLength)
-  return encodeBase64Url(packed)
+  const encoded = encodeBase64Url(packed)
+  if (encoded.length > 12_000) throw new Error('通知內容過長，無法產生指令')
+  return encoded
+}
+
+export function assertPickupReplyPayloadSize(message: string): void {
+  // AES-GCM adds a 12-byte IV and 16-byte tag; SQL caps base64url at 12000 characters.
+  const packedBytes = new TextEncoder().encode(message).byteLength + 28
+  const encodedLength = 4 * Math.ceil(packedBytes / 3) - ((3 - packedBytes % 3) % 3)
+  if (message.length > 12_000 || encodedLength > 12_000) throw new Error('通知內容過長，無法產生指令')
 }
 
 export async function openPickupReplyPayload(secret: string, intentId: string, encrypted: string): Promise<string> {
@@ -147,7 +173,8 @@ export async function openPickupReplyPayload(secret: string, intentId: string, e
       packed.slice(12),
     )
     const message = new TextDecoder().decode(plaintext)
-    if (!message.trim() || message.length > 4_500) throw new Error('invalid')
+    if (!message.trim()) throw new Error('invalid')
+    assertPickupReplyPayloadSize(message)
     return message
   } catch {
     throw new Error('通知指令內容無效')
@@ -160,8 +187,19 @@ export async function technicalSha256(value: string): Promise<string> {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
-export async function pickupEligibleRecipientSnapshotHash(lineUserIds: string[]): Promise<string> {
-  const uniqueIds = [...new Set(lineUserIds)].sort()
+export async function pickupEligibleRecipientSnapshotHash(
+  recipients: string[] | { lineUserId: string; period: number }[],
+  audience?: 'phase13' | 'phase2' | 'all' | 'combined',
+): Promise<string> {
+  if (audience === 'all' || audience === 'combined') {
+    if (recipients.some((row) => typeof row === 'string')) throw new Error('通知期別快照格式錯誤')
+    const rows = recipients as { lineUserId: string; period: number }[]
+    if (rows.some((row) => !/^U[0-9a-f]{32}$/i.test(row.lineUserId) || ![1, 2, 3].includes(row.period))
+      || new Set(rows.map((row) => row.lineUserId)).size !== rows.length) throw new Error('通知期別快照格式錯誤')
+    return technicalSha256([...rows].sort((a, b) => a.lineUserId < b.lineUserId ? -1 : a.lineUserId > b.lineUserId ? 1 : 0)
+      .map((row) => `${row.lineUserId}:${row.period}`).join('\n'))
+  }
+  const uniqueIds = [...new Set(recipients as string[])].sort()
   if (uniqueIds.some((id) => !/^U[0-9a-f]{32}$/i.test(id))) throw new Error('LINE住戶識別格式錯誤')
   return technicalSha256(uniqueIds.join('\n'))
 }
@@ -233,6 +271,30 @@ export async function getLineGroupMemberIdsForCandidates(
   )
   await Promise.all(workers)
   return candidateIds.filter((_, index) => isMember[index])
+}
+
+export type PickupDualMode = 'ambient' | 'cold'
+export type PickupDualBodies = { all: string } | { phase13: string; phase2: string }
+
+export function buildPickupDualModeMessages(
+  mode: PickupDualMode,
+  recipients: (PickupMentionRecipient & { period: number })[],
+  bodies: PickupDualBodies,
+): LineTextV2Message[] {
+  if (mode !== 'ambient' && mode !== 'cold') throw new Error('通知模式格式錯誤')
+  if (recipients.some((recipient) => ![1, 2, 3].includes(recipient.period))) throw new Error('通知期別格式錯誤')
+  if (new Set(recipients.map((recipient) => recipient.lineUserId)).size !== recipients.length) throw new Error('LINE住戶名單包含重複資料')
+  const groups = mode === 'ambient'
+    ? [{ recipients, body: 'all' in bodies ? bodies.all : '' }]
+    : [
+      { recipients: recipients.filter((recipient) => recipient.period !== 2), body: 'phase13' in bodies ? bodies.phase13 : '' },
+      { recipients: recipients.filter((recipient) => recipient.period === 2), body: 'phase2' in bodies ? bodies.phase2 : '' },
+    ]
+  if (groups.some((group) => !group.body.trim())) throw new Error('通知內容不能空白')
+  const messages = groups.flatMap((group) => group.recipients.length
+    ? buildPickupMentionMessages(group.recipients, group.body) : [])
+  if (messages.length > LINE_PUSH_MESSAGE_LIMIT) throw new Error(`需要${messages.length}則訊息，超過單一指令5則上限；目前無法產生涵蓋全部住戶的指令`)
+  return messages
 }
 
 export function buildPickupMentionMessages(

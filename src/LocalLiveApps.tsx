@@ -37,7 +37,8 @@ import type { CampaignStatus } from './domain/orderWorkflow'
 import type { HouseholdKind } from './domain/household'
 import type { VisibleOrder } from './data/demo'
 import { createAdminOrdersGateway } from './services/adminOrdersGateway'
-import { createPickupNotificationGateway, type PickupNotificationCommand, type PickupNotificationResponse } from './services/pickupNotificationGateway'
+import { createPickupNotificationGateway, type PickupNotificationCommand, type PickupNotificationPlanPreview, type PickupNotificationResponse } from './services/pickupNotificationGateway'
+import type { PickupNotificationPlan } from './domain/pickupNotification'
 import { createPickupNotificationTestCampaignGateway } from './services/pickupNotificationTestCampaignGateway'
 import type { PickupNotificationAudience } from './domain/pickupNotification'
 import { createCampaignImageGateway } from './services/campaignImageGateway'
@@ -91,6 +92,8 @@ export type LiveAdminOrdersRepository = {
 export type LivePickupNotificationRepository = {
   preview(campaignId: string, audience: PickupNotificationAudience, message: string): Promise<PickupNotificationResponse>
   createCommand(campaignId: string, audience: PickupNotificationAudience, message: string, previewToken: string): Promise<PickupNotificationCommand>
+  previewPlan?(campaignId: string, plan: PickupNotificationPlan): Promise<PickupNotificationPlanPreview>
+  createPlanCommand?(campaignId: string, plan: PickupNotificationPlan, previewToken: string): Promise<PickupNotificationCommand>
 }
 
 export type LivePickupNotificationTestCampaignRepository = {
@@ -976,6 +979,8 @@ export function LocalLiveAdminApp({
             }}
             onPreview={(targetCampaignId, audience, message) => pickupNotificationTestGateway.preview(targetCampaignId, audience, message)}
             onCreateCommand={(targetCampaignId, audience, message, previewToken) => pickupNotificationTestGateway.createCommand(targetCampaignId, audience, message, previewToken)}
+            onPreviewPlan={pickupNotificationTestGateway.previewPlan && ((targetCampaignId, plan) => pickupNotificationTestGateway.previewPlan!(targetCampaignId, plan))}
+            onCreatePlanCommand={pickupNotificationTestGateway.createPlanCommand && ((targetCampaignId, plan, token) => pickupNotificationTestGateway.createPlanCommand!(targetCampaignId, plan, token))}
           />
         </OrganizerShell>
       )
@@ -1175,6 +1180,8 @@ export function LocalLiveAdminApp({
             excludedOtherCount={orderSummary?.orderRows.filter((row) => row.householdKind === 'other').length ?? 0}
             onPreview={(audience, message) => pickupNotificationGateway.preview(campaignId, audience, message)}
             onCreateCommand={(audience, message, previewToken) => pickupNotificationGateway.createCommand(campaignId, audience, message, previewToken)}
+            onPreviewPlan={pickupNotificationGateway.previewPlan && ((plan) => pickupNotificationGateway.previewPlan!(campaignId, plan))}
+            onCreatePlanCommand={pickupNotificationGateway.createPlanCommand && ((plan, token) => pickupNotificationGateway.createPlanCommand!(campaignId, plan, token))}
           />
         )}
       </CampaignWorkspace>
