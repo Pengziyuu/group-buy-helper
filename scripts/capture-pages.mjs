@@ -1,6 +1,7 @@
 // Full-page screenshots of the localStorage demo for before/after UI review.
 // Usage: node scripts/capture-pages.mjs <outDir> [baseUrl]
 // Needs `npm run dev` running and Google Chrome (override with CHROME_PATH).
+// CAPTURE_WIDTHS=375,500 overrides the widths; CAPTURE_ONLY=resident keeps pages whose name starts with it.
 // Later redesign phases edit `pages` when routes change.
 import { spawn } from 'node:child_process'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
@@ -14,8 +15,8 @@ if (!outDir) {
 }
 
 const chromePath = process.env.CHROME_PATH ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe'
-const widths = [375, 768, 1440]
-const pages = [
+const widths = process.env.CAPTURE_WIDTHS ? process.env.CAPTURE_WIDTHS.split(',').map(Number) : [375, 768, 1440]
+const allPages = [
   { name: 'resident-list', path: '/' },
   { name: 'resident-campaign', path: '/campaign/0123456789abcdef0123456789abcdef0123' },
   { name: 'admin-list', path: '/admin' },
@@ -25,6 +26,7 @@ const pages = [
   { name: 'admin-editor', path: '/admin/campaign/01234567-89ab-cdef-0123-456789abcdef/content' },
   { name: 'admin-orders', path: '/admin/campaign/01234567-89ab-cdef-0123-456789abcdef/orders' },
 ]
+const pages = allPages.filter((page) => !process.env.CAPTURE_ONLY || page.name.startsWith(process.env.CAPTURE_ONLY))
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const port = 9400 + Math.floor(Math.random() * 400)
