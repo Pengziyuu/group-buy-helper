@@ -50,21 +50,15 @@ describe('ResidentCampaignListApp', () => {
     expect(within(open).getByText('$55')).toBeInTheDocument()
     expect(within(open).getByText('$440 / $1,000')).toBeInTheDocument()
     const openFacts = within(open).getByRole('group', { name: '早餐團購時程' })
-    expect(within(openFacts).getByText('結單')).toBeInTheDocument()
-    expect(within(openFacts).getByText('2027/3/5 12:00')).toBeInTheDocument()
-    expect(within(openFacts).getByText('到貨')).toBeInTheDocument()
-    expect(within(openFacts).getByText('03/08')).toBeInTheDocument()
+    expect(openFacts).toHaveTextContent(/^2027\/3\/5 12:00 結單・3\/8 到貨$/)
     expect(within(open).getByRole('progressbar', { name: '早餐團購成團進度' })).toHaveAttribute('aria-valuenow', '440')
 
     const closed = screen.getByRole('region', { name: '已結單' })
     expect(within(closed).getByRole('link', { name: '水果團購' })).toBeInTheDocument()
     expect(within(closed).getByText('已結單', { selector: '.ui-status-badge' })).toBeInTheDocument()
     expect(within(closed).getByText('12 箱 / 12 箱')).toBeInTheDocument()
-    const closedFacts = within(closed).getByRole('group', { name: '水果團購時程' })
-    expect(within(closedFacts).getByText('結單')).toBeInTheDocument()
-    expect(within(closedFacts).getByText('未排定')).toBeInTheDocument()
-    expect(within(closedFacts).getByText('到貨')).toBeInTheDocument()
-    expect(within(closedFacts).getByText('貨到通知')).toBeInTheDocument()
+    // No closing time and 貨到通知 say nothing new, so the card leaves the line out.
+    expect(within(closed).queryByRole('group', { name: '水果團購時程' })).not.toBeInTheDocument()
     expect(within(closed).getByRole('img', { name: '水果團購尚未設定商品圖片' })).toBeInTheDocument()
 
     const titles = screen.getAllByRole('link').map((link) => link.textContent)
@@ -103,13 +97,8 @@ describe('ResidentCampaignListApp', () => {
       />,
     )
 
-    const open = screen.getByRole('group', { name: '開團中的團時程' })
-    expect(within(open).getByText('結單')).toBeInTheDocument()
-    expect(within(open).getByText('10/15 12:00')).toBeInTheDocument()
-    const closed = screen.getByRole('group', { name: '提前結單的團時程' })
-    expect(within(closed).getByText('原訂結單')).toBeInTheDocument()
-    expect(within(closed).queryByText('結單')).not.toBeInTheDocument()
-    expect(within(closed).getByText('10/16 12:00')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: '開團中的團時程' })).toHaveTextContent(/^10\/15 12:00 結單$/)
+    expect(screen.getByRole('group', { name: '提前結單的團時程' })).toHaveTextContent(/^原訂 10\/16 12:00 結單$/)
   })
 
   it('highlights campaigns that close today or tomorrow', () => {
@@ -124,22 +113,19 @@ describe('ResidentCampaignListApp', () => {
       />,
     )
 
-    expect(screen.getByText('今天 12:00')).toHaveClass('is-soon')
-    expect(screen.getByText('明天 12:00')).toHaveClass('is-soon')
+    expect(screen.getByText('今天 12:00 結單')).toHaveClass('is-soon')
+    expect(screen.getByText('明天 12:00 結單')).toHaveClass('is-soon')
   })
 
-  it('keeps arrival in the same fact column whether a closing time exists or not', () => {
+  it('shows only the schedule facts worth reading', () => {
     render(<ResidentCampaignListApp identity={identity} campaigns={[
       campaign({ slug: 'scheduled', title: '有排定結單', arrivalLabel: '10月初', autoCloseAt: '2027-03-05T04:00:00.000Z' }),
       campaign({ slug: 'unscheduled', title: '沒有排定結單', arrivalLabel: '10月中', autoCloseAt: null }),
     ]} now={new Date('2026-09-01T00:00:00.000Z')} />)
 
-    const scheduled = screen.getByRole('group', { name: '有排定結單時程' })
-    const unscheduled = screen.getByRole('group', { name: '沒有排定結單時程' })
-    expect(scheduled.children[1]).toHaveClass('resident-campaign-fact-arrival')
-    expect(unscheduled.children[1]).toHaveClass('resident-campaign-fact-arrival')
-    expect(within(unscheduled).getByText('未排定')).toBeInTheDocument()
-    expect(within(unscheduled).getByText('10月中')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: '有排定結單時程' })).toHaveTextContent(/^2027\/3\/5 12:00 結單・10月初到貨$/)
+    expect(screen.getByRole('group', { name: '沒有排定結單時程' })).toHaveTextContent(/^10月中到貨$/)
+    expect(screen.queryByText(/未排定/)).not.toBeInTheDocument()
   })
 
   it('preserves scheduled closing information after a campaign closes', () => {
@@ -148,8 +134,8 @@ describe('ResidentCampaignListApp', () => {
       campaign({ slug: 'closed-unscheduled', title: '未排定的已結單團', status: 'closed', autoCloseAt: null }),
     ]} now={new Date('2026-09-01T00:00:00.000Z')} />)
 
-    expect(within(screen.getByRole('group', { name: '有排定的已結單團時程' })).getByText('2027/3/5 12:00')).toBeInTheDocument()
-    expect(within(screen.getByRole('group', { name: '未排定的已結單團時程' })).getByText('未排定')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: '有排定的已結單團時程' })).toHaveTextContent(/^原訂 2027\/3\/5 12:00 結單$/)
+    expect(screen.queryByRole('group', { name: '未排定的已結單團時程' })).not.toBeInTheDocument()
   })
 
   it('shows the five newest closed campaigns until asked for older ones', async () => {

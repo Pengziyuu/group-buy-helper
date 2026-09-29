@@ -72,11 +72,24 @@ function CampaignThumbnail({ campaign }: { campaign: ResidentCampaignListItem })
   )
 }
 
+/** "03/08" becomes "3/8 到貨"; "10月中" becomes "10月中到貨". */
+function shortArrival(label: string) {
+  const date = /^(\d{2})\/(\d{2})$/.exec(label)
+  return date ? `${Number(date[1])}/${Number(date[2])} 到貨` : `${label}到貨`
+}
+
 function CampaignRow({ campaign, now }: { campaign: ResidentCampaignListItem; now: Date }) {
   const open = campaign.status === 'open'
   const progress = campaignProgress(campaign)
   const formed = progress.value >= progress.target
   const closing = formatClosing(campaign.autoCloseAt, now)
+  // Only facts that tell the resident something: no "未排定" and no default 貨到通知.
+  const arrival = normalizeArrivalLabel(campaign.arrivalLabel)
+  const arrivalText = arrival === '貨到通知' ? null : shortArrival(arrival)
+  const facts = [
+    ...(closing ? [{ text: `${open ? '' : '原訂 '}${closing.when} 結單`, soon: open && closing.soon }] : []),
+    ...(arrivalText ? [{ text: arrivalText, soon: false }] : []),
+  ]
   return (
     <article className="resident-campaign-row" data-status={open ? 'open' : 'closed'}>
       <CampaignThumbnail campaign={campaign} />
@@ -85,16 +98,15 @@ function CampaignRow({ campaign, now }: { campaign: ResidentCampaignListItem; no
         {open
           ? <p className="resident-campaign-price"><strong>{formatMoney(campaign.unitPrice)}</strong> 起</p>
           : <p className="resident-campaign-price"><StatusBadge tone="neutral">已結單</StatusBadge></p>}
-        <dl className="resident-campaign-facts" role="group" aria-label={`${campaign.title}時程`}>
-          <div>
-            <dt>{!open && closing ? '原訂結單' : '結單'}</dt>
-            <dd className={open && closing?.soon ? 'is-soon' : undefined}>{closing?.when ?? '未排定'}</dd>
-          </div>
-          <div className="resident-campaign-fact-arrival">
-            <dt>到貨</dt>
-            <dd>{normalizeArrivalLabel(campaign.arrivalLabel)}</dd>
-          </div>
-        </dl>
+        {facts.length > 0 && (
+          <p className="resident-campaign-facts" role="group" aria-label={`${campaign.title}時程`}>
+            {facts.map((fact, index) => (
+              <span key={fact.text} className={fact.soon ? 'is-soon' : undefined}>
+                {index > 0 && <span aria-hidden="true">・</span>}{fact.text}
+              </span>
+            ))}
+          </p>
+        )}
         <p className="resident-campaign-progress-text">{progress.text}{formed && <span className="resident-campaign-formed">已成團</span>}</p>
         <ProgressBar label={`${campaign.title}成團進度`} value={progress.value} max={progress.target} formed={formed} />
       </div>
