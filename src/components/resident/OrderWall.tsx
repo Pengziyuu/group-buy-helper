@@ -5,6 +5,14 @@ import { EditedMark, RelativeTime, useNow } from '../relativeTime'
 import { Button } from '../ui/Button'
 
 const WALL_PREVIEW_COUNT = 20
+const AVATAR_TONES = 6
+
+/** A stable 1–6 palette slot per name, so a resident keeps their colour across visits. */
+function avatarTone(name: string) {
+  let hash = 0
+  for (const character of name) hash = (hash * 31 + character.codePointAt(0)!) >>> 0
+  return String((hash % AVATAR_TONES) + 1)
+}
 
 type OrderWallProps = {
   orders: VisibleOrder[]
@@ -39,7 +47,7 @@ export function OrderWall({ orders, currentCustomerId, quantityUnit, itemDisplay
               <li key={order.customerId} className={own ? 'is-own' : undefined}>
                 {order.pictureUrl
                   ? <img className="resident-avatar" src={order.pictureUrl} alt={`${order.name}的LINE頭貼`} referrerPolicy="no-referrer" />
-                  : <span className="resident-avatar" aria-hidden="true">{order.name.slice(0, 1).toUpperCase()}</span>}
+                  : <span className="resident-avatar" data-tone={avatarTone(order.name)} aria-hidden="true">{order.name.slice(0, 1).toUpperCase()}</span>}
                 <div className="resident-wall-main">
                   <p className="resident-wall-name"><strong>{order.name}</strong>{own && <span>（你）</span>}</p>
                   <p>{Object.entries(order.items)

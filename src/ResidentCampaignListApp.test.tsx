@@ -171,6 +171,17 @@ describe('ResidentCampaignListApp', () => {
     expect(within(closed).getAllByRole('link')).toHaveLength(7)
   })
 
+  it('marks campaigns that reached their threshold as formed', () => {
+    render(<ResidentCampaignListApp identity={{ displayName: '住戶', pictureUrl: null }} campaigns={[
+      campaign({ slug: 'formed', title: '已成團的團', totalQuantity: 10, threshold: 10 }),
+      campaign({ slug: 'forming', title: '未成團的團', totalQuantity: 4, threshold: 10 }),
+    ]} />)
+
+    expect(screen.getByRole('progressbar', { name: '已成團的團成團進度' })).toHaveAttribute('data-formed', 'true')
+    expect(screen.getByRole('progressbar', { name: '未成團的團成團進度' })).not.toHaveAttribute('data-formed')
+    expect(screen.getAllByText('已成團')).toHaveLength(1)
+  })
+
   it('signs out from the LINE account menu', async () => {
     const user = userEvent.setup()
     const onLogout = vi.fn()

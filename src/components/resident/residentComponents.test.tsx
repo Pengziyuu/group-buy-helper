@@ -138,6 +138,26 @@ describe('resident campaign page parts', () => {
     expect(row).toHaveAttribute('data-selected', 'true')
   })
 
+  it('colours letter avatars by name so the same person always gets the same colour', () => {
+    const order = (customerId: string, name: string): VisibleOrder => ({
+      customerId, name, period: 2, unit: '2A1', householdKind: 'resident', items: { A: 1 },
+      orderedAt: '2026-08-14T00:00:00Z', updatedAt: '2026-08-14T00:00:00Z',
+    })
+    const orders = [order('a', '陳小姐'), order('b', 'Kevin'), order('c', '陳小姐'), order('d', '林媽媽'), order('e', 'Amy'), order('f', '王大明')]
+    render(<OrderWall orders={orders} quantityUnit="個" itemDisplayLabel={(code) => code} />)
+
+    const tones = screen.getAllByRole('listitem').map((item) => item.querySelector('.resident-avatar')!.getAttribute('data-tone'))
+    tones.forEach((tone) => expect(tone).toMatch(/^[1-6]$/))
+    expect(tones[0]).toBe(tones[2])
+    expect(new Set(tones).size).toBeGreaterThan(1)
+  })
+
+  it('shows reaching the threshold in the summary', () => {
+    render(<CampaignSummary title="冰餅團" status="open" priceText="$45" closingText={null} orderCount={10} openedAt={null}
+      progress={{ value: 100, max: 100, text: '100 個 / 100 個', remainingText: '已成團', formed: true }} />)
+    expect(screen.getByRole('progressbar', { name: '成團進度' })).toHaveAttribute('data-formed', 'true')
+  })
+
   it('shows the order wall without households, marks the resident and caps the first view at twenty', async () => {
     const user = userEvent.setup()
     const orders: VisibleOrder[] = Array.from({ length: 23 }, (_, index) => ({

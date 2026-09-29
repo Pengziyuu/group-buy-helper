@@ -86,6 +86,15 @@ describe('shared UI primitives', () => {
     expect(screen.getByRole('status')).toHaveTextContent('儲存成功')
   })
 
+  it('marks a progress bar as formed only when asked', () => {
+    render(<>
+      <ProgressBar label="未成團" value={3} max={10} />
+      <ProgressBar label="已成團" value={10} max={10} formed />
+    </>)
+    expect(screen.getByRole('progressbar', { name: '未成團' })).not.toHaveAttribute('data-formed')
+    expect(screen.getByRole('progressbar', { name: '已成團' })).toHaveAttribute('data-formed', 'true')
+  })
+
   it('provides consistent loading, empty, and recoverable error states', async () => {
     const user = userEvent.setup()
     const retry = vi.fn()

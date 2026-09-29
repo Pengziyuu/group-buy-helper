@@ -74,6 +74,7 @@ function CampaignThumbnail({ campaign }: { campaign: ResidentCampaignListItem })
 function CampaignRow({ campaign, now }: { campaign: ResidentCampaignListItem; now: Date }) {
   const open = campaign.status === 'open'
   const progress = campaignProgress(campaign)
+  const formed = progress.value >= progress.target
   const closing = describeAutoClose(campaign.autoCloseAt, now)
   return (
     <article className="resident-campaign-row" data-status={open ? 'open' : 'closed'}>
@@ -93,8 +94,8 @@ function CampaignRow({ campaign, now }: { campaign: ResidentCampaignListItem; no
             <dd>{normalizeArrivalLabel(campaign.arrivalLabel)}</dd>
           </div>
         </dl>
-        <p className="resident-campaign-progress-text">{progress.text}</p>
-        <ProgressBar label={`${campaign.title}成團進度`} value={progress.value} max={progress.target} />
+        <p className="resident-campaign-progress-text">{progress.text}{formed && <span className="resident-campaign-formed">已成團</span>}</p>
+        <ProgressBar label={`${campaign.title}成團進度`} value={progress.value} max={progress.target} formed={formed} />
       </div>
       <span className="resident-campaign-chevron" aria-hidden="true">›</span>
     </article>

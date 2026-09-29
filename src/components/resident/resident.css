@@ -4,6 +4,12 @@
 .resident-topbar { position: sticky; top: 0; z-index: var(--z-sticky); display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: 52px; padding: 0 var(--space-4); border-bottom: 1px solid var(--color-border); background: var(--color-sticky-bg); -webkit-backdrop-filter: var(--blur-sticky); backdrop-filter: var(--blur-sticky); }
 .resident-topbar-brand { font-size: var(--font-size-dense); font-weight: var(--font-weight-strong); }
 .resident-avatar { width: 36px; height: 36px; flex: none; display: grid; place-items: center; overflow: hidden; border-radius: 50%; background: var(--color-neutral-subtle); color: var(--color-text-secondary); font-size: var(--font-size-dense); font-weight: var(--font-weight-strong); object-fit: cover; }
+.resident-avatar[data-tone="1"] { background: var(--color-avatar-1-bg); color: var(--color-avatar-1-text); }
+.resident-avatar[data-tone="2"] { background: var(--color-avatar-2-bg); color: var(--color-avatar-2-text); }
+.resident-avatar[data-tone="3"] { background: var(--color-avatar-3-bg); color: var(--color-avatar-3-text); }
+.resident-avatar[data-tone="4"] { background: var(--color-avatar-4-bg); color: var(--color-avatar-4-text); }
+.resident-avatar[data-tone="5"] { background: var(--color-avatar-5-bg); color: var(--color-avatar-5-text); }
+.resident-avatar[data-tone="6"] { background: var(--color-avatar-6-bg); color: var(--color-avatar-6-text); }
 .resident-account { display: inline-grid; place-items: center; width: var(--touch-target); height: var(--touch-target); }
 .resident-account-menu .ui-menu-trigger { padding: 0; border: 0; border-radius: 50%; background: transparent; }
 
@@ -18,7 +24,7 @@
 .resident-campaign-row { position: relative; display: grid; grid-template-columns: 88px minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); min-height: 110px; padding: 10px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-surface); background: var(--color-surface); }
 .resident-campaign-thumb { width: 88px; height: 88px; overflow: hidden; border-radius: var(--radius-control); background: var(--color-surface-subtle); }
 .resident-campaign-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.resident-campaign-thumb-empty { display: grid; place-items: center; height: 100%; color: var(--color-text-tertiary); font-size: var(--font-size-caption); }
+.resident-campaign-thumb-empty { display: grid; place-items: center; height: 100%; background: var(--color-neutral-subtle); color: var(--color-text-secondary); font-size: var(--font-size-caption); }
 .resident-campaign-row-body { min-width: 0; display: grid; gap: 6px; }
 .resident-campaign-row h3 { display: -webkit-box; margin: 0; overflow: hidden; font-size: 16px; font-weight: var(--font-weight-strong); line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .resident-campaign-row h3 a { color: inherit; text-decoration: none; }
@@ -32,7 +38,8 @@
 .resident-campaign-facts div { min-width: 0; padding-left: var(--space-2); border-left: 2px solid var(--color-divider); }
 .resident-campaign-facts dt { margin: 0 0 1px; color: var(--color-text-tertiary); font-size: 11px; line-height: 1.25; }
 .resident-campaign-facts dd { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-caption); font-weight: var(--font-weight-strong); line-height: 1.3; overflow-wrap: anywhere; }
-.resident-campaign-facts dd.is-soon { color: var(--color-warning); }
+.resident-campaign-facts dd.is-soon { justify-self: start; padding: 0 6px; border-radius: var(--radius-pill); background: var(--color-warning-subtle); color: var(--color-warning); font-weight: var(--font-weight-strong); }
+.resident-campaign-formed { margin-left: var(--space-2); color: var(--color-success); font-weight: var(--font-weight-strong); }
 .resident-campaign-progress-text { min-width: 0; margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-caption); font-variant-numeric: tabular-nums; }
 .resident-campaign-chevron { color: var(--color-text-tertiary); font-size: 20px; }
 .resident-campaign-row[data-status="closed"] { background: var(--color-surface-subtle); }
@@ -71,7 +78,7 @@
 .resident-summary-progress h2 { margin: 0 0 var(--space-3); font-size: var(--font-size-dense); }
 .resident-summary-progress-text { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2); margin: 0 0 var(--space-2); }
 .resident-summary-progress-text strong { font-size: 20px; font-weight: var(--font-weight-strong); font-variant-numeric: tabular-nums; }
-.resident-summary-progress-text span { color: var(--color-warning); font-size: var(--font-size-dense); font-weight: var(--font-weight-strong); }
+.resident-summary-progress-text span { color: var(--color-primary); font-size: var(--font-size-dense); font-weight: var(--font-weight-strong); }
 .resident-summary-progress-text .is-formed { color: var(--color-success); }
 .resident-summary-meta { margin: var(--space-2) 0 0; color: var(--color-text-secondary); font-size: var(--font-size-caption); }
 
@@ -152,8 +159,8 @@
 .resident-info { grid-area: info; }
 .resident-order { grid-area: order; }
 .resident-wall { grid-area: wall; }
-.resident-sent { margin: 0 0 var(--space-3); padding: var(--space-2) var(--space-3); border-radius: var(--radius-control); background: var(--color-primary-subtle); font-size: var(--font-size-dense); }
-.resident-sent strong { color: var(--color-primary); font-weight: var(--font-weight-strong); }
+.resident-sent { margin: 0 0 var(--space-3); padding: var(--space-2) var(--space-3); border-radius: var(--radius-control); background: var(--color-success-subtle); font-size: var(--font-size-dense); }
+.resident-sent strong { color: var(--color-success); font-weight: var(--font-weight-strong); }
 .resident-discount-status { display: grid; gap: 2px; margin-bottom: var(--space-3); padding: var(--space-2) var(--space-3); border-radius: var(--radius-control); background: var(--color-warning-subtle); color: var(--color-warning); font-size: var(--font-size-dense); }
 .resident-discount-status.is-applied { background: var(--color-success-subtle); color: var(--color-success); }
 .resident-product-section + .resident-product-section { margin-top: var(--space-4); }

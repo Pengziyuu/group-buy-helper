@@ -41,7 +41,7 @@ export function CampaignSummary({ title, status, priceText, arrivalLabel, closin
           <strong>{progress.text}</strong>
           <span className={progress.formed ? 'is-formed' : undefined}>{progress.remainingText}</span>
         </p>
-        <ProgressBar label="成團進度" value={progress.value} max={progress.max} />
+        <ProgressBar label="成團進度" value={progress.value} max={progress.max} formed={progress.formed} />
         <p className="resident-summary-meta">
           已有 {orderCount} 筆訂單{openedAt ? `・開團 ${formatZhTwTimestamp(openedAt)}` : ''}
         </p>

@@ -43,6 +43,14 @@
   --color-line-hover: #05b84e;
   --color-line-subtle: #e6f8ec;
 
+  /* Letter avatars without a LINE photo: soft fills, dark text (all above 4.5:1). */
+  --color-avatar-1-bg: #e3edfb; --color-avatar-1-text: #1f4f8f;
+  --color-avatar-2-bg: #e2f3e8; --color-avatar-2-text: #1d6a3a;
+  --color-avatar-3-bg: #fcefd9; --color-avatar-3-text: #8a5200;
+  --color-avatar-4-bg: #fbe4ea; --color-avatar-4-text: #9c2f4f;
+  --color-avatar-5-bg: #ece6fb; --color-avatar-5-text: #5b3a9e;
+  --color-avatar-6-bg: #dff3f3; --color-avatar-6-text: #1b6666;
+
   --color-disabled-bg: #f0f0f2;
   --color-disabled-text: #7a7a7a;
   --color-control-off: #86868b;

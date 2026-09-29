@@ -59,6 +59,7 @@
 
 .ui-progress { height: 6px; overflow: hidden; border-radius: var(--radius-pill); background: var(--color-border); }
 .ui-progress > span { display: block; height: 100%; border-radius: inherit; background: var(--color-primary); transition: width var(--duration-normal); }
+.ui-progress[data-formed] > span { background: var(--color-success); }
 
 .ui-feedback { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: 10px 14px; border-radius: var(--radius-control); font-size: var(--font-size-dense); }
 .ui-feedback[data-tone="success"] { background: var(--color-success-subtle); color: var(--color-success); }
