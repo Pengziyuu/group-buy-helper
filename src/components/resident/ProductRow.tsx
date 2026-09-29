@@ -1,3 +1,4 @@
+import { formatMoney } from './residentFormat'
 import { QuantityControl } from '../ui/QuantityControl'
 
 type ProductRowProps = {
@@ -18,7 +19,7 @@ export function ProductRow({ code, name, priceText, listPrice, hint, quantity, d
       <span className="resident-product-code">{code}</span>
       <div className="resident-product-name">
         <strong>{name}</strong>
-        {listPrice !== undefined && <small className="resident-product-list-price">原價 ${listPrice}</small>}
+        {listPrice !== undefined && <small className="resident-product-list-price">原價 {formatMoney(listPrice)}</small>}
         <span className="resident-product-price">{priceText}</span>
         {hint && <small>{hint}</small>}
       </div>

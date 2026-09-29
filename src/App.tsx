@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { summarizeCampaign } from './domain/campaign'
-import { formatZhTwTimestamp, wasMeaningfullyUpdated } from './domain/timestamp'
+import { wasMeaningfullyUpdated } from './domain/timestamp'
+import { EditedMark } from './components/relativeTime'
 import type { CampaignStatus } from './domain/orderWorkflow'
 import { itemLabel } from './domain/itemLabel'
 import { normalizeQuantityUnit } from './domain/quantityUnit'
-import { describeAutoClose } from './domain/campaignSchedule'
+import { formatClosing, formatMoney } from './components/resident/residentFormat'
 import { customOrderItemsEqual, validCustomOrderItems, type CustomOrderItem } from './domain/customOrderItem'
 import { discountedUnitPrice, priceOrder, type DiscountPricing } from './domain/discountPricing'
 import { formatHousehold, type HouseholdKind } from './domain/household'
@@ -179,17 +180,17 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
     value: thresholdKind === 'amount' ? summary.amount : summary.quantity,
     max: summary.threshold,
     text: thresholdKind === 'amount'
-      ? `NT$ ${summary.amount.toLocaleString('zh-TW')} / NT$ ${summary.threshold.toLocaleString('zh-TW')}`
+      ? `${formatMoney(summary.amount)} / ${formatMoney(summary.threshold)}`
       : `${summary.quantity} ${quantityUnit} / ${summary.threshold} ${quantityUnit}`,
     remainingText: summary.formed
       ? '已成團'
       : thresholdKind === 'amount'
-        ? `還差 NT$ ${summary.remaining.toLocaleString('zh-TW')} 成團`
+        ? `還差 ${formatMoney(summary.remaining)} 成團`
         : `還差 ${summary.remaining} ${quantityUnit}成團`,
     formed: summary.formed,
   }
-  const priceText = minimumPrice === maximumPrice ? `$${minimumPrice}／${quantityUnit}` : `$${minimumPrice}～$${maximumPrice}`
-  const closing = describeAutoClose(publishedCampaign.autoCloseAt)
+  const priceText = minimumPrice === maximumPrice ? `${formatMoney(minimumPrice)}／${quantityUnit}` : `${formatMoney(minimumPrice)}～${formatMoney(maximumPrice)}`
+  const closing = formatClosing(publishedCampaign.autoCloseAt, new Date())
   const breakdownLines: BreakdownLine[] = draftPricing.lines.map((line) => {
     const index = publishedCampaign.items.findIndex((item) => item.code === line.code)
     return {
@@ -201,11 +202,8 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
         : line.discountType === 'base' ? formatDiscountRate(line.discountRate) : '原價',
     }
   })
-  const submittedAt = ownOrder
-    ? wasMeaningfullyUpdated(ownOrder.orderedAt, ownOrder.updatedAt)
-      ? `最後修改 ${formatZhTwTimestamp(ownOrder.updatedAt)}`
-      : `下單 ${formatZhTwTimestamp(ownOrder.orderedAt)}`
-    : null
+  // Residents know they ordered; only an edit is worth a mark, with its time on hover.
+  const editedAt = ownOrder && wasMeaningfullyUpdated(ownOrder.orderedAt, ownOrder.updatedAt) ? ownOrder.updatedAt : null
   const savedCustomQuantity = savedCustomDraft.reduce((sum, item) => sum + item.quantity, 0)
   const submitHint = !editable
     ? '本團已結單，無法修改訂單。'
@@ -255,10 +253,10 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
       : publishedCampaign.baseDiscountRate ?? 1
     const currentUnitPrice = discountedUnitPrice(itemPrice, appliedRate)
     const priceLabel = usesMixMatch
-      ? `任選價 $${currentUnitPrice}`
-      : appliedRate < 1 ? `${formatDiscountRate(appliedRate)}價 $${currentUnitPrice}` : `$${currentUnitPrice}`
+      ? `任選價 ${formatMoney(currentUnitPrice)}`
+      : appliedRate < 1 ? `${formatDiscountRate(appliedRate)}價 ${formatMoney(currentUnitPrice)}` : formatMoney(currentUnitPrice)
     const hint = item.discountEligible && publishedCampaign.mixMatchDiscount && !usesMixMatch
-      ? `任選滿${publishedCampaign.mixMatchDiscount.minimumQuantity}件可享 $${discountedUnitPrice(itemPrice, publishedCampaign.mixMatchDiscount.rate)}`
+      ? `任選滿${publishedCampaign.mixMatchDiscount.minimumQuantity}件可享 ${formatMoney(discountedUnitPrice(itemPrice, publishedCampaign.mixMatchDiscount.rate))}`
       : undefined
     return (
       <ProductRow
@@ -378,9 +376,9 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
             <>
               {hasSubmittedOrder && (
                 <p className="resident-sent">
-                  <strong>{`你已送出 ${orderQuantity(savedDraft)} ${quantityUnit}・$${savedPricing.total}`}</strong>
+                  <strong>{`你已送出 ${orderQuantity(savedDraft)} ${quantityUnit}・${formatMoney(savedPricing.total)}`}</strong>
                   {savedCustomQuantity > 0 && <span>{`・另有 ${savedCustomQuantity} ${quantityUnit}額外品項`}</span>}
-                  {submittedAt && <span>{`・${submittedAt}`}</span>}
+                  {editedAt && <span>・<EditedMark value={editedAt} /></span>}
                 </p>
               )}
               {publishedCampaign.mixMatchDiscount && (

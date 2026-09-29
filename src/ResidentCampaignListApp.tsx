@@ -4,7 +4,8 @@ import { Button } from './components/ui/Button'
 import { Menu } from './components/ui/Menu'
 import { ProgressBar } from './components/ui/ProgressBar'
 import { StatusBadge } from './components/ui/StatusBadge'
-import { describeAutoClose, normalizeArrivalLabel } from './domain/campaignSchedule'
+import { normalizeArrivalLabel } from './domain/campaignSchedule'
+import { formatClosing, formatMoney } from './components/resident/residentFormat'
 import type { CampaignStatus } from './domain/orderWorkflow'
 import { normalizeQuantityUnit, type QuantityUnit } from './domain/quantityUnit'
 import type { CampaignImage } from './services/demoCampaignStore'
@@ -49,7 +50,7 @@ function campaignProgress(campaign: ResidentCampaignListItem) {
   if (campaign.thresholdKind === 'amount') {
     const value = campaign.totalAmount ?? 0
     const target = campaign.amountThreshold ?? campaign.threshold
-    return { value, target, text: `NT$ ${value.toLocaleString('zh-TW')} / NT$ ${target.toLocaleString('zh-TW')}` }
+    return { value, target, text: `${formatMoney(value)} / ${formatMoney(target)}` }
   }
   const unit = normalizeQuantityUnit(campaign.quantityUnit)
   return {
@@ -75,14 +76,14 @@ function CampaignRow({ campaign, now }: { campaign: ResidentCampaignListItem; no
   const open = campaign.status === 'open'
   const progress = campaignProgress(campaign)
   const formed = progress.value >= progress.target
-  const closing = describeAutoClose(campaign.autoCloseAt, now)
+  const closing = formatClosing(campaign.autoCloseAt, now)
   return (
     <article className="resident-campaign-row" data-status={open ? 'open' : 'closed'}>
       <CampaignThumbnail campaign={campaign} />
       <div className="resident-campaign-row-body">
         <h3><a href={`/campaign/${campaign.slug}`}>{campaign.title}</a></h3>
         {open
-          ? <p className="resident-campaign-price"><strong>${campaign.unitPrice.toLocaleString('zh-TW')}</strong> 起</p>
+          ? <p className="resident-campaign-price"><strong>{formatMoney(campaign.unitPrice)}</strong> 起</p>
           : <p className="resident-campaign-price"><StatusBadge tone="neutral">已結單</StatusBadge></p>}
         <dl className="resident-campaign-facts" role="group" aria-label={`${campaign.title}時程`}>
           <div>

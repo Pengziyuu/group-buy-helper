@@ -1,3 +1,4 @@
+import { formatMoney } from './residentFormat'
 import type { CustomOrderItem } from '../../domain/customOrderItem'
 import type { PricedOrderLine } from '../../domain/discountPricing'
 
@@ -28,11 +29,11 @@ export function OrderBreakdown({ lines, customItems, total, savings, quantityUni
               <strong>{line.name}</strong>
               <small>
                 <span className="resident-breakdown-discount">{line.discountText}</span>
-                {line.listUnitPrice !== line.finalUnitPrice ? `・原價 $${line.listUnitPrice}` : ''}
+                {line.listUnitPrice !== line.finalUnitPrice ? `・原價 ${formatMoney(line.listUnitPrice)}` : ''}
               </small>
             </div>
-            <span>{line.quantity} × ${line.finalUnitPrice}</span>
-            <strong>${line.lineTotal}</strong>
+            <span>{line.quantity} × {formatMoney(line.finalUnitPrice)}</span>
+            <strong>{formatMoney(line.lineTotal)}</strong>
           </li>
         ))}
         {filledCustomItems.map((item) => (
@@ -47,10 +48,10 @@ export function OrderBreakdown({ lines, customItems, total, savings, quantityUni
       <div className="resident-breakdown-total">
         <div>
           <span>商品合計</span>
-          {savings > 0 && <small>已省 ${savings}</small>}
+          {savings > 0 && <small>已省 {formatMoney(savings)}</small>}
           {customQuantity > 0 && <small>另有 {customQuantity} {quantityUnit}額外品項，金額另計</small>}
         </div>
-        <strong>${total}</strong>
+        <strong>{formatMoney(total)}</strong>
       </div>
     </div>
   )

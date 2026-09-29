@@ -14,7 +14,7 @@ describe('customer campaign app', () => {
     expect(screen.getByRole('heading', { name: '一涼製冰所 超厚三明治冰餅' })).toBeInTheDocument()
     expect(screen.getByText('62 個 / 100 個')).toBeInTheDocument()
     expect(screen.getByText('還差 38 個成團')).toBeInTheDocument()
-    expect(screen.getByText('已有 6 筆訂單・開團 2026/08/14 08:05')).toBeInTheDocument()
+    expect(document.querySelector('.resident-summary-meta')).toHaveTextContent('6 筆訂單・8/14 開團')
     expect(screen.queryByText(/戶參加/)).not.toBeInTheDocument()
     expect(screen.getByText('斯祈')).toBeInTheDocument()
     expect(screen.getByText('佩怡')).toBeInTheDocument()
@@ -253,8 +253,8 @@ describe('customer campaign app', () => {
       announcement: '公告', images: [], items, openedAt: '2026-08-14T00:05:09.000Z',
     }} />)
 
-    expect(screen.getByText('NT$ 2,790 / NT$ 5,000')).toBeInTheDocument()
-    expect(screen.getByText('還差 NT$ 2,210 成團')).toBeInTheDocument()
+    expect(screen.getByText('$2,790 / $5,000')).toBeInTheDocument()
+    expect(screen.getByText('還差 $2,210 成團')).toBeInTheDocument()
     expect(screen.getByRole('progressbar', { name: '成團進度' })).toHaveAttribute('aria-valuenow', '2790')
   })
 
@@ -616,9 +616,9 @@ describe('customer campaign app', () => {
   it('shows campaign and order timestamps with meaningful edit markers', () => {
     render(<App />)
 
-    expect(screen.getByText('已有 6 筆訂單・開團 2026/08/14 08:05')).toBeInTheDocument()
+    expect(document.querySelector('.resident-summary-meta')).toHaveTextContent('6 筆訂單・8/14 開團')
     const wall = screen.getByRole('region', { name: '大家的訂單' })
-    expect(within(wall).getByText('08/14 08:10')).toBeInTheDocument()
+    expect(within(wall).getByTitle('2026/08/14 08:10')).toHaveTextContent(/^8\/14$/)
     expect(within(wall).getByText('已修改')).toHaveAttribute('title', '最後修改 2026/08/14 08:12')
   })
 
@@ -744,7 +744,7 @@ describe('customer campaign app', () => {
 
     expect(screen.getByText('預計到貨')).toBeInTheDocument()
     expect(screen.getByText('10月中')).toBeInTheDocument()
-    expect(screen.getByText('10/15（五）12:00')).toBeInTheDocument()
+    expect(screen.getByText('2027/10/15 12:00')).toBeInTheDocument()
   })
 
   it('labels the scheduled closing time as 原訂結單 once a campaign is no longer open', () => {
@@ -760,14 +760,15 @@ describe('customer campaign app', () => {
     expect(screen.getByText('已結單', { selector: '.ui-status-badge' })).toBeInTheDocument()
     expect(screen.getByText('原訂結單')).toBeInTheDocument()
     expect(screen.queryByText('結單')).not.toBeInTheDocument()
-    expect(screen.getByText('10/15（五）12:00')).toBeInTheDocument()
+    expect(screen.getByText('2027/10/15 12:00')).toBeInTheDocument()
   })
 
   it('tells residents what they have already submitted and why submit is disabled', () => {
     render(<App />)
 
     expect(screen.getByText('你已送出 6 個・$270')).toBeInTheDocument()
-    expect(screen.getByText('・最後修改 2026/08/14 08:12')).toBeInTheDocument()
+    expect(screen.getByText('已修改', { selector: '.resident-sent time' })).toHaveAttribute('title', '最後修改 2026/08/14 08:12')
+    expect(screen.queryByText(/下單 2026/)).not.toBeInTheDocument()
     expect(screen.getByText('結單前都可以回來改數量；要整筆取消請找團主。')).toBeInTheDocument()
   })
 

@@ -1,3 +1,4 @@
+import { formatMoney } from './residentFormat'
 import { Button } from '../ui/Button'
 import { StickyActionBar } from '../ui/StickyActionBar'
 
@@ -22,7 +23,7 @@ export function OrderSummaryBar({ quantity, quantityUnit, amount, customQuantity
         <div className="resident-order-bar-total">
           <span className="resident-order-bar-label">本次訂單</span>
           <span className="resident-order-bar-quantity">{quantity} {quantityUnit}</span>
-          <strong>${amount}</strong>
+          <strong>{formatMoney(amount)}</strong>
         </div>
         {onShowBreakdown && (
           <Button variant="utility" size="sm" aria-label="查看訂單明細" onClick={onShowBreakdown}>明細</Button>

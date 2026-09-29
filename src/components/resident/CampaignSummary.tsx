@@ -3,6 +3,8 @@ import { StatusBadge } from '../ui/StatusBadge'
 import { normalizeArrivalLabel } from '../../domain/campaignSchedule'
 import { campaignStatusLabel, type CampaignStatus } from '../../domain/orderWorkflow'
 import { formatZhTwTimestamp } from '../../domain/timestamp'
+import { useNow } from '../relativeTime'
+import { formatResidentRelative } from './residentFormat'
 
 export type CampaignProgress = {
   value: number
@@ -21,9 +23,12 @@ type CampaignSummaryProps = {
   progress: CampaignProgress
   orderCount: number
   openedAt: string | null
+  now?: Date
 }
 
-export function CampaignSummary({ title, status, priceText, arrivalLabel, closingText, progress, orderCount, openedAt }: CampaignSummaryProps) {
+export function CampaignSummary({ title, status, priceText, arrivalLabel, closingText, progress, orderCount, openedAt, now }: CampaignSummaryProps) {
+  const currentTime = useNow(now)
+  const opened = openedAt ? formatResidentRelative(openedAt, currentTime) : ''
   return (
     <section className="resident-card resident-summary" aria-labelledby="campaign-title">
       <div className="resident-summary-main">
@@ -43,7 +48,8 @@ export function CampaignSummary({ title, status, priceText, arrivalLabel, closin
         </p>
         <ProgressBar label="成團進度" value={progress.value} max={progress.max} formed={progress.formed} />
         <p className="resident-summary-meta">
-          已有 {orderCount} 筆訂單{openedAt ? `・開團 ${formatZhTwTimestamp(openedAt)}` : ''}
+          {orderCount} 筆訂單
+          {opened && <>・<time dateTime={openedAt!} title={formatZhTwTimestamp(openedAt!)}>{/\d$/.test(opened) ? `${opened} ` : opened}開團</time></>}
         </p>
       </div>
     </section>

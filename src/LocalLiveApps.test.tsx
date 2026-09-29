@@ -1960,8 +1960,8 @@ describe('local Supabase visual demo apps', () => {
     expect(screen.getByText('已結單')).toBeInTheDocument()
     expect(screen.getAllByText('資料庫住戶').length).toBeGreaterThan(0)
     expect(screen.getByRole('img', { name: '資料庫住戶的LINE頭貼' })).toBeInTheDocument()
-    expect(screen.getByText('08/14 09:00')).toBeInTheDocument()
-    expect(screen.getByText('已修改')).toHaveAttribute('title', '最後修改 2026/08/14 09:05')
+    expect(screen.getByTitle('2026/08/14 09:00')).toHaveTextContent(/^8\/14$/)
+    for (const mark of screen.getAllByText('已修改')) expect(mark).toHaveAttribute('title', '最後修改 2026/08/14 09:05')
     expect(screen.queryByText('斯祈')).not.toBeInTheDocument()
   })
 

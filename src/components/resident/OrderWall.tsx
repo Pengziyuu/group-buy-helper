@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import type { VisibleOrder } from '../../data/demo'
-import { wasMeaningfullyUpdated } from '../../domain/timestamp'
-import { EditedMark, RelativeTime, useNow } from '../relativeTime'
+import { formatZhTwTimestamp, wasMeaningfullyUpdated } from '../../domain/timestamp'
+import { EditedMark, useNow } from '../relativeTime'
+import { formatResidentRelative } from './residentFormat'
 import { Button } from '../ui/Button'
 
 const WALL_PREVIEW_COUNT = 20
@@ -58,7 +59,7 @@ export function OrderWall({ orders, currentCustomerId, quantityUnit, itemDisplay
                     <p className="resident-wall-custom">{customItems.map((item) => `${item.name}×${item.quantity}（另計）`).join('、')}</p>
                   )}
                   <p className="resident-wall-time">
-                    <RelativeTime value={order.orderedAt} now={currentTime} />
+                    <time dateTime={order.orderedAt} title={formatZhTwTimestamp(order.orderedAt)}>{formatResidentRelative(order.orderedAt, currentTime)}</time>
                     {wasMeaningfullyUpdated(order.orderedAt, order.updatedAt) && <EditedMark value={order.updatedAt} />}
                   </p>
                 </div>

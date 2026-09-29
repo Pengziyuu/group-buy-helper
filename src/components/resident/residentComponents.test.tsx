@@ -16,7 +16,7 @@ describe('resident campaign page parts', () => {
   it('summarises status, price, schedule and progress', () => {
     const { rerender } = render(
       <CampaignSummary title="冰餅團" status="open" priceText="$45／個" arrivalLabel="10月中"
-        closingText="10/15（五）12:00" progress={progress} orderCount={6} openedAt="2026-08-14T00:05:09.000Z" />,
+        closingText="10/15 12:00" progress={progress} orderCount={6} openedAt="2026-08-14T00:05:09.000Z" />,
     )
 
     expect(screen.getByRole('heading', { level: 1, name: '冰餅團' })).toBeInTheDocument()
@@ -26,10 +26,10 @@ describe('resident campaign page parts', () => {
     expect(within(schedule).getByText('預計到貨')).toBeInTheDocument()
     expect(within(schedule).getByText('10月中')).toBeInTheDocument()
     expect(within(schedule).getByText('結單')).toBeInTheDocument()
-    expect(within(schedule).getByText('10/15（五）12:00')).toBeInTheDocument()
+    expect(within(schedule).getByText('10/15 12:00')).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 2, name: '成團進度' })).toBeInTheDocument()
     expect(screen.getByText('還差 38 個成團')).not.toHaveClass('is-formed')
-    expect(screen.getByText('已有 6 筆訂單・開團 2026/08/14 08:05')).toBeInTheDocument()
+    expect(document.querySelector('.resident-summary-meta')).toHaveTextContent('6 筆訂單・8/14 開團')
 
     rerender(
       <CampaignSummary title="冰餅團" status="closed" priceText="$45／個" closingText={null}
@@ -39,7 +39,7 @@ describe('resident campaign page parts', () => {
     expect(screen.getByText('貨到通知')).toBeInTheDocument()
     expect(screen.getByText('未排定')).toBeInTheDocument()
     expect(screen.getByText('已成團')).toHaveClass('is-formed')
-    expect(screen.getByText('已有 6 筆訂單')).toBeInTheDocument()
+    expect(document.querySelector('.resident-summary-meta')).toHaveTextContent(/^6 筆訂單$/)
   })
 
   it('collapses only long announcements', async () => {

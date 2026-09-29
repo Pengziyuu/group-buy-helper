@@ -48,10 +48,10 @@ describe('ResidentCampaignListApp', () => {
     expect(within(open).getByRole('img', { name: '早餐商品照片' })).toHaveAttribute('src', 'https://example.com/breakfast-cover.jpg')
     expect(within(open).queryByRole('img', { name: '早餐細節照片' })).not.toBeInTheDocument()
     expect(within(open).getByText('$55')).toBeInTheDocument()
-    expect(within(open).getByText('NT$ 440 / NT$ 1,000')).toBeInTheDocument()
+    expect(within(open).getByText('$440 / $1,000')).toBeInTheDocument()
     const openFacts = within(open).getByRole('group', { name: '早餐團購時程' })
     expect(within(openFacts).getByText('結單')).toBeInTheDocument()
-    expect(within(openFacts).getByText('3/5（五）12:00')).toBeInTheDocument()
+    expect(within(openFacts).getByText('2027/3/5 12:00')).toBeInTheDocument()
     expect(within(openFacts).getByText('到貨')).toBeInTheDocument()
     expect(within(openFacts).getByText('03/08')).toBeInTheDocument()
     expect(within(open).getByRole('progressbar', { name: '早餐團購成團進度' })).toHaveAttribute('aria-valuenow', '440')
@@ -105,11 +105,11 @@ describe('ResidentCampaignListApp', () => {
 
     const open = screen.getByRole('group', { name: '開團中的團時程' })
     expect(within(open).getByText('結單')).toBeInTheDocument()
-    expect(within(open).getByText('10/15（四）12:00')).toBeInTheDocument()
+    expect(within(open).getByText('10/15 12:00')).toBeInTheDocument()
     const closed = screen.getByRole('group', { name: '提前結單的團時程' })
     expect(within(closed).getByText('原訂結單')).toBeInTheDocument()
     expect(within(closed).queryByText('結單')).not.toBeInTheDocument()
-    expect(within(closed).getByText('10/16（五）12:00')).toBeInTheDocument()
+    expect(within(closed).getByText('10/16 12:00')).toBeInTheDocument()
   })
 
   it('highlights campaigns that close today or tomorrow', () => {
@@ -148,7 +148,7 @@ describe('ResidentCampaignListApp', () => {
       campaign({ slug: 'closed-unscheduled', title: '未排定的已結單團', status: 'closed', autoCloseAt: null }),
     ]} now={new Date('2026-09-01T00:00:00.000Z')} />)
 
-    expect(within(screen.getByRole('group', { name: '有排定的已結單團時程' })).getByText('3/5（五）12:00')).toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: '有排定的已結單團時程' })).getByText('2027/3/5 12:00')).toBeInTheDocument()
     expect(within(screen.getByRole('group', { name: '未排定的已結單團時程' })).getByText('未排定')).toBeInTheDocument()
   })
 
