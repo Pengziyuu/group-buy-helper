@@ -74,15 +74,15 @@ export default function PickupNotificationPlanPanel({ campaignTitle, campaignSta
     catch (cause) { setError(cause instanceof Error ? cause.message : '目前無法產生通知指令，請稍後再試。') }
     finally { setBusy(false) }
   }
-  return <section className="pickup-notification-panel" aria-label="LINE領取通知">
+  return <section className="pickup-notification-panel pickup-plan-panel" aria-label="LINE領取通知">
     <h3>{mode === 'test' ? `LINE通知測試：${campaignTitle}` : 'LINE領取通知'}</h3>
     <p>發送方式：複製一次性指令並貼到{mode === 'test' ? '測試群組' : '正式社區群組'}，此頁不會直接發送。</p>
-    <div className="pickup-step-actions" role="group" aria-label="通知模式">
-      <Button variant={notificationMode === 'ambient' ? 'primary' : 'secondary'} disabled={busy} onClick={() => selectMode('ambient')}>切換常溫</Button>
-      <Button variant={notificationMode === 'cold' ? 'primary' : 'secondary'} disabled={busy} onClick={() => selectMode('cold')}>切換冷凍冷藏</Button>
+    <div className="pickup-step-actions pickup-plan-modes" role="group" aria-label="通知模式">
+      <Button variant={notificationMode === 'ambient' ? 'primary' : 'secondary'} aria-pressed={notificationMode === 'ambient'} disabled={busy} onClick={() => selectMode('ambient')}>常溫</Button>
+      <Button variant={notificationMode === 'cold' ? 'primary' : 'secondary'} aria-pressed={notificationMode === 'cold'} disabled={busy} onClick={() => selectMode('cold')}>冷凍／冷藏</Button>
     </div>
     <p>{notificationMode === 'ambient' ? '常溫：一期、二期、三期合併一份通知。' : '冷凍冷藏：一期、三期與二期分別確認名單與訊息。'}</p>
-    <Button disabled={busy} onClick={() => { void readPreview() }}>{busy ? '處理中…' : `預覽${notificationMode === 'ambient' ? '常溫' : '冷凍冷藏'}通知`}</Button>
+    <Button className="pickup-plan-action" disabled={busy} onClick={() => { void readPreview() }}>{busy ? '讀取中…' : '預覽名單'}</Button>
     {error && <p role="alert" className="pickup-notification-error">{error}</p>}
     {preview && <div key={revision} className="pickup-steps">
       {keys.map((key) => {
@@ -98,7 +98,7 @@ export default function PickupNotificationPlanPanel({ campaignTitle, campaignSta
       })}
       <p>合計可＠{total}位，預計{preview.messageCount}則LINE訊息；每則至多20位，最多5則。</p>
       {preview.messageCount > 5 && <p role="alert" className="pickup-notification-error">需要{preview.messageCount}則訊息，超過單一指令5則上限；目前無法產生涵蓋全部住戶的指令。</p>}
-      {!command && <Button disabled={busy || !preview.previewToken || preview.messageCount > 5 || total === 0 || keys.some((key) => !(plan.mode === 'ambient' ? plan.messages.all : plan.messages[key as 'phase13' | 'phase2']).trim())} onClick={() => { void createCommand() }}>產生{mode === 'test' ? '測試' : '正式'}群組指令並＠{total}位住戶</Button>}
+      {!command && <Button className="pickup-plan-action" disabled={busy || !preview.previewToken || preview.messageCount > 5 || total === 0 || keys.some((key) => !(plan.mode === 'ambient' ? plan.messages.all : plan.messages[key as 'phase13' | 'phase2']).trim())} onClick={() => { void createCommand() }}>產生指令</Button>}
       {command && <section className="pickup-command-result" aria-label="一次性LINE群組指令"><strong>指令已產生，等待貼到群組；通知尚未發送。</strong><input className="ui-input" aria-label="一次性LINE群組指令" readOnly value={command.command} onFocus={(event) => event.currentTarget.select()} /><div className="pickup-step-actions"><Button onClick={() => { void navigator.clipboard.writeText(command.command).then(() => setCopyStatus('指令已複製，等待貼到群組。'), () => setError('無法自動複製，請手動選取指令複製。')) }}>複製指令</Button><Button variant="secondary" onClick={() => { setPreview(null); setCommand(null) }}>完成</Button></div>{copyStatus && <p role="status">{copyStatus}</p>}</section>}
     </div>}
   </section>

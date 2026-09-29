@@ -44,4 +44,14 @@ describe('pickup backend dual mode', () => {
     expect(migration).toContain('internal_pickup_notification_eligible_hash')
     expect(migration).toContain('internal_pickup_notification_recipients')
   })
+
+  it('replaces unused previews of the same campaign instead of counting mode switches against five slots', () => {
+    const migration = readFileSync('supabase/migrations/20260929150000_replace_pickup_previews.sql', 'utf8')
+    expect(migration).toContain('pickup_notification_reply_command')
+    expect(migration).toContain('intent.campaign_id = p_campaign_id')
+    expect(migration).toContain('intent.caller_hash = p_caller_hash')
+    expect(migration).toContain('intent.binding_kind = p_binding_kind')
+    expect(migration).toContain("intent.delivery_status = 'ready'")
+    expect(migration).toContain('delete from public.pickup_notification_intent')
+  })
 })
