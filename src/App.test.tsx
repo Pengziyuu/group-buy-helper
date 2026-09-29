@@ -52,6 +52,25 @@ describe('customer campaign app', () => {
     expect(screen.getByRole('status', { name: 'A 牛奶（招牌）數量' })).toHaveTextContent('21')
   })
 
+  it('says 原價 rather than 10折 when no base discount applies below the mix-and-match threshold', () => {
+    const resident = { customerId: 'resident-1', name: '住戶甲', period: 2, unit: '2A1', householdKind: 'resident' as const }
+    const content = (baseDiscountRate: number): CampaignContent => ({
+      title: '零食團購', unitPrice: 60, threshold: 100, baseDiscountRate,
+      mixMatchDiscount: { name: '任選5件9折', minimumQuantity: 5, rate: 0.9 },
+      announcement: '公告', images: [], openedAt: '2026-09-12T00:00:00.000Z',
+      items: [{ code: 'A', name: '洋芋片', unitPrice: 60, active: true, discountEligible: true }],
+    })
+    const orders = [{ ...resident, items: {}, orderedAt: '2026-09-12T00:00:00.000Z', updatedAt: '2026-09-12T00:00:00.000Z' }]
+
+    const view = render(<App publishedContent={content(1)} residentCustomer={resident} visibleOrders={orders} />)
+    expect(screen.getByText('限定區目前0件，未達標維持原價')).toBeInTheDocument()
+    expect(screen.queryByText(/10折/)).not.toBeInTheDocument()
+    view.unmount()
+
+    render(<App publishedContent={content(0.95)} residentCustomer={resident} visibleOrders={orders} />)
+    expect(screen.getByText('限定區目前0件，未達標維持95折')).toBeInTheDocument()
+  })
+
   it('previews base and mix-and-match prices while quantities change', async () => {
     const user = userEvent.setup()
     const resident = { customerId: 'resident-1', name: '住戶甲', period: 2, unit: '2A1', householdKind: 'resident' as const }
