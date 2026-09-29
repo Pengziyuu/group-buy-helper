@@ -108,6 +108,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
   const [customDraft, setCustomDraft] = useState<CustomOrderItem[]>(() => ownOrder?.customItems?.map((item) => ({ ...item })) ?? [])
   const [savedCustomDraft, setSavedCustomDraft] = useState<CustomOrderItem[]>(() => ownOrder?.customItems?.map((item) => ({ ...item })) ?? [])
   const customItemSequence = useRef(0)
+  const orderItemsRef = useRef<HTMLDivElement>(null)
   const noticeSequence = useRef(0)
   const [notice, setNotice] = useState<Notice | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -211,6 +212,15 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
     : !hasDraftItems
       ? hasSubmittedOrder ? '想整筆取消訂單，請聯繫團主協助取消。' : '選擇品項後即可送出。'
       : !customDraftValid ? '請填寫額外品項的名稱與數量。' : null
+
+  const chooseItems = () => {
+    const container = orderItemsRef.current
+    if (!container) return
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    const section = container.closest<HTMLElement>('.resident-order') ?? container
+    section.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+    container.querySelector<HTMLButtonElement>('button[aria-label^="增加 "]:not(:disabled)')?.focus({ preventScroll: true })
+  }
 
   const adjust = (code: string, delta: number) => {
     if (!controlsEditable) return
@@ -383,7 +393,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
                     : `限定區目前${draftPricing.mixMatchQuantity}件，未達標維持${formatDiscountRate(publishedCampaign.baseDiscountRate ?? 1)}`}</span>
                 </div>
               )}
-              <div className="resident-order-items">
+              <div className="resident-order-items" ref={orderItemsRef}>
                 {mixMatchItems.length > 0 && publishedCampaign.mixMatchDiscount && (
                   <section className="resident-product-section" aria-labelledby="mix-match-products-heading">
                     <h3 id="mix-match-products-heading">任選優惠專區</h3>
@@ -454,6 +464,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
                 submitting={submitting}
                 onSubmit={() => { void submit() }}
                 hint={submitHint}
+                onChooseItems={controlsEditable && !hasDraftItems && !hasSubmittedOrder ? chooseItems : undefined}
               />
             </>
           ) : (

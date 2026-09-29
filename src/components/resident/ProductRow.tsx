@@ -14,7 +14,7 @@ type ProductRowProps = {
 
 export function ProductRow({ code, name, priceText, listPrice, hint, quantity, disabled, onDecrement, onIncrement }: ProductRowProps) {
   return (
-    <div className="resident-product-row">
+    <div className="resident-product-row" data-selected={quantity > 0 ? 'true' : undefined}>
       <span className="resident-product-code">{code}</span>
       <div className="resident-product-name">
         <strong>{name}</strong>

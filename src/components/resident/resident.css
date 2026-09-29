@@ -85,6 +85,11 @@
 .resident-product-name { min-width: 0; display: grid; }
 .resident-product-name strong { font-weight: var(--font-weight-strong); overflow-wrap: anywhere; }
 .resident-product-price { color: var(--color-text-secondary); font-size: var(--font-size-dense); font-variant-numeric: tabular-nums; }
+/* A row with a quantity carries the action colour so chosen items stand out in a long list. */
+.resident-product-row[data-selected] .resident-product-code { background: var(--color-primary); color: var(--color-on-primary); }
+.resident-product-row[data-selected] .ui-quantity-control { border-color: var(--color-primary); background: var(--color-primary-subtle); }
+.resident-product-row[data-selected] .ui-quantity-control output { color: var(--color-primary); }
+.resident-order { scroll-margin-top: var(--space-3); }
 .resident-product-list-price { color: var(--color-text-tertiary); font-size: var(--font-size-caption); text-decoration: line-through; }
 .resident-product-name small { color: var(--color-text-secondary); font-size: var(--font-size-caption); }
 
@@ -99,7 +104,8 @@
 .resident-breakdown-total strong { font-size: 20px; font-weight: var(--font-weight-strong); font-variant-numeric: tabular-nums; }
 
 /* The order bar is fixed to the bottom on phones and sits inside the order rail on desktop (Task 7). */
-.resident-order-bar { position: fixed; right: 0; bottom: 0; left: 0; }
+/* Solid rather than frosted: totals and the submit button sit on top of photos while scrolling. */
+.resident-order-bar { position: fixed; right: 0; bottom: 0; left: 0; background: var(--color-surface); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: 0 -4px 16px rgb(0 0 0 / 6%); }
 .resident-order-bar-row { display: flex; align-items: center; gap: var(--space-2); width: min(100%, 1200px); margin: 0 auto; }
 .resident-order-bar-total { flex: 1; min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; column-gap: var(--space-2); }
 .resident-order-bar-label { grid-column: 1 / -1; color: var(--color-text-secondary); font-size: var(--font-size-caption); }
@@ -192,7 +198,7 @@
   .resident-info-body[data-has-images="true"] { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
   .resident-order { position: sticky; top: 68px; display: flex; flex-direction: column; max-height: calc(100vh - 84px); }
   .resident-order-items { min-height: 0; overflow-y: auto; padding-inline: 4px; margin-inline: -4px; }
-  .resident-order-bar { position: static; margin: var(--space-3) calc(var(--space-5) * -1) calc(var(--space-5) * -1); border-radius: 0 0 var(--radius-surface) var(--radius-surface); }
+  .resident-order-bar { position: static; margin: var(--space-3) calc(var(--space-5) * -1) calc(var(--space-5) * -1); border-radius: 0 0 var(--radius-surface) var(--radius-surface); box-shadow: none; }
   .resident-order-bar-row,
   .resident-order-bar-note,
   .resident-order-bar-hint { width: auto; }

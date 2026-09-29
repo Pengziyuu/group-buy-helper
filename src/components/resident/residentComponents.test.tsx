@@ -114,6 +114,30 @@ describe('resident campaign page parts', () => {
     expect(showBreakdown).toHaveBeenCalledOnce()
   })
 
+  it('offers a shortcut to the items instead of a disabled submit while nothing is chosen', async () => {
+    const user = userEvent.setup()
+    const chooseItems = vi.fn()
+    render(
+      <OrderSummaryBar quantity={0} quantityUnit="個" amount={0} customQuantity={0}
+        submitDisabled submitting={false} onSubmit={vi.fn()} onChooseItems={chooseItems} hint="選擇品項後即可送出。" />,
+    )
+
+    const bar = screen.getByRole('region', { name: '訂單摘要與送出' })
+    expect(within(bar).queryByRole('button', { name: '送出訂單' })).not.toBeInTheDocument()
+    await user.click(within(bar).getByRole('button', { name: '選擇品項' }))
+    expect(chooseItems).toHaveBeenCalledOnce()
+  })
+
+  it('marks a product row once it has a quantity', () => {
+    const { rerender } = render(
+      <ProductRow code="A" name="牛奶" priceText="$45" quantity={0} disabled={false} onDecrement={vi.fn()} onIncrement={vi.fn()} />,
+    )
+    const row = screen.getByText('牛奶').closest('.resident-product-row')!
+    expect(row).not.toHaveAttribute('data-selected')
+    rerender(<ProductRow code="A" name="牛奶" priceText="$45" quantity={2} disabled={false} onDecrement={vi.fn()} onIncrement={vi.fn()} />)
+    expect(row).toHaveAttribute('data-selected', 'true')
+  })
+
   it('shows the order wall without households, marks the resident and caps the first view at twenty', async () => {
     const user = userEvent.setup()
     const orders: VisibleOrder[] = Array.from({ length: 23 }, (_, index) => ({

@@ -673,7 +673,7 @@ describe('customer campaign app', () => {
     const resident = { ...initialOrders[0], items: {}, householdKind: 'resident' as const }
     render(<App residentCustomer={resident} visibleOrders={[]} />)
 
-    expect(screen.getByRole('button', { name: '送出訂單' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '選擇品項' })).toBeEnabled()
     expect(screen.queryByText('想整筆取消訂單，請聯繫團主協助取消。')).not.toBeInTheDocument()
   })
 
@@ -777,5 +777,24 @@ describe('customer campaign app', () => {
 
     expect(screen.queryByText(/你已送出/)).not.toBeInTheDocument()
     expect(within(screen.getByLabelText('訂單摘要與送出')).getByText('選擇品項後即可送出。')).toBeInTheDocument()
+  })
+
+  it('jumps from the order bar to the first item before a first order', async () => {
+    const user = userEvent.setup()
+    const scrollIntoView = vi.fn()
+    Element.prototype.scrollIntoView = scrollIntoView
+    const resident = { ...initialOrders[0], items: {}, householdKind: 'resident' as const }
+    render(<App residentCustomer={resident} visibleOrders={[]} />)
+
+    await user.click(within(screen.getByLabelText('訂單摘要與送出')).getByRole('button', { name: '選擇品項' }))
+    expect(scrollIntoView).toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: /^增加 A / })).toHaveFocus()
+    await user.click(screen.getByRole('button', { name: /^增加 A / }))
+    expect(within(screen.getByLabelText('訂單摘要與送出')).getByRole('button', { name: '送出訂單' })).toBeEnabled()
+  })
+
+  it('keeps submit disabled rather than offering the shortcut once an order exists', () => {
+    render(<App />)
+    expect(within(screen.getByLabelText('訂單摘要與送出')).queryByRole('button', { name: '選擇品項' })).not.toBeInTheDocument()
   })
 })
