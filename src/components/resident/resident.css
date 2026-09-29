@@ -144,6 +144,8 @@
 .resident-binding-fields label,
 .resident-binding-unit { display: grid; gap: 4px; margin: 0; padding: 0; border: 0; color: var(--color-text-secondary); font-size: var(--font-size-caption); }
 .resident-binding-unit legend { margin-bottom: 4px; padding: 0; }
+/* 期別 shares a row with the taller 戶號 group: sit its select on the same baseline instead of stretching it. */
+.resident-binding-fields > label { align-content: end; }
 .resident-binding-unit-parts { display: flex; gap: var(--space-2); }
 .resident-binding > .ui-button { width: 100%; }
 .resident-binding-feedback { margin-top: var(--space-3); }
@@ -161,7 +163,8 @@
 .resident-wall { grid-area: wall; }
 .resident-sent { margin: 0 0 var(--space-3); padding: var(--space-2) var(--space-3); border-radius: var(--radius-control); background: var(--color-success-subtle); font-size: var(--font-size-dense); }
 .resident-sent strong { color: var(--color-success); font-weight: var(--font-weight-strong); }
-.resident-discount-status { display: grid; gap: 2px; margin-bottom: var(--space-3); padding: var(--space-2) var(--space-3); border-radius: var(--radius-control); background: var(--color-warning-subtle); color: var(--color-warning); font-size: var(--font-size-dense); }
+/* A nudge toward the promotion, not a warning: action blue until it applies, then success green. */
+.resident-discount-status { display: grid; gap: 2px; margin-bottom: var(--space-3); padding: var(--space-2) var(--space-3); border-radius: var(--radius-control); background: var(--color-primary-subtle); color: var(--color-primary); font-size: var(--font-size-dense); }
 .resident-discount-status.is-applied { background: var(--color-success-subtle); color: var(--color-success); }
 .resident-product-section + .resident-product-section { margin-top: var(--space-4); }
 .resident-product-section h3 { margin: 0 0 var(--space-1); font-size: 15px; font-weight: var(--font-weight-strong); }

@@ -772,12 +772,14 @@ describe('customer campaign app', () => {
     expect(screen.getByText('結單前都可以回來改數量；要整筆取消請找團主。')).toBeInTheDocument()
   })
 
-  it('explains that items must be chosen before a first order', () => {
+  it('lets the 選擇品項 button speak for itself before a first order', () => {
     const resident = { ...initialOrders[0], items: {}, householdKind: 'resident' as const }
     render(<App residentCustomer={resident} visibleOrders={[]} />)
 
     expect(screen.queryByText(/你已送出/)).not.toBeInTheDocument()
-    expect(within(screen.getByLabelText('訂單摘要與送出')).getByText('選擇品項後即可送出。')).toBeInTheDocument()
+    const bar = within(screen.getByLabelText('訂單摘要與送出'))
+    expect(bar.getByRole('button', { name: '選擇品項' })).toBeEnabled()
+    expect(bar.queryByText('選擇品項後即可送出。')).not.toBeInTheDocument()
   })
 
   it('jumps from the order bar to the first item before a first order', async () => {

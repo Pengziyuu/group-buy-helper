@@ -211,6 +211,8 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
       ? hasSubmittedOrder ? '想整筆取消訂單，請聯繫團主協助取消。' : '選擇品項後即可送出。'
       : !customDraftValid ? '請填寫額外品項的名稱與數量。' : null
 
+  // Before a first order the bar offers a jump to the items; its label already says what to do.
+  const offerChooseItems = controlsEditable && !hasDraftItems && !hasSubmittedOrder
   const chooseItems = () => {
     const container = orderItemsRef.current
     if (!container) return
@@ -461,8 +463,8 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
                 submitDisabled={!controlsEditable || !draftDirty || !hasDraftItems || !customDraftValid}
                 submitting={submitting}
                 onSubmit={() => { void submit() }}
-                hint={submitHint}
-                onChooseItems={controlsEditable && !hasDraftItems && !hasSubmittedOrder ? chooseItems : undefined}
+                hint={offerChooseItems ? null : submitHint}
+                onChooseItems={offerChooseItems ? chooseItems : undefined}
               />
             </>
           ) : (
