@@ -234,3 +234,14 @@ describe('RuntimeApp demo resident scenarios', () => {
     expect(screen.getByText('本團已結單，無法修改訂單。')).toBeInTheDocument()
   })
 })
+
+describe('demo resident scenario data', () => {
+  it('never shows an open quantity campaign at its threshold, since reaching it closes the campaign', async () => {
+    const { demoResidentScenarios, demoScenarioListItem } = await import('./data/demoResidentScenarios')
+    const impossible = demoResidentScenarios()
+      .map(demoScenarioListItem)
+      .filter((item) => item.status === 'open' && (item.thresholdKind ?? 'quantity') === 'quantity' && item.totalQuantity >= item.threshold)
+      .map((item) => item.title)
+    expect(impossible).toEqual([])
+  })
+})

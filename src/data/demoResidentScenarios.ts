@@ -132,7 +132,8 @@ export function demoResidentScenarios(now = Date.now()): DemoResidentScenario[] 
       },
     },
     {
-      // Threshold reached (44 of 44) and a long order wall.
+      // Formed yet still open, which only an amount threshold allows (a quantity threshold
+      // closes the campaign the moment it is reached), plus a long order wall.
       slug: 'c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3',
       status: 'open',
       customer: me,
@@ -143,12 +144,13 @@ export function demoResidentScenarios(now = Date.now()): DemoResidentScenario[] 
       content: {
         title: '保久乳（鮮乳坊、初鹿、東海大學）',
         unitPrice: 730,
-        // Quantity thresholds double as the order cap, so a formed campaign sits exactly on it.
-        threshold: 44,
+        threshold: 25000,
+        thresholdKind: 'amount',
+        amountThreshold: 25000,
         quantityUnit: '箱',
         arrivalLabel: '10/07',
         autoCloseAt: null,
-        announcement: '三款保久乳任選，一箱 24 瓶。\n已成團，結單前還可以繼續 +1。',
+        announcement: '三款保久乳任選，一箱 24 瓶。\n滿 NT$ 25,000 成團；已成團，結單前還可以繼續 +1。',
         images: [{ src: '/demo/milk.svg', alt: '保久乳示意圖' }],
         items: [
           { code: 'A', name: '鮮乳坊保久乳', unitPrice: 730, active: true },
