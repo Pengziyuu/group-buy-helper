@@ -81,7 +81,7 @@ describe('OrganizerHome', () => {
     expect(within(openRow).getByText('還差 12 盒成團')).toBeInTheDocument()
     expect(within(openRow).getByText('6')).toBeInTheDocument()
     expect(within(openRow).getByText('今天 12:00')).toHaveClass('organizer-soon')
-    expect(within(openRow).getByText('2026/08/12 10:00')).toBeInTheDocument()
+    expect(within(openRow).getByTitle('2026/08/12 10:00').textContent).toBe('8/12')
 
     const draftRow = rowOf('新草稿')
     expect(within(draftRow).getByText('草稿')).toBeInTheDocument()
@@ -90,7 +90,8 @@ describe('OrganizerHome', () => {
     expect(draftRow.querySelector('.organizer-thumb-empty')).toHaveAttribute('aria-hidden', 'true')
     expect(within(draftRow).getByText('發布後開始接單')).toBeInTheDocument()
     expect(within(draftRow).getByText('未設定')).toBeInTheDocument()
-    expect(within(draftRow).getByText('最後編輯 2026/08/12 09:00')).toBeInTheDocument()
+    expect(within(draftRow).getByTitle('2026/08/12 09:00').textContent).toBe('8/12')
+    expect(within(draftRow).getByText(/^最後編輯/)).toHaveTextContent('最後編輯 8/12')
     expect(within(draftRow).queryByRole('button', { name: '複製住戶連結 新草稿' })).not.toBeInTheDocument()
 
     const closedRow = rowOf('已結單水果團')

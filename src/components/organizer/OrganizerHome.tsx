@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { describeAutoClose } from '../../domain/campaignSchedule'
-import { formatZhTwTimestamp } from '../../domain/timestamp'
+import { RelativeTime } from '../relativeTime'
 import type { AutoCloseNotificationSettingState } from '../../services/autoCloseNotificationSettingsGateway'
 import type { CampaignListItem } from '../../services/campaignManagementGateway'
 import { EmptyState } from '../ui/AsyncState'
@@ -194,8 +194,8 @@ export function OrganizerHome({ campaigns, autoCloseNotificationState, unboundRe
                     </td>
                     <td data-label="時間" className="ui-num">
                       {phase === 'draft' || !campaign.openedAt
-                        ? `最後編輯 ${formatZhTwTimestamp(campaign.updatedAt)}`
-                        : formatZhTwTimestamp(campaign.openedAt)}
+                        ? <>最後編輯 <RelativeTime value={campaign.updatedAt} now={today} /></>
+                        : <RelativeTime value={campaign.openedAt} now={today} />}
                     </td>
                     <td>
                       <div className="organizer-row-actions">

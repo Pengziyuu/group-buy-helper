@@ -4,8 +4,8 @@ import { Button } from './components/ui/Button'
 import { Menu } from './components/ui/Menu'
 import { ProgressBar } from './components/ui/ProgressBar'
 import { StatusBadge } from './components/ui/StatusBadge'
-import { normalizeArrivalLabel } from './domain/campaignSchedule'
-import { formatClosing, formatMoney } from './components/resident/residentFormat'
+import { describeAutoClose, normalizeArrivalLabel } from './domain/campaignSchedule'
+import { formatMoney } from './components/resident/residentFormat'
 import type { CampaignStatus } from './domain/orderWorkflow'
 import { normalizeQuantityUnit, type QuantityUnit } from './domain/quantityUnit'
 import type { CampaignImage } from './services/demoCampaignStore'
@@ -82,7 +82,7 @@ function CampaignRow({ campaign, now }: { campaign: ResidentCampaignListItem; no
   const open = campaign.status === 'open'
   const progress = campaignProgress(campaign)
   const formed = progress.value >= progress.target
-  const closing = formatClosing(campaign.autoCloseAt, now)
+  const closing = describeAutoClose(campaign.autoCloseAt, now)
   // Only facts that tell the resident something: no "未排定" and no default 貨到通知.
   const arrival = normalizeArrivalLabel(campaign.arrivalLabel)
   const arrivalText = arrival === '貨到通知' ? null : shortArrival(arrival)

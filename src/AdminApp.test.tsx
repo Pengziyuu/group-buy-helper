@@ -105,7 +105,7 @@ describe('organizer campaign editor', () => {
     await user.clear(amount)
     await user.type(amount, '5000')
 
-    expect(within(screen.getByRole('region', { name: '住戶端預覽' })).getByText('滿 NT$ 5,000 成團')).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: '住戶端預覽' })).getByText('滿 $5,000 成團')).toBeInTheDocument()
   })
 
   it('requires a new campaign to set its threshold and item before publishing, even when database placeholders exist', async () => {

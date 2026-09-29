@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { templateNameError, type CampaignTemplate } from '../../domain/campaignTemplate'
-import { formatZhTwTimestamp } from '../../domain/timestamp'
+import { RelativeTime, useNow } from '../relativeTime'
 import { ErrorState, LoadingState } from '../ui/AsyncState'
 import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
@@ -15,6 +15,7 @@ export type TemplateSettingsActions = {
 const messageOf = (error: unknown) => error instanceof Error ? error.message : String(error)
 
 export function TemplateSettings({ actions }: { actions: TemplateSettingsActions }) {
+  const now = useNow()
   const actionsRef = useRef(actions)
   actionsRef.current = actions
   const [templates, setTemplates] = useState<CampaignTemplate[] | null>(null)
@@ -152,7 +153,7 @@ export function TemplateSettings({ actions }: { actions: TemplateSettingsActions
                       ) : template.name}
                     </th>
                     <td data-label="品項數">{template.content.items.length} 個</td>
-                    <td data-label="最後更新">{formatZhTwTimestamp(template.updatedAt)}</td>
+                    <td data-label="最後更新"><RelativeTime value={template.updatedAt} now={now} /></td>
                     <td className="organizer-template-actions">
                       {editing ? (
                         <>

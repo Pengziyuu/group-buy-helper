@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { describeAutoClose, normalizeArrivalLabel } from '../../domain/campaignSchedule'
 import { campaignStatusAction, campaignStatusLabel, type CampaignStatus } from '../../domain/orderWorkflow'
-import { formatZhTwTimestamp } from '../../domain/timestamp'
+import { RelativeTime } from '../relativeTime'
 import { campaignSectionPath, type WorkspaceSection } from '../../routing'
 import type { CampaignImage } from '../../services/demoCampaignStore'
 import { Button } from '../ui/Button'
@@ -107,7 +107,7 @@ export function WorkspaceRail({ campaign, section, now, onSetCampaignStatus, onC
       <dl className="organizer-rail-facts">
         {isOpen && <div><dt>結單</dt><dd>{closing ? closing.when : '未設定'}</dd></div>}
         <div><dt>到貨</dt><dd>{normalizeArrivalLabel(campaign.arrivalLabel)}</dd></div>
-        <div><dt>開團</dt><dd>{campaign.openedAt ? formatZhTwTimestamp(campaign.openedAt) : '尚未發布'}</dd></div>
+        <div><dt>開團</dt><dd>{campaign.openedAt ? <RelativeTime value={campaign.openedAt} now={now ?? new Date()} /> : '尚未發布'}</dd></div>
       </dl>
       <nav className="organizer-rail-nav" aria-label="團購分區">
         {NAV_ITEMS.map((item) => {

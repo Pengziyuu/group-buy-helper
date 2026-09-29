@@ -393,7 +393,7 @@ function AdminApp({
     : publishBlockReason({ blockers, uploading: uploadingImage, savePending: autoSaving || draftSavePending })
   const priceText = unitPrice === maximumItemPrice ? `$${unitPrice}` : `$${unitPrice}～$${maximumItemPrice}`
   const thresholdText = thresholdKind === 'amount'
-    ? `滿 NT$ ${amountThreshold.toLocaleString('zh-TW')} 成團`
+    ? `滿 $${amountThreshold.toLocaleString('en-US')} 成團`
     : `結單：${threshold} ${quantityUnit}成團`
 
   return (

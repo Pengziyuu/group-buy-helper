@@ -135,7 +135,7 @@ describe('template settings', () => {
     const section = screen.getByRole('region', { name: '團購範本' })
     const row = (await within(section).findByRole('rowheader', { name: '冰餅' })).closest('tr') as HTMLElement
     expect(within(row).getByText('1 個')).toBeInTheDocument()
-    expect(within(row).getByText('2026/09/24 10:00')).toBeInTheDocument()
+    expect(within(row).getByTitle('2026/09/24 10:00')).toBeInTheDocument()
     unmount()
 
     render(<OrganizerSettings templateActions={actions([])} />)

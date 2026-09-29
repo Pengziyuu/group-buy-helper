@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { formatZhTwTimestamp } from './domain/timestamp'
+import { RelativeTime, useNow } from './components/relativeTime'
 import type { ResidentFilter } from './routing'
 import type { ResidentMember, ResidentGroupStatusUpdate } from './services/residentMemberManagementGateway'
 import { countResidents, matchesResidentFilter, matchesResidentSearch, residentHouseholdLabel } from './components/organizer/residentView'
@@ -47,6 +47,7 @@ function Avatar({ member }: { member: ResidentMember }) {
 }
 
 export default function ResidentMemberManagementApp({ members, initialFilter = 'all', onSetBlocked, onUpdateHousehold, onRefreshGroupStatuses }: Props) {
+  const now = useNow()
   const [visibleMembers, setVisibleMembers] = useState(members)
   const [filter, setFilter] = useState<ResidentFilter>(initialFilter)
   const [query, setQuery] = useState('')
@@ -246,7 +247,7 @@ export default function ResidentMemberManagementApp({ members, initialFilter = '
                   {member.blocked && <StatusBadge tone="neutral">已封鎖</StatusBadge>}
                 </div>
                 <p>{residentHouseholdLabel(member)}</p>
-                <small>加入時間 {formatZhTwTimestamp(member.joinedAt)}</small>
+                <small>加入 <RelativeTime value={member.joinedAt} now={now} /></small>
                 {onRefreshGroupStatuses && !member.blocked && (
                   <p className="resident-member-group-status">
                     <span className="resident-group-dot" data-status={member.groupStatus ?? 'unchecked'} aria-hidden="true" />

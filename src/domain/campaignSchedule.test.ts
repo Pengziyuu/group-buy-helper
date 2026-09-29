@@ -42,7 +42,8 @@ describe('campaign schedule', () => {
 
     expect(describeAutoClose('2026-09-25T04:00:00.000Z', now)).toEqual({ when: '今天 12:00', soon: true })
     expect(describeAutoClose('2026-09-26T04:00:00.000Z', now)).toEqual({ when: '明天 12:00', soon: true })
-    expect(describeAutoClose('2027-10-15T04:00:00.000Z', now)).toEqual({ when: '10/15（五）12:00', soon: false })
+    expect(describeAutoClose('2026-10-15T04:00:00.000Z', now)).toEqual({ when: '10/15 12:00', soon: false })
+    expect(describeAutoClose('2027-10-15T04:00:00.000Z', now)).toEqual({ when: '2027/10/15 12:00', soon: false })
     expect(describeAutoClose(null, now)).toBeNull()
     expect(describeAutoClose('not-a-date', now)).toBeNull()
   })

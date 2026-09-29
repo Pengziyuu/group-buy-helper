@@ -85,7 +85,7 @@ describe('order view helpers', () => {
     expect(formatRelativeTime('2026-09-25T03:59:40.000Z', now)).toBe('剛剛')
     expect(formatRelativeTime('2026-09-25T03:57:00.000Z', now)).toBe('3 分鐘前')
     expect(formatRelativeTime('2026-09-25T01:00:00.000Z', now)).toBe('3 小時前')
-    expect(formatRelativeTime('2026-09-23T01:05:00.000Z', now)).toBe('09/23 09:05')
+    expect(formatRelativeTime('2026-09-23T01:05:00.000Z', now)).toBe('9/23')
     expect(formatRelativeTime(undefined, now)).toBe('')
   })
 })

@@ -3,8 +3,7 @@ import { StatusBadge } from '../ui/StatusBadge'
 import { normalizeArrivalLabel } from '../../domain/campaignSchedule'
 import { campaignStatusLabel, type CampaignStatus } from '../../domain/orderWorkflow'
 import { formatZhTwTimestamp } from '../../domain/timestamp'
-import { useNow } from '../relativeTime'
-import { formatResidentRelative } from './residentFormat'
+import { formatRelativeTime, useNow } from '../relativeTime'
 
 export type CampaignProgress = {
   value: number
@@ -28,7 +27,7 @@ type CampaignSummaryProps = {
 
 export function CampaignSummary({ title, status, priceText, arrivalLabel, closingText, progress, orderCount, openedAt, now }: CampaignSummaryProps) {
   const currentTime = useNow(now)
-  const opened = openedAt ? formatResidentRelative(openedAt, currentTime) : ''
+  const opened = openedAt ? formatRelativeTime(openedAt, currentTime) : ''
   return (
     <section className="resident-card resident-summary" aria-labelledby="campaign-title">
       <div className="resident-summary-main">

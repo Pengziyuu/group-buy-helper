@@ -65,7 +65,7 @@ describe('WorkspaceRail', () => {
     expect(within(rail).getByText('開團中')).toBeInTheDocument()
     expect(within(rail).getByText('今天 12:00')).toBeInTheDocument()
     expect(within(rail).getByText('貨到通知')).toBeInTheDocument()
-    expect(within(rail).getByText('2026/08/14 08:05')).toBeInTheDocument()
+    expect(within(rail).getByTitle('2026/08/14 08:05').textContent).toBe('8/14')
 
     const nav = within(rail).getByRole('navigation', { name: '團購分區' })
     const orders = within(nav).getByRole('link', { name: '訂單 6' })

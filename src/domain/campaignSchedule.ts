@@ -107,7 +107,14 @@ export function formatAutoCloseReminder(value: string): string {
   return `${month}/${day} ${taipeiTimeInputFromIso(value)} 自動結單`
 }
 
-const taipeiWeekdayFormatter = new Intl.DateTimeFormat('zh-TW', { timeZone: 'Asia/Taipei', weekday: 'narrow' })
+/** "10/4" within the current Taipei year, "2025/12/31" otherwise; never a weekday. */
+export function formatShortDate(value: string, now: Date = new Date()): string {
+  const date = taipeiDateInputFromIso(value)
+  if (!date) return ''
+  const [year, month, day] = date.split('-')
+  const thisYear = taipeiDateInputFromIso(now.toISOString()).slice(0, 4)
+  return `${year === thisYear ? '' : `${year}/`}${Number(month)}/${Number(day)}`
+}
 
 export function describeAutoClose(
   value: string | null | undefined,
@@ -119,7 +126,5 @@ export function describeAutoClose(
   if (date === taipeiDateInputFromIso(now.toISOString())) return { when: `今天 ${time}`, soon: true }
   const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000)
   if (date === taipeiDateInputFromIso(tomorrow.toISOString())) return { when: `明天 ${time}`, soon: true }
-  const [, month, day] = date.split('-')
-  const weekday = taipeiWeekdayFormatter.format(new Date(value as string))
-  return { when: `${Number(month)}/${Number(day)}（${weekday}）${time}`, soon: false }
+  return { when: `${formatShortDate(value as string, now)} ${time}`, soon: false }
 }

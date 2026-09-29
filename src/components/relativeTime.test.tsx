@@ -5,13 +5,15 @@ import { EditedMark, formatRelativeTime, RelativeTime, useNow } from './relative
 const now = new Date('2026-09-25T04:00:00.000Z')
 
 describe('formatRelativeTime', () => {
-  it('uses just now, minutes, hours, then the Taipei date and time', () => {
+  it('uses just now, minutes, hours, yesterday, then a short Taipei date', () => {
     expect(formatRelativeTime('2026-09-25T03:59:40.000Z', now)).toBe('剛剛')
     expect(formatRelativeTime('2026-09-25T03:59:00.000Z', now)).toBe('1 分鐘前')
     expect(formatRelativeTime('2026-09-25T03:01:00.000Z', now)).toBe('59 分鐘前')
     expect(formatRelativeTime('2026-09-25T03:00:00.000Z', now)).toBe('1 小時前')
     expect(formatRelativeTime('2026-09-24T04:00:01.000Z', now)).toBe('23 小時前')
-    expect(formatRelativeTime('2026-09-24T04:00:00.000Z', now)).toBe('09/24 12:00')
+    expect(formatRelativeTime('2026-09-24T04:00:00.000Z', now)).toBe('昨天')
+    expect(formatRelativeTime('2026-09-23T04:00:00.000Z', now)).toBe('9/23')
+    expect(formatRelativeTime('2025-12-31T04:00:00.000Z', now)).toBe('2025/12/31')
   })
 
   it('never shows a negative time for a clock that runs ahead, and ignores missing values', () => {

@@ -7,9 +7,9 @@ import { ExportOrdersButton } from './ExportOrdersButton'
 import { readLastSeen, writeLastSeen } from './lastSeenStore'
 import { LiveStatus, type LiveState } from './LiveStatus'
 import { OrganizerLink } from './OrganizerLink'
-import { useNow } from '../relativeTime'
+import { RelativeTime, useNow } from '../relativeTime'
 import {
-  countOrdersOnTaipeiDay, formatRelativeTime, isNewSince, latestOrders, orderHouseholdLabel, orderItemChips, wasEdited,
+  countOrdersOnTaipeiDay, isNewSince, latestOrders, orderHouseholdLabel, orderItemChips, wasEdited,
 } from './orderView'
 
 const currency = (amount: number) => `$${amount.toLocaleString('en-US')}`
@@ -112,7 +112,7 @@ export function OverviewSection({ campaignId, campaignTitle, openedAt, summary, 
                   </span>
                   <span className="organizer-latest-meta">
                     <span className="ui-num">{order.quantity} {unit}・{currency(order.amount)}</span>
-                    <small>{wasEdited(order) ? '已修改・' : ''}{formatRelativeTime(order.updatedAt ?? order.orderedAt, today)}</small>
+                    <small>{wasEdited(order) ? '已修改・' : ''}<RelativeTime value={order.updatedAt ?? order.orderedAt} now={today} /></small>
                   </span>
                 </li>
               ))}
