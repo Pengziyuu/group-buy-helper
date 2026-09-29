@@ -52,6 +52,23 @@ describe('customer campaign app', () => {
     expect(screen.getByRole('status', { name: 'A 牛奶（招牌）數量' })).toHaveTextContent('21')
   })
 
+  it('tells residents a formed amount campaign still takes orders until it closes', () => {
+    const content: CampaignContent = {
+      title: '保久乳', unitPrice: 700, threshold: 1000, thresholdKind: 'amount', amountThreshold: 1000,
+      announcement: '公告', images: [], openedAt: '2026-09-12T00:00:00.000Z',
+      items: [{ code: 'A', name: '保久乳', unitPrice: 700, active: true }],
+    }
+    const orders = [{ customerId: 'other', name: '甲', period: 2, unit: '2A1', householdKind: 'resident' as const, items: { A: 2 }, orderedAt: '2026-09-12T00:00:00.000Z', updatedAt: '2026-09-12T00:00:00.000Z' }]
+
+    const view = render(<App publishedContent={content} visibleOrders={orders} />)
+    expect(screen.getByText('已成團，仍可下單')).toHaveClass('is-formed')
+    view.unmount()
+
+    render(<App publishedContent={content} visibleOrders={orders} campaignStatus="closed" />)
+    expect(screen.getByText('已成團')).toHaveClass('is-formed')
+    expect(screen.queryByText(/仍可下單/)).not.toBeInTheDocument()
+  })
+
   it('says 原價 rather than 10折 when no base discount applies below the mix-and-match threshold', () => {
     const resident = { customerId: 'resident-1', name: '住戶甲', period: 2, unit: '2A1', householdKind: 'resident' as const }
     const content = (baseDiscountRate: number): CampaignContent => ({

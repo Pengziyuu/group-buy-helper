@@ -16,6 +16,9 @@ function campaign(overrides: Partial<ResidentCampaignListItem> & Pick<ResidentCa
   }
 }
 
+// Each schedule fact is its own tag; read them in order.
+const facts = (name: string) => [...screen.getByRole('group', { name }).querySelectorAll('.resident-campaign-fact')].map((fact) => fact.textContent)
+
 describe('ResidentCampaignListApp', () => {
   it('lists open campaigns before closed ones with price, progress and schedule', () => {
     render(
@@ -50,7 +53,8 @@ describe('ResidentCampaignListApp', () => {
     expect(within(open).getByText('$55')).toBeInTheDocument()
     expect(within(open).getByText('$440 / $1,000')).toBeInTheDocument()
     const openFacts = within(open).getByRole('group', { name: '早餐團購時程' })
-    expect(openFacts).toHaveTextContent(/^2027\/3\/5 12:00 結單・3\/8 到貨$/)
+    expect(openFacts).toBeInTheDocument()
+    expect(facts('早餐團購時程')).toEqual(['2027/3/5 12:00 結單', '3/8 到貨'])
     expect(within(open).getByRole('progressbar', { name: '早餐團購成團進度' })).toHaveAttribute('aria-valuenow', '440')
 
     const closed = screen.getByRole('region', { name: '已結單' })
@@ -58,7 +62,7 @@ describe('ResidentCampaignListApp', () => {
     expect(within(closed).getByText('已結單', { selector: '.ui-status-badge' })).toBeInTheDocument()
     expect(within(closed).getByText('12 箱 / 12 箱')).toBeInTheDocument()
     // Closed campaigns keep only the arrival fact.
-    expect(within(closed).getByRole('group', { name: '水果團購時程' })).toHaveTextContent(/^貨到通知$/)
+    expect(facts('水果團購時程')).toEqual(['貨到通知'])
     expect(within(closed).getByRole('img', { name: '水果團購尚未設定商品圖片' })).toBeInTheDocument()
 
     const titles = screen.getAllByRole('link').map((link) => link.textContent)
@@ -97,8 +101,8 @@ describe('ResidentCampaignListApp', () => {
       />,
     )
 
-    expect(screen.getByRole('group', { name: '開團中的團時程' })).toHaveTextContent(/^10\/15 12:00 結單・貨到通知$/)
-    expect(screen.getByRole('group', { name: '提前結單的團時程' })).toHaveTextContent(/^貨到通知$/)
+    expect(facts('開團中的團時程')).toEqual(['10/15 12:00 結單', '貨到通知'])
+    expect(facts('提前結單的團時程')).toEqual(['貨到通知'])
     expect(screen.queryByText(/原訂/)).not.toBeInTheDocument()
   })
 
@@ -114,8 +118,13 @@ describe('ResidentCampaignListApp', () => {
       />,
     )
 
-    expect(screen.getByText('今天 12:00 結單')).toHaveClass('is-soon')
-    expect(screen.getByText('明天 12:00 結單')).toHaveClass('is-soon')
+    // Closing and arrival are the same kind of tag; only a closing that is due soon changes tone.
+    expect(screen.getByText('今天 12:00 結單')).toHaveAttribute('data-tone', 'warning')
+    expect(screen.getByText('明天 12:00 結單')).toHaveAttribute('data-tone', 'warning')
+    for (const arrival of screen.getAllByText('貨到通知')) {
+      expect(arrival).toHaveClass('resident-campaign-fact')
+      expect(arrival).not.toHaveAttribute('data-tone')
+    }
   })
 
   it('names how every open campaign closes, even without a closing time', () => {
@@ -125,9 +134,9 @@ describe('ResidentCampaignListApp', () => {
       campaign({ slug: 'amount', title: '金額成團', thresholdKind: 'amount', amountThreshold: 1000, arrivalLabel: '10/07', autoCloseAt: null }),
     ]} now={new Date('2026-09-01T00:00:00.000Z')} />)
 
-    expect(screen.getByRole('group', { name: '有排定結單時程' })).toHaveTextContent(/^2027\/3\/5 12:00 結單・10月初到貨$/)
-    expect(screen.getByRole('group', { name: '數量成團時程' })).toHaveTextContent(/^額滿結單・10月中到貨$/)
-    expect(screen.getByRole('group', { name: '金額成團時程' })).toHaveTextContent(/^手動決定結單・10\/7 到貨$/)
+    expect(facts('有排定結單時程')).toEqual(['2027/3/5 12:00 結單', '10月初到貨'])
+    expect(facts('數量成團時程')).toEqual(['額滿結單', '10月中到貨'])
+    expect(facts('金額成團時程')).toEqual(['手動決定結單', '10/7 到貨'])
     expect(screen.queryByText(/未排定/)).not.toBeInTheDocument()
   })
 
@@ -137,8 +146,8 @@ describe('ResidentCampaignListApp', () => {
       campaign({ slug: 'closed-unscheduled', title: '未排定的已結單團', status: 'closed', autoCloseAt: null }),
     ]} now={new Date('2026-09-01T00:00:00.000Z')} />)
 
-    expect(screen.getByRole('group', { name: '有排定的已結單團時程' })).toHaveTextContent(/^10月初到貨$/)
-    expect(screen.getByRole('group', { name: '未排定的已結單團時程' })).toHaveTextContent(/^貨到通知$/)
+    expect(facts('有排定的已結單團時程')).toEqual(['10月初到貨'])
+    expect(facts('未排定的已結單團時程')).toEqual(['貨到通知'])
   })
 
   it('shows the five newest closed campaigns until asked for older ones', async () => {
@@ -160,15 +169,17 @@ describe('ResidentCampaignListApp', () => {
     expect(within(closed).getAllByRole('link')).toHaveLength(7)
   })
 
-  it('marks campaigns that reached their threshold as formed', () => {
+  it('marks formed campaigns, telling residents an open one still takes orders', () => {
     render(<ResidentCampaignListApp identity={{ displayName: '住戶', pictureUrl: null }} campaigns={[
-      campaign({ slug: 'formed', title: '已成團的團', totalQuantity: 10, threshold: 10 }),
+      campaign({ slug: 'formed', title: '已成團的團', thresholdKind: 'amount', amountThreshold: 1000, totalAmount: 1200 }),
       campaign({ slug: 'forming', title: '未成團的團', totalQuantity: 4, threshold: 10 }),
+      campaign({ slug: 'closed-formed', title: '結單成團的團', status: 'closed', totalQuantity: 10, threshold: 10 }),
     ]} />)
 
     expect(screen.getByRole('progressbar', { name: '已成團的團成團進度' })).toHaveAttribute('data-formed', 'true')
     expect(screen.getByRole('progressbar', { name: '未成團的團成團進度' })).not.toHaveAttribute('data-formed')
-    expect(screen.getAllByText('已成團')).toHaveLength(1)
+    expect(screen.getByText('已成團，仍可下單')).toBeInTheDocument()
+    expect(screen.getByText('已成團')).toBeInTheDocument()
   })
 
   it('signs out from the LINE account menu', async () => {

@@ -183,8 +183,9 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
     text: thresholdKind === 'amount'
       ? `${formatMoney(summary.amount)} / ${formatMoney(summary.threshold)}`
       : `${summary.quantity} ${quantityUnit} / ${summary.threshold} ${quantityUnit}`,
+    // Only amount thresholds stay open once formed (quantity ones close), so say ordering continues.
     remainingText: summary.formed
-      ? '已成團'
+      ? campaignStatus === 'open' ? '已成團，仍可下單' : '已成團'
       : thresholdKind === 'amount'
         ? `還差 ${formatMoney(summary.remaining)} 成團`
         : `還差 ${summary.remaining} ${quantityUnit}成團`,

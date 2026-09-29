@@ -86,10 +86,13 @@ function CampaignRow({ campaign, now }: { campaign: ResidentCampaignListItem; no
           ? <p className="resident-campaign-price"><strong>{formatMoney(campaign.unitPrice)}</strong> 起</p>
           : <p className="resident-campaign-price"><StatusBadge tone="neutral">已結單</StatusBadge></p>}
         <p className="resident-campaign-facts" role="group" aria-label={`${campaign.title}時程`}>
-          {closing && <><span className={closing.soon ? 'is-soon' : undefined}>{closing.line}</span><span aria-hidden="true">・</span></>}
-          <span>{arrival.line}</span>
+          {closing && <span className="resident-campaign-fact" data-tone={closing.soon ? 'warning' : undefined}>{closing.line}</span>}
+          <span className="resident-campaign-fact">{arrival.line}</span>
         </p>
-        <p className="resident-campaign-progress-text">{progress.text}{formed && <span className="resident-campaign-formed">已成團</span>}</p>
+        <p className="resident-campaign-progress-text">
+          {progress.text}
+          {formed && <span className="resident-campaign-formed">{open ? '已成團，仍可下單' : '已成團'}</span>}
+        </p>
         <ProgressBar label={`${campaign.title}成團進度`} value={progress.value} max={progress.target} formed={formed} />
       </div>
       <span className="resident-campaign-chevron" aria-hidden="true">›</span>
