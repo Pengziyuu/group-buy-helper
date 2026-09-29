@@ -15,8 +15,9 @@ const progress = { value: 62, max: 100, text: '62 個 / 100 個', remainingText:
 describe('resident campaign page parts', () => {
   it('summarises status, price, schedule and progress', () => {
     const { rerender } = render(
-      <CampaignSummary title="冰餅團" status="open" priceText="$45／個" arrivalLabel="10月中"
-        closingText="10/15 12:00" progress={progress} orderCount={6} openedAt="2026-08-14T00:05:09.000Z" />,
+      <CampaignSummary title="冰餅團" status="open" priceText="$45／個"
+        schedule={{ closing: { value: '10/15 12:00', line: '10/15 12:00 結單', soon: false, note: '額滿會提早結單' }, arrival: { value: '10月中', line: '10月中到貨' } }}
+        progress={progress} orderCount={6} openedAt="2026-08-14T00:05:09.000Z" />,
     )
 
     expect(screen.getByRole('heading', { level: 1, name: '冰餅團' })).toBeInTheDocument()
@@ -27,17 +28,20 @@ describe('resident campaign page parts', () => {
     expect(within(schedule).getByText('10月中')).toBeInTheDocument()
     expect(within(schedule).getByText('結單')).toBeInTheDocument()
     expect(within(schedule).getByText('10/15 12:00')).toBeInTheDocument()
+    expect(within(schedule).getByText('額滿會提早結單')).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 2, name: '成團進度' })).toBeInTheDocument()
     expect(screen.getByText('還差 38 個成團')).not.toHaveClass('is-formed')
     expect(document.querySelector('.resident-summary-meta')).toHaveTextContent('6 筆訂單・8/14 開團')
 
     rerender(
-      <CampaignSummary title="冰餅團" status="closed" priceText="$45／個" closingText={null}
+      <CampaignSummary title="冰餅團" status="closed" priceText="$45／個"
+        schedule={{ closing: null, arrival: { value: '貨到通知', line: '貨到通知' } }}
         progress={{ ...progress, remainingText: '已成團', formed: true }} orderCount={6} openedAt={null} />,
     )
-    expect(screen.getByText('已結單')).toBeInTheDocument()
-    expect(screen.getByText('貨到通知')).toBeInTheDocument()
-    expect(screen.getByText('未排定')).toBeInTheDocument()
+    const closedSchedule = screen.getByRole('group', { name: '團購時程' })
+    expect(within(closedSchedule).getByText('已結單')).toBeInTheDocument()
+    expect(within(closedSchedule).getByText('貨到通知')).toBeInTheDocument()
+    expect(screen.queryByText(/未排定|原訂/)).not.toBeInTheDocument()
     expect(screen.getByText('已成團')).toHaveClass('is-formed')
     expect(document.querySelector('.resident-summary-meta')).toHaveTextContent(/^6 筆訂單$/)
   })
@@ -153,7 +157,7 @@ describe('resident campaign page parts', () => {
   })
 
   it('shows reaching the threshold in the summary', () => {
-    render(<CampaignSummary title="冰餅團" status="open" priceText="$45" closingText={null} orderCount={10} openedAt={null}
+    render(<CampaignSummary title="冰餅團" status="open" priceText="$45" schedule={{ closing: { value: '額滿自動結單', line: '額滿結單', soon: false }, arrival: { value: '貨到通知', line: '貨到通知' } }} orderCount={10} openedAt={null}
       progress={{ value: 100, max: 100, text: '100 個 / 100 個', remainingText: '已成團', formed: true }} />)
     expect(screen.getByRole('progressbar', { name: '成團進度' })).toHaveAttribute('data-formed', 'true')
   })

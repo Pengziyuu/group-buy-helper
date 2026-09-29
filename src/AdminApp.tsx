@@ -394,7 +394,7 @@ function AdminApp({
   const priceText = unitPrice === maximumItemPrice ? `$${unitPrice}` : `$${unitPrice}～$${maximumItemPrice}`
   const thresholdText = thresholdKind === 'amount'
     ? `滿 $${amountThreshold.toLocaleString('en-US')} 成團`
-    : `結單：${threshold} ${quantityUnit}成團`
+    : `${threshold} ${quantityUnit}成團`
 
   return (
     <div className="admin-shell">
@@ -731,6 +731,7 @@ function AdminApp({
               priceText={priceText}
               arrivalLabel={arrivalLabel}
               autoCloseAt={autoCloseAt}
+              thresholdKind={thresholdKind}
               thresholdText={thresholdText}
               allowCustomItems={allowCustomItems}
               images={images}

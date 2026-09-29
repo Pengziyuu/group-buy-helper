@@ -226,7 +226,7 @@ describe('organizer campaign editor', () => {
     )
 
     await user.selectOptions(unit, '盒')
-    expect(screen.getByText('結單：100 盒成團')).toBeInTheDocument()
+    expect(screen.getByText('100 盒成團')).toBeInTheDocument()
     await waitFor(() => expect(onSaveDraft).toHaveBeenCalledWith(expect.objectContaining({ quantityUnit: '盒' })))
   })
 
@@ -711,14 +711,15 @@ describe('organizer campaign editor', () => {
     await user.click(screen.getByRole('radio', { name: '指定日期' }))
     await user.selectOptions(screen.getByRole('combobox', { name: '到貨月份' }), '3')
     await user.selectOptions(screen.getByRole('combobox', { name: '到貨日期' }), '8')
-    expect(within(screen.getByRole('region', { name: '住戶端預覽' })).getByText('預計到貨：03/08')).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: '住戶端預覽' })).getByText('預計到貨：3/8')).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: '住戶端預覽' })).getByText('結單：額滿自動結單')).toBeInTheDocument()
 
     await user.click(screen.getByRole('switch', { name: '設定結單日期' }))
     fireEvent.change(screen.getByLabelText('結單日期'), { target: { value: '2027-10-15' } })
     const time = screen.getByRole('group', { name: '結單時間（24 小時制）' })
     await user.selectOptions(within(time).getByRole('combobox', { name: '小時' }), '18')
     await user.selectOptions(within(time).getByRole('combobox', { name: '分鐘' }), '30')
-    expect(within(screen.getByRole('region', { name: '住戶端預覽' })).getByText('10/15 18:30 自動結單')).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: '住戶端預覽' })).getByText('結單：2027/10/15 18:30（額滿會提早結單）')).toBeInTheDocument()
 
     await waitFor(() => expect(onSaveDraft).toHaveBeenLastCalledWith(expect.objectContaining({
       arrivalLabel: '03/08',

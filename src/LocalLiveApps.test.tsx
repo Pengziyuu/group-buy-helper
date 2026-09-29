@@ -1957,7 +1957,7 @@ describe('local Supabase visual demo apps', () => {
 
     expect(await screen.findByRole('heading', { name: 'Supabase 已發布冰餅團' })).toBeInTheDocument()
     expect(screen.getByText(/Supabase Live Demo/)).toBeInTheDocument()
-    expect(screen.getByText('已結單')).toBeInTheDocument()
+    expect(screen.getByText('已結單', { selector: '.ui-status-badge' })).toBeInTheDocument()
     expect(screen.getAllByText('資料庫住戶').length).toBeGreaterThan(0)
     expect(screen.getByRole('img', { name: '資料庫住戶的LINE頭貼' })).toBeInTheDocument()
     expect(screen.getByTitle('2026/08/14 09:00')).toHaveTextContent(/^8\/14$/)

@@ -73,6 +73,7 @@
 .resident-summary-facts div { min-width: 0; padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface-subtle); }
 .resident-summary-facts dt { margin-bottom: 3px; color: var(--color-text-secondary); font-size: var(--font-size-caption); }
 .resident-summary-facts dd { margin: 0; font-size: var(--font-size-dense); font-weight: var(--font-weight-strong); line-height: 1.35; overflow-wrap: anywhere; }
+.resident-summary-facts dd.resident-summary-fact-note { margin-top: 2px; color: var(--color-text-secondary); font-size: var(--font-size-caption); font-weight: 400; }
 .resident-summary-progress { padding-top: var(--space-4); border-top: 1px solid var(--color-divider); }
 .resident-summary-progress h2 { margin: 0 0 var(--space-3); font-size: var(--font-size-dense); }
 .resident-summary-progress-text { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2); margin: 0 0 var(--space-2); }

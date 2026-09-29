@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   describeAutoClose,
   formatArrivalLabel,
-  formatAutoCloseReminder,
   taipeiDateTimeIso,
   taipeiTimeInputFromIso,
   taipeiDateInputFromIso,
@@ -26,13 +25,11 @@ describe('campaign schedule', () => {
   it('stores a selected closing date as noon in Taiwan', () => {
     expect(taipeiNoonIso('2027-10-15')).toBe('2027-10-15T04:00:00.000Z')
     expect(taipeiDateInputFromIso('2027-10-15T04:00:00.000Z')).toBe('2027-10-15')
-    expect(formatAutoCloseReminder('2027-10-15T04:00:00.000Z')).toBe('10/15 12:00 自動結單')
   })
 
   it('stores and displays organizer-selected Taipei closing times', () => {
     expect(taipeiDateTimeIso('2027-10-15', '18:30')).toBe('2027-10-15T10:30:00.000Z')
     expect(taipeiTimeInputFromIso('2027-10-15T10:30:00.000Z')).toBe('18:30')
-    expect(formatAutoCloseReminder('2027-10-15T10:30:00.000Z')).toBe('10/15 18:30 自動結單')
     expect(describeAutoClose('2027-10-15T10:30:00.000Z', new Date('2027-10-15T00:00:00Z'))).toEqual({ when: '今天 18:30', soon: true })
     expect(() => taipeiDateTimeIso('2027-10-15', '24:00')).toThrow()
   })

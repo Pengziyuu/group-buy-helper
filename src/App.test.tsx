@@ -584,7 +584,7 @@ describe('customer campaign app', () => {
   it('shows a closed campaign and disables every order control', () => {
     render(<App campaignStatus="closed" />)
 
-    expect(screen.getByText('已結單')).toBeInTheDocument()
+    expect(screen.getByText('已結單', { selector: '.ui-status-badge' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '送出訂單' })).toBeDisabled()
     expect(screen.getByRole('button', { name: '增加 A 牛奶（招牌）' })).toBeDisabled()
     expect(screen.getByText('本團已結單，無法修改訂單。')).toBeInTheDocument()
@@ -766,7 +766,7 @@ describe('customer campaign app', () => {
     expect(screen.getByText('2027/10/15 12:00')).toBeInTheDocument()
   })
 
-  it('labels the scheduled closing time as 原訂結單 once a campaign is no longer open', () => {
+  it('shows 已結單 instead of the old closing time once a campaign is no longer open', () => {
     render(<App visibleOrders={[]} campaignStatus="closed" publishedContent={{
       title: '已結單測試團', unitPrice: 50, threshold: 10,
       announcement: '', images: [],
@@ -777,9 +777,10 @@ describe('customer campaign app', () => {
     }} />)
 
     expect(screen.getByText('已結單', { selector: '.ui-status-badge' })).toBeInTheDocument()
-    expect(screen.getByText('原訂結單')).toBeInTheDocument()
-    expect(screen.queryByText('結單')).not.toBeInTheDocument()
-    expect(screen.getByText('2027/10/15 12:00')).toBeInTheDocument()
+    const schedule = within(screen.getByRole('group', { name: '團購時程' }))
+    expect(schedule.getByText('已結單')).toBeInTheDocument()
+    expect(schedule.getByText('10月中')).toBeInTheDocument()
+    expect(screen.queryByText(/原訂|2027\/10\/15/)).not.toBeInTheDocument()
   })
 
   it('tells residents what they have already submitted and why submit is disabled', () => {

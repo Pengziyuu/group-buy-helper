@@ -9,7 +9,8 @@ const props = {
   priceText: '$45～$50',
   arrivalLabel: '03/08',
   autoCloseAt: '2027-10-15T04:00:00.000Z',
-  thresholdText: '結單：100 個成團',
+  thresholdKind: 'quantity' as const,
+  thresholdText: '100 個成團',
   allowCustomItems: true,
   images: [{ src: '/a.png', alt: '冰餅照' }],
   announcement: '第一行\n第二行',
@@ -21,6 +22,13 @@ const props = {
 }
 
 describe('ContentPreview', () => {
+  it('describes closing the same way residents read it when no time is set', () => {
+    const { rerender } = render(<ContentPreview {...props} autoCloseAt={null} />)
+    expect(screen.getByText('結單：額滿自動結單')).toBeInTheDocument()
+    rerender(<ContentPreview {...props} autoCloseAt={null} thresholdKind="amount" thresholdText="滿 $5,000 成團" />)
+    expect(screen.getByText('結單：手動決定結單（結單前群組通知）')).toBeInTheDocument()
+  })
+
   it('shows what residents will see without adding page headings', () => {
     render(<ContentPreview {...props} />)
     const preview = screen.getByRole('region', { name: '住戶端預覽' })
@@ -28,9 +36,9 @@ describe('ContentPreview', () => {
     expect(within(preview).getByText('開團中')).toBeInTheDocument()
     expect(within(preview).getByText('冰餅團')).toBeInTheDocument()
     expect(within(preview).getByText('$45～$50')).toBeInTheDocument()
-    expect(within(preview).getByText('預計到貨：03/08')).toBeInTheDocument()
-    expect(within(preview).getByText('10/15 12:00 自動結單')).toBeInTheDocument()
-    expect(within(preview).getByText('結單：100 個成團')).toBeInTheDocument()
+    expect(within(preview).getByText('預計到貨：3/8')).toBeInTheDocument()
+    expect(within(preview).getByText('結單：2027/10/15 12:00（額滿會提早結單）')).toBeInTheDocument()
+    expect(within(preview).getByText('100 個成團')).toBeInTheDocument()
     expect(within(preview).getByText('可新增自訂額外品項，金額由團主另計')).toBeInTheDocument()
     expect(within(preview).getByRole('region', { name: '住戶端圖片預覽，共 1 張' })).toHaveAttribute('tabindex', '0')
     expect(within(preview).getByRole('img', { name: '冰餅照' })).toBeInTheDocument()

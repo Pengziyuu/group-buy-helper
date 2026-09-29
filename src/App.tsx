@@ -5,7 +5,7 @@ import { EditedMark } from './components/relativeTime'
 import type { CampaignStatus } from './domain/orderWorkflow'
 import { itemLabel } from './domain/itemLabel'
 import { normalizeQuantityUnit } from './domain/quantityUnit'
-import { describeAutoClose } from './domain/campaignSchedule'
+import { describeResidentSchedule } from './components/resident/residentSchedule'
 import { formatMoney } from './components/resident/residentFormat'
 import { customOrderItemsEqual, validCustomOrderItems, type CustomOrderItem } from './domain/customOrderItem'
 import { discountedUnitPrice, priceOrder, type DiscountPricing } from './domain/discountPricing'
@@ -191,7 +191,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
     formed: summary.formed,
   }
   const priceText = minimumPrice === maximumPrice ? `${formatMoney(minimumPrice)}／${quantityUnit}` : `${formatMoney(minimumPrice)}～${formatMoney(maximumPrice)}`
-  const closing = describeAutoClose(publishedCampaign.autoCloseAt)
+  const schedule = describeResidentSchedule({ status: campaignStatus, autoCloseAt: publishedCampaign.autoCloseAt, thresholdKind, arrivalLabel: publishedCampaign.arrivalLabel }, new Date())
   const breakdownLines: BreakdownLine[] = draftPricing.lines.map((line) => {
     const index = publishedCampaign.items.findIndex((item) => item.code === line.code)
     return {
@@ -357,8 +357,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
           title={publishedCampaign.title}
           status={campaignStatus}
           priceText={priceText}
-          arrivalLabel={publishedCampaign.arrivalLabel}
-          closingText={closing?.when ?? null}
+          schedule={schedule}
           progress={progress}
           orderCount={orders.length}
           openedAt={publishedCampaign.openedAt}

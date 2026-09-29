@@ -57,8 +57,8 @@ describe('ResidentCampaignListApp', () => {
     expect(within(closed).getByRole('link', { name: '水果團購' })).toBeInTheDocument()
     expect(within(closed).getByText('已結單', { selector: '.ui-status-badge' })).toBeInTheDocument()
     expect(within(closed).getByText('12 箱 / 12 箱')).toBeInTheDocument()
-    // No closing time and 貨到通知 say nothing new, so the card leaves the line out.
-    expect(within(closed).queryByRole('group', { name: '水果團購時程' })).not.toBeInTheDocument()
+    // Closed campaigns keep only the arrival fact.
+    expect(within(closed).getByRole('group', { name: '水果團購時程' })).toHaveTextContent(/^貨到通知$/)
     expect(within(closed).getByRole('img', { name: '水果團購尚未設定商品圖片' })).toBeInTheDocument()
 
     const titles = screen.getAllByRole('link').map((link) => link.textContent)
@@ -85,7 +85,7 @@ describe('ResidentCampaignListApp', () => {
     expect(screen.queryByText(/已到貨/)).not.toBeInTheDocument()
   })
 
-  it('labels the scheduled closing time as 原訂結單 on campaigns that are no longer open', () => {
+  it('pairs closing with arrival while open and keeps only arrival once closed', () => {
     render(
       <ResidentCampaignListApp
         identity={identity}
@@ -97,8 +97,9 @@ describe('ResidentCampaignListApp', () => {
       />,
     )
 
-    expect(screen.getByRole('group', { name: '開團中的團時程' })).toHaveTextContent(/^10\/15 12:00 結單$/)
-    expect(screen.getByRole('group', { name: '提前結單的團時程' })).toHaveTextContent(/^原訂 10\/16 12:00 結單$/)
+    expect(screen.getByRole('group', { name: '開團中的團時程' })).toHaveTextContent(/^10\/15 12:00 結單・貨到通知$/)
+    expect(screen.getByRole('group', { name: '提前結單的團時程' })).toHaveTextContent(/^貨到通知$/)
+    expect(screen.queryByText(/原訂/)).not.toBeInTheDocument()
   })
 
   it('highlights campaigns that close today or tomorrow', () => {
@@ -117,25 +118,27 @@ describe('ResidentCampaignListApp', () => {
     expect(screen.getByText('明天 12:00 結單')).toHaveClass('is-soon')
   })
 
-  it('shows only the schedule facts worth reading', () => {
+  it('names how every open campaign closes, even without a closing time', () => {
     render(<ResidentCampaignListApp identity={identity} campaigns={[
       campaign({ slug: 'scheduled', title: '有排定結單', arrivalLabel: '10月初', autoCloseAt: '2027-03-05T04:00:00.000Z' }),
-      campaign({ slug: 'unscheduled', title: '沒有排定結單', arrivalLabel: '10月中', autoCloseAt: null }),
+      campaign({ slug: 'quantity', title: '數量成團', arrivalLabel: '10月中', autoCloseAt: null }),
+      campaign({ slug: 'amount', title: '金額成團', thresholdKind: 'amount', amountThreshold: 1000, arrivalLabel: '10/07', autoCloseAt: null }),
     ]} now={new Date('2026-09-01T00:00:00.000Z')} />)
 
     expect(screen.getByRole('group', { name: '有排定結單時程' })).toHaveTextContent(/^2027\/3\/5 12:00 結單・10月初到貨$/)
-    expect(screen.getByRole('group', { name: '沒有排定結單時程' })).toHaveTextContent(/^10月中到貨$/)
+    expect(screen.getByRole('group', { name: '數量成團時程' })).toHaveTextContent(/^額滿結單・10月中到貨$/)
+    expect(screen.getByRole('group', { name: '金額成團時程' })).toHaveTextContent(/^手動決定結單・10\/7 到貨$/)
     expect(screen.queryByText(/未排定/)).not.toBeInTheDocument()
   })
 
-  it('preserves scheduled closing information after a campaign closes', () => {
+  it('gives every closed campaign the same arrival-only line, scheduled or not', () => {
     render(<ResidentCampaignListApp identity={identity} campaigns={[
-      campaign({ slug: 'closed-scheduled', title: '有排定的已結單團', status: 'closed', autoCloseAt: '2027-03-05T04:00:00.000Z' }),
+      campaign({ slug: 'closed-scheduled', title: '有排定的已結單團', status: 'closed', arrivalLabel: '10月初', autoCloseAt: '2027-03-05T04:00:00.000Z' }),
       campaign({ slug: 'closed-unscheduled', title: '未排定的已結單團', status: 'closed', autoCloseAt: null }),
     ]} now={new Date('2026-09-01T00:00:00.000Z')} />)
 
-    expect(screen.getByRole('group', { name: '有排定的已結單團時程' })).toHaveTextContent(/^原訂 2027\/3\/5 12:00 結單$/)
-    expect(screen.queryByRole('group', { name: '未排定的已結單團時程' })).not.toBeInTheDocument()
+    expect(screen.getByRole('group', { name: '有排定的已結單團時程' })).toHaveTextContent(/^10月初到貨$/)
+    expect(screen.getByRole('group', { name: '未排定的已結單團時程' })).toHaveTextContent(/^貨到通知$/)
   })
 
   it('shows the five newest closed campaigns until asked for older ones', async () => {

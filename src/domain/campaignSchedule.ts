@@ -100,13 +100,6 @@ export function taipeiTimeInputFromIso(value: string | null | undefined): string
   }).format(new Date(value))
 }
 
-export function formatAutoCloseReminder(value: string): string {
-  const date = taipeiDateInputFromIso(value)
-  if (!date) return ''
-  const [, month, day] = date.split('-')
-  return `${month}/${day} ${taipeiTimeInputFromIso(value)} 自動結單`
-}
-
 /** "10/4" within the current Taipei year, "2025/12/31" otherwise; never a weekday. */
 export function formatShortDate(value: string, now: Date = new Date()): string {
   const date = taipeiDateInputFromIso(value)

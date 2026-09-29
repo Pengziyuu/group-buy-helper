@@ -1,9 +1,9 @@
 import { ProgressBar } from '../ui/ProgressBar'
 import { StatusBadge } from '../ui/StatusBadge'
-import { normalizeArrivalLabel } from '../../domain/campaignSchedule'
 import { campaignStatusLabel, type CampaignStatus } from '../../domain/orderWorkflow'
 import { formatZhTwTimestamp } from '../../domain/timestamp'
 import { formatRelativeTime, useNow } from '../relativeTime'
+import type { ClosingFact, ScheduleFact } from './residentSchedule'
 
 export type CampaignProgress = {
   value: number
@@ -17,15 +17,14 @@ type CampaignSummaryProps = {
   title: string
   status: CampaignStatus
   priceText: string
-  arrivalLabel?: string
-  closingText: string | null
+  schedule: { closing: ClosingFact | null; arrival: ScheduleFact }
   progress: CampaignProgress
   orderCount: number
   openedAt: string | null
   now?: Date
 }
 
-export function CampaignSummary({ title, status, priceText, arrivalLabel, closingText, progress, orderCount, openedAt, now }: CampaignSummaryProps) {
+export function CampaignSummary({ title, status, priceText, schedule, progress, orderCount, openedAt, now }: CampaignSummaryProps) {
   const currentTime = useNow(now)
   const opened = openedAt ? formatRelativeTime(openedAt, currentTime) : ''
   return (
@@ -35,8 +34,12 @@ export function CampaignSummary({ title, status, priceText, arrivalLabel, closin
         <h1 id="campaign-title">{title}</h1>
         <p className="resident-summary-price">{priceText}</p>
         <dl className="resident-summary-facts" role="group" aria-label="團購時程">
-          <div><dt>預計到貨</dt><dd>{normalizeArrivalLabel(arrivalLabel)}</dd></div>
-          <div><dt>{status !== 'open' && closingText ? '原訂結單' : '結單'}</dt><dd>{closingText ?? '未排定'}</dd></div>
+          <div><dt>預計到貨</dt><dd>{schedule.arrival.value}</dd></div>
+          <div>
+            <dt>結單</dt>
+            <dd>{schedule.closing?.value ?? '已結單'}</dd>
+            {schedule.closing?.note && <dd className="resident-summary-fact-note">{schedule.closing.note}</dd>}
+          </div>
         </dl>
       </div>
       <div className="resident-summary-progress">

@@ -1,9 +1,9 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import LinkifiedText from '../../LinkifiedText'
-import { formatArrivalLabel, formatAutoCloseReminder } from '../../../domain/campaignSchedule'
 import { itemLabel } from '../../../domain/itemLabel'
 import { campaignStatusLabel, type CampaignStatus } from '../../../domain/orderWorkflow'
 import type { CampaignImage, CampaignItem } from '../../../services/demoCampaignStore'
+import { describeResidentSchedule } from '../../resident/residentSchedule'
 import { ImageGallery } from '../../ui/ImageGallery'
 import { SegmentedControl } from '../../ui/SegmentedControl'
 import { StatusBadge } from '../../ui/StatusBadge'
@@ -17,6 +17,7 @@ type ContentPreviewProps = {
   priceText: string
   arrivalLabel: string
   autoCloseAt: string | null
+  thresholdKind?: 'quantity' | 'amount'
   thresholdText: string
   allowCustomItems: boolean
   images: CampaignImage[]
@@ -25,9 +26,11 @@ type ContentPreviewProps = {
 }
 
 export function ContentPreview({
-  status = 'open', title, priceText, arrivalLabel, autoCloseAt, thresholdText, allowCustomItems, images, announcement, items,
+  status = 'open', title, priceText, arrivalLabel, autoCloseAt, thresholdKind = 'quantity', thresholdText, allowCustomItems, images, announcement, items,
 }: ContentPreviewProps) {
   const [device, setDevice] = useState<PreviewDevice>('phone')
+  // Same wording as the resident campaign page, so the preview never promises a different schedule.
+  const { closing, arrival } = describeResidentSchedule({ status, autoCloseAt, thresholdKind, arrivalLabel }, new Date())
   const [expanded, setExpanded] = useState(false)
   const [fit, setFit] = useState<{ scale: number; height: number } | null>(null)
   const viewportRef = useRef<HTMLDivElement>(null)
@@ -78,8 +81,8 @@ export function ContentPreview({
               <p className="content-preview-title">{title.trim() || '未命名團購'}</p>
               <p className="content-preview-price">{priceText}</p>
               <div className="content-preview-facts">
-                <p>{formatArrivalLabel(arrivalLabel)}</p>
-                {autoCloseAt && <p>{formatAutoCloseReminder(autoCloseAt)}</p>}
+                <p>預計到貨：{arrival.value}</p>
+                <p>結單：{closing ? `${closing.value}${closing.note ? `（${closing.note}）` : ''}` : '已結單'}</p>
                 <p>{thresholdText}</p>
                 {allowCustomItems && <p>可新增自訂額外品項，金額由團主另計</p>}
               </div>
