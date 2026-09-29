@@ -207,3 +207,30 @@ describe('RuntimeApp localStorage organizer demo routing', () => {
     expect(await screen.findByRole('rowheader', { name: '示範範本' })).toBeInTheDocument()
   })
 })
+
+describe('RuntimeApp demo resident scenarios', () => {
+  it('lists every scenario and opens each one on its own page', () => {
+    const { unmount } = render(<RuntimeApp config={{ mode: 'demo' }} pathname="/" />)
+    const links = screen.getAllByRole('link').filter((link) => link.getAttribute('href')?.startsWith('/campaign/'))
+    const hrefs = links.map((link) => link.getAttribute('href')!)
+    expect(hrefs.length).toBeGreaterThanOrEqual(8)
+    unmount()
+
+    for (const href of hrefs.filter((candidate) => !candidate.endsWith('0123456789abcdef0123456789abcdef0123'))) {
+      const title = links.find((link) => link.getAttribute('href') === href)!.textContent!
+      const page = render(<RuntimeApp config={{ mode: 'demo' }} pathname={href} />)
+      expect(screen.getByRole('heading', { level: 1, name: title })).toBeInTheDocument()
+      page.unmount()
+    }
+  })
+
+  it('shows the binding form to a resident who has not bound a household', () => {
+    render(<RuntimeApp config={{ mode: 'demo' }} pathname="/campaign/d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4" />)
+    expect(screen.getByRole('heading', { name: '首次填寫住戶資料' })).toBeInTheDocument()
+  })
+
+  it('shows a closed scenario as read-only', () => {
+    render(<RuntimeApp config={{ mode: 'demo' }} pathname="/campaign/f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6" />)
+    expect(screen.getByText('本團已結單，無法修改訂單。')).toBeInTheDocument()
+  })
+})

@@ -19,6 +19,9 @@ const widths = process.env.CAPTURE_WIDTHS ? process.env.CAPTURE_WIDTHS.split(','
 const allPages = [
   { name: 'resident-list', path: '/' },
   { name: 'resident-campaign', path: '/campaign/0123456789abcdef0123456789abcdef0123' },
+  // Made-up scenarios from src/data/demoResidentScenarios.ts.
+  ...[['amount', 'a1'], ['mixmatch', 'b2'], ['formed', 'c3'], ['unbound', 'd4'], ['empty', 'e5'], ['closed', 'f6'], ['arrived', '9a']]
+    .map(([name, pair]) => ({ name: `resident-scenario-${name}`, path: `/campaign/${pair.repeat(18)}` })),
   { name: 'admin-list', path: '/admin' },
   { name: 'admin-residents', path: '/admin/residents' },
   { name: 'admin-settings', path: '/admin/settings' },
