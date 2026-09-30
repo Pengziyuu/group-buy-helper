@@ -122,7 +122,7 @@ function DemoOrganizerWorkspace({ requestedSection }: { requestedSection: Worksp
         replace: (templateId) => demoTemplates.replace(templateId, loadDraftCampaign(demoFallbackContent)),
       }}
     >
-      <AdminApp section={section === 'content' ? 'content' : null} campaignStatus={campaignStatus} residentHref={`/campaign/${DEMO_CAMPAIGN_SLUG}`} />
+      <AdminApp section={section === 'content' ? 'content' : null} campaignStatus={campaignStatus} />
       {section === 'overview' && (
         <OverviewSection
           campaignId={DEMO_CAMPAIGN_ID}

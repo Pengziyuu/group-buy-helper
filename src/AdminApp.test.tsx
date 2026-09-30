@@ -486,6 +486,31 @@ describe('organizer campaign editor', () => {
     expect(onUploadImage).toHaveBeenCalledTimes(1)
   })
 
+  it('compares with the published page, so undoing an edit leaves nothing to update', async () => {
+    const user = userEvent.setup()
+    const published: CampaignContent = {
+      title: '已開團', unitPrice: 50, threshold: 10, announcement: '公告', images: [],
+      items: [{ code: 'A', name: '商品', unitPrice: 50, active: true }], openedAt: '2026-09-20T00:00:00.000Z',
+      arrivalLabel: '貨到通知', autoCloseAt: null,
+    }
+    render(<AdminApp initialContent={published} publishedContent={published} onSaveDraft={vi.fn().mockResolvedValue(undefined)} />)
+    const update = () => screen.getByRole('button', { name: '更新住戶頁' })
+    expect(screen.getByText('住戶頁已是最新')).toBeInTheDocument()
+    expect(update()).toBeDisabled()
+    expect(screen.getByText('沒有需要更新的變更')).toBeInTheDocument()
+
+    const title = screen.getByRole('textbox', { name: '團購標題' })
+    await user.type(title, '改')
+    expect(screen.getByText('有未更新到住戶頁的變更')).toBeInTheDocument()
+    await waitFor(() => expect(update()).toBeEnabled())
+
+    await user.type(title, '{Backspace}')
+    expect(screen.getByText('住戶頁已是最新')).toBeInTheDocument()
+    await waitFor(() => expect(update()).toBeDisabled())
+    // The rail's 開啟住戶頁 already opens the resident page, so the top bar no longer repeats it.
+    expect(screen.queryByRole('link', { name: /預覽住戶頁/ })).not.toBeInTheDocument()
+  })
+
   it('uploads selected images right away and adds only their public URLs', async () => {
     const user = userEvent.setup()
     const onUploadImage = vi.fn().mockResolvedValue('http://storage.test/campaign/image.png')
@@ -786,12 +811,12 @@ describe('organizer campaign editor', () => {
     render(<AdminApp initialContent={{
       title: '已開團', unitPrice: 50, threshold: 10, announcement: '公告', images: [],
       items: [{ code: 'A', name: '牛奶', unitPrice: 50, active: true }], openedAt: '2026-09-20T00:00:00.000Z',
-    }} initialPublicationState="published" residentHref="/campaign/abc" onSaveDraft={vi.fn().mockResolvedValue(undefined)} />)
+    }} initialPublicationState="published" onSaveDraft={vi.fn().mockResolvedValue(undefined)} />)
 
     expect(screen.getByRole('heading', { level: 2, name: '內容設定' })).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('所有變更都已儲存')
     expect(screen.getByText('住戶頁已是最新')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '預覽住戶頁' })).toHaveAttribute('href', '/campaign/abc')
+    expect(screen.queryByRole('link', { name: '預覽住戶頁' })).not.toBeInTheDocument()
 
     await user.type(screen.getByRole('textbox', { name: '團購標題' }), '！')
     expect(screen.getByText('有未更新到住戶頁的變更')).toBeInTheDocument()
@@ -802,7 +827,7 @@ describe('organizer campaign editor', () => {
     render(<AdminApp initialContent={{
       title: '新團', unitPrice: 50, threshold: 10, announcement: '', images: [],
       items: [{ code: 'A', name: '牛奶', unitPrice: 50, active: true }], openedAt: null,
-    }} initialPublicationState="draft" residentHref={null} />)
+    }} initialPublicationState="draft" />)
 
     expect(screen.getByText('草稿・住戶還看不到')).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: '預覽住戶頁' })).not.toBeInTheDocument()

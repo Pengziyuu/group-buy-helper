@@ -1126,9 +1126,9 @@ export function LocalLiveAdminApp({
       >
         <AdminApp
           section={shownSection === 'content' ? 'content' : null}
-          residentHref={workspaceCampaign.residentHref}
           initialContent={content}
           initialPublicationState={publicationState}
+          publishedContent={publishedContent}
           campaignStatus={campaignStatus}
           onUploadImage={(file) => imageGateway.upload(campaignId, file)}
           onSaveDraft={async (nextContent) => {

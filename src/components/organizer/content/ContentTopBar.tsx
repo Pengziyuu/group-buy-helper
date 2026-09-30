@@ -10,7 +10,6 @@ type ContentTopBarProps = {
   onRetrySave?: () => void
   retryDisabled: boolean
   publication: PublicationStatus
-  residentHref: string | null
   primaryLabel: string
   publishing: boolean
   publishDisabledReason: string | null
@@ -19,7 +18,7 @@ type ContentTopBarProps = {
 }
 
 export function ContentTopBar({
-  saveState, onRetrySave, retryDisabled, publication, residentHref, primaryLabel, publishing, publishDisabledReason, onPublish, notice,
+  saveState, onRetrySave, retryDisabled, publication, primaryLabel, publishing, publishDisabledReason, onPublish, notice,
 }: ContentTopBarProps) {
   const reasonId = useId()
   return (
@@ -34,11 +33,6 @@ export function ContentTopBar({
         </div>
         <div className="content-topbar-actions">
           <StatusBadge tone={publication === 'current' ? 'success' : 'warning'}>{PUBLICATION_TEXT[publication]}</StatusBadge>
-          {residentHref && (
-            <a className="content-preview-link" href={residentHref} target="_blank" rel="noreferrer">
-              預覽住戶頁<span aria-hidden="true"> ↗</span>
-            </a>
-          )}
           <Button
             onClick={onPublish}
             disabled={publishDisabledReason !== null}

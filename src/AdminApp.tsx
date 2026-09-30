@@ -59,12 +59,26 @@ type PublicationState = 'draft' | 'published'
 type AdminAppProps = {
   initialContent?: CampaignContent
   initialPublicationState?: PublicationState
+  /** What residents currently see; edits are compared with it, so undoing a change leaves nothing to update. */
+  publishedContent?: CampaignContent | null
   onSaveDraft?: (content: CampaignContent) => Promise<void>
   onPublish?: (content: CampaignContent) => Promise<CampaignContent | void>
   campaignStatus?: CampaignStatus
   onUploadImage?: (file: File) => Promise<string>
-  residentHref?: string | null
   section?: 'content' | null
+}
+
+/**
+ * Whether the editor matches what residents see. The top-level unit price is derived from the items
+ * (the lowest active price), so compare each item's effective price instead of that summary field.
+ */
+function sameAsPublished(current: CampaignContent, published: CampaignContent): boolean {
+  const comparable = (content: CampaignContent): CampaignContent => ({
+    ...content,
+    unitPrice: 0,
+    items: content.items.map((item) => ({ ...item, unitPrice: item.unitPrice ?? content.unitPrice })),
+  })
+  return campaignContentEquals(comparable(current), comparable(published))
 }
 
 function messageFromError(error: unknown): string {
@@ -92,11 +106,11 @@ function promotionName(quantity: number, rate: number): string {
 function AdminApp({
   initialContent,
   initialPublicationState,
+  publishedContent,
   onSaveDraft,
   onPublish,
   campaignStatus,
   onUploadImage,
-  residentHref = null,
   section = 'content',
 }: AdminAppProps = {}) {
   const [initialDraft] = useState(() => initialContent
@@ -149,10 +163,13 @@ function AdminApp({
   const latestRevisionRef = useRef(0)
   const autoSaveInFlightRef = useRef(false)
   const flushAutoSaveImmediatelyRef = useRef(false)
-  const [publicationState, setPublicationState] = useState<PublicationState>(() =>
-    initialPublicationState
-      ?? (campaignContentEquals(initialDraft, initialPublished) ? 'published' : 'draft'),
-  )
+  // The version residents see. Without an explicit copy, a campaign loaded as published starts as its own
+  // published version, while one loaded as having unpublished changes has none to compare against.
+  const [lastPublished, setLastPublished] = useState<CampaignContent | null>(() => {
+    if (publishedContent) return normalizeCampaignContent(publishedContent)
+    if (initialPublicationState === 'draft') return null
+    return initialPublicationState === 'published' || campaignContentEquals(initialDraft, initialPublished) ? initialPublished : null
+  })
   const editorBusy = busyAction !== null || uploadingImage
   const activeItemPrices = campaignItems
     .filter((item) => item.active)
@@ -215,7 +232,6 @@ function AdminApp({
   const markDraft = () => {
     latestRevisionRef.current += 1
     setDraftRevision(latestRevisionRef.current)
-    setPublicationState('draft')
     setAutoSaveFailedRevision(null)
     setAutoSaveError(null)
     setNotice(null)
@@ -308,7 +324,9 @@ function AdminApp({
       }
       const content = currentContent()
       if (!onPublish && !content.openedAt) content.openedAt = new Date().toISOString()
-      const canonical = onPublish ? await onPublish(content) : undefined
+      // Normalized so items without their own price show the campaign price rather than an empty field.
+      const returned = onPublish ? await onPublish(content) : undefined
+      const canonical = returned ? normalizeCampaignContent(returned) : undefined
       if (!onPublish) {
         publishCampaign(content)
         setOpenedAt(content.openedAt)
@@ -347,7 +365,7 @@ function AdminApp({
       }
       savedRevisionRef.current = draftRevision
       latestRevisionRef.current = draftRevision
-      setPublicationState('published')
+      setLastPublished(normalizeCampaignContent(canonical ?? content))
       setNotice({ tone: 'info', text: wasOpened ? '住戶頁已更新' : '已發布並開團' })
     } catch (error) {
       setNotice({ tone: 'error', text: `發布失敗：${messageFromError(error)}` })
@@ -388,9 +406,12 @@ function AdminApp({
     lastSavedAt,
   })
   const publishing = busyAction === 'publish'
+  const upToDate = lastPublished !== null && sameAsPublished(currentContent(), lastPublished)
+  // Work still in progress explains itself first; only then does "nothing to update" apply.
   const publishDisabledReason = publishing
     ? null
     : publishBlockReason({ blockers, uploading: uploadingImage, savePending: autoSaving || draftSavePending })
+      ?? (itemsLocked && upToDate ? '沒有需要更新的變更' : null)
   const priceText = unitPrice === maximumItemPrice ? `$${unitPrice}` : `$${unitPrice}～$${maximumItemPrice}`
   const thresholdText = thresholdKind === 'amount'
     ? `滿 $${amountThreshold.toLocaleString('en-US')} 成團`
@@ -403,8 +424,7 @@ function AdminApp({
           saveState={saveState}
           onRetrySave={retryAutoSave}
           retryDisabled={editorBusy || autoSaving}
-          publication={publicationStatus(openedAt, publicationState)}
-          residentHref={residentHref}
+          publication={publicationStatus(openedAt, upToDate ? 'published' : 'draft')}
           primaryLabel={itemsLocked ? '更新住戶頁' : '發布並開團'}
           publishing={publishing}
           publishDisabledReason={publishDisabledReason}

@@ -512,6 +512,9 @@ describe('local Supabase visual demo apps', () => {
     const { rerender } = render(<LocalLiveAdminApp {...props} campaignId="campaign-1" />)
 
     expect(await screen.findByRole('textbox', { name: '團購標題' })).toHaveValue('第一團')
+    // Something must differ from the published page before it can be updated.
+    await user.type(screen.getByRole('textbox', { name: '團購標題' }), '！')
+    await waitFor(() => expect(screen.getByRole('button', { name: '更新住戶頁' })).toBeEnabled())
     await user.click(screen.getByRole('button', { name: '更新住戶頁' }))
     expect(repository.publish).toHaveBeenCalledWith('campaign-1')
 
@@ -724,7 +727,7 @@ describe('local Supabase visual demo apps', () => {
     expect(signInWithPassword).toHaveBeenCalledWith({ email: 'admin@example.test', password: 'password' })
     expect(await screen.findByRole('textbox', { name: '團購標題' })).toHaveValue('Supabase 已發布冰餅團')
     expect(screen.getByText('住戶頁已是最新')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '預覽住戶頁' })).toHaveAttribute('href', '/campaign/82be35197b9a8c709a939627ce4c411d8de3')
+    expect(screen.queryByRole('link', { name: '預覽住戶頁' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: '開啟住戶頁' })).toHaveAttribute(
       'href',
       '/campaign/82be35197b9a8c709a939627ce4c411d8de3',

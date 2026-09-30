@@ -70,7 +70,7 @@ export function DemoOrganizerScenarioWorkspace({ scenario, requestedSection }: {
       section={section}
       onSetCampaignStatus={async (next) => setStatus(next)}
     >
-      <AdminApp key={id} initialContent={content} campaignStatus={status} residentHref={residentHref} section={section === 'content' ? 'content' : null} />
+      <AdminApp key={id} initialContent={content} campaignStatus={status} section={section === 'content' ? 'content' : null} />
       {section === 'overview' && (
         <OverviewSection campaignId={id} campaignTitle={content.title} openedAt={content.openedAt} summary={summary} status={status} liveState="unavailable" />
       )}

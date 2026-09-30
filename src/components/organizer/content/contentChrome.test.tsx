@@ -9,7 +9,6 @@ const topBar = {
   saveState: { tone: 'idle' as const, text: '已自動儲存 14:05' },
   retryDisabled: false,
   publication: 'current' as const,
-  residentHref: '/campaign/abc',
   primaryLabel: '更新住戶頁',
   publishing: false,
   publishDisabledReason: null,
@@ -18,7 +17,7 @@ const topBar = {
 }
 
 describe('ContentTopBar', () => {
-  it('shows the save state, the publication state, the resident page link and the publish button', async () => {
+  it('shows the save state, the publication state and the publish button, leaving the resident link to the rail', async () => {
     const user = userEvent.setup()
     const onPublish = vi.fn()
     render(<ContentTopBar {...topBar} onPublish={onPublish} />)
@@ -26,9 +25,7 @@ describe('ContentTopBar', () => {
     expect(screen.getByRole('heading', { level: 2, name: '內容設定' })).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('已自動儲存 14:05')
     expect(screen.getByText('住戶頁已是最新')).toBeInTheDocument()
-    const link = screen.getByRole('link', { name: '預覽住戶頁' })
-    expect(link).toHaveAttribute('href', '/campaign/abc')
-    expect(link).toHaveAttribute('target', '_blank')
+    expect(screen.queryByRole('link', { name: '預覽住戶頁' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '重試' })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '更新住戶頁' }))
@@ -36,7 +33,7 @@ describe('ContentTopBar', () => {
   })
 
   it('explains why publishing is unavailable and hides the link before the first publication', () => {
-    render(<ContentTopBar {...topBar} publication="unpublished" residentHref={null} primaryLabel="發布並開團" publishDisabledReason="還有 2 項需要處理，見「發布前檢查」" />)
+    render(<ContentTopBar {...topBar} publication="unpublished" primaryLabel="發布並開團" publishDisabledReason="還有 2 項需要處理，見「發布前檢查」" />)
 
     expect(screen.getByText('草稿・住戶還看不到')).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: '預覽住戶頁' })).not.toBeInTheDocument()
