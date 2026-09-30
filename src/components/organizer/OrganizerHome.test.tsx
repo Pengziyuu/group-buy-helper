@@ -95,7 +95,7 @@ describe('OrganizerHome', () => {
     expect(screen.queryByText('未設定')).not.toBeInTheDocument()
     expect(within(draftRow).getByTitle('2026/08/12 09:00').textContent).toBe('8/12')
     expect(within(draftRow).getByText(/^最後編輯/)).toHaveTextContent('最後編輯 8/12')
-    expect(within(draftRow).queryByRole('button', { name: '複製住戶連結 新草稿' })).not.toBeInTheDocument()
+    expect(within(draftRow).queryByRole('button', { name: /複製住戶連結/ })).not.toBeInTheDocument()
 
     const closedRow = rowOf('已結單水果團')
     expect(within(closedRow).getByText('已結單')).toBeInTheDocument()
@@ -145,7 +145,8 @@ describe('OrganizerHome', () => {
     expect(navigate).toHaveBeenCalledWith('/admin/campaign/open-id')
     navigate.mockClear()
 
-    await user.click(within(row).getByRole('button', { name: '複製住戶連結 冰餅團' }))
+    await user.click(within(row).getByRole('button', { name: '更多操作 冰餅團' }))
+    await user.click(screen.getByRole('menuitem', { name: '複製住戶連結 冰餅團' }))
     await user.click(within(row).getByRole('button', { name: '更多操作 冰餅團' }))
     await user.click(screen.getByRole('menuitem', { name: '刪除 冰餅團' }))
     expect(navigate).not.toHaveBeenCalled()
@@ -156,12 +157,16 @@ describe('OrganizerHome', () => {
     expect(navigate).toHaveBeenCalledWith('/admin/campaign/open-id')
   })
 
-  it('copies a published resident link and confirms the action', async () => {
+  it('copies a published resident link from the row menu and confirms the action', async () => {
     const user = userEvent.setup()
     const onCopyResidentLink = vi.fn().mockResolvedValue(undefined)
     renderHome({ onCopyResidentLink })
 
-    await user.click(screen.getByRole('button', { name: '複製住戶連結 冰餅團' }))
+    // The row keeps only the ⋯ menu; copying is its first item.
+    expect(screen.queryByRole('button', { name: '複製住戶連結 冰餅團' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '更多操作 冰餅團' }))
+    expect(screen.getAllByRole('menuitem')[0]).toHaveAccessibleName('複製住戶連結 冰餅團')
+    await user.click(screen.getByRole('menuitem', { name: '複製住戶連結 冰餅團' }))
 
     expect(onCopyResidentLink).toHaveBeenCalledWith('/campaign/open-slug')
     expect(await screen.findByRole('status')).toHaveTextContent('已複製冰餅團住戶連結')

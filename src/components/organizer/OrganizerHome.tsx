@@ -4,7 +4,6 @@ import { RelativeTime } from '../relativeTime'
 import type { AutoCloseNotificationSettingState } from '../../services/autoCloseNotificationSettingsGateway'
 import type { CampaignListItem } from '../../services/campaignManagementGateway'
 import { EmptyState } from '../ui/AsyncState'
-import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { FeedbackMessage } from '../ui/FeedbackMessage'
 import { Menu, type MenuItem } from '../ui/Menu'
@@ -97,6 +96,11 @@ export function OrganizerHome({ campaigns, autoCloseNotificationState, unboundRe
   }
 
   const menuItems = (campaign: CampaignListItem, phase: CampaignPhase): MenuItem[] => [
+    // Copying lives in the menu so each row keeps a single ⋯ button; the workspace rail still has 複製.
+    ...(phase === 'draft' ? [] : [{
+      label: '複製住戶連結', ariaLabel: `複製住戶連結 ${campaign.title}`, disabled: Boolean(copyingId),
+      onSelect: () => { void copyLink(campaign) },
+    }]),
     ...(phase === 'draft' ? [] : [{
       label: '查看住戶頁', ariaLabel: `查看住戶頁 ${campaign.title}`, href: `/campaign/${campaign.slug}`, target: '_blank',
     }]),
@@ -201,11 +205,6 @@ export function OrganizerHome({ campaigns, autoCloseNotificationState, unboundRe
                     </td>
                     <td className="organizer-cell-actions">
                       <div className="organizer-row-actions">
-                        {phase !== 'draft' && (
-                          <Button variant="utility" size="sm" aria-label={`複製住戶連結 ${campaign.title}`} disabled={Boolean(copyingId)} onClick={() => { void copyLink(campaign) }}>
-                            {copyingId === campaign.id ? '複製中…' : '複製住戶連結'}
-                          </Button>
-                        )}
                         {items.length > 0 && <Menu size="sm" label={`更多操作 ${campaign.title}`} items={items} />}
                       </div>
                     </td>
