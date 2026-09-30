@@ -73,7 +73,9 @@ describe('WorkspaceRail', () => {
     expect(orders).toHaveAttribute('aria-current', 'page')
     expect(within(nav).getByRole('link', { name: '內容設定' })).toHaveAttribute('href', '/admin/campaign/campaign-1/content')
     expect(within(nav).queryByRole('link', { name: /領取通知/ })).not.toBeInTheDocument()
-    expect(within(nav).getByText('結單後才能使用')).toBeInTheDocument()
+    expect(within(nav).getByText('結單後才能使用')).toHaveClass('organizer-rail-reason')
+    // Phones hide the reason text to keep the tabs on one line, so it also rides on the tab's hover title.
+    expect(within(nav).getByText('領取通知')).toHaveAttribute('title', '領取通知：結單後才能使用')
     const overview = within(nav).getByRole('link', { name: '概況' })
     expect(overview).toHaveAttribute('href', '/admin/campaign/campaign-1/overview')
     expect(overview).not.toHaveAttribute('aria-current')

@@ -68,6 +68,21 @@
   .organizer-table tbody th { padding: 0 0 var(--space-2); border: 0; }
   .organizer-table tbody td[data-label]::before { content: attr(data-label); color: var(--color-text-secondary); font-size: var(--font-size-caption); }
   .organizer-row-actions { justify-content: flex-start; }
+  /* Campaign and order cards: title row, full-width progress or items, then three short facts side by side. */
+  .organizer-campaign-table tbody tr,
+  .organizer-order-table tbody tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2) var(--space-3); }
+  .organizer-campaign-table tbody th,
+  .organizer-order-table tbody th { grid-column: 1 / 3; padding: 0; }
+  .organizer-table tbody td.organizer-cell-status,
+  .organizer-order-table tbody td.organizer-cell-actions { grid-column: 3; grid-row: 1; justify-self: end; align-self: start; padding: 0; }
+  .organizer-table tbody td.organizer-cell-progress,
+  .organizer-table tbody td.organizer-cell-items,
+  .organizer-table tbody td.organizer-cell-note,
+  .organizer-campaign-table tbody td.organizer-cell-actions { grid-column: 1 / -1; }
+  .organizer-table tbody td.organizer-cell-progress { display: block; }
+  .organizer-table tbody td:is(.organizer-cell-status, .organizer-cell-progress, .organizer-cell-items)[data-label]::before { content: none; }
+  .organizer-table tbody td.organizer-cell-fact { display: grid; align-content: start; justify-content: stretch; gap: 2px; min-width: 0; }
+  .organizer-table tbody td.organizer-cell-note { display: grid; justify-items: start; gap: 2px; }
 }
 
 /* Organizer settings: one card per setting group. */
@@ -112,6 +127,8 @@
   .organizer-rail-cover, .organizer-rail-facts { display: none; }
   .organizer-rail-nav { display: flex; gap: var(--space-1); overflow-x: auto; }
   .organizer-rail-link { flex: none; min-height: var(--touch-target); }
+  /* Keep the four tabs on one line: the reason stays for screen readers and in the tab's title. */
+  .organizer-rail-reason { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .organizer-rail-back, .organizer-rail-share a { min-height: var(--touch-target); }
   .organizer-rail-share { margin-top: 0; }
   .organizer-workspace-main { padding: var(--space-4) var(--space-4) var(--space-8); }

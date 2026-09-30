@@ -98,6 +98,8 @@ describe('OrganizerHome', () => {
     expect(within(closedRow).getByText('已結單')).toBeInTheDocument()
     expect(within(closedRow).getByText('5')).toBeInTheDocument()
     expect(screen.queryByRole('columnheader', { name: '未付款' })).not.toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: '開團' })).toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: '時間' })).not.toBeInTheDocument()
     expect(within(closedRow).queryByText(/12:00/)).not.toBeInTheDocument()
   })
 

@@ -142,7 +142,7 @@ export function OrganizerHome({ campaigns, autoCloseNotificationState, unboundRe
         <p className="organizer-muted">此分類目前沒有團購。</p>
       ) : (
         <div className="organizer-table-wrap">
-          <table className="organizer-table" aria-label="團購列表">
+          <table className="organizer-table organizer-campaign-table" aria-label="團購列表">
             <thead>
               <tr>
                 <th scope="col">團購</th>
@@ -150,7 +150,7 @@ export function OrganizerHome({ campaigns, autoCloseNotificationState, unboundRe
                 <th scope="col">成團進度</th>
                 <th scope="col">訂單</th>
                 <th scope="col">結單</th>
-                <th scope="col">時間</th>
+                <th scope="col">開團</th>
                 <th scope="col"><span className="ui-visually-hidden">操作</span></th>
               </tr>
             </thead>
@@ -176,8 +176,8 @@ export function OrganizerHome({ campaigns, autoCloseNotificationState, unboundRe
                         </div>
                       </div>
                     </th>
-                    <td data-label="狀態"><StatusBadge tone={badge.tone}>{badge.label}</StatusBadge></td>
-                    <td data-label="成團進度">
+                    <td data-label="狀態" className="organizer-cell-status"><StatusBadge tone={badge.tone}>{badge.label}</StatusBadge></td>
+                    <td data-label="成團進度" className="organizer-cell-progress">
                       {phase === 'draft' ? <span className="organizer-muted">發布後開始接單</span> : (
                         <div className="organizer-progress-cell">
                           <span className="ui-num">{progress.text}</span>
@@ -186,18 +186,21 @@ export function OrganizerHome({ campaigns, autoCloseNotificationState, unboundRe
                         </div>
                       )}
                     </td>
-                    <td data-label="訂單" className="ui-num">{phase === 'draft' ? '—' : campaign.orderCount}</td>
-                    <td data-label="結單">
+                    <td data-label="訂單" className="organizer-cell-fact ui-num">{phase === 'draft' ? '—' : campaign.orderCount}</td>
+                    <td data-label="結單" className="organizer-cell-fact">
                       {phase === 'closed' ? '—' : closing
                         ? <span className={closing.soon ? 'organizer-soon' : undefined}>{closing.when}</span>
                         : <span className="organizer-muted">未設定</span>}
                     </td>
-                    <td data-label="時間" className="ui-num">
-                      {phase === 'draft' || !campaign.openedAt
-                        ? <>最後編輯 <RelativeTime value={campaign.updatedAt} now={today} /></>
-                        : <RelativeTime value={campaign.openedAt} now={today} />}
+                    <td data-label="開團" className="organizer-cell-fact ui-num">
+                      {/* One wrapper, so phone cards keep "最後編輯" next to its time. */}
+                      <span>
+                        {phase === 'draft' || !campaign.openedAt
+                          ? <>最後編輯 <RelativeTime value={campaign.updatedAt} now={today} /></>
+                          : <RelativeTime value={campaign.openedAt} now={today} />}
+                      </span>
                     </td>
-                    <td>
+                    <td className="organizer-cell-actions">
                       <div className="organizer-row-actions">
                         {phase !== 'draft' && (
                           <Button variant="utility" size="sm" aria-label={`複製住戶連結 ${campaign.title}`} disabled={Boolean(copyingId)} onClick={() => { void copyLink(campaign) }}>

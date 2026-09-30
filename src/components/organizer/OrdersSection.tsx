@@ -125,7 +125,7 @@ export function OrdersSection({
                           <span className="organizer-order-household">{orderHouseholdLabel(order)}</span>
                           {' '}<strong>{order.name}</strong>
                         </th>
-                        <td data-label="訂購內容">
+                        <td data-label="訂購內容" className="organizer-cell-items">
                           {chips.length === 0 ? <span className="organizer-muted">無正式品項</span> : (
                             <span className="organizer-chips">
                               {chips.map((chip) => (
@@ -136,18 +136,23 @@ export function OrdersSection({
                             </span>
                           )}
                         </td>
-                        <td data-label="數量" className="ui-num">{order.quantity} {unit}</td>
-                        <td data-label="金額" className="ui-num">
-                          {currency(order.amount)}
-                          {order.customItemSummary && <small className="organizer-muted"> ＋另計</small>}
+                        <td data-label="數量" className="organizer-cell-fact ui-num">{order.quantity} {unit}</td>
+                        <td data-label="金額" className="organizer-cell-fact ui-num">
+                          <span>
+                            {currency(order.amount)}
+                            {order.customItemSummary && <small className="organizer-muted"> ＋另計</small>}
+                          </span>
                         </td>
-                        <td data-label="下單時間" className="organizer-order-time">
-                          <RelativeTime value={order.orderedAt} now={currentTime} />
-                          {wasEdited(order) && (
-                            <small><EditedMark value={order.updatedAt} /></small>
-                          )}
+                        <td data-label="下單時間" className="organizer-cell-fact organizer-order-time">
+                          {/* One wrapper, so phone cards keep "已修改" under its time. */}
+                          <span>
+                            <RelativeTime value={order.orderedAt} now={currentTime} />
+                            {wasEdited(order) && (
+                              <small><EditedMark value={order.updatedAt} /></small>
+                            )}
+                          </span>
                         </td>
-                        <td data-label="團主備註">
+                        <td data-label="團主備註" className="organizer-cell-note">
                           <OrderNoteCell
                             order={order}
                             controlLabel={controlLabel}
@@ -156,7 +161,7 @@ export function OrdersSection({
                             onSavingChange={(saving) => setBusy(order.orderId, saving)}
                           />
                         </td>
-                        <td>
+                        <td className="organizer-cell-actions">
                           {status === 'open' && onCancelOrder && (
                             <Menu
                               size="sm"
