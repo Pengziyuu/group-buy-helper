@@ -29,6 +29,8 @@ describe('resident campaign page parts', () => {
     expect(within(schedule).getByText('結單')).toBeInTheDocument()
     expect(within(schedule).getByText('10/15 12:00')).toBeInTheDocument()
     expect(within(schedule).getByText('額滿會提早結單')).toBeInTheDocument()
+    // Same order as the list card's tags: closing first, then arrival.
+    expect([...schedule.querySelectorAll('dt')].map((term) => term.textContent)).toEqual(['結單', '預計到貨'])
     expect(screen.getByRole('heading', { level: 2, name: '成團進度' })).toBeInTheDocument()
     expect(screen.getByText('還差 38 個成團')).not.toHaveClass('is-formed')
     expect(document.querySelector('.resident-summary-meta')).toHaveTextContent('6 筆訂單・8/14 開團')

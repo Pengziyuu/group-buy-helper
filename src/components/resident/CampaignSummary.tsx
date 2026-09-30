@@ -34,12 +34,12 @@ export function CampaignSummary({ title, status, priceText, schedule, progress, 
         <h1 id="campaign-title">{title}</h1>
         <p className="resident-summary-price">{priceText}</p>
         <dl className="resident-summary-facts" role="group" aria-label="團購時程">
-          <div><dt>預計到貨</dt><dd>{schedule.arrival.value}</dd></div>
           <div>
             <dt>結單</dt>
             <dd>{schedule.closing?.value ?? '已結單'}</dd>
             {schedule.closing?.note && <dd className="resident-summary-fact-note">{schedule.closing.note}</dd>}
           </div>
+          <div><dt>預計到貨</dt><dd>{schedule.arrival.value}</dd></div>
         </dl>
       </div>
       <div className="resident-summary-progress">
