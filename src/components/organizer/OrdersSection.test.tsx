@@ -237,6 +237,12 @@ describe('OrdersSection', () => {
     expect(screen.queryByText(/null|NaN期/)).not.toBeInTheDocument()
   })
 
+  it('keeps the hour on orders from yesterday or earlier so same-day orders can be told apart', () => {
+    // 2026-09-26 12:00 in Taipei; the fixture orders were placed on 9/24 in Taipei.
+    render(<OrdersSection campaignTitle="一涼製冰所" openedAt="2026-09-20T00:00:00.000Z" summary={summary} status="open" liveState="live" now={new Date('2026-09-26T04:00:00.000Z')} />)
+    expect(within(rowOf(/H11/)).getByTitle('2026/09/24 18:00').textContent).toBe('9/24 18:00')
+  })
+
   it('shows when each order was placed and when it was changed', () => {
     const now = new Date('2026-09-24T12:30:00.000Z')
     const edited: OrganizerOrderSummary = {

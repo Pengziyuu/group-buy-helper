@@ -16,6 +16,12 @@ describe('formatRelativeTime', () => {
     expect(formatRelativeTime('2025-12-31T04:00:00.000Z', now)).toBe('2025/12/31')
   })
 
+  it('can keep the hour past a day, for lists sorted by time', () => {
+    expect(formatRelativeTime('2026-09-25T03:00:00.000Z', now, { withTime: true })).toBe('1 小時前')
+    expect(formatRelativeTime('2026-09-24T04:00:00.000Z', now, { withTime: true })).toBe('昨天 12:00')
+    expect(formatRelativeTime('2026-09-23T01:05:00.000Z', now, { withTime: true })).toBe('9/23 09:05')
+  })
+
   it('never shows a negative time for a clock that runs ahead, and ignores missing values', () => {
     expect(formatRelativeTime('2026-09-25T04:03:00.000Z', now)).toBe('剛剛')
     expect(formatRelativeTime(undefined, now)).toBe('')

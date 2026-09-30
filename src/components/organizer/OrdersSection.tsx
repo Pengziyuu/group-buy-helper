@@ -146,7 +146,7 @@ export function OrdersSection({
                         <td data-label="下單時間" className="organizer-cell-fact organizer-order-time">
                           {/* One wrapper, so phone cards keep "已修改" under its time. */}
                           <span>
-                            <RelativeTime value={order.orderedAt} now={currentTime} />
+                            <RelativeTime value={order.orderedAt} now={currentTime} withTime />
                             {wasEdited(order) && (
                               <small><EditedMark value={order.updatedAt} /></small>
                             )}

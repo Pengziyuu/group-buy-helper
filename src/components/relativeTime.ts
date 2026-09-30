@@ -1,5 +1,5 @@
 import { createElement, useEffect, useState } from 'react'
-import { formatShortDate, taipeiDateInputFromIso } from '../domain/campaignSchedule'
+import { formatShortDate, taipeiDateInputFromIso, taipeiTimeInputFromIso } from '../domain/campaignSchedule'
 import { formatZhTwTimestamp } from '../domain/timestamp'
 
 const DAY = 24 * 60 * 60 * 1000
@@ -11,7 +11,8 @@ const parse = (value: string | undefined | null) => {
 
 // Chat-style, shared by resident and organizer pages; the exact time is the hover title of <RelativeTime>.
 // A device clock running ahead of the server must not produce "-1 分鐘前", so anything not yet a minute old is "剛剛".
-export function formatRelativeTime(value: string | undefined | null, now: Date): string {
+// withTime keeps the hour past a day ("昨天 20:15", "9/28 08:15") where a list is sorted by time.
+export function formatRelativeTime(value: string | undefined | null, now: Date, { withTime = false }: { withTime?: boolean } = {}): string {
   const time = parse(value)
   if (time === null || !value) return ''
   const minutes = Math.floor((now.getTime() - time) / 60_000)
@@ -19,8 +20,9 @@ export function formatRelativeTime(value: string | undefined | null, now: Date):
   if (minutes < 60) return `${minutes} 分鐘前`
   const hours = Math.floor(minutes / 60)
   if (hours < 24) return `${hours} 小時前`
-  if (taipeiDateInputFromIso(value) === taipeiDateInputFromIso(new Date(now.getTime() - DAY).toISOString())) return '昨天'
-  return formatShortDate(value, now)
+  const hour = withTime ? ` ${taipeiTimeInputFromIso(value)}` : ''
+  if (taipeiDateInputFromIso(value) === taipeiDateInputFromIso(new Date(now.getTime() - DAY).toISOString())) return `昨天${hour}`
+  return `${formatShortDate(value, now)}${hour}`
 }
 
 export function useNow(fixed?: Date, intervalMs = 60_000): Date {
@@ -33,10 +35,10 @@ export function useNow(fixed?: Date, intervalMs = 60_000): Date {
   return fixed ?? now
 }
 
-type RelativeTimeProps = { value: string | undefined | null; now: Date; className?: string }
+type RelativeTimeProps = { value: string | undefined | null; now: Date; className?: string; withTime?: boolean }
 
-export function RelativeTime({ value, now, className }: RelativeTimeProps) {
-  const text = formatRelativeTime(value, now)
+export function RelativeTime({ value, now, className, withTime }: RelativeTimeProps) {
+  const text = formatRelativeTime(value, now, { withTime })
   if (!text || !value) return null
   return createElement('time', { dateTime: value, title: formatZhTwTimestamp(value), className }, text)
 }
