@@ -25,7 +25,8 @@ const residentNames = [
   '陳小姐', '林媽媽', 'Kevin', '王大明', '吳佩珊', 'Amy Chen', '張家豪', '黃小玲', '李阿姨', 'Jason',
   '周怡君', '許志明', '蔡依婷', 'Mia', '鄭先生', '謝雅雯', '郭建宏', '洪淑芬', 'Tony Lin', '曾美玲',
   '邱俊傑', '廖小萍', '賴怡如', 'Grace', '徐國華', '楊舒涵', '劉芳瑜', '蘇文彬', '潘小華', '葉子',
-  '簡單生活', '🌸花花', 'Chloe 吳', '羅伯特', '范姐',
+  '簡單生活', '🌸花花', 'Chloe 吳', '羅伯特', '范姐', '陳建宇', 'Vivian', '施媽媽', '江小魚', '何志強',
+  '呂佳蓉', 'Eric Wang', '朱阿伯', '孫小萱', '馬克', '胡美華', 'Olivia', '高家', '宋太太', '蕭先生',
 ]
 
 const units = ['1A3', '2B7', '3C12', '1D5', '2E9', '3F2', '1G11', '2H4', '3I8', '1J6', '2K13', '3L10']
@@ -133,13 +134,13 @@ export function demoResidentScenarios(now = Date.now()): DemoResidentScenario[] 
     },
     {
       // Formed yet still open, which only an amount threshold allows (a quantity threshold
-      // closes the campaign the moment it is reached), plus a long order wall.
+      // closes the campaign the moment it is reached), plus 50 orders, the organizer's usual volume.
       slug: 'c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3',
       status: 'open',
       customer: me,
       orders: [
         myOrder({ A: 1 }, 30, now),
-        ...fakeOrders(now, 34, (index) => (index % 4 === 0 ? { A: 1, B: 1 } : { [['A', 'B', 'C'][index % 3]]: 1 }), 2880),
+        ...fakeOrders(now, 49, (index) => (index % 4 === 0 ? { A: 1, B: 1 } : { [['A', 'B', 'C'][index % 3]]: 1 }), 2880),
       ],
       content: {
         title: '保久乳（鮮乳坊、初鹿、東海大學）',

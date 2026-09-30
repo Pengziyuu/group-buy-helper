@@ -160,7 +160,7 @@ describe('RuntimeApp localStorage organizer demo routing', () => {
   it('opens the demo residents and settings pages', () => {
     const config = { mode: 'demo' as const }
     const { rerender } = render(<RuntimeApp config={config} pathname="/admin/residents" />)
-    expect(screen.getByRole('heading', { level: 1, name: '住戶 1 位' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: /^住戶 \d+ 位$/ })).toBeInTheDocument()
 
     rerender(<RuntimeApp config={config} pathname="/admin/settings" />)
     expect(screen.getByRole('heading', { level: 1, name: '設定' })).toBeInTheDocument()
@@ -174,7 +174,7 @@ describe('RuntimeApp localStorage organizer demo routing', () => {
 
     await user.click(screen.getByRole('link', { name: '住戶' }))
 
-    expect(await screen.findByRole('heading', { level: 1, name: '住戶 1 位' })).toHaveFocus()
+    expect(await screen.findByRole('heading', { level: 1, name: /^住戶 \d+ 位$/ })).toHaveFocus()
   })
 
   it('keeps focus on the campaign heading through the follow-up URL replace that fills in the default section', async () => {
@@ -232,6 +232,30 @@ describe('RuntimeApp demo resident scenarios', () => {
   it('shows a closed scenario as read-only', () => {
     render(<RuntimeApp config={{ mode: 'demo' }} pathname="/campaign/f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6" />)
     expect(screen.getByText('本團已結單，無法修改訂單。')).toBeInTheDocument()
+  })
+})
+
+describe('RuntimeApp demo organizer scenarios', () => {
+  it('lists the scenarios and a draft, and opens each campaign workspace', async () => {
+    const { demoResidentScenarios } = await import('./data/demoResidentScenarios')
+    const { demoScenarioOrganizerId } = await import('./data/demoOrganizerScenarios')
+    const home = render(<RuntimeApp config={{ mode: 'demo' }} pathname="/admin" />)
+    expect(screen.getByRole('link', { name: '中秋文旦柚（草稿，尚未發布）' })).toBeInTheDocument()
+    const scenarios = demoResidentScenarios()
+    for (const scenario of scenarios) expect(screen.getByRole('link', { name: scenario.content.title })).toBeInTheDocument()
+    home.unmount()
+
+    for (const scenario of scenarios) {
+      const page = render(<RuntimeApp config={{ mode: 'demo' }} pathname={`/admin/campaign/${demoScenarioOrganizerId(scenario.slug)}/orders`} />)
+      expect(screen.getByRole('heading', { level: 1, name: scenario.content.title })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: '訂單' })).toBeInTheDocument()
+      page.unmount()
+    }
+  })
+
+  it('opens the draft on its content settings only', () => {
+    render(<RuntimeApp config={{ mode: 'demo' }} pathname="/admin/campaign/5e5e5e5e-5e5e-5e5e-5e5e-5e5e5e5e5e5e" />)
+    expect(screen.getByRole('textbox', { name: '團購標題' })).toHaveValue('中秋文旦柚（草稿，尚未發布）')
   })
 })
 

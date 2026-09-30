@@ -28,6 +28,15 @@ const allPages = [
   { name: 'admin-overview', path: '/admin/campaign/01234567-89ab-cdef-0123-456789abcdef/overview' },
   { name: 'admin-editor', path: '/admin/campaign/01234567-89ab-cdef-0123-456789abcdef/content' },
   { name: 'admin-orders', path: '/admin/campaign/01234567-89ab-cdef-0123-456789abcdef/orders' },
+  // Organizer views of the made-up scenarios (src/data/demoOrganizerScenarios.ts).
+  ...[['formed', 'c3', 'overview'], ['formed', 'c3', 'orders'], ['mixmatch', 'b2', 'orders'], ['mixmatch', 'b2', 'content'],
+    ['closed', 'f6', 'orders'], ['closed', 'f6', 'pickup']]
+    .map(([name, pair, section]) => {
+      const slug = pair.repeat(18)
+      const id = `${slug.slice(0, 8)}-${slug.slice(8, 12)}-${slug.slice(12, 16)}-${slug.slice(16, 20)}-${slug.slice(20, 32)}`
+      return { name: `admin-scenario-${name}-${section}`, path: `/admin/campaign/${id}/${section}` }
+    }),
+  { name: 'admin-scenario-draft', path: '/admin/campaign/5e5e5e5e-5e5e-5e5e-5e5e-5e5e5e5e5e5e' },
 ]
 const pages = allPages.filter((page) => !process.env.CAPTURE_ONLY || page.name.startsWith(process.env.CAPTURE_ONLY))
 

@@ -23,6 +23,8 @@ import { EmptyState, ErrorState } from './components/ui/AsyncState'
 import ResidentCampaignListApp from './ResidentCampaignListApp'
 import { DemoResidentScenarioApp } from './DemoResidentScenarioApp'
 import { demoResidentScenarios, demoScenarioListItem } from './data/demoResidentScenarios'
+import { demoDraftCampaign, demoOrganizerMembers, demoScenarioOrganizerId, demoScenarioOrganizerListItem } from './data/demoOrganizerScenarios'
+import { DemoOrganizerDraftWorkspace, DemoOrganizerScenarioWorkspace } from './DemoOrganizerScenarioWorkspace'
 import { campaign, initialOrders, items } from './data/demo'
 import { buildOrganizerOrderSummary, type OrganizerVisibleOrder } from './domain/adminOrders'
 import type { CampaignStatus } from './domain/orderWorkflow'
@@ -56,6 +58,9 @@ const demoOrganizerCampaign = {
   amountThreshold: null,
 }
 const demoScenarios = demoResidentScenarios()
+const demoDraft = demoDraftCampaign()
+const demoOrganizerCampaigns = [...demoScenarios.map(demoScenarioOrganizerListItem), demoDraft]
+const demoScenarioMembers = demoOrganizerMembers(demoScenarios)
 const demoResidentMembers = [
   { memberCode: 'demo-member-a01', displayName: '測試住戶甲', pictureUrl: null, period: 2, unit: '1A1', joinedAt: campaign.openedAt, blocked: false, blockedAt: null },
   { memberCode: 'demo-member-b08', displayName: '測試住戶乙', pictureUrl: null, period: 1, unit: 'B8', joinedAt: campaign.openedAt, blocked: true, blockedAt: campaign.openedAt },
@@ -243,7 +248,7 @@ function RuntimeRoutes({ config, pathname, search, client, liffClient }: Runtime
   if (appRoute.kind === 'admin-list') {
     return (
       <OrganizerShell current="campaigns" onCreate={createDemoCampaign} templates={demoCreateFromTemplate}>
-        <OrganizerHome campaigns={[demoOrganizerCampaign]} autoCloseNotificationState="current_user" unboundResidentCount={0} />
+        <OrganizerHome campaigns={[demoOrganizerCampaign, ...demoOrganizerCampaigns]} autoCloseNotificationState="current_user" unboundResidentCount={demoScenarioMembers.filter((member) => member.householdKind !== 'other' && !member.unit).length} />
       </OrganizerShell>
     )
   }
@@ -252,7 +257,7 @@ function RuntimeRoutes({ config, pathname, search, client, liffClient }: Runtime
       <OrganizerShell current="residents" onCreate={createDemoCampaign} templates={demoCreateFromTemplate}>
         <ResidentMemberManagementApp
           key={parseResidentFilter(search)}
-          members={demoResidentMembers}
+          members={[...demoResidentMembers, ...demoScenarioMembers]}
           initialFilter={parseResidentFilter(search)}
           onSetBlocked={async () => undefined}
           onUpdateHousehold={async () => undefined}
@@ -278,7 +283,15 @@ function RuntimeRoutes({ config, pathname, search, client, liffClient }: Runtime
   if (appRoute.kind === 'admin-campaign') {
     return (
       <OrganizerShell current="campaigns" onCreate={createDemoCampaign} templates={demoCreateFromTemplate}>
-        <DemoOrganizerWorkspace requestedSection={appRoute.section} />
+        {appRoute.campaignId === demoDraft.id
+          ? <DemoOrganizerDraftWorkspace draft={demoDraft} />
+          : demoScenarios.find((scenario) => demoScenarioOrganizerId(scenario.slug) === appRoute.campaignId)
+            ? <DemoOrganizerScenarioWorkspace
+                key={appRoute.campaignId}
+                scenario={demoScenarios.find((scenario) => demoScenarioOrganizerId(scenario.slug) === appRoute.campaignId)!}
+                requestedSection={appRoute.section}
+              />
+            : <DemoOrganizerWorkspace requestedSection={appRoute.section} />}
       </OrganizerShell>
     )
   }
