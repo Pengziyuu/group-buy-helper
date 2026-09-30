@@ -45,8 +45,9 @@ export function formationProgress(campaign: CampaignListItem): FormationProgress
   const text = usesAmount
     ? `${currency.format(value)}／${currency.format(max)}`
     : `${value}／${max} ${campaign.quantityUnit}`
+  // Same words residents see; only amount thresholds stay open once formed.
   const statusText = formed
-    ? '已達成團門檻'
+    ? campaign.status === 'open' ? '已成團，仍可下單' : '已成團'
     : campaign.status === 'open'
       ? usesAmount ? `還差 ${currency.format(remaining)} 成團` : `還差 ${remaining} ${campaign.quantityUnit}成團`
       : '結單時未達成團門檻'

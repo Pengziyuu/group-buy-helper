@@ -47,7 +47,9 @@ describe('campaign list view', () => {
       .toEqual({ value: 18, max: 30, text: '18／30 盒', statusText: '還差 12 盒成團', formed: false })
     expect(formationProgress(campaign({ id: 'm', thresholdKind: 'amount', amountThreshold: 10000, totalAmount: 8500 })))
       .toMatchObject({ value: 8500, max: 10000, text: '$8,500／$10,000', statusText: '還差 $1,500 成團' })
-    expect(formationProgress(campaign({ id: 'f', totalQuantity: 12, threshold: 10 })).statusText).toBe('已達成團門檻')
+    // Same words residents see: an open formed campaign (amount threshold) still takes orders.
+    expect(formationProgress(campaign({ id: 'f', thresholdKind: 'amount', amountThreshold: 1000, totalAmount: 1200 })).statusText).toBe('已成團，仍可下單')
+    expect(formationProgress(campaign({ id: 'c', status: 'closed', totalQuantity: 10, threshold: 10 })).statusText).toBe('已成團')
     expect(formationProgress(campaign({ id: 'u', status: 'closed', totalQuantity: 2, threshold: 10 })).statusText).toBe('結單時未達成團門檻')
   })
 })

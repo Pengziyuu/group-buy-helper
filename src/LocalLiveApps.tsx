@@ -1091,6 +1091,7 @@ export function LocalLiveAdminApp({
     openedAt: publishedContent?.openedAt ?? null,
     autoCloseAt: content.autoCloseAt,
     arrivalLabel: content.arrivalLabel,
+    thresholdKind: content.thresholdKind,
     orderCount: orderSummary?.orderCount ?? null,
     residentHref: residentSlug ? `/campaign/${residentSlug}` : null,
   }

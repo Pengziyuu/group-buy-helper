@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { describeAutoClose } from '../../domain/campaignSchedule'
+import { describeResidentSchedule } from '../resident/residentSchedule'
 import { RelativeTime } from '../relativeTime'
 import type { AutoCloseNotificationSettingState } from '../../services/autoCloseNotificationSettingsGateway'
 import type { CampaignListItem } from '../../services/campaignManagementGateway'
@@ -159,7 +159,8 @@ export function OrganizerHome({ campaigns, autoCloseNotificationState, unboundRe
                 const phase = campaignPhase(campaign)
                 const badge = PHASE_BADGES[phase]
                 const progress = formationProgress(campaign)
-                const closing = phase === 'closed' ? null : describeAutoClose(campaign.autoCloseAt, today)
+                // Drafts and open campaigns alike: a time, 額滿自動結單 or 手動決定結單, as residents read it.
+                const closing = phase === 'closed' ? null : describeResidentSchedule({ ...campaign, status: 'open' }, today).closing
                 const href = `/admin/campaign/${campaign.id}`
                 const items = menuItems(campaign, phase)
                 return (
@@ -181,16 +182,14 @@ export function OrganizerHome({ campaigns, autoCloseNotificationState, unboundRe
                       {phase === 'draft' ? <span className="organizer-muted">發布後開始接單</span> : (
                         <div className="organizer-progress-cell">
                           <span className="ui-num">{progress.text}</span>
-                          <ProgressBar label={`${campaign.title}成團進度`} value={progress.value} max={progress.max} />
+                          <ProgressBar label={`${campaign.title}成團進度`} value={progress.value} max={progress.max} formed={progress.formed} />
                           <small className={progress.formed ? 'is-formed' : undefined}>{progress.statusText}</small>
                         </div>
                       )}
                     </td>
                     <td data-label="訂單" className="organizer-cell-fact ui-num">{phase === 'draft' ? '—' : campaign.orderCount}</td>
                     <td data-label="結單" className="organizer-cell-fact">
-                      {phase === 'closed' ? '—' : closing
-                        ? <span className={closing.soon ? 'organizer-soon' : undefined}>{closing.when}</span>
-                        : <span className="organizer-muted">未設定</span>}
+                      {closing ? <span className={closing.soon ? 'organizer-soon' : undefined}>{closing.value}</span> : '—'}
                     </td>
                     <td data-label="開團" className="organizer-cell-fact ui-num">
                       {/* One wrapper, so phone cards keep "最後編輯" next to its time. */}

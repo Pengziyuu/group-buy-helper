@@ -43,6 +43,18 @@ afterEach(() => {
 })
 
 describe('OverviewSection', () => {
+  it('marks a formed campaign in green and says whether it still takes orders', () => {
+    const formed = { ...summary, formed: true, remaining: 0 }
+    const view = renderOverview({ summary: formed })
+    const kpis = screen.getByRole('list', { name: '團購數字' })
+    expect(within(kpis).getByText('已成團，仍可下單')).toHaveClass('is-formed')
+    expect(within(kpis).getByRole('progressbar', { name: '成團進度' })).toHaveAttribute('data-formed', 'true')
+    view.unmount()
+
+    renderOverview({ summary: formed, status: 'closed' })
+    expect(within(screen.getByRole('list', { name: '團購數字' })).getByText('已成團')).toHaveClass('is-formed')
+  })
+
   it('shows progress, orders, total and today for an open campaign', () => {
     renderOverview()
 

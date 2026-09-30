@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { describeAutoClose, normalizeArrivalLabel } from '../../domain/campaignSchedule'
+import { normalizeArrivalLabel } from '../../domain/campaignSchedule'
+import { describeResidentSchedule } from '../resident/residentSchedule'
 import { campaignStatusAction, campaignStatusLabel, type CampaignStatus } from '../../domain/orderWorkflow'
 import { RelativeTime } from '../relativeTime'
 import { campaignSectionPath, type WorkspaceSection } from '../../routing'
@@ -22,6 +23,7 @@ export type WorkspaceCampaign = {
   openedAt: string | null
   autoCloseAt?: string | null
   arrivalLabel?: string
+  thresholdKind?: 'quantity' | 'amount'
   orderCount: number | null
   residentHref: string | null
 }
@@ -58,7 +60,8 @@ export function WorkspaceRail({ campaign, section, now, onSetCampaignStatus, onC
   const action = campaignStatusAction(campaign.status)
   const confirmation = STATUS_CONFIRMATIONS[action.next === 'closed' ? 'closed' : 'open']
   const isOpen = campaign.status === 'open'
-  const closing = describeAutoClose(campaign.autoCloseAt, now ?? new Date())
+  // Same words residents read: a time, 額滿自動結單, or 手動決定結單.
+  const closing = describeResidentSchedule(campaign, now ?? new Date()).closing
   const badge = !campaign.published
     ? { tone: 'warning' as const, label: '草稿' }
     : { tone: isOpen ? 'success' as const : 'neutral' as const, label: campaignStatusLabel(campaign.status) }
@@ -105,7 +108,7 @@ export function WorkspaceRail({ campaign, section, now, onSetCampaignStatus, onC
         )}
       </div>
       <dl className="organizer-rail-facts">
-        {isOpen && <div><dt>結單</dt><dd>{closing ? closing.when : '未設定'}</dd></div>}
+        {isOpen && <div><dt>結單</dt><dd>{closing?.value}</dd></div>}
         <div><dt>到貨</dt><dd>{normalizeArrivalLabel(campaign.arrivalLabel)}</dd></div>
         <div><dt>開團</dt><dd>{campaign.openedAt ? <RelativeTime value={campaign.openedAt} now={now ?? new Date()} /> : '尚未發布'}</dd></div>
       </dl>

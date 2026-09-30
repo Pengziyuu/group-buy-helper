@@ -39,7 +39,7 @@ export function OverviewSection({ campaignId, campaignTitle, openedAt, summary, 
     ? `${currency(summary.amount)} / ${currency(summary.threshold)}`
     : `${summary.quantity} / ${summary.threshold} ${unit}`
   const remainingText = summary.formed
-    ? '已成團'
+    ? status === 'open' ? '已成團，仍可下單' : '已成團'
     : usesAmount ? `還差 ${currency(summary.remaining)} 成團` : `還差 ${summary.remaining} ${unit}成團`
   const latest = latestOrders(summary.orderRows)
   const largestItem = Math.max(1, ...summary.itemRows.map((item) => item.quantity))
@@ -61,8 +61,8 @@ export function OverviewSection({ campaignId, campaignTitle, openedAt, summary, 
         <li className="organizer-kpi is-progress">
           <span>成團進度</span>
           <strong className="ui-num">{progressText}</strong>
-          <ProgressBar label="成團進度" value={progressValue} max={summary.threshold} />
-          <small>{remainingText}</small>
+          <ProgressBar label="成團進度" value={progressValue} max={summary.threshold} formed={summary.formed} />
+          <small className={summary.formed ? 'is-formed' : undefined}>{remainingText}</small>
         </li>
         <li className="organizer-kpi"><span>訂單</span><strong className="ui-num">{summary.orderCount} 筆</strong></li>
         <li className="organizer-kpi"><span>預估總額</span><strong className="ui-num">{currency(summary.amount)}</strong></li>

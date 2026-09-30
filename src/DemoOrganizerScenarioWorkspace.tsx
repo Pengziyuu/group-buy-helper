@@ -62,6 +62,7 @@ export function DemoOrganizerScenarioWorkspace({ scenario, requestedSection }: {
         openedAt: content.openedAt,
         autoCloseAt: content.autoCloseAt ?? null,
         arrivalLabel: content.arrivalLabel,
+        thresholdKind: content.thresholdKind ?? 'quantity',
         orderCount: orders.length,
         residentHref,
       }}

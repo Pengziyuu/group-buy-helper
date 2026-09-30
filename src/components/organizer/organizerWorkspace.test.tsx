@@ -55,6 +55,12 @@ describe('workspace sections', () => {
 })
 
 describe('WorkspaceRail', () => {
+  it('names how a campaign without a closing time closes, in the residents’ words', () => {
+    renderRail({ campaign: { ...openCampaign, autoCloseAt: null, thresholdKind: 'amount' } })
+    expect(within(screen.getByRole('complementary', { name: '團購工作區' })).getByText('手動決定結單')).toBeInTheDocument()
+    expect(screen.queryByText('未設定')).not.toBeInTheDocument()
+  })
+
   it('shows the campaign, its schedule and the sections an open campaign can use', () => {
     renderRail()
 
