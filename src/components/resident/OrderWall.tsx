@@ -19,12 +19,18 @@ type OrderWallProps = {
   currentCustomerId?: string
   quantityUnit: string
   itemDisplayLabel: (code: string) => string
+  /** The campaign's item codes in listing order; each order's items follow it rather than the order they were tapped. */
+  itemCodes?: string[]
   now?: Date
 }
 
 const orderQuantity = (items: Record<string, number>) => Object.values(items).reduce((sum, quantity) => sum + quantity, 0)
 
-export function OrderWall({ orders, currentCustomerId, quantityUnit, itemDisplayLabel, now }: OrderWallProps) {
+export function OrderWall({ orders, currentCustomerId, quantityUnit, itemDisplayLabel, itemCodes = [], now }: OrderWallProps) {
+  const rank = (code: string) => {
+    const index = itemCodes.indexOf(code)
+    return index < 0 ? Number.MAX_SAFE_INTEGER : index
+  }
   const [showAll, setShowAll] = useState(false)
   const currentTime = useNow(now)
   const sorted = [...orders].sort((left, right) => Date.parse(left.orderedAt) - Date.parse(right.orderedAt)
@@ -52,6 +58,7 @@ export function OrderWall({ orders, currentCustomerId, quantityUnit, itemDisplay
                   <p className="resident-wall-name"><strong>{order.name}</strong>{own && <span>（你）</span>}</p>
                   <p>{Object.entries(order.items)
                     .filter(([, quantity]) => quantity > 0)
+                    .sort(([left], [right]) => rank(left) - rank(right) || left.localeCompare(right))
                     .map(([code, quantity]) => `${itemDisplayLabel(code)}+${quantity}`)
                     .join('、') || '無正式品項'}</p>
                   {customItems.length > 0 && (

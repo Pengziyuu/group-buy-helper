@@ -142,6 +142,18 @@ describe('resident campaign page parts', () => {
     expect(row).toHaveAttribute('data-selected', 'true')
   })
 
+  it('lists each order’s items in the campaign’s item order, not the order they were tapped', () => {
+    const order: VisibleOrder = {
+      customerId: 'a', name: '阿宅', period: 2, unit: '2A1', householdKind: 'resident',
+      // Insertion order mirrors tapping E before A, and a code the campaign lists before A.
+      items: { E: 1, A: 2, ITEM0: 1 },
+      orderedAt: '2026-08-14T00:00:00Z', updatedAt: '2026-08-14T00:00:00Z',
+    }
+    const codes = ['ITEM0', 'A', 'B', 'E']
+    render(<OrderWall orders={[order]} quantityUnit="包" itemCodes={codes} itemDisplayLabel={(code) => code === 'ITEM0' ? '甲' : code} />)
+    expect(screen.getByText('甲+1、A+2、E+1')).toBeInTheDocument()
+  })
+
   it('colours letter avatars by name so the same person always gets the same colour', () => {
     const order = (customerId: string, name: string): VisibleOrder => ({
       customerId, name, period: 2, unit: '2A1', householdKind: 'resident', items: { A: 1 },

@@ -477,6 +477,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
           currentCustomerId={currentResident?.customerId}
           quantityUnit={quantityUnit}
           itemDisplayLabel={itemDisplayLabel}
+          itemCodes={publishedCampaign.items.map((item) => item.code)}
         />
       </main>
       <footer className="resident-footer">
