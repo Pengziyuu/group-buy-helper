@@ -106,7 +106,7 @@ export function OverviewSection({ campaignId, campaignTitle, openedAt, summary, 
                   <span className="organizer-chips">
                     {orderItemChips(order, summary.itemRows).map((chip) => (
                       <span key={chip.key} className={chip.custom ? 'organizer-chip is-custom' : 'organizer-chip'} title={chip.custom ? undefined : chip.name}>
-                        {chip.custom ? `${chip.label} ×${chip.quantity}・另計` : `${chip.label} ${chip.quantity}`}
+                        {chip.custom ? `${chip.label} ×${chip.quantity}・另計` : `${chip.label}+${chip.quantity}`}
                       </span>
                     ))}
                   </span>
