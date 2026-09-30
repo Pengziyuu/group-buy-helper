@@ -63,7 +63,9 @@ function myOrder(items: Record<string, number>, minutesAgo: number, now: number,
   return { ...me, pictureUrl: null, items, customItems, orderedAt: at, updatedAt: at }
 }
 
-export function demoResidentScenarios(now = Date.now()): DemoResidentScenario[] {
+export function demoResidentScenarios(clock = Date.now()): DemoResidentScenario[] {
+  // Whole minutes, like closing times set in the editor, so the demo content opens up to date.
+  const now = Math.floor(clock / MINUTE) * MINUTE
   const openedHoursAgo = (hours: number) => new Date(now - hours * HOUR).toISOString()
   return [
     {

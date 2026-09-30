@@ -58,6 +58,14 @@ describe('demo campaign draft and publishing store', () => {
     expect(campaignContentEquals(original, reordered)).toBe(false)
   })
 
+  it('treats the same closing moment as equal whatever its timestamp format', () => {
+    // The editor writes .000Z; the database returns +00:00.
+    const edited = { ...original, autoCloseAt: '2026-10-04T15:00:00.000Z' }
+    expect(campaignContentEquals(edited, { ...original, autoCloseAt: '2026-10-04T15:00:00+00:00' })).toBe(true)
+    expect(campaignContentEquals(edited, { ...original, autoCloseAt: '2026-10-04T15:01:00+00:00' })).toBe(false)
+    expect(campaignContentEquals(edited, { ...original, autoCloseAt: null })).toBe(false)
+  })
+
   it('includes discount settings and item eligibility in draft equality', () => {
     const discounted = {
       ...original,

@@ -511,6 +511,30 @@ describe('organizer campaign editor', () => {
     expect(screen.queryByRole('link', { name: /預覽住戶頁/ })).not.toBeInTheDocument()
   })
 
+  it('opens up to date when the stored campaign only differs from the editor in representation', () => {
+    // As the database returns it: a leftover amount threshold on a quantity campaign, a promotion with
+    // its keys in another order, and a +00:00 closing time the editor rewrites as .000Z.
+    const stored: CampaignContent = {
+      title: '資料庫團', unitPrice: 50, threshold: 10, thresholdKind: 'quantity', amountThreshold: 3000,
+      mixMatchDiscount: { rate: 0.9, minimumQuantity: 3, name: '任選三件9折' } as CampaignContent['mixMatchDiscount'],
+      baseDiscountRate: 1, arrivalLabel: '10/07', autoCloseAt: '2026-10-04T15:00:00+00:00',
+      announcement: '公告', images: [], openedAt: '2026-09-20T00:00:00.000Z',
+      items: [{ code: 'A', name: '商品', unitPrice: 50, active: true, discountEligible: true }],
+    }
+    render(<AdminApp initialContent={stored} publishedContent={stored} />)
+    expect(screen.getByText('住戶頁已是最新')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '更新住戶頁' })).toBeDisabled()
+  })
+
+  it('opens up to date after the campaign closed on schedule, though the past time cannot be re-entered', () => {
+    const closed: CampaignContent = {
+      title: '已結單團', unitPrice: 50, threshold: 10, announcement: '公告', images: [], openedAt: '2026-09-01T00:00:00.000Z',
+      autoCloseAt: '2026-09-10T04:00:00+00:00', items: [{ code: 'A', name: '商品', unitPrice: 50, active: true }],
+    }
+    render(<AdminApp initialContent={closed} publishedContent={closed} campaignStatus="closed" />)
+    expect(screen.getByText('住戶頁已是最新')).toBeInTheDocument()
+  })
+
   it('uploads selected images right away and adds only their public URLs', async () => {
     const user = userEvent.setup()
     const onUploadImage = vi.fn().mockResolvedValue('http://storage.test/campaign/image.png')

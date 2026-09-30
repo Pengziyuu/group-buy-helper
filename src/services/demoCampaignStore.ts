@@ -144,6 +144,12 @@ function saveCampaign(key: string, content: CampaignContent, storage = browserSt
   storage.setItem(key, JSON.stringify(normalizeCampaignContent(content)))
 }
 
+// The editor writes "…:00.000Z" while the database returns "…:00+00:00"; compare the instant, not the text.
+function sameMoment(left: string | null | undefined, right: string | null | undefined): boolean {
+  if (!left || !right) return !left && !right
+  return Date.parse(left) === Date.parse(right)
+}
+
 export function campaignContentEquals(left: CampaignContent, right: CampaignContent): boolean {
   return left.title === right.title
     && left.unitPrice === right.unitPrice
@@ -158,7 +164,7 @@ export function campaignContentEquals(left: CampaignContent, right: CampaignCont
     && (left.baseDiscountRate ?? 1) === (right.baseDiscountRate ?? 1)
     && JSON.stringify(left.mixMatchDiscount ?? null) === JSON.stringify(right.mixMatchDiscount ?? null)
     && normalizeArrivalLabel(left.arrivalLabel) === normalizeArrivalLabel(right.arrivalLabel)
-    && (left.autoCloseAt ?? null) === (right.autoCloseAt ?? null)
+    && sameMoment(left.autoCloseAt, right.autoCloseAt)
     && left.announcement === right.announcement
     && left.images.length === right.images.length
     && left.images.every((image, index) => image.src === right.images[index]?.src && image.alt === right.images[index]?.alt)

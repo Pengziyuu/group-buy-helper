@@ -73,9 +73,15 @@ type AdminAppProps = {
  * (the lowest active price), so compare each item's effective price instead of that summary field.
  */
 function sameAsPublished(current: CampaignContent, published: CampaignContent): boolean {
+  // Also ignore what the editor rebuilds differently from the stored row: an amount threshold left over
+  // on a quantity campaign, and the promotion's key order. Closing times are compared as instants.
   const comparable = (content: CampaignContent): CampaignContent => ({
     ...content,
     unitPrice: 0,
+    amountThreshold: (content.thresholdKind ?? 'quantity') === 'amount' ? content.amountThreshold ?? null : null,
+    mixMatchDiscount: content.mixMatchDiscount
+      ? { name: content.mixMatchDiscount.name.trim(), minimumQuantity: content.mixMatchDiscount.minimumQuantity, rate: content.mixMatchDiscount.rate }
+      : null,
     items: content.items.map((item) => ({ ...item, unitPrice: item.unitPrice ?? content.unitPrice })),
   })
   return campaignContentEquals(comparable(current), comparable(published))
@@ -406,8 +412,12 @@ function AdminApp({
     lastSavedAt,
   })
   const publishing = busyAction === 'publish'
-  const upToDate = lastPublished !== null && sameAsPublished(currentContent(), lastPublished)
-  // Work still in progress explains itself first; only then does "nothing to update" apply.
+  // A closing time already past is invalid to publish, but for this comparison it is still the time
+  // shown in the fields — otherwise every campaign that closed on schedule would look edited.
+  const enteredAutoCloseAt = autoCloseEnabled && validDateInput(autoCloseDate) && validTimeInput(autoCloseTime)
+    ? taipeiDateTimeIso(autoCloseDate, autoCloseTime)
+    : null
+  const upToDate = lastPublished !== null && sameAsPublished({ ...currentContent(), autoCloseAt: enteredAutoCloseAt }, lastPublished)  // Work still in progress explains itself first; only then does "nothing to update" apply.
   const publishDisabledReason = publishing
     ? null
     : publishBlockReason({ blockers, uploading: uploadingImage, savePending: autoSaving || draftSavePending })
