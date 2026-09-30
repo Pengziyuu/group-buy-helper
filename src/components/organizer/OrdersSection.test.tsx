@@ -49,6 +49,20 @@ describe('OrdersSection', () => {
     expect(screen.queryByText(/已付款|未付款/)).not.toBeInTheDocument()
   })
 
+  it('shows each resident’s LINE picture, or a coloured initial without one', () => {
+    const withPictures: OrganizerOrderSummary = {
+      ...summary,
+      orderRows: summary.orderRows.map((order) => ({ ...order, pictureUrl: order.name === '斯祈' ? 'https://profile.line-scdn.net/abc' : null })),
+    }
+    renderOrders({ summary: withPictures })
+
+    const pictured = rowOf(/2K13\s*斯祈/)
+    expect(within(pictured).getByRole('img', { name: '斯祈的LINE頭貼' })).toHaveAttribute('src', 'https://profile.line-scdn.net/abc')
+    const initial = rowOf(/H11\s*佩怡/).querySelector('.ui-avatar')
+    expect(initial).toHaveTextContent('佩')
+    expect(initial).toHaveAttribute('data-tone', expect.stringMatching(/^[1-6]$/))
+  })
+
   it('uses the campaign quantity unit and marks extra items as priced separately', () => {
     const boxSummary = buildOrganizerOrderSummary({
       orders: initialOrders.map((order, index) => index === 0

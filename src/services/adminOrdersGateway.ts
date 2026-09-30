@@ -12,6 +12,7 @@ type ItemRow = { code: string; name: string; unit_price: number; active: boolean
 type WallRow = {
   order_id: string | null
   customer_name: string | null
+  picture_url?: string | null
   period: number | null
   unit: string | null
   household_kind: string | null
@@ -89,7 +90,7 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
           .order('sort_order'),
         client
           .from('organizer_order_wall')
-          .select('order_id,customer_name,period,unit,household_kind,item_code,qty,list_unit_price,discount_type,discount_rate,final_unit_price,promotion_name,custom_items,ordered_at,order_updated_at')
+          .select('order_id,customer_name,picture_url,period,unit,household_kind,item_code,qty,list_unit_price,discount_type,discount_rate,final_unit_price,promotion_name,custom_items,ordered_at,order_updated_at')
           .eq('campaign_id', campaignId)
           .order('period'),
         client
@@ -127,6 +128,7 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
           orderId: row.order_id,
           customerId: row.order_id,
           name: row.customer_name,
+          pictureUrl: row.picture_url ?? null,
           period: row.period,
           unit: row.unit,
           householdKind: (row.household_kind ?? (row.period === null ? 'other' : 'resident')) as HouseholdKind,

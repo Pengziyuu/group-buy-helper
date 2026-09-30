@@ -16,6 +16,7 @@ export type OrganizerVisibleOrder = {
   orderId?: string
   customerId: string
   name: string
+  pictureUrl?: string | null
   period: number | null
   unit: string | null
   householdKind?: HouseholdKind

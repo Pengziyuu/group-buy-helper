@@ -4,6 +4,7 @@ import type { CampaignStatus } from '../../domain/orderWorkflow'
 import { EmptyState } from '../ui/AsyncState'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { FeedbackMessage } from '../ui/FeedbackMessage'
+import { Avatar } from '../ui/Avatar'
 import { Menu } from '../ui/Menu'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import { ExportOrdersButton } from './ExportOrdersButton'
@@ -122,8 +123,13 @@ export function OrdersSection({
                     return (
                       <tr key={order.orderId} aria-busy={busy || undefined}>
                         <th scope="row">
-                          <span className="organizer-order-household">{orderHouseholdLabel(order)}</span>
-                          {' '}<strong>{order.name}</strong>
+                          <span className="organizer-order-person">
+                            <Avatar className="organizer-avatar" name={order.name} pictureUrl={order.pictureUrl} />
+                            <span>
+                              <span className="organizer-order-household">{orderHouseholdLabel(order)}</span>
+                              {' '}<strong>{order.name}</strong>
+                            </span>
+                          </span>
                         </th>
                         <td data-label="訂購內容" className="organizer-cell-items">
                           {chips.length === 0 ? <span className="organizer-muted">無正式品項</span> : (

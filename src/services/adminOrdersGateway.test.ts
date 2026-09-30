@@ -98,6 +98,30 @@ describe('Supabase admin orders gateway', () => {
       .rejects.toThrow('取消訂單失敗：本團已結單，不能取消訂單')
   })
 
+  it('carries each resident’s LINE picture through for the order list', async () => {
+    const wallQuery = queryResult([
+      { order_id: 'order-9', customer_name: '丙', picture_url: 'https://profile.line-scdn.net/abc', period: 2, unit: '2A1', household_kind: 'resident', item_code: 'A', qty: 1, list_unit_price: 45, discount_type: 'base', discount_rate: 1, final_unit_price: 45, promotion_name: null, ordered_at: '2026-08-14T00:10:00Z', order_updated_at: '2026-08-14T00:10:00Z' },
+      { order_id: 'order-8', customer_name: '丁', picture_url: null, period: 2, unit: '2A2', household_kind: 'resident', item_code: 'A', qty: 1, list_unit_price: 45, discount_type: 'base', discount_rate: 1, final_unit_price: 45, promotion_name: null, ordered_at: '2026-08-14T00:11:00Z', order_updated_at: '2026-08-14T00:11:00Z' },
+    ])
+    const itemQuery = queryResult([{ code: 'A', name: '牛奶', unit_price: 45, active: true, sort_order: 1 }])
+    const statusQuery = queryResult([])
+    const single = vi.fn().mockResolvedValue({ data: { status: 'open' }, error: null })
+    const campaignQuery = { select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single }) }) }
+    const from = vi.fn((table: string) => {
+      if (table === 'campaign_item') return itemQuery
+      if (table === 'organizer_order_status') return statusQuery
+      if (table === 'campaign_public') return campaignQuery
+      return wallQuery
+    })
+    const client = { from, rpc: vi.fn() } as unknown as AdminOrdersSupabaseClient
+
+    const summary = await createAdminOrdersGateway(client).loadSummary('campaign-1', 10)
+
+    expect(wallQuery.select).toHaveBeenCalledWith(expect.stringContaining('picture_url'))
+    expect(summary.orderRows.find((row) => row.orderId === 'order-9')?.pictureUrl).toBe('https://profile.line-scdn.net/abc')
+    expect(summary.orderRows.find((row) => row.orderId === 'order-8')?.pictureUrl).toBeNull()
+  })
+
   it('carries the household kind through so the panel can label people outside the community', async () => {
     const wallQuery = queryResult([
       { order_id: 'order-9', customer_id: 'c9', customer_name: '丙', period: null, unit: null, household_kind: 'other', item_code: 'A', qty: 1, list_unit_price: 45, discount_type: 'base', discount_rate: 1, final_unit_price: 45, promotion_name: null, ordered_at: '2026-08-14T00:10:00Z', order_updated_at: '2026-08-14T00:10:00Z' },

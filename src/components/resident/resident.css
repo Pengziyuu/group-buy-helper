@@ -4,12 +4,6 @@
 .resident-topbar { position: sticky; top: 0; z-index: var(--z-sticky); display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: 52px; padding: 0 var(--space-4); border-bottom: 1px solid var(--color-border); background: var(--color-sticky-bg); -webkit-backdrop-filter: var(--blur-sticky); backdrop-filter: var(--blur-sticky); }
 .resident-topbar-brand { font-size: var(--font-size-dense); font-weight: var(--font-weight-strong); }
 .resident-avatar { width: 36px; height: 36px; flex: none; display: grid; place-items: center; overflow: hidden; border-radius: 50%; background: var(--color-neutral-subtle); color: var(--color-text-secondary); font-size: var(--font-size-dense); font-weight: var(--font-weight-strong); object-fit: cover; }
-.resident-avatar[data-tone="1"] { background: var(--color-avatar-1-bg); color: var(--color-avatar-1-text); }
-.resident-avatar[data-tone="2"] { background: var(--color-avatar-2-bg); color: var(--color-avatar-2-text); }
-.resident-avatar[data-tone="3"] { background: var(--color-avatar-3-bg); color: var(--color-avatar-3-text); }
-.resident-avatar[data-tone="4"] { background: var(--color-avatar-4-bg); color: var(--color-avatar-4-text); }
-.resident-avatar[data-tone="5"] { background: var(--color-avatar-5-bg); color: var(--color-avatar-5-text); }
-.resident-avatar[data-tone="6"] { background: var(--color-avatar-6-bg); color: var(--color-avatar-6-text); }
 .resident-account { display: inline-grid; place-items: center; width: var(--touch-target); height: var(--touch-target); }
 .resident-account-menu .ui-menu-trigger { padding: 0; border: 0; border-radius: 50%; background: transparent; }
 

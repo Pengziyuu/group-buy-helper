@@ -175,3 +175,12 @@ div.ui-gallery-main { cursor: default; }
   .ui-dialog-actions { display: grid; }
   .ui-dialog-actions .ui-button { width: 100%; }
 }
+
+/* Avatar: a LINE picture or an initial on one of six tones picked from the name (see Avatar.tsx). */
+.ui-avatar { flex: none; display: grid; place-items: center; overflow: hidden; border-radius: 50%; background: var(--color-neutral-subtle); color: var(--color-text-secondary); font-weight: var(--font-weight-strong); object-fit: cover; }
+.ui-avatar[data-tone="1"] { background: var(--color-avatar-1-bg); color: var(--color-avatar-1-text); }
+.ui-avatar[data-tone="2"] { background: var(--color-avatar-2-bg); color: var(--color-avatar-2-text); }
+.ui-avatar[data-tone="3"] { background: var(--color-avatar-3-bg); color: var(--color-avatar-3-text); }
+.ui-avatar[data-tone="4"] { background: var(--color-avatar-4-bg); color: var(--color-avatar-4-text); }
+.ui-avatar[data-tone="5"] { background: var(--color-avatar-5-bg); color: var(--color-avatar-5-text); }
+.ui-avatar[data-tone="6"] { background: var(--color-avatar-6-bg); color: var(--color-avatar-6-text); }
