@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { OrganizerOrderSummary } from '../../domain/adminOrders'
 import type { CampaignStatus } from '../../domain/orderWorkflow'
 import { campaignSectionPath } from '../../routing'
+import { Avatar } from '../ui/Avatar'
 import { ProgressBar } from '../ui/ProgressBar'
 import { ExportOrdersButton } from './ExportOrdersButton'
 import { readLastSeen, writeLastSeen } from './lastSeenStore'
@@ -102,7 +103,10 @@ export function OverviewSection({ campaignId, campaignTitle, openedAt, summary, 
                   {isNewSince(order, lastSeen)
                     ? <span className="organizer-new-dot"><span className="ui-visually-hidden">上次查看後有更新</span></span>
                     : <span aria-hidden="true" />}
-                  <span className="organizer-latest-who"><strong>{order.name}</strong><small>{orderHouseholdLabel(order)}</small></span>
+                  <span className="organizer-order-person">
+                    <Avatar className="organizer-avatar" name={order.name} pictureUrl={order.pictureUrl} />
+                    <span className="organizer-latest-who"><strong>{order.name}</strong><small>{orderHouseholdLabel(order)}</small></span>
+                  </span>
                   <span className="organizer-chips">
                     {orderItemChips(order, summary.itemRows).map((chip) => (
                       <span key={chip.key} className={chip.custom ? 'organizer-chip is-custom' : 'organizer-chip'} title={chip.custom ? undefined : chip.name}>
