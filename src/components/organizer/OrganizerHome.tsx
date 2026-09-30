@@ -116,8 +116,8 @@ export function OrganizerHome({ campaigns, autoCloseNotificationState, unboundRe
           onChange={setFilter}
           options={[
             { value: 'all', label: '全部', count: counts.all },
-            { value: 'open', label: '開團中', count: counts.open },
             { value: 'draft', label: '草稿', count: counts.draft },
+            { value: 'open', label: '開團中', count: counts.open },
             { value: 'closed', label: '已結單', count: counts.closed },
           ]}
         />

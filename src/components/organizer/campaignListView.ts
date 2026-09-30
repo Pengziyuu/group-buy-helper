@@ -3,7 +3,8 @@ import type { CampaignListItem } from '../../services/campaignManagementGateway'
 export type CampaignPhase = 'open' | 'draft' | 'closed'
 export type CampaignFilter = 'all' | CampaignPhase
 
-const PHASE_ORDER: Record<CampaignPhase, number> = { open: 0, draft: 1, closed: 2 }
+// The lifecycle order, shared by the table rows and the filter options.
+const PHASE_ORDER: Record<CampaignPhase, number> = { draft: 0, open: 1, closed: 2 }
 const currency = new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', maximumFractionDigits: 0 })
 
 const timestamp = (value: string | null | undefined) => Date.parse(value ?? '') || 0

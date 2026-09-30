@@ -40,13 +40,15 @@ function renderHome(props: Partial<Parameters<typeof OrganizerHome>[0]> = {}) {
 const rowOf = (title: string) => screen.getByRole('link', { name: title }).closest('tr') as HTMLElement
 
 describe('OrganizerHome', () => {
-  it('lists open, draft, then closed campaigns in one table', () => {
+  it('lists draft, open, then closed campaigns in one table, with the filters in the same order', () => {
     renderHome({ campaigns: [closed, draft, open, arrived] })
 
     expect(screen.getByRole('heading', { level: 1, name: '團購' })).toBeInTheDocument()
     const table = screen.getByRole('table', { name: '團購列表' })
     expect(within(table).getAllByRole('rowheader').map((cell) => within(cell).getByRole('link').textContent))
-      .toEqual(['冰餅團', '新草稿', '已結單水果團', '已到貨麵包團'])
+      .toEqual(['新草稿', '冰餅團', '已結單水果團', '已到貨麵包團'])
+    expect(screen.getAllByRole('radio').map((option) => (option as HTMLInputElement).labels?.[0]?.textContent?.replace(/\s+/g, ' ').trim()))
+      .toEqual(['全部 4', '草稿 1', '開團中 1', '已結單 2'])
     expect(screen.getByRole('link', { name: '冰餅團' })).toHaveAttribute('href', '/admin/campaign/open-id')
     expect(screen.queryByText('工作概況')).not.toBeInTheDocument()
   })

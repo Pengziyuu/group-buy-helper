@@ -20,7 +20,7 @@ describe('campaign list view', () => {
     expect(campaignPhase(campaign({ id: 'a', status: 'arrived' }))).toBe('closed')
   })
 
-  it('groups open, draft, then closed campaigns with the newest first in each group', () => {
+  it('groups draft, open, then closed campaigns (the lifecycle order) with the newest first in each group', () => {
     const sorted = sortCampaigns([
       campaign({ id: 'closed-old', status: 'closed', openedAt: '2026-08-01T00:00:00Z' }),
       campaign({ id: 'draft-old', openedAt: null, updatedAt: '2026-09-02T00:00:00Z' }),
@@ -29,7 +29,7 @@ describe('campaign list view', () => {
       campaign({ id: 'draft-new', openedAt: null, updatedAt: '2026-09-10T00:00:00Z' }),
       campaign({ id: 'open-new', openedAt: '2026-09-05T00:00:00Z' }),
     ])
-    expect(sorted.map((item) => item.id)).toEqual(['open-new', 'open-old', 'draft-new', 'draft-old', 'closed-new', 'closed-old'])
+    expect(sorted.map((item) => item.id)).toEqual(['draft-new', 'draft-old', 'open-new', 'open-old', 'closed-new', 'closed-old'])
   })
 
   it('filters and counts by phase', () => {
