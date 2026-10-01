@@ -130,16 +130,17 @@ export default function ResidentCampaignListApp({ identity, campaigns, onLogout,
         <ResidentAccount identity={identity} onLogout={onLogout} />
       </header>
       <main className="resident-list">
-        <div className="resident-list-heading">
-          <h1>團購</h1>
-          <span className={`resident-list-count${openCampaigns.length === 0 ? ' is-empty' : ''}`}>
-          {openCampaigns.length > 0 ? `${openCampaigns.length} 團開團中` : '目前沒有開團中的團購'}
-          </span>
-        </div>
+        <h1 className="ui-visually-hidden">團購</h1>
         {campaigns.length === 0 && <EmptyState title="目前還沒有團購" description="團主開團後會出現在這裡。" />}
+        {campaigns.length > 0 && openCampaigns.length === 0 && (
+          <p className="resident-list-count is-empty">目前沒有開團中的團購</p>
+        )}
         {openCampaigns.length > 0 && (
           <section className="resident-list-group" aria-labelledby="open-campaigns-heading">
-            <h2 id="open-campaigns-heading">開團中</h2>
+            <div className="resident-list-heading">
+              <h2 id="open-campaigns-heading">開團中</h2>
+              <span className="resident-list-count">{openCampaigns.length} 團</span>
+            </div>
             <div className="resident-campaign-grid" data-group="open">
               {openCampaigns.map((campaign) => <CampaignRow key={campaign.slug} campaign={campaign} now={now} />)}
             </div>
