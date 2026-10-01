@@ -171,7 +171,7 @@ describe('OrganizerHome', () => {
     expect(screen.getAllByRole('menuitem')[0]).toHaveAccessibleName('複製住戶連結 冰餅團')
     await user.click(screen.getByRole('menuitem', { name: '複製住戶連結 冰餅團' }))
 
-    expect(onCopyResidentLink).toHaveBeenCalledWith('/campaign/open-slug')
+    expect(onCopyResidentLink).toHaveBeenCalledWith('/c/open-slug')
     expect(await screen.findByRole('status')).toHaveTextContent('已複製冰餅團住戶連結')
   })
 
@@ -181,7 +181,7 @@ describe('OrganizerHome', () => {
 
     await user.click(screen.getByRole('button', { name: '更多操作 冰餅團' }))
     const view = screen.getByRole('menuitem', { name: '查看住戶頁 冰餅團' })
-    expect(view).toHaveAttribute('href', '/campaign/open-slug')
+    expect(view).toHaveAttribute('href', '/c/open-slug')
     expect(view).toHaveAttribute('target', '_blank')
     await user.keyboard('{Escape}')
 

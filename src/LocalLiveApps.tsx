@@ -19,7 +19,7 @@ import { isUnboundResident } from './components/organizer/residentView'
 import type { WorkspaceCampaign } from './components/organizer/WorkspaceRail'
 import { resolveWorkspaceSection } from './components/organizer/workspaceSections'
 import type { LiveState } from './components/organizer/LiveStatus'
-import type { ResidentFilter, WorkspaceSection } from './routing'
+import { residentCampaignPath, type ResidentFilter, type WorkspaceSection } from './routing'
 import './LocalLiveApps.css'
 import {
   createAdminCampaignGateway,
@@ -1093,7 +1093,7 @@ export function LocalLiveAdminApp({
     arrivalLabel: content.arrivalLabel,
     thresholdKind: content.thresholdKind,
     orderCount: orderSummary?.orderCount ?? null,
-    residentHref: residentSlug ? `/campaign/${residentSlug}` : null,
+    residentHref: residentSlug ? residentCampaignPath(residentSlug) : null,
   }
 
   // Templates are taken from what is stored, so an unsaved edit in the editor is not included.

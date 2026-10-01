@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { campaignSectionPath, parseAppRoute, parseResidentFilter, resolveLiffPath, selectAppMode } from './routing'
+import { campaignSectionPath, parseAppRoute, parseResidentFilter, residentCampaignPath, resolveLiffPath, selectAppMode } from './routing'
 
 const campaignId = '8d2f0f6a-1111-4222-8333-123456789abc'
 const campaignSlug = '0123456789abcdef0123456789abcdef0123'
 const inviteSlug = 'abcdef0123456789abcdef0123456789abcd'
+const shortSlug = 'k7qp2xza'
 
 describe('app routing', () => {
   it('opens organizer mode on every organizer page and workspace section', () => {
@@ -30,6 +31,19 @@ describe('app routing', () => {
     expect(parseAppRoute(`/campaign/${campaignSlug}`)).toEqual({ kind: 'resident-campaign', campaignSlug })
     expect(parseAppRoute(`/join/${inviteSlug}`)).toEqual({ kind: 'resident-invite', inviteSlug })
     expect(parseAppRoute('/')).toEqual({ kind: 'resident-default' })
+  })
+
+  it('opens campaigns at the short /c/ address with either the new 8-character code or an existing 36-character one', () => {
+    expect(parseAppRoute(`/c/${shortSlug}`)).toEqual({ kind: 'resident-campaign', campaignSlug: shortSlug })
+    expect(parseAppRoute(`/c/${campaignSlug}`)).toEqual({ kind: 'resident-campaign', campaignSlug })
+    // Links already shared in LINE groups keep working.
+    expect(parseAppRoute(`/campaign/${campaignSlug}`)).toEqual({ kind: 'resident-campaign', campaignSlug })
+    expect(parseAppRoute(`/campaign/${shortSlug}`)).toEqual({ kind: 'resident-campaign', campaignSlug: shortSlug })
+    expect(residentCampaignPath(shortSlug)).toBe(`/c/${shortSlug}`)
+    for (const bad of ['/c/k7qp2xz', '/c/k7qp2xza9', '/c/k7qp-xza', `/c/${shortSlug}/extra`]) {
+      expect(parseAppRoute(bad)).toEqual({ kind: 'not-found' })
+    }
+    expect(resolveLiffPath('/', `?liff.state=%2Fc%2F${shortSlug}`)).toBe(`/c/${shortSlug}`)
   })
 
   it('rejects malformed, encoded, unknown-section, and trailing-segment routes safely', () => {

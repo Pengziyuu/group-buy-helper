@@ -91,7 +91,7 @@ python scripts/start_local_live_demo.py
 ## 4. 路由與runtime模式
 
 - `/`：正式環境為LINE驗證住戶的全部已發布團購列表。
-- `/campaign/<slug>`：單一已發布團購住戶頁；slug是分享能力，不暴露資料庫UUID。
+- `/c/<slug>`：單一已發布團購住戶頁，分享用的短網址；`/campaign/<slug>` 是舊網址，已貼在 LINE 群組的連結仍要能開。2026-10 起新團的 slug 是 8 個 `0-9a-z` 字元（`public.random_campaign_slug()`），之前的團保留 36 個十六進位字元；兩種格式寫在 `src/routing.ts`、`api/campaign-preview.ts`、`campaign_slug_random_format` 與 `campaign_link_preview`，改格式要四處一起改。slug 不暴露資料庫 UUID。
 - `/admin`：團主首頁（所有團購）。
 - `/admin/residents`：住戶（`?filter=unbound|other|blocked` 開啟對應篩選）。
 - `/admin/settings`：設定（自動結單通知、通知測試中心入口、登出）。

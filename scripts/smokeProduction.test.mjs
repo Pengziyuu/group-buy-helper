@@ -11,6 +11,7 @@ function site(overrides = {}) {
     '/': { body: page(['/assets/main.js']), type: 'text/html' },
     '/admin': { body: page(['/assets/admin.js']), type: 'text/html' },
     [`/campaign/${'0'.repeat(36)}`]: { body: page(['/assets/main.js']), type: 'text/html' },
+    [`/c/${'0'.repeat(8)}`]: { body: page(['/assets/main.js']), type: 'text/html' },
     '/assets/main.js': { body: `createClient("https://${PROJECT}.supabase.co")`, type: 'application/javascript' },
     '/assets/admin.js': { body: `createClient("https://${PROJECT}.supabase.co")`, type: 'application/javascript' },
     '/assets/app.css': { body: 'body{}', type: 'text/css' },

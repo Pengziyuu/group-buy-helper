@@ -117,9 +117,9 @@ describe('RuntimeApp localStorage resident demo routing', () => {
 
     expect(screen.getByRole('heading', { name: '團購' })).toBeInTheDocument()
     const campaignLink = screen.getByRole('link', { name: '一涼製冰所 超厚三明治冰餅' })
-    expect(campaignLink).toHaveAttribute('href', '/campaign/0123456789abcdef0123456789abcdef0123')
+    expect(campaignLink).toHaveAttribute('href', '/c/0123456789abcdef0123456789abcdef0123')
 
-    rerender(<RuntimeApp config={config} pathname="/campaign/0123456789abcdef0123456789abcdef0123" />)
+    rerender(<RuntimeApp config={config} pathname="/c/0123456789abcdef0123456789abcdef0123" />)
     expect(screen.getByRole('heading', { name: '一涼製冰所 超厚三明治冰餅' })).toBeInTheDocument()
     expect(screen.getByText('二期 2K13・斯祈')).toBeInTheDocument()
   })
@@ -211,7 +211,7 @@ describe('RuntimeApp localStorage organizer demo routing', () => {
 describe('RuntimeApp demo resident scenarios', () => {
   it('lists every scenario and opens each one on its own page', () => {
     const { unmount } = render(<RuntimeApp config={{ mode: 'demo' }} pathname="/" />)
-    const links = screen.getAllByRole('link').filter((link) => link.getAttribute('href')?.startsWith('/campaign/'))
+    const links = screen.getAllByRole('link').filter((link) => link.getAttribute('href')?.startsWith('/c/'))
     const hrefs = links.map((link) => link.getAttribute('href')!)
     expect(hrefs.length).toBeGreaterThanOrEqual(8)
     unmount()
