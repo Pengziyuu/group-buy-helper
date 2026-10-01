@@ -34,7 +34,8 @@ jobs:
       - name: Build
         run: npm run build
 
-  # Every migration must apply, in order, to an empty database before it is applied to production by hand.
+  # Every migration must apply, in order, to an empty database, and the database must still behave as the
+  # verification scripts expect, before anything is applied to production by hand.
   database:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -53,3 +54,36 @@ jobs:
           applied=$(psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -tAc "select count(*) from supabase_migrations.schema_migrations")
           echo "migration files: $files, applied: $applied"
           test "$files" -eq "$applied"
+      # The verification scripts read API_URL, ANON_KEY and SECRET_KEY for this local stack.
+      - name: Local API keys for the verification scripts
+        run: supabase status -o env | sed -E 's/^([A-Z_]+)="(.*)"$/\1=\2/' >> "$GITHUB_ENV"
+      # Behaviour, not just schema: who can read or change which orders, campaigns, templates and images.
+      - name: Behaviour checks, each on a freshly reset database
+        run: |
+          for script in scripts/verify_*.py; do
+            echo "::group::$script"
+            supabase db reset
+            python3 "$script"
+            echo "::endgroup::"
+          done
+      - name: Rollback-only SQL checks
+        run: |
+          supabase db reset
+          for file in scripts/verify_*.sql supabase/tests/*.sql; do
+            echo "== $file"
+            psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -q -f "$file"
+          done
+      - name: Unit tests for the helper scripts
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
+
+  # Login, ordering and LINE notifications run as Supabase Edge Functions on Deno; check their types.
+  functions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check Edge Functions
+        run: deno check supabase/functions/*/index.ts

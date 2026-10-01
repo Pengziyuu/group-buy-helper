@@ -1,0 +1,55 @@
+# After Vercel finishes a production deploy, open the live site and check what a visitor would hit:
+# every page loads, its scripts and styles come back as scripts and styles, and it still uses the
+# production Supabase project. On failure it opens an issue, so the repository owner gets an email.
+name: Production check
+
+on:
+  deployment_status:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  SITE: https://group-buy-helper-liart.vercel.app
+  SUPABASE_PROJECT: ynezmoyjovjeeimjdizr
+
+jobs:
+  smoke:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Production')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      # The production domain can take a moment to switch to the new deploy, so retry before failing.
+      - name: Check the live site
+        run: |
+          for attempt in 1 2 3; do
+            node scripts/smokeProduction.mjs "$SITE" "$SUPABASE_PROJECT" && exit 0
+            echo "Attempt $attempt failed; retrying in 30s"
+            sleep 30
+          done
+          exit 1
+      - name: Open an issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="正式網站上線檢查失敗"
+          if [ -n "$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number')" ]; then
+            echo "An open issue already tracks this."
+            exit 0
+          fi
+          gh issue create --title "$title" --body "上線後自動檢查 $SITE 沒有通過，住戶或團主可能看到空白頁或錯誤。
+
+          檢查紀錄：$RUN_URL
+          部署的 commit：${{ github.sha }}
+
+          可以先在 Vercel 用 Instant Rollback 退回上一版，再查原因。"
