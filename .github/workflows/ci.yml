@@ -1,5 +1,5 @@
 # Runs the same checks we run locally before merging, on every pull request and every push to main.
-# main's branch protection requires the "checks" job to pass before a pull request can be merged.
+# main's branch protection requires these jobs to pass before a pull request can be merged.
 name: CI
 
 on:
@@ -33,3 +33,23 @@ jobs:
       # Type-checks with tsc -b, then bundles the site the way Vercel does.
       - name: Build
         run: npm run build
+
+  # Every migration must apply, in order, to an empty database before it is applied to production by hand.
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.119.0
+      # Starting applies every migration and seed.sql. Keep the services migrations rely on
+      # (database, auth, storage, API); skip the dashboard, mail, logging and edge functions.
+      - name: Apply all migrations to an empty database
+        run: supabase start -x imgproxy,mailpit,studio,edge-runtime,logflare,vector,supavisor,postgres-meta
+      - name: Every migration file was recorded as applied
+        run: |
+          files=$(ls supabase/migrations/*.sql | wc -l)
+          applied=$(psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -tAc "select count(*) from supabase_migrations.schema_migrations")
+          echo "migration files: $files, applied: $applied"
+          test "$files" -eq "$applied"
