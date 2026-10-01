@@ -1,0 +1,35 @@
+# Runs the same checks we run locally before merging, on every pull request and every push to main.
+# main's branch protection requires the "checks" job to pass before a pull request can be merged.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A newer push to the same branch makes an older run pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Tests
+        run: npm test
+      # Type-checks with tsc -b, then bundles the site the way Vercel does.
+      - name: Build
+        run: npm run build
