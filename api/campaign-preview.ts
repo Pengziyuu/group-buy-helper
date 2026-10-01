@@ -23,14 +23,14 @@ function publicCover(raw: unknown, supabaseUrl: string): string | null {
 
 export default async function campaignPreview(req: Request, res: Response) {
   if (req.method && req.method !== 'GET') return res.status(405).setHeader('Allow', 'GET').send('Method Not Allowed')
-  const deploymentHost = process.env.VERCEL_URL
-  if (!deploymentHost || !/^[a-z0-9.-]+$/i.test(deploymentHost)) return res.status(503).send('Unavailable')
-
+  // Deployment-specific VERCEL_URL can be password-protected even while the
+  // stable Production domain is public. Never inject metadata into that login page.
   let html: string
   try {
-    const response = await fetch(`https://${deploymentHost}/index.html`, { signal: AbortSignal.timeout(6000) })
+    const response = await fetch('https://group-buy-helper-liart.vercel.app/index.html', { signal: AbortSignal.timeout(6000) })
     if (!response.ok) throw new Error('SPA entry unavailable')
     html = await response.text()
+    if (!html.includes('<div id="root"></div>') || !html.includes('property="og:title"')) throw new Error('Unexpected SPA entry')
   } catch { return res.status(503).send('Unavailable') }
 
   const slug = req.query.slug

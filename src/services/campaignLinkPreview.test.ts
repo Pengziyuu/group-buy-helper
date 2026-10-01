@@ -43,6 +43,7 @@ describe('LINE 團購連結預覽', () => {
     expect(state.body).toContain('og:description" content="查看「神農包子 &lt;新品&gt;」團購商品與下單資訊。"')
     expect(state.body).toContain(`og:image" content="${image}"`)
     expect(state.body).toContain('<div id="root"></div>')
+    expect(calls[0]?.url).toBe('https://group-buy-helper-liart.vercel.app/index.html')
     expect(calls[1]?.url).toContain('/rest/v1/rpc/campaign_link_preview')
     expect(calls[1]?.init?.headers).toMatchObject({ apikey: 'public-anon-key' })
     expect(calls[1]?.init?.body).toBe(JSON.stringify({ p_slug: 'a'.repeat(36) }))
