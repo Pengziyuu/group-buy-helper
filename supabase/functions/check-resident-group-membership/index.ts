@@ -1,4 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
+
+// Columns of admin_list_resident_group_statuses that this function reads.
+type StatusRow = { member_code: string; group_status: string | null; group_checked_at: string | null }
 import { corsHeaders, jsonResponse, readJsonBodyWithLimit } from '../_shared/http.ts'
 import { checkResidentGroupMemberships } from '../_shared/residentGroupMembership.ts'
 
@@ -56,7 +59,7 @@ Deno.serve(async (request) => {
     if (recordError) return jsonResponse({ error: '群組或住戶狀態已變更，請重新查驗' }, 409)
     const { data: rows, error: readError } = await userClient.rpc('admin_list_resident_group_statuses')
     if (readError) throw new Error('status read failed')
-    const statusByCode = new Map((rows ?? []).map((row) => [row.member_code, row]))
+    const statusByCode = new Map(((rows ?? []) as StatusRow[]).map((row) => [row.member_code, row]))
     if (codes.some((code) => !statusByCode.has(code))) return jsonResponse({ error: '住戶名單已變更，請重新載入' }, 409)
     return jsonResponse({ members: codes.map((code) => {
       const row = statusByCode.get(code)!

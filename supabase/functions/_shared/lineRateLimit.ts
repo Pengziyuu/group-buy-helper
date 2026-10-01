@@ -1,5 +1,6 @@
 type RateLimitClient = {
-  rpc(name: string, parameters: Record<string, unknown>): Promise<{ data: unknown; error: unknown }>
+  // supabase-js returns a thenable query builder, not a Promise.
+  rpc(name: string, parameters: Record<string, unknown>): PromiseLike<{ data: unknown; error: unknown }>
 }
 
 async function sha256(value: string): Promise<string> {

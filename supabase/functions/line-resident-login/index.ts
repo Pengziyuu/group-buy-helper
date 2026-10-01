@@ -1,11 +1,11 @@
-import { createClient } from 'npm:@supabase/supabase-js@2'
+import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import { clientAddress, corsHeaders, jsonResponse, readJsonBodyWithLimit } from '../_shared/http.ts'
 import { lineVerificationPublicMessage, verifyLineIdToken } from '../_shared/line.ts'
 import { enforceLineLoginRateLimit } from '../_shared/lineRateLimit.ts'
 import { selectLineResidentAuthUserId } from '../_shared/policies.ts'
 import { checkResidentGroupMemberships } from '../_shared/residentGroupMembership.ts'
 
-type AdminClient = ReturnType<typeof createClient>
+type AdminClient = SupabaseClient
 
 async function sha256(value: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))

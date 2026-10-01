@@ -211,8 +211,8 @@ python scripts/start_local_live_demo.py
 5. 手動套用正式migration並讀回schema／權限／cron結果。
 6. 部署相關Edge Functions並實測授權成功與未授權失敗。
 7. 重新產生`src/types/database.ts`。
-8. 在 feature branch commit 並 push，開 Pull Request；GitHub Actions 的 `checks`（lint、測試、build）與 `database`（所有 migration 能從空資料庫依序套用）通過（見 `.github/workflows/ci.yml`）且團主同意後，用 `gh pr merge --rebase --delete-branch` 合併。`main` 有分支保護，不能直接 push。合併後追蹤Vercel Production deployment成功。
-9. 實測固定正式網址，不只測Vercel臨時網址；登入牆存在時至少確認Production bundle包含新版標記，涉及真實操作則由使用者登入驗收。
+8. 在 feature branch commit 並 push，開 Pull Request；GitHub Actions 的 `checks`（lint、測試、build）、`database`（所有 migration 能從空資料庫依序套用，並在重置後的資料庫跑 `scripts/verify_*.py`、`scripts/verify_*.sql`、`supabase/tests/*.sql` 與 `scripts/test_*.py`）與 `functions`（`deno check` 所有 Edge Functions）通過（見 `.github/workflows/ci.yml`；新增驗證腳本放在同樣路徑就會自動被跑）且團主同意後，用 `gh pr merge --rebase --delete-branch` 合併。`main` 有分支保護，不能直接 push。合併後追蹤Vercel Production deployment成功。
+9. 每次 Production 部署成功後，GitHub Actions「Production check」（`.github/workflows/production-check.yml`，`scripts/smokeProduction.mjs`）會自動檢查 `/`、`/admin`、團購頁的腳本與樣式都能載入且仍連正式 Supabase，失敗會開 issue。另外仍要實測固定正式網址，不只測Vercel臨時網址；登入牆存在時至少確認Production bundle包含新版標記，涉及真實操作則由使用者登入驗收。
 
 ### 資料庫修改分兩次上線（先加、後刪）
 
