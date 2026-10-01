@@ -174,10 +174,14 @@ def main() -> None:
 
         # create_campaign_draft hardcodes threshold 1, and a 'quantity' threshold
         # caps the campaign's total ordered quantity, so raise it before publishing
-        # to leave room for the multi-unit order checks below.
+        # to leave room for the multi-unit order checks below. New drafts also start
+        # with no items, and publishing needs at least one active item.
         status, payload = call(
             "PATCH", f"/rest/v1/campaign_draft?campaign_id=eq.{campaign_id}", ANON_KEY,
-            token=admin_token, body={"threshold": 100}, prefer="return=minimal",
+            token=admin_token, prefer="return=minimal",
+            body={"threshold": 100, "threshold_configured": True,
+                  "item_name_configured": True, "item_price_configured": True,
+                  "items": [{"code": "ITEM1", "name": "測試商品", "unitPrice": 45, "active": True}]},
         )
         assert status in (200, 204), (status, payload)
 
