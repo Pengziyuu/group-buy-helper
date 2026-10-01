@@ -1,0 +1,23 @@
+# Weekly update pull requests, grouped so each ecosystem opens at most one at a time.
+# Security fixes for known vulnerabilities are raised as soon as GitHub learns of them, separately from this schedule.
+# Every update still goes through CI and waits for the organizer to say 合併.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      timezone: Asia/Taipei
+    open-pull-requests-limit: 1
+    groups:
+      npm:
+        patterns: ["*"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      timezone: Asia/Taipei
+    open-pull-requests-limit: 1
+    groups:
+      actions:
+        patterns: ["*"]

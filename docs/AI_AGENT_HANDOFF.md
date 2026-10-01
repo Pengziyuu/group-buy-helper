@@ -211,8 +211,19 @@ python scripts/start_local_live_demo.py
 5. 手動套用正式migration並讀回schema／權限／cron結果。
 6. 部署相關Edge Functions並實測授權成功與未授權失敗。
 7. 重新產生`src/types/database.ts`。
-8. 在 feature branch commit 並 push，開 Pull Request；GitHub Actions 的 `checks`（lint、測試、build，見 `.github/workflows/ci.yml`）通過且團主同意後，用 `gh pr merge --rebase --delete-branch` 合併。`main` 有分支保護，不能直接 push。合併後追蹤Vercel Production deployment成功。
+8. 在 feature branch commit 並 push，開 Pull Request；GitHub Actions 的 `checks`（lint、測試、build）與 `database`（所有 migration 能從空資料庫依序套用）通過（見 `.github/workflows/ci.yml`）且團主同意後，用 `gh pr merge --rebase --delete-branch` 合併。`main` 有分支保護，不能直接 push。合併後追蹤Vercel Production deployment成功。
 9. 實測固定正式網址，不只測Vercel臨時網址；登入牆存在時至少確認Production bundle包含新版標記，涉及真實操作則由使用者登入驗收。
+
+### 資料庫修改分兩次上線（先加、後刪）
+
+正式網站、Edge Functions 與資料庫不會在同一瞬間換版，中間一定有新舊混用的時段。2026-09-23 一支 migration 刪掉舊 RPC，新版 Edge Function 卻晚了近 8 小時才部署，期間住戶登入全數失敗。因此：
+
+1. **第一次上線只「加」不「刪」**：新增欄位、函式、RPC，或新增可選參數；舊的保持可用，讓舊版前端與舊版 Edge Function 照常運作。新欄位先允許空值或給預設值。
+2. 部署並驗證新版 Edge Functions 與前端都已改用新的東西。
+3. **下一次上線才「刪」或「收緊」**：刪舊函式、舊欄位，改成 `not null`、加更嚴的限制或權限。
+4. 改名一律視為「加新的＋之後刪舊的」，不要用 `rename` 一步完成。
+
+一次 PR 若同時含 migration、Edge Function 與前端，依「migration（只加）→ Edge Functions → 前端」順序部署，每一步讀回結果再進下一步；確定任何一步可能讓線上舊版失效時，先拆成兩次上線。
 
 ## 9. 修改前必查的常見陷阱
 
