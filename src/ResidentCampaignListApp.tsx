@@ -8,6 +8,7 @@ import { StatusBadge } from './components/ui/StatusBadge'
 import { formatMoney } from './components/resident/residentFormat'
 import { describeResidentSchedule } from './components/resident/residentSchedule'
 import type { CampaignStatus } from './domain/orderWorkflow'
+import { residentCampaignPath } from './routing'
 import { normalizeQuantityUnit, type QuantityUnit } from './domain/quantityUnit'
 import type { CampaignImage } from './services/demoCampaignStore'
 import './components/resident/resident.css'
@@ -82,7 +83,7 @@ function CampaignRow({ campaign, now }: { campaign: ResidentCampaignListItem; no
     <article className="resident-campaign-row" data-status={open ? 'open' : 'closed'}>
       <CampaignThumbnail campaign={campaign} />
       <div className="resident-campaign-row-body">
-        <h3><a href={`/campaign/${campaign.slug}`}>{campaign.title}</a></h3>
+        <h3><a href={residentCampaignPath(campaign.slug)}>{campaign.title}</a></h3>
         {open
           ? <p className="resident-campaign-price"><strong>{formatMoney(campaign.unitPrice)}</strong> 起</p>
           : <p className="resident-campaign-price"><StatusBadge tone="neutral">已結單</StatusBadge></p>}

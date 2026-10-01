@@ -15,9 +15,12 @@ export type AppRoute =
 
 const UUID_SOURCE = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
 const SLUG_SOURCE = '[0-9a-f]{36}'
+// Campaigns get 8-character codes from 2026-10; older ones keep their 36-character codes.
+const CAMPAIGN_SLUG_SOURCE = '(?:[0-9a-f]{36}|[0-9a-z]{8})'
 // Section names are lower-case only; the UUID keeps its original case-insensitive match.
 const ADMIN_CAMPAIGN_PATTERN = new RegExp(`^/admin/campaign/(${UUID_SOURCE})(?:/(overview|orders|content|pickup))?/?$`)
-const RESIDENT_CAMPAIGN_PATTERN = new RegExp(`^/campaign/(${SLUG_SOURCE})/?$`, 'i')
+// /c/ is the short address shared now; /campaign/ stays for links already posted in LINE groups.
+const RESIDENT_CAMPAIGN_PATTERN = new RegExp(`^/(?:c|campaign)/(${CAMPAIGN_SLUG_SOURCE})/?$`, 'i')
 const RESIDENT_INVITE_PATTERN = new RegExp(`^/join/(${SLUG_SOURCE})/?$`)
 const ADMIN_PAGES: Record<string, AppRoute> = {
   '/admin': { kind: 'admin-list' },
@@ -63,6 +66,10 @@ export function selectAppMode(pathname: string): AppMode {
 export function parseResidentFilter(search: string): ResidentFilter {
   const value = new URLSearchParams(search).get('filter')
   return value === 'unbound' || value === 'other' || value === 'blocked' ? value : 'all'
+}
+
+export function residentCampaignPath(slug: string): string {
+  return `/c/${slug}`
 }
 
 export function campaignSectionPath(campaignId: string, section: WorkspaceSection): string {

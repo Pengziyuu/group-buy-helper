@@ -15,6 +15,7 @@ import {
   type CampaignFilter, type CampaignPhase,
 } from './campaignListView'
 import { copyResidentLink } from './copyResidentLink'
+import { residentCampaignPath } from '../../routing'
 import { OrganizerLink } from './OrganizerLink'
 import { OrganizerThumb } from './OrganizerThumb'
 import { useOrganizerNavigate } from './organizerNavigation'
@@ -61,7 +62,7 @@ export function OrganizerHome({ campaigns, autoCloseNotificationState, unboundRe
     setCopyFeedback('')
     setCopyError('')
     try {
-      await copyResidentLink(`/campaign/${campaign.slug}`, onCopyResidentLink)
+      await copyResidentLink(residentCampaignPath(campaign.slug), onCopyResidentLink)
       setCopyFeedback(`已複製${campaign.title}住戶連結`)
     } catch (copyFailure) {
       setCopyError(copyFailure instanceof Error ? copyFailure.message : '複製住戶連結失敗')
@@ -93,7 +94,7 @@ export function OrganizerHome({ campaigns, autoCloseNotificationState, unboundRe
       onSelect: () => { void copyLink(campaign) },
     }]),
     ...(phase === 'draft' ? [] : [{
-      label: '查看住戶頁', ariaLabel: `查看住戶頁 ${campaign.title}`, href: `/campaign/${campaign.slug}`, target: '_blank',
+      label: '查看住戶頁', ariaLabel: `查看住戶頁 ${campaign.title}`, href: residentCampaignPath(campaign.slug), target: '_blank',
     }]),
     ...(onDelete ? [{
       label: '刪除團購', ariaLabel: `刪除 ${campaign.title}`, tone: 'danger' as const,

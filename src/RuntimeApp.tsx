@@ -14,7 +14,7 @@ import { OverviewSection } from './components/organizer/OverviewSection'
 import { PickupSection } from './components/organizer/PickupSection'
 import { resolveWorkspaceSection } from './components/organizer/workspaceSections'
 import ResidentMemberManagementApp from './ResidentMemberManagementApp'
-import { parseAppRoute, parseResidentFilter, selectAppMode, type WorkspaceSection } from './routing'
+import { parseAppRoute, parseResidentFilter, residentCampaignPath, selectAppMode, type WorkspaceSection } from './routing'
 import type { RuntimeConfig } from './services/runtime'
 import { usesSupabaseBackend } from './services/runtime'
 import type { Database } from './types/database'
@@ -116,7 +116,7 @@ function DemoOrganizerWorkspace({ requestedSection }: { requestedSection: Worksp
         coverImage: campaign.images[0] ?? null,
         openedAt: campaign.openedAt,
         orderCount: orders.length,
-        residentHref: `/campaign/${DEMO_CAMPAIGN_SLUG}`,
+        residentHref: residentCampaignPath(DEMO_CAMPAIGN_SLUG),
       }}
       requestedSection={requestedSection}
       section={section}

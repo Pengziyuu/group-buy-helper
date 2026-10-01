@@ -730,7 +730,7 @@ describe('local Supabase visual demo apps', () => {
     expect(screen.queryByRole('link', { name: '預覽住戶頁' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: '開啟住戶頁' })).toHaveAttribute(
       'href',
-      '/campaign/82be35197b9a8c709a939627ce4c411d8de3',
+      '/c/82be35197b9a8c709a939627ce4c411d8de3',
     )
     await user.click(screen.getByRole('button', { name: '結單' }))
     await user.click(screen.getByRole('button', { name: '確認結單' }))

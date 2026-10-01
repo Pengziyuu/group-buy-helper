@@ -18,6 +18,10 @@
       "destination": "/admin.html"
     },
     {
+      "source": "/c/:slug",
+      "destination": "/api/campaign-preview?slug=:slug"
+    },
+    {
       "source": "/campaign/:slug",
       "destination": "/api/campaign-preview?slug=:slug"
     },

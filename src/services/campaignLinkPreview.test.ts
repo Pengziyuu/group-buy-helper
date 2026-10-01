@@ -80,10 +80,22 @@ describe('LINE 團購連結預覽', () => {
     const config = JSON.parse(readFileSync(resolve(process.cwd(), 'vercel.json'), 'utf8')) as { functions?: Record<string, { includeFiles?: string }> }
     expect(config.functions?.['api/campaign-preview.ts']?.includeFiles).toBe('dist/index.html')
   })
-  it('routes campaign links through the preview handler before the SPA catch-all', () => {
+  it('previews campaigns with the new 8-character codes, and still rejects anything else', async () => {
+    const short = await request('k7qp2xza', [{ title: '短網址團', image_url: image }])
+    expect(short.state.body).toContain('短網址團｜團購小幫手')
+    expect(short.calls[1]?.init?.body).toBe(JSON.stringify({ p_slug: 'k7qp2xza' }))
+    for (const bad of ['k7qp2xz', 'k7qp2xza9', 'K7QP2XZA', 'k7qp-xza']) {
+      const rejected = await request(bad, [{ title: '不應讀取' }])
+      expect(rejected.calls).toHaveLength(1)
+      expect(rejected.state.body).not.toContain('不應讀取')
+    }
+  })
+  it('routes campaign links, short /c/ and older /campaign/ ones alike, through the preview handler before the SPA catch-all', () => {
     const config = JSON.parse(readFileSync(resolve(process.cwd(), 'vercel.json'), 'utf8')) as { rewrites: Array<{ source: string; destination: string }> }
-    expect(config.rewrites.findIndex(({ source }) => source === '/campaign/:slug')).toBeLessThan(config.rewrites.findIndex(({ source }) => source === '/(.*)'))
-    expect(config.rewrites.find(({ source }) => source === '/campaign/:slug')?.destination).toBe('/api/campaign-preview?slug=:slug')
+    for (const source of ['/c/:slug', '/campaign/:slug']) {
+      expect(config.rewrites.findIndex((rewrite) => rewrite.source === source)).toBeLessThan(config.rewrites.findIndex((rewrite) => rewrite.source === '/(.*)'))
+      expect(config.rewrites.find((rewrite) => rewrite.source === source)?.destination).toBe('/api/campaign-preview?slug=:slug')
+    }
   })
   it('only grants anonymous access to a minimal published-only metadata RPC', () => {
     const sql = readFileSync(resolve(process.cwd(), 'supabase/migrations/20261001010000_campaign_link_preview.sql'), 'utf8').toLowerCase()

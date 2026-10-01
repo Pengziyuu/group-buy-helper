@@ -4,8 +4,9 @@
 // Usage: node scripts/smokeProduction.mjs <base-url> <supabase-project-ref>
 import { pathToFileURL } from 'node:url'
 
-// Any campaign address works: the page shell and its scripts are the same for every slug.
-const PAGES = ['/', '/admin', `/campaign/${'0'.repeat(36)}`]
+// Any campaign address works: the page shell and its scripts are the same for every code. Both the short
+// /c/ links shared now and the older /campaign/ links already posted in LINE groups must load.
+const PAGES = ['/', '/admin', `/c/${'0'.repeat(8)}`, `/campaign/${'0'.repeat(36)}`]
 
 const assetsIn = (html) => [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+\.(?:js|css))"/g)].map((match) => match[1])
 

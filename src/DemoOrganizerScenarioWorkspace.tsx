@@ -12,7 +12,7 @@ import { buildOrganizerOrderSummary, type OrganizerVisibleOrder } from './domain
 import type { CampaignStatus } from './domain/orderWorkflow'
 import type { CampaignListItem } from './services/campaignManagementGateway'
 import type { CampaignContent } from './services/demoCampaignStore'
-import type { WorkspaceSection } from './routing'
+import { residentCampaignPath, type WorkspaceSection } from './routing'
 
 /** Saves the given content as a template, as the live workspace does for every campaign. */
 export type DemoSaveTemplate = (content: CampaignContent) => SaveTemplateActions
@@ -45,7 +45,7 @@ export function DemoOrganizerDraftWorkspace({ draft, saveTemplate }: { draft: Ca
 export function DemoOrganizerScenarioWorkspace({ scenario, requestedSection, saveTemplate }: { scenario: DemoResidentScenario; requestedSection: WorkspaceSection | null; saveTemplate?: DemoSaveTemplate }) {
   const { content } = scenario
   const id = demoScenarioOrganizerId(scenario.slug)
-  const residentHref = `/campaign/${scenario.slug}`
+  const residentHref = residentCampaignPath(scenario.slug)
   const [status, setStatus] = useState<CampaignStatus>(scenario.status)
   const [orders, setOrders] = useState<OrganizerVisibleOrder[]>(() => demoScenarioOrganizerOrders(scenario))
   const summary = buildOrganizerOrderSummary({

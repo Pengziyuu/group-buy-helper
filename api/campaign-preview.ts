@@ -10,7 +10,8 @@ type Response = {
   send: (body: string) => Response
 }
 
-const slugPattern = /^[0-9a-f]{36}$/
+// New campaigns get 8-character codes; older ones keep their 36-character codes.
+const slugPattern = /^(?:[0-9a-f]{36}|[0-9a-z]{8})$/
 const escapeAttribute = (value: string) => value.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!)
 
 function publicCover(raw: unknown, supabaseUrl: string): string | null {

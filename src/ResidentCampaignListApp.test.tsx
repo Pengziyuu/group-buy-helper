@@ -47,7 +47,7 @@ describe('ResidentCampaignListApp', () => {
     const open = screen.getByRole('region', { name: '開團中' })
     expect(within(open).getByText('1 團')).toHaveClass('resident-list-count')
     expect(within(open).getByRole('heading', { name: '開團中' })).not.toHaveClass('ui-visually-hidden')
-    expect(within(open).getByRole('link', { name: '早餐團購' })).toHaveAttribute('href', '/campaign/0123456789abcdef0123456789abcdef0123')
+    expect(within(open).getByRole('link', { name: '早餐團購' })).toHaveAttribute('href', '/c/0123456789abcdef0123456789abcdef0123')
     expect(within(open).getByRole('img', { name: '早餐商品照片' })).toHaveAttribute('src', 'https://example.com/breakfast-cover.jpg')
     expect(within(open).queryByRole('img', { name: '早餐細節照片' })).not.toBeInTheDocument()
     expect(within(open).getByText('$55')).toBeInTheDocument()
