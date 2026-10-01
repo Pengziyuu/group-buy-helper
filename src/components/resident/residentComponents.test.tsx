@@ -211,6 +211,7 @@ describe('resident campaign page parts', () => {
     expect(placed.tagName).toBe('TIME')
     expect(placed).toHaveAttribute('title', '2026/09/25 11:55')
     expect(screen.getByText('已修改')).toHaveAttribute('title', '最後修改 2026/09/25 11:59')
+    expect(placed.closest('.resident-wall-time')).toHaveTextContent('5 分鐘前·已修改')
     expect(screen.queryByText('剛剛')).not.toBeInTheDocument()
     expect(screen.getByText('3 小時前')).toBeInTheDocument()
     expect(screen.getAllByText(/已修改/)).toHaveLength(1)

@@ -57,7 +57,7 @@ export function OrderWall({ orders, currentCustomerId, quantityUnit, itemDisplay
                   )}
                   <p className="resident-wall-time">
                     <RelativeTime value={order.orderedAt} now={currentTime} />
-                    {wasMeaningfullyUpdated(order.orderedAt, order.updatedAt) && <EditedMark value={order.updatedAt} />}
+                    {wasMeaningfullyUpdated(order.orderedAt, order.updatedAt) && <><span aria-hidden="true">·</span><EditedMark value={order.updatedAt} /></>}
                   </p>
                 </div>
                 <div className="resident-wall-total">
