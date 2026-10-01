@@ -78,10 +78,14 @@ export function OrderNoteCell({ order, controlLabel, disabled, onSave, onSavingC
         type="button"
         className="organizer-note-button"
         aria-label={`編輯 ${controlLabel} 備註`}
+        data-empty={note ? undefined : ''}
         disabled={disabled || !onSave}
         onClick={start}
       >
-        {note || <span className="organizer-muted">新增備註</span>}
+        {/* Plain text did not read as a button: a saved note carries a pencil, an empty one says ＋ 新增備註. */}
+        {note
+          ? <><span>{note}</span><svg className="organizer-note-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4" /></svg></>
+          : <><span aria-hidden="true">＋</span>新增備註</>}
       </button>
     )
   }

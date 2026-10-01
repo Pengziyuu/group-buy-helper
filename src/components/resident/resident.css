@@ -136,13 +136,15 @@
 .resident-binding-intro { margin: var(--space-1) 0 var(--space-3); color: var(--color-text-secondary); font-size: var(--font-size-dense); }
 .resident-verified-identity { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-3); padding: var(--space-2) var(--space-3); border-radius: var(--radius-control); background: var(--color-surface-subtle); }
 .resident-verified-identity small { display: block; color: var(--color-text-secondary); font-size: var(--font-size-caption); }
-.resident-binding-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: var(--space-3); margin-bottom: var(--space-3); }
+/* 期別 on its own row, then the household number parts side by side. */
+.resident-binding-fields { display: grid; gap: var(--space-3); margin-bottom: var(--space-3); }
 .resident-binding-fields label,
 .resident-binding-unit { display: grid; gap: 4px; margin: 0; padding: 0; border: 0; color: var(--color-text-secondary); font-size: var(--font-size-caption); }
 .resident-binding-unit legend { margin-bottom: 4px; padding: 0; }
 /* 期別 shares a row with the taller 戶號 group: sit its select on the same baseline instead of stretching it. */
 .resident-binding-fields > label { align-content: end; }
 .resident-binding-unit-parts { display: flex; gap: var(--space-2); }
+.resident-binding-unit-parts > label { flex: 1 1 0; min-width: 0; }
 .resident-binding > .ui-button { width: 100%; }
 .resident-binding-feedback { margin-top: var(--space-3); }
 .resident-binding-note { margin: var(--space-3) 0 0; color: var(--color-text-secondary); font-size: var(--font-size-caption); }
@@ -173,6 +175,12 @@
 .resident-custom-item-row label { display: grid; gap: 4px; color: var(--color-text-secondary); font-size: var(--font-size-caption); }
 .resident-custom-items-note { margin: var(--space-2) 0 0; color: var(--color-warning); font-size: var(--font-size-caption); }
 .resident-order-rule { margin: var(--space-3) 0 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-control); background: var(--color-surface-subtle); color: var(--color-text-secondary); font-size: var(--font-size-dense); }
+/* A closed campaign: what the resident ordered, one line per item, nothing to edit. */
+.resident-closed-order-list { display: grid; margin: var(--space-3) 0 0; padding: 0; list-style: none; }
+.resident-closed-order-list li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) 0; border-top: 1px solid var(--color-divider); }
+.resident-closed-order-list li > span { min-width: 0; overflow-wrap: anywhere; }
+.resident-closed-order-list strong { flex: none; font-weight: var(--font-weight-strong); font-variant-numeric: tabular-nums; }
+.resident-closed-order-code { display: inline-grid; place-items: center; width: 24px; height: 24px; margin-right: var(--space-1); border-radius: var(--radius-sm); background: var(--color-surface-subtle); font-size: var(--font-size-caption); font-weight: var(--font-weight-strong); }
 .resident-order-feedback { margin-top: var(--space-3); }
 .resident-order-toast { bottom: calc(140px + env(safe-area-inset-bottom)); }
 .resident-footer { padding: 0 var(--space-4) var(--space-6); color: var(--color-text-tertiary); font-size: var(--font-size-caption); text-align: center; }

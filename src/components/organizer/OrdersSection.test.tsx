@@ -119,6 +119,11 @@ describe('OrdersSection', () => {
 
     const edit = screen.getByRole('button', { name: '編輯 H11 備註' })
     expect(edit).toHaveTextContent('請放管理室')
+    // Both states read as clickable without hovering: a saved note carries a pencil, an empty one is a blue ＋ 新增備註.
+    expect(edit.querySelector('svg.organizer-note-icon')).toBeInTheDocument()
+    const empty = screen.getByRole('button', { name: '編輯 1E7 備註' })
+    expect(empty).toHaveTextContent('＋新增備註')
+    expect(empty).toHaveAttribute('data-empty')
     await user.click(edit)
     const input = screen.getByRole('textbox', { name: 'H11 備註' })
     expect(input).toHaveFocus()

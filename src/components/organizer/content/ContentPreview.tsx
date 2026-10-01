@@ -80,9 +80,16 @@ export function ContentPreview({
               <StatusBadge tone={status === 'open' ? 'success' : 'neutral'}>{campaignStatusLabel(status)}</StatusBadge>
               <p className="content-preview-title">{title.trim() || '未命名團購'}</p>
               <p className="content-preview-price">{priceText}</p>
+              {/* The same two boxes, in the same order, as the resident campaign page. */}
+              <dl className="content-preview-schedule" role="group" aria-label="團購時程">
+                <div>
+                  <dt>結單</dt>
+                  <dd>{closing?.value ?? '已結單'}</dd>
+                  {closing?.note && <dd className="content-preview-schedule-note">{closing.note}</dd>}
+                </div>
+                <div><dt>預計到貨</dt><dd>{arrival.value}</dd></div>
+              </dl>
               <div className="content-preview-facts">
-                <p>預計到貨：{arrival.value}</p>
-                <p>結單：{closing ? `${closing.value}${closing.note ? `（${closing.note}）` : ''}` : '已結單'}</p>
                 <p>{thresholdText}</p>
                 {allowCustomItems && <p>可新增自訂額外品項，金額由團主另計</p>}
               </div>

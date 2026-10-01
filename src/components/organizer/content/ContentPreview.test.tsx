@@ -21,12 +21,15 @@ const props = {
   ],
 }
 
+// One schedule box of the preview, read as text: its label, value and any note.
+const fact = (label: string) => within(screen.getByRole('group', { name: '團購時程' })).getByText(label, { selector: 'dt' }).parentElement?.textContent
+
 describe('ContentPreview', () => {
   it('describes closing the same way residents read it when no time is set', () => {
     const { rerender } = render(<ContentPreview {...props} autoCloseAt={null} />)
-    expect(screen.getByText('結單：額滿自動結單')).toBeInTheDocument()
+    expect(fact('結單')).toBe('結單額滿自動結單')
     rerender(<ContentPreview {...props} autoCloseAt={null} thresholdKind="amount" thresholdText="滿 $5,000 成團" />)
-    expect(screen.getByText('結單：手動決定結單（結單前群組通知）')).toBeInTheDocument()
+    expect(fact('結單')).toBe('結單手動決定結單結單前群組通知')
   })
 
   it('shows what residents will see without adding page headings', () => {
@@ -36,8 +39,10 @@ describe('ContentPreview', () => {
     expect(within(preview).getByText('開團中')).toBeInTheDocument()
     expect(within(preview).getByText('冰餅團')).toBeInTheDocument()
     expect(within(preview).getByText('$45～$50')).toBeInTheDocument()
-    expect(within(preview).getByText('預計到貨：3/8')).toBeInTheDocument()
-    expect(within(preview).getByText('結單：2027/10/15 12:00（額滿會提早結單）')).toBeInTheDocument()
+    // Same boxes, in the same order, as the resident campaign page: 結單 first, then 預計到貨.
+    expect(within(within(preview).getByRole('group', { name: '團購時程' })).getAllByRole('term').map((term) => term.textContent)).toEqual(['結單', '預計到貨'])
+    expect(fact('結單')).toBe('結單2027/10/15 12:00額滿會提早結單')
+    expect(fact('預計到貨')).toBe('預計到貨3/8')
     expect(within(preview).getByText('100 個成團')).toBeInTheDocument()
     expect(within(preview).getByText('可新增自訂額外品項，金額由團主另計')).toBeInTheDocument()
     expect(within(preview).getByRole('region', { name: '住戶端圖片預覽，共 1 張' })).toHaveAttribute('tabindex', '0')
@@ -53,7 +58,8 @@ describe('ContentPreview', () => {
     const preview = screen.getByRole('region', { name: '住戶端預覽' })
 
     expect(within(preview).getByText('未命名團購')).toBeInTheDocument()
-    expect(within(preview).getByText('已結單')).toBeInTheDocument()
+    expect(within(preview).getByText('已結單', { selector: '.ui-status-badge' })).toBeInTheDocument()
+    expect(fact('結單')).toBe('結單已結單')
     expect(within(preview).queryByText('開團中')).not.toBeInTheDocument()
   })
 
