@@ -101,7 +101,7 @@ export async function createOrderExportWorkbook({ summary, campaignTitle }: Orde
     { header: '到貨日期', key: 'arrivalDate', width: 13 },
     { header: '期別', key: 'period', width: 9 },
     { header: '戶號', key: 'unit', width: 13 },
-    { header: 'LINE名稱', key: 'lineName', width: 18 },
+    { header: 'LINE 名稱', key: 'lineName', width: 18 },
     { header: '團購名', key: 'campaignTitle', width: 24 },
     { header: '品項／口味', key: 'itemName', width: 32 },
     { header: '數量', key: 'quantity', width: 10 },

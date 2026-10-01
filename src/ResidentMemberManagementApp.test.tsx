@@ -108,7 +108,7 @@ describe('ResidentMemberManagementApp', () => {
     expect(screen.getByRole('heading', { level: 1, name: '住戶 1 位' })).toBeInTheDocument()
     expect(screen.getByText('住戶甲')).toBeInTheDocument()
     expect(screen.getByText('二期 2K13')).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: '住戶甲的LINE頭貼' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: '住戶甲的 LINE 頭貼' })).toBeInTheDocument()
     expect(document.body.textContent).not.toContain('abcdef0123456789abcdef0123456789abcd')
     expect(screen.getByRole('button', { name: '調整住戶資料 住戶甲' })).toHaveTextContent('調整戶號')
     await user.click(screen.getByRole('button', { name: '更多操作 住戶甲' }))

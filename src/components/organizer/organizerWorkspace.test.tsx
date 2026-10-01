@@ -202,10 +202,10 @@ describe('PickupSection', () => {
   it('offers LINE pickup notifications only after closing a published campaign', () => {
     const { rerender } = render(<PickupSection campaignId="campaign-1" campaignTitle="神農包子" campaignStatus="open" published excludedOtherCount={0} {...handlers} />)
     expect(screen.getByText('結單後才能使用領取通知。')).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'LINE領取通知' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'LINE 領取通知' })).not.toBeInTheDocument()
 
     rerender(<PickupSection campaignId="campaign-1" campaignTitle="神農包子" campaignStatus="closed" published excludedOtherCount={0} {...handlers} />)
-    expect(screen.getByRole('heading', { name: 'LINE領取通知' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'LINE 領取通知' })).toBeInTheDocument()
 
     rerender(<PickupSection campaignId="campaign-1" campaignTitle="神農包子" campaignStatus="closed" published={false} excludedOtherCount={0} {...handlers} />)
     expect(screen.getByText('發布並結單後才能發送領取通知。')).toBeInTheDocument()
@@ -213,6 +213,6 @@ describe('PickupSection', () => {
 
   it('explains that the local demo cannot send LINE notifications', () => {
     render(<PickupSection campaignId="campaign-1" campaignTitle="神農包子" campaignStatus="closed" published excludedOtherCount={0} />)
-    expect(screen.getByText('本機示範不提供LINE領取通知')).toBeInTheDocument()
+    expect(screen.getByText('本機示範不提供 LINE 領取通知')).toBeInTheDocument()
   })
 })

@@ -12,7 +12,7 @@ function publicError(error: unknown, fallback: string) {
     ? String((error as { message?: unknown }).message ?? '')
     : ''
   if (/admin permission required/i.test(message)) return new Error('只有已核准團主可以管理通知設定')
-  if (/approved line organizer required/i.test(message)) return new Error('目前LINE帳號尚未取得團主權限')
+  if (/approved line organizer required/i.test(message)) return new Error('目前 LINE 帳號尚未取得團主權限')
   return new Error(fallback)
 }
 

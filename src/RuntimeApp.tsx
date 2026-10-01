@@ -90,6 +90,11 @@ const demoTemplates = createDemoTemplateRepository({
     return { id: DEMO_CAMPAIGN_ID }
   },
 })
+const demoSaveTemplate = (content: CampaignContent) => ({
+  loadTemplates: () => demoTemplates.list(),
+  saveNew: (name: string) => demoTemplates.create(name, content),
+  replace: (templateId: string) => demoTemplates.replace(templateId, content),
+})
 const demoCreateFromTemplate = {
   list: () => demoTemplates.list(),
   create: (templateId: string, title: string) => demoTemplates.createCampaign(templateId, title),
@@ -192,7 +197,7 @@ function RuntimeRoutes({ config, pathname, search, client, liffClient }: Runtime
     )
   }
   if (usesSupabaseBackend(config) && config.mode !== 'demo') {
-    if (!client) throw new Error('Supabase client未初始化')
+    if (!client) throw new Error('Supabase client 未初始化')
     const adminProps = {
       client,
       liffId: config.mode === 'live' ? config.liffId : undefined,
@@ -236,8 +241,8 @@ function RuntimeRoutes({ config, pathname, search, client, liffClient }: Runtime
       <OrganizerShell current="settings" onCreate={createDemoCampaign} templates={demoCreateFromTemplate}>
         <main className="live-state-shell">
           <EmptyState
-            title="通知測試中心僅提供Live模式使用"
-            description="本機示範資料不會模擬LINE測試通知，請使用已連接Supabase的團主入口。"
+            title="通知測試中心僅提供 Live 模式使用"
+            description="本機示範資料不會模擬 LINE 測試通知，請使用已連接 Supabase 的團主入口。"
             action={<a className="ui-button" data-variant="secondary" href="/admin">回到團主後台</a>}
             page
           />
@@ -284,12 +289,13 @@ function RuntimeRoutes({ config, pathname, search, client, liffClient }: Runtime
     return (
       <OrganizerShell current="campaigns" onCreate={createDemoCampaign} templates={demoCreateFromTemplate}>
         {appRoute.campaignId === demoDraft.id
-          ? <DemoOrganizerDraftWorkspace draft={demoDraft} />
+          ? <DemoOrganizerDraftWorkspace draft={demoDraft} saveTemplate={demoSaveTemplate} />
           : demoScenarios.find((scenario) => demoScenarioOrganizerId(scenario.slug) === appRoute.campaignId)
             ? <DemoOrganizerScenarioWorkspace
                 key={appRoute.campaignId}
                 scenario={demoScenarios.find((scenario) => demoScenarioOrganizerId(scenario.slug) === appRoute.campaignId)!}
                 requestedSection={appRoute.section}
+                saveTemplate={demoSaveTemplate}
               />
             : <DemoOrganizerWorkspace requestedSection={appRoute.section} />}
       </OrganizerShell>

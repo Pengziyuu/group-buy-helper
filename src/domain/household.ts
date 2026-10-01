@@ -69,10 +69,10 @@ function assertHouseholdSelection(selection: HouseholdSelection): void {
   if (!RESIDENT_PERIODS.includes(selection.period)) throw new Error('期別只能選擇一期、二期或三期')
   if (selection.period === 1 && selection.prefix !== null) throw new Error('一期不需要前段')
   if (selection.period !== 1 && !HOUSEHOLD_PREFIXES.includes(selection.prefix as 1 | 2 | 3)) {
-    throw new Error('前段只能選擇1至3')
+    throw new Error('前段只能選擇 1 至 3')
   }
-  if (!HOUSEHOLD_LETTERS.includes(selection.letter)) throw new Error('棟別只能選擇A至Z')
-  if (!HOUSEHOLD_NUMBERS.includes(selection.number)) throw new Error('號碼只能選擇1至15')
+  if (!HOUSEHOLD_LETTERS.includes(selection.letter)) throw new Error('棟別只能選擇 A 至 Z')
+  if (!HOUSEHOLD_NUMBERS.includes(selection.number)) throw new Error('號碼只能選擇 1 至 15')
 }
 
 export function formatHouseholdUnit(selection: HouseholdSelection): string | null {

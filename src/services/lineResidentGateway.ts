@@ -35,7 +35,7 @@ async function functionError(error: unknown): Promise<Error> {
       // Never render arbitrary provider response text.
     }
   }
-  return new Error('LINE住戶登入失敗，請稍後重試或聯繫團主')
+  return new Error('LINE 住戶登入失敗，請稍後重試或聯繫團主')
 }
 
 export type LineResidentSignInResult = {
@@ -57,7 +57,7 @@ export function createLineResidentGateway(client: SupabaseClient<Database>) {
         || typeof data.tokenHash !== 'string'
         || data.verificationType !== 'email'
         || typeof data.displayName !== 'string') {
-        throw new Error('LINE住戶登入回應無效')
+        throw new Error('LINE 住戶登入回應無效')
       }
 
       const exchanged = await client.auth.verifyOtp({

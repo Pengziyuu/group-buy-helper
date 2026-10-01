@@ -16,7 +16,7 @@ const summary = buildOrganizerOrderSummary({
   orders: [
     { customerId: 'u14', name: '不應匯出', period: 2, unit: 'U14', items: { B: 1 }, itemPriceSnapshots: { B: { listUnitPrice: 180, appliedDiscountType: 'base', appliedDiscountRate: 0.9, finalUnitPrice: 162 } }, customItems: [{ id: 'c3', name: '加購提袋', quantity: 2 }] },
     { customerId: 'e10', name: '不應匯出', period: 1, unit: 'E10', items: { A: 1 } },
-    { customerId: 'e2', name: '不應匯出', period: 1, unit: 'E2', items: { B: 2 }, itemPriceSnapshots: { B: { listUnitPrice: 180, appliedDiscountType: 'mix_match', appliedDiscountRate: 0.85, finalUnitPrice: 153, promotionName: '任選三件85折' } }, customItems: [{ id: 'c1', name: '  紙盒  ', quantity: 1 }] },
+    { customerId: 'e2', name: '不應匯出', period: 1, unit: 'E2', items: { B: 2 }, itemPriceSnapshots: { B: { listUnitPrice: 180, appliedDiscountType: 'mix_match', appliedDiscountRate: 0.85, finalUnitPrice: 153, promotionName: '任選三件 85 折' } }, customItems: [{ id: 'c1', name: '  紙盒  ', quantity: 1 }] },
   ],
   threshold: 10,
 })
@@ -103,7 +103,7 @@ describe('order Excel export', () => {
     expect(sheet?.views).toEqual(expect.arrayContaining([expect.objectContaining({ state: 'frozen', ySplit: 1 })]))
     expect(sheet?.autoFilter).toBe('A1:J1')
     expect(sheet?.getRow(1).values).toEqual([
-      undefined, '到貨日期', '期別', '戶號', 'LINE名稱', '團購名', '品項／口味', '數量', '單價', '總價', '備註',
+      undefined, '到貨日期', '期別', '戶號', 'LINE 名稱', '團購名', '品項／口味', '數量', '單價', '總價', '備註',
     ])
     expect(sheet?.getCell('A2').numFmt).toBe('mm/dd')
     expect(sheet?.getCell('C2').numFmt).toBe('@')

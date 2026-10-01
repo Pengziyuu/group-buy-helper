@@ -107,7 +107,7 @@ describe('RuntimeApp localStorage resident demo routing', () => {
 
   it('does not impersonate the Live notification lab with resident demo data', () => {
     render(<RuntimeApp config={{ mode: 'demo' }} pathname="/admin/notification-lab" />)
-    expect(screen.getByText('通知測試中心僅提供Live模式使用')).toBeInTheDocument()
+    expect(screen.getByText('通知測試中心僅提供 Live 模式使用')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '送出訂單' })).not.toBeInTheDocument()
   })
 
@@ -249,6 +249,8 @@ describe('RuntimeApp demo organizer scenarios', () => {
       const page = render(<RuntimeApp config={{ mode: 'demo' }} pathname={`/admin/campaign/${demoScenarioOrganizerId(scenario.slug)}/orders`} />)
       expect(screen.getByRole('heading', { level: 1, name: scenario.content.title })).toBeInTheDocument()
       expect(screen.getByRole('heading', { name: '訂單' })).toBeInTheDocument()
+      // Every campaign can be saved as a template, as in live mode.
+      expect(screen.getByRole('button', { name: '存成範本' })).toBeInTheDocument()
       page.unmount()
     }
   })
@@ -256,6 +258,7 @@ describe('RuntimeApp demo organizer scenarios', () => {
   it('opens the draft on its content settings only', () => {
     render(<RuntimeApp config={{ mode: 'demo' }} pathname="/admin/campaign/5e5e5e5e-5e5e-5e5e-5e5e-5e5e5e5e5e5e" />)
     expect(screen.getByRole('textbox', { name: '團購標題' })).toHaveValue('中秋文旦柚（草稿，尚未發布）')
+    expect(screen.getByRole('button', { name: '存成範本' })).toBeInTheDocument()
   })
 })
 

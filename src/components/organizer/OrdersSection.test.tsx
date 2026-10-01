@@ -57,7 +57,7 @@ describe('OrdersSection', () => {
     renderOrders({ summary: withPictures })
 
     const pictured = rowOf(/2K13\s*斯祈/)
-    expect(within(pictured).getByRole('img', { name: '斯祈的LINE頭貼' })).toHaveAttribute('src', 'https://profile.line-scdn.net/abc')
+    expect(within(pictured).getByRole('img', { name: '斯祈的 LINE 頭貼' })).toHaveAttribute('src', 'https://profile.line-scdn.net/abc')
     const initial = rowOf(/H11\s*佩怡/).querySelector('.ui-avatar')
     expect(initial).toHaveTextContent('佩')
     expect(initial).toHaveAttribute('data-tone', expect.stringMatching(/^[1-6]$/))

@@ -74,16 +74,16 @@ describe('pickup notification gateway', () => {
   it('rejects old sent acknowledgements and malformed or sensitive command responses', async () => {
     const invoke = vi.fn().mockResolvedValue({ data: { ...preview, sent: true }, error: null })
     const gateway = createPickupNotificationGateway({ functions: { invoke } } as never)
-    await expect(gateway.createCommand('00000000-0000-4000-8000-000000000123', 'phase13', '通知', preview.previewToken)).rejects.toThrow('LINE通知回傳格式錯誤')
+    await expect(gateway.createCommand('00000000-0000-4000-8000-000000000123', 'phase13', '通知', preview.previewToken)).rejects.toThrow('LINE 通知回傳格式錯誤')
 
     invoke.mockResolvedValueOnce({ data: { ...command, lineUserIds: ['secret'] }, error: null })
-    await expect(gateway.createCommand('00000000-0000-4000-8000-000000000123', 'phase13', '通知', preview.previewToken)).rejects.toThrow('LINE通知回傳格式錯誤')
+    await expect(gateway.createCommand('00000000-0000-4000-8000-000000000123', 'phase13', '通知', preview.previewToken)).rejects.toThrow('LINE 通知回傳格式錯誤')
   })
 
   it('rejects malformed preview recipient data', async () => {
     const invoke = vi.fn().mockResolvedValue({ data: { ...preview, mentionableRecipients: [{ lineUserId: 'secret' }] }, error: null })
     const gateway = createPickupNotificationGateway({ functions: { invoke } } as never)
-    await expect(gateway.preview('00000000-0000-4000-8000-000000000123', 'phase13', '通知')).rejects.toThrow('LINE通知回傳格式錯誤')
+    await expect(gateway.preview('00000000-0000-4000-8000-000000000123', 'phase13', '通知')).rejects.toThrow('LINE 通知回傳格式錯誤')
   })
 
   it('rejects a command prefix for the opposite destination', async () => {
@@ -94,6 +94,6 @@ describe('pickup notification gateway', () => {
     const gateway = createPickupNotificationGateway({ functions: { invoke } } as never, 'production')
     await expect(gateway.createCommand(
       '00000000-0000-4000-8000-000000000123', 'phase13', '通知', preview.previewToken,
-    )).rejects.toThrow('LINE通知回傳格式錯誤')
+    )).rejects.toThrow('LINE 通知回傳格式錯誤')
   })
 })

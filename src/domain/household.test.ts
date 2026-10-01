@@ -60,7 +60,7 @@ describe('resident household options', () => {
     expect(parseHouseholdUnit(3, '1Z15')).toEqual({ kind: 'resident', period: 3, prefix: 1, letter: 'Z', number: 15 })
     expect(() => parseHouseholdUnit(1, '1A1')).toThrow('一期戶號格式錯誤')
     expect(() => parseHouseholdUnit(2, 'A1')).toThrow('二、三期戶號格式錯誤')
-    expect(() => formatHouseholdUnit({ kind: 'resident', period: 2, prefix: 4, letter: 'A', number: 1 })).toThrow('前段只能選擇1至3')
+    expect(() => formatHouseholdUnit({ kind: 'resident', period: 2, prefix: 4, letter: 'A', number: 1 })).toThrow('前段只能選擇 1 至 3')
   })
 })
 

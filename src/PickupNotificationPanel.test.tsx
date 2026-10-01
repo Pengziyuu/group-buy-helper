@@ -56,9 +56,9 @@ describe('pickup notification panel', () => {
     await user.click(screen.getByRole('button', { name: '預覽名單' }))
     expect(await screen.findByRole('heading', { name: '一期、三期名單' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '二期名單' })).toBeInTheDocument()
-    const firstRoster = screen.getByText('查看名單（2位）').closest('details')
+    const firstRoster = screen.getByText('查看名單（2 位）').closest('details')
     expect(firstRoster).not.toHaveAttribute('open')
-    await user.click(screen.getByText('查看名單（2位）'))
+    await user.click(screen.getByText('查看名單（2 位）'))
     expect(firstRoster).toHaveAttribute('open')
     expect(firstRoster?.querySelector('strong')).toHaveTextContent('王小美')
     expect(screen.getAllByText('無法＠ 1 位')[0].closest('details')).not.toHaveAttribute('open')
@@ -78,18 +78,18 @@ describe('pickup notification panel', () => {
     render(<PickupNotificationPanel {...baseProps} onPreviewPlan={vi.fn().mockResolvedValue({ previewToken: null, messageCount: 6, groups: { phase13, phase2 } })} onCreatePlanCommand={vi.fn()} />)
     await user.click(screen.getByRole('button', { name: '冷凍／冷藏' }))
     await user.click(screen.getByRole('button', { name: '預覽名單' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('超過單一指令5則上限')
+    expect(await screen.findByRole('alert')).toHaveTextContent('超過單一指令 5 則上限')
     expect(screen.getByRole('button', { name: '產生指令' })).toBeDisabled()
-    expect(screen.getByText('查看名單（81位）').closest('details')).not.toHaveAttribute('open')
-    await user.click(screen.getByText('查看名單（81位）'))
-    expect(screen.getByText('查看名單（81位）').closest('details')).toHaveAttribute('open')
+    expect(screen.getByText('查看名單（81 位）').closest('details')).not.toHaveAttribute('open')
+    await user.click(screen.getByText('查看名單（81 位）'))
+    expect(screen.getByText('查看名單（81 位）').closest('details')).toHaveAttribute('open')
     expect(screen.getByRole('heading', { name: '一期、三期名單' }).closest('section')?.querySelector('.pickup-recipient-list')?.querySelectorAll('li')).toHaveLength(81)
     expect(screen.getByRole('heading', { name: '二期名單' }).closest('section')?.querySelector('.pickup-recipient-list')?.querySelectorAll('li')).toHaveLength(1)
   })
   it('is hidden before closing and offers two audience previews after closing', () => {
     const props = { ...baseProps, campaignStatus: 'open' as const }
     const { rerender } = render(<PickupNotificationPanel {...props} />)
-    expect(screen.queryByRole('heading', { name: 'LINE領取通知' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'LINE 領取通知' })).not.toBeInTheDocument()
     rerender(<PickupNotificationPanel {...baseProps} />)
     expect(screen.getByRole('button', { name: '預覽一期、三期通知' })).toBeEnabled()
     expect(screen.getByRole('button', { name: '預覽二期通知' })).toBeEnabled()
@@ -108,7 +108,7 @@ describe('pickup notification panel', () => {
     expect(message).toHaveAttribute('maxlength', '4495')
     await user.clear(message)
     await user.type(message, '新版功能測試')
-    await user.click(screen.getByRole('button', { name: '產生測試群組指令並＠2位住戶' }))
+    await user.click(screen.getByRole('button', { name: '產生測試群組指令並＠ 2 位住戶' }))
     expect(onCreateCommand).toHaveBeenCalledWith('phase2', '【測試】\n新版功能測試', preview.previewToken)
   })
 
@@ -124,7 +124,7 @@ describe('pickup notification panel', () => {
     expect(await screen.findByRole('heading', { name: '2. 確認名單與訊息' })).toHaveFocus()
     expect(screen.getByText('已選擇：二期')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: '產生正式群組指令並＠2位住戶' }))
+    await user.click(screen.getByRole('button', { name: '產生正式群組指令並＠ 2 位住戶' }))
     expect(await screen.findByRole('button', { name: '複製指令' })).toHaveFocus()
     expect(screen.getByText(/此頁尚未代表通知已發送/)).toBeInTheDocument()
 
@@ -133,7 +133,7 @@ describe('pickup notification panel', () => {
     expect(screen.queryByRole('button', { name: '複製指令' })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '預覽一期、三期通知' }))
-    await user.click(await screen.findByRole('button', { name: '產生正式群組指令並＠2位住戶' }))
+    await user.click(await screen.findByRole('button', { name: '產生正式群組指令並＠ 2 位住戶' }))
     expect(onCreateCommand).toHaveBeenLastCalledWith('phase13', expect.any(String), 'second-token')
   })
 
@@ -144,7 +144,7 @@ describe('pickup notification panel', () => {
     expect(await screen.findByRole('heading', { name: '2. 確認名單與訊息' })).toBeInTheDocument()
 
     rerender(<PickupNotificationPanel {...baseProps} campaignStatus="open" onPreview={vi.fn()} />)
-    expect(screen.queryByRole('heading', { name: 'LINE領取通知' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'LINE 領取通知' })).not.toBeInTheDocument()
 
     rerender(<PickupNotificationPanel {...baseProps} onPreview={vi.fn()} />)
     expect(screen.queryByRole('heading', { name: '2. 確認名單與訊息' })).not.toBeInTheDocument()
@@ -166,7 +166,7 @@ describe('pickup notification panel', () => {
     render(<PickupNotificationPanel {...baseProps} onPreview={vi.fn().mockResolvedValue({ ...preview, previewToken: null, mentionableRecipients: [], mentionableCount: 0, messageCount: 0 })} />)
     await user.click(screen.getByRole('button', { name: '預覽一期、三期通知' }))
     expect(await screen.findByText('目前沒有符合條件且仍在群組中的購買者，因此不能產生指令。')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '產生正式群組指令並＠0位住戶' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '產生正式群組指令並＠ 0 位住戶' })).toBeDisabled()
   })
 
   it('keeps preview editable and returns focus after command creation failure', async () => {
@@ -174,7 +174,7 @@ describe('pickup notification panel', () => {
     const onCreateCommand = vi.fn().mockRejectedValue(new Error('暫時無法產生指令'))
     render(<PickupNotificationPanel {...baseProps} onPreview={vi.fn().mockResolvedValue(preview)} onCreateCommand={onCreateCommand} />)
     await user.click(screen.getByRole('button', { name: '預覽二期通知' }))
-    const commandButton = await screen.findByRole('button', { name: '產生正式群組指令並＠2位住戶' })
+    const commandButton = await screen.findByRole('button', { name: '產生正式群組指令並＠ 2 位住戶' })
     await user.click(commandButton)
     expect(await screen.findByRole('alert')).toHaveTextContent('暫時無法產生指令')
     expect(screen.getByRole('textbox', { name: '通知內容' })).toBeEnabled()
@@ -190,16 +190,16 @@ describe('pickup notification panel', () => {
 
     await user.click(screen.getByRole('button', { name: '預覽一期、三期通知' }))
     expect(screen.getByText('一期・A1・王小美')).toBeInTheDocument()
-    expect(screen.getByText('以下1位目前無法＠')).toBeInTheDocument()
+    expect(screen.getByText('以下 1 位目前無法＠')).toBeInTheDocument()
     const message = screen.getByRole('textbox', { name: '通知內容' })
     await user.clear(message)
     await user.type(message, '新的領取通知')
-    await user.click(screen.getByRole('button', { name: '產生正式群組指令並＠2位住戶' }))
+    await user.click(screen.getByRole('button', { name: '產生正式群組指令並＠ 2 位住戶' }))
 
     expect(onCreateCommand).toHaveBeenCalledWith('phase13', '新的領取通知', preview.previewToken)
     expect(await screen.findByDisplayValue(command.command)).toBeInTheDocument()
     expect(screen.getByText(/此頁尚未代表通知已發送。/)).toBeInTheDocument()
-    expect(screen.queryByText('LINE領取通知已發送。')).not.toBeInTheDocument()
+    expect(screen.queryByText('LINE 領取通知已發送。')).not.toBeInTheDocument()
     const copy = screen.getByRole('button', { name: '複製指令' })
     expect(copy).toHaveFocus()
     await user.click(copy)
@@ -212,7 +212,7 @@ describe('pickup notification panel', () => {
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockRejectedValue(new Error('denied')) } })
     render(<PickupNotificationPanel {...baseProps} onPreview={vi.fn().mockResolvedValue(preview)} onCreateCommand={vi.fn().mockResolvedValue(command)} />)
     await user.click(screen.getByRole('button', { name: '預覽二期通知' }))
-    await user.click(screen.getByRole('button', { name: '產生正式群組指令並＠2位住戶' }))
+    await user.click(screen.getByRole('button', { name: '產生正式群組指令並＠ 2 位住戶' }))
     await user.click(await screen.findByRole('button', { name: '複製指令' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('無法自動複製，請手動選取指令複製。')
     expect(screen.getByDisplayValue(command.command)).toBeInTheDocument()

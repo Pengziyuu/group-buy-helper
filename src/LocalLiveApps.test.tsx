@@ -172,7 +172,7 @@ describe('local Supabase visual demo apps', () => {
     await user.click(screen.getByRole('button', { name: 'LINE 帳號：彭梓育' }))
     await user.click(screen.getByRole('menuitem', { name: '登出' }))
     expect(client.auth.signOut).toHaveBeenCalledOnce()
-    expect(await screen.findByText('已登出，請重新開啟住戶LINE入口')).toBeInTheDocument()
+    expect(await screen.findByText('已登出，請重新開啟住戶 LINE 入口')).toBeInTheDocument()
   })
 
   it('restores a verified resident session without reopening LINE OAuth', async () => {
@@ -1962,7 +1962,7 @@ describe('local Supabase visual demo apps', () => {
     expect(screen.getByText(/Supabase Live Demo/)).toBeInTheDocument()
     expect(screen.getByText('已結單', { selector: '.ui-status-badge' })).toBeInTheDocument()
     expect(screen.getAllByText('資料庫住戶').length).toBeGreaterThan(0)
-    expect(screen.getByRole('img', { name: '資料庫住戶的LINE頭貼' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: '資料庫住戶的 LINE 頭貼' })).toBeInTheDocument()
     expect(screen.getByTitle('2026/08/14 09:00')).toHaveTextContent(/^8\/14$/)
     for (const mark of screen.getAllByText('已修改')) expect(mark).toHaveAttribute('title', '最後修改 2026/08/14 09:05')
     expect(screen.queryByText('斯祈')).not.toBeInTheDocument()

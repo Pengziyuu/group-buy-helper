@@ -54,7 +54,7 @@ function toResidentMember(value: unknown): ResidentMember {
     || typeof row.joined_at !== 'string'
     || typeof row.blocked !== 'boolean'
     || (row.blocked_at !== null && typeof row.blocked_at !== 'string')) {
-    throw new Error('Supabase回傳的住戶名單格式錯誤')
+    throw new Error('Supabase 回傳的住戶名單格式錯誤')
   }
   return {
     memberCode: row.member_code,

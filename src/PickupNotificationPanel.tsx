@@ -177,7 +177,7 @@ function PickupNotificationPanel({ campaignId, campaignTitle, campaignStatus, mo
   return (
     <section className="pickup-notification-panel" data-campaign-id={campaignId} aria-labelledby={panelHeadingId}>
       <div>
-        <h3 id={panelHeadingId}>{isTest ? `LINE通知測試：${campaignTitle}` : 'LINE領取通知'}</h3>
+        <h3 id={panelHeadingId}>{isTest ? `LINE 通知測試：${campaignTitle}` : 'LINE 領取通知'}</h3>
         <p>{isTest ? '發送方式：複製一次性測試指令並貼到測試群組' : '發送方式：複製一次性指令並貼到正式社區群組'}</p>
       </div>
       {Boolean(excludedOtherCount) && <p className="pickup-notification-excluded">本團另有 {excludedOtherCount} 位「其他」身分的訂購者不會收到通知，請自行聯繫。</p>}
@@ -207,15 +207,15 @@ function PickupNotificationPanel({ campaignId, campaignTitle, campaignStatus, mo
           <li className="pickup-step" data-state={command ? 'done' : 'current'} aria-labelledby={stepTwoId}>
             <h4 id={stepTwoId} ref={stepTwoHeadingRef} tabIndex={-1}>2. 確認名單與訊息</h4>
             <section aria-labelledby={mentionableHeadingId}>
-              <h5 id={mentionableHeadingId}>可＠{preview.mentionableCount}位</h5>
-              <p>將分成{preview.messageCount}則LINE訊息回覆。</p>
+              <h5 id={mentionableHeadingId}>可＠ {preview.mentionableCount} 位</h5>
+              <p>將分成 {preview.messageCount} 則 LINE 訊息回覆。</p>
               {preview.mentionableCount > 0
                 ? <RecipientList recipients={preview.mentionableRecipients} />
                 : <p className="pickup-empty-state">目前沒有符合條件且仍在群組中的購買者，因此不能產生指令。</p>}
             </section>
             {preview.unavailableRecipients.length > 0 && (
               <section className="pickup-unavailable" aria-labelledby={unavailableHeadingId}>
-                <h5 id={unavailableHeadingId}>以下{preview.unavailableRecipients.length}位目前無法＠</h5>
+                <h5 id={unavailableHeadingId}>以下 {preview.unavailableRecipients.length} 位目前無法＠</h5>
                 <p>可能已不在通知群組中；本次不會＠這些住戶。</p>
                 <RecipientList recipients={preview.unavailableRecipients} />
               </section>
@@ -229,7 +229,7 @@ function PickupNotificationPanel({ campaignId, campaignTitle, campaignStatus, mo
             {!command && (
               <div className="pickup-step-actions">
                 <Button ref={commandButtonRef} disabled={busy !== null || preview.mentionableCount === 0 || !preview.previewToken || !message.trim()} onClick={() => { void createCommand() }}>
-                  {busy === 'create-command' ? '產生指令中…' : `產生${isTest ? '測試' : '正式'}群組指令並＠${preview.mentionableCount}位住戶`}
+                  {busy === 'create-command' ? '產生指令中…' : `產生${isTest ? '測試' : '正式'}群組指令並＠ ${preview.mentionableCount} 位住戶`}
                 </Button>
               </div>
             )}
@@ -239,10 +239,10 @@ function PickupNotificationPanel({ campaignId, campaignTitle, campaignStatus, mo
         {chosen && command && (
           <li className="pickup-step" data-state="current" aria-labelledby={stepThreeId}>
             <h4 id={stepThreeId}>3. 複製指令到群組</h4>
-            <section className="pickup-command-result" aria-label="一次性LINE群組指令">
+            <section className="pickup-command-result" aria-label="一次性 LINE 群組指令">
               <strong>{isTest ? '測試群組指令已產生' : '正式群組指令已產生'}</strong>
               <p>請複製並貼到{isTest ? '測試群組' : '正式社區群組'}。此頁尚未代表通知已發送。</p>
-              <input className="ui-input" aria-label="一次性LINE群組指令" readOnly value={command.command} onFocus={(event) => event.currentTarget.select()} />
+              <input className="ui-input" aria-label="一次性 LINE 群組指令" readOnly value={command.command} onFocus={(event) => event.currentTarget.select()} />
               <div className="pickup-step-actions">
                 <Button ref={copyButtonRef} onClick={() => { void copyCommand() }}>複製指令</Button>
                 <Button variant="secondary" onClick={startOver}>完成</Button>

@@ -83,11 +83,11 @@ function parsePreview(value: unknown): PickupNotificationPreview {
     && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.[A-Za-z0-9_-]{20,12000}$/i.test(data.previewToken))
   if (!data || Object.keys(data).some((key) => !allowed.has(key)) || !validToken
     || !Array.isArray(data.mentionableRecipients) || !Array.isArray(data.unavailableRecipients)
-    || !validCount(data.mentionableCount, 100) || !validCount(data.messageCount, 5)) throw new Error('LINE通知回傳格式錯誤')
+    || !validCount(data.mentionableCount, 100) || !validCount(data.messageCount, 5)) throw new Error('LINE 通知回傳格式錯誤')
   const mentionableRecipients = data.mentionableRecipients.map(recipient)
   const unavailableRecipients = data.unavailableRecipients.map(recipient)
   if (mentionableRecipients.some((item) => !item) || unavailableRecipients.some((item) => !item)
-    || data.mentionableCount !== mentionableRecipients.length) throw new Error('LINE通知回傳格式錯誤')
+    || data.mentionableCount !== mentionableRecipients.length) throw new Error('LINE 通知回傳格式錯誤')
   return {
     previewToken: data.previewToken as string | null,
     mentionableRecipients: mentionableRecipients as PickupNotificationRecipient[],
@@ -105,7 +105,7 @@ function parseCommand(value: unknown, destination: PickupNotificationDestination
     || !(destination === 'test' ? /^測試領取通知 T-[A-Za-z0-9_-]{22}$/ : /^發送領取通知 P-[A-Za-z0-9_-]{22}$/).test(data.command)
     || typeof data.expiresAt !== 'string' || !Number.isFinite(Date.parse(data.expiresAt))
     || !validCount(data.mentionableCount, 100) || data.mentionableCount < 1
-    || !validCount(data.messageCount, 5) || data.messageCount < 1) throw new Error('LINE通知回傳格式錯誤')
+    || !validCount(data.messageCount, 5) || data.messageCount < 1) throw new Error('LINE 通知回傳格式錯誤')
   return data as PickupNotificationCommand
 }
 
@@ -124,16 +124,16 @@ function parsePlanPreview(value: unknown, plan: PickupNotificationPlan): PickupN
       const unavailableRecipients = flat.unavailableRecipients.filter((item) => partition(key, item))
       return [key, { ...flat, mentionableRecipients, unavailableRecipients, mentionableCount: mentionableRecipients.length, messageCount: Math.ceil(mentionableRecipients.length / 20) }]
     })) as PickupNotificationPlanPreview['groups']
-    if (Object.values(parsed).reduce((sum, group) => sum + (group?.messageCount ?? 0), 0) !== flat.messageCount) throw new Error('LINE通知回傳格式錯誤')
+    if (Object.values(parsed).reduce((sum, group) => sum + (group?.messageCount ?? 0), 0) !== flat.messageCount) throw new Error('LINE 通知回傳格式錯誤')
     return { previewToken: flat.previewToken, messageCount: flat.messageCount, groups: parsed }
   }
   if (!data || Object.keys(data).some((key) => !['previewToken', 'messageCount', 'groups'].includes(key))
     || !groups || Object.keys(groups).some((key) => !keys.includes(key))
     || keys.some((key) => !(key in groups)) || !validCount(data.messageCount, 5)
-    || !(data.previewToken === null || (typeof data.previewToken === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.[A-Za-z0-9_-]{20,12000}$/i.test(data.previewToken)))) throw new Error('LINE通知回傳格式錯誤')
+    || !(data.previewToken === null || (typeof data.previewToken === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.[A-Za-z0-9_-]{20,12000}$/i.test(data.previewToken)))) throw new Error('LINE 通知回傳格式錯誤')
   const parsed = Object.fromEntries(keys.map((key) => [key, parsePreview(groups[key])])) as PickupNotificationPlanPreview['groups']
   const total = Object.values(parsed).reduce((sum, group) => sum + (group?.messageCount ?? 0), 0)
-  if (total !== data.messageCount) throw new Error('LINE通知回傳格式錯誤')
+  if (total !== data.messageCount) throw new Error('LINE 通知回傳格式錯誤')
   return { previewToken: data.previewToken as string | null, messageCount: data.messageCount as number, groups: parsed }
 }
 

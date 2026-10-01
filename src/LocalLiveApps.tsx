@@ -893,7 +893,7 @@ export function LocalLiveAdminApp({
           <section className="live-login-card">
             <p className="admin-eyebrow">LINE LIFF</p>
             <h1>團主登入</h1>
-            <p>使用LINE驗證身分後進入團主後台。</p>
+            <p>使用 LINE 驗證身分後進入團主後台。</p>
             {logoutNotice && <FeedbackMessage tone="warning" urgent>{logoutNotice}</FeedbackMessage>}
             {linePending && (
               <div className="line-organizer-pending" role="status">
@@ -903,7 +903,7 @@ export function LocalLiveAdminApp({
               </div>
             )}
             {error && <FeedbackMessage tone="error">{error}</FeedbackMessage>}
-            <Button className="line-login-action" onClick={() => { void signInWithLine() }} loading={signingIn} loadingLabel="LINE驗證中…">
+            <Button className="line-login-action" onClick={() => { void signInWithLine() }} loading={signingIn} loadingLabel="LINE 驗證中…">
               使用 LINE 登入
             </Button>
             <a href="/">先查看住戶端</a>
@@ -1235,7 +1235,7 @@ async function authenticateResident(
   // Restored admitted residents are not subject to a new group-membership gate.
   const restored = recheck ? null : await loadRestoredResidentIdentity(client)
   if (restored) return restored
-  if (!liffId || !liffClient) throw new Error('住戶LINE登入設定不完整')
+  if (!liffId || !liffClient) throw new Error('住戶 LINE 登入設定不完整')
   const identity = await loadLiffIdentity(liffClient, liffId)
   if (!identity) return null
   const result = await (lineResidentGateway ?? createLineResidentGateway(client)).signIn(identity.idToken)
@@ -1279,7 +1279,7 @@ function LocalLiveResidentListApp({
     setAttempt((current) => current + 1)
   }} />
   if (error) return <LiveError message={error} title="無法載入住戶入口" />
-  if (!identity || !campaigns) return <LiveLoading label="確認LINE住戶身分並載入開團列表…" />
+  if (!identity || !campaigns) return <LiveLoading label="確認 LINE 住戶身分並載入開團列表…" />
   return (
     <ResidentCampaignListApp
       identity={identity}
@@ -1295,7 +1295,7 @@ function LocalLiveResidentListApp({
         }
         setIdentity(null)
         setCampaigns([])
-        setError('已登出，請重新開啟住戶LINE入口')
+        setError('已登出，請重新開啟住戶 LINE 入口')
       }}
     />
   )
@@ -1338,7 +1338,7 @@ async function ensureResidentSession(client: SupabaseClient<Database>, allowAnon
     }
     return { ...data.session, user: verified.user }
   }
-  if (!allowAnonymous) throw new Error('請先從住戶LINE入口登入')
+  if (!allowAnonymous) throw new Error('請先從住戶 LINE 入口登入')
   const { data: anonymousData, error: anonymousError } = await client.auth.signInAnonymously()
   if (anonymousError || !anonymousData.session) {
     throw anonymousError ?? new Error('無法建立住戶匿名登入')
@@ -1395,7 +1395,7 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug, liffId
       if (active && (generation === undefined || generation === syncGeneration)) {
         setOrders(visibleOrdersFromRows(wallResult.data ?? []))
         const identity = identityResult.data?.[0]
-        if (!identity?.display_name) throw new Error('請先從住戶LINE入口登入')
+        if (!identity?.display_name) throw new Error('請先從住戶 LINE 入口登入')
         setResidentIdentity({ displayName: identity.display_name, pictureUrl: identity.picture_url })
         const customer = customerResult.data?.[0]
         // get_customer_self() does not report household_kind directly, but it

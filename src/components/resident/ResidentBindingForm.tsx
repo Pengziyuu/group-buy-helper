@@ -24,7 +24,7 @@ const safeResidentBindingMessages = new Set([
   '此期別與戶號已由其他住戶綁定',
   '住戶資料已綁定，如需變更請聯絡團主',
   '住戶期別或戶號不符合社區編碼',
-  '請先完成LINE住戶驗證',
+  '請先完成 LINE 住戶驗證',
 ])
 
 function residentBindingErrorMessage(error: unknown): string {
@@ -37,7 +37,7 @@ function residentBindingErrorMessage(error: unknown): string {
 
   if (safeResidentBindingMessages.has(message)) return message
   if (status === 401 || code === 'PGRST301' || /jwt|authentication required/i.test(message)) {
-    return '登入狀態已失效，請重新開啟LINE頁面後再試。'
+    return '登入狀態已失效，請重新開啟 LINE 頁面後再試。'
   }
   if (error instanceof TypeError || status === 0 || /failed to fetch|network|timeout/i.test(message)) {
     return '連線失敗，請確認網路後再試。'
@@ -87,9 +87,9 @@ export function ResidentBindingForm({ identity, disabled, onBind }: ResidentBind
       {identity && (
         <div className="resident-verified-identity">
           {identity.pictureUrl
-            ? <img className="resident-avatar" src={identity.pictureUrl} alt={`${identity.displayName}的LINE頭貼`} referrerPolicy="no-referrer" />
+            ? <img className="resident-avatar" src={identity.pictureUrl} alt={`${identity.displayName}的 LINE 頭貼`} referrerPolicy="no-referrer" />
             : <span className="resident-avatar" aria-hidden="true">{nameInitial(identity.displayName)}</span>}
-          <div><small>LINE驗證身分</small><strong>{identity.displayName}</strong></div>
+          <div><small>LINE 驗證身分</small><strong>{identity.displayName}</strong></div>
         </div>
       )}
       <div className="resident-binding-fields">
@@ -143,7 +143,7 @@ export function ResidentBindingForm({ identity, disabled, onBind }: ResidentBind
       </div>
       <Button onClick={() => { void submit() }} disabled={disabled} loading={binding} loadingLabel="住戶資料儲存中…">儲存住戶資料</Button>
       {error && <FeedbackMessage className="resident-binding-feedback" tone="error">{error}</FeedbackMessage>}
-      <p className="resident-binding-note">住戶資料只用於辨識訂單；同一戶號可由多個LINE帳號各自下單。</p>
+      <p className="resident-binding-note">住戶資料只用於辨識訂單；同一戶號可由多個 LINE 帳號各自下單。</p>
     </div>
   )
 }

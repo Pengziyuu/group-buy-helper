@@ -43,7 +43,7 @@ function validRate(rate: number): boolean {
 
 export function discountedUnitPrice(unitPrice: number, rate: number): number {
   if (!Number.isFinite(unitPrice) || unitPrice < 0) throw new Error('商品原價必須是非負數')
-  if (!validRate(rate)) throw new Error('折扣率必須大於0且不超過1')
+  if (!validRate(rate)) throw new Error('折扣率必須大於 0 且不超過 1')
   const priceInCents = Math.round(unitPrice * 100)
   const rateInBasisPoints = Math.round(rate * 10_000)
   return Math.floor((priceInCents * rateInBasisPoints + 500_000) / 1_000_000)

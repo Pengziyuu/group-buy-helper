@@ -4,30 +4,37 @@ import { CampaignWorkspace } from './components/organizer/CampaignWorkspace'
 import { OrdersSection } from './components/organizer/OrdersSection'
 import { OverviewSection } from './components/organizer/OverviewSection'
 import { PickupSection } from './components/organizer/PickupSection'
+import type { SaveTemplateActions } from './components/organizer/SaveTemplateDialog'
 import { resolveWorkspaceSection } from './components/organizer/workspaceSections'
 import { demoScenarioOrganizerId, demoScenarioOrganizerOrders } from './data/demoOrganizerScenarios'
 import type { DemoResidentScenario } from './data/demoResidentScenarios'
 import { buildOrganizerOrderSummary, type OrganizerVisibleOrder } from './domain/adminOrders'
 import type { CampaignStatus } from './domain/orderWorkflow'
 import type { CampaignListItem } from './services/campaignManagementGateway'
+import type { CampaignContent } from './services/demoCampaignStore'
 import type { WorkspaceSection } from './routing'
 
+/** Saves the given content as a template, as the live workspace does for every campaign. */
+export type DemoSaveTemplate = (content: CampaignContent) => SaveTemplateActions
+
 /** The unpublished demo draft: only its content settings are available, as for a real draft. */
-export function DemoOrganizerDraftWorkspace({ draft }: { draft: CampaignListItem }) {
+export function DemoOrganizerDraftWorkspace({ draft, saveTemplate }: { draft: CampaignListItem; saveTemplate?: DemoSaveTemplate }) {
+  const content: CampaignContent = {
+    title: draft.title, unitPrice: 0, threshold: draft.threshold, thresholdConfigured: false,
+    itemNameConfigured: false, itemPriceConfigured: false, quantityUnit: draft.quantityUnit,
+    announcement: '', images: [], items: [], openedAt: null,
+  }
   return (
     <CampaignWorkspace
       campaign={{ id: draft.id, title: draft.title, status: draft.status, published: false, coverImage: null, openedAt: null, orderCount: null, residentHref: null }}
       requestedSection="content"
       section="content"
+      saveTemplate={saveTemplate?.(content)}
     >
       <AdminApp
         key={draft.id}
         initialPublicationState="draft"
-        initialContent={{
-          title: draft.title, unitPrice: 0, threshold: draft.threshold, thresholdConfigured: false,
-          itemNameConfigured: false, itemPriceConfigured: false, quantityUnit: draft.quantityUnit,
-          announcement: '', images: [], items: [], openedAt: null,
-        }}
+        initialContent={content}
         section="content"
       />
     </CampaignWorkspace>
@@ -35,7 +42,7 @@ export function DemoOrganizerDraftWorkspace({ draft }: { draft: CampaignListItem
 }
 
 /** One made-up campaign in the organizer workspace; status, notes and cancellations live in memory. */
-export function DemoOrganizerScenarioWorkspace({ scenario, requestedSection }: { scenario: DemoResidentScenario; requestedSection: WorkspaceSection | null }) {
+export function DemoOrganizerScenarioWorkspace({ scenario, requestedSection, saveTemplate }: { scenario: DemoResidentScenario; requestedSection: WorkspaceSection | null; saveTemplate?: DemoSaveTemplate }) {
   const { content } = scenario
   const id = demoScenarioOrganizerId(scenario.slug)
   const residentHref = `/campaign/${scenario.slug}`
@@ -69,6 +76,7 @@ export function DemoOrganizerScenarioWorkspace({ scenario, requestedSection }: {
       requestedSection={requestedSection}
       section={section}
       onSetCampaignStatus={async (next) => setStatus(next)}
+      saveTemplate={saveTemplate?.(content)}
     >
       <AdminApp key={id} initialContent={content} campaignStatus={status} section={section === 'content' ? 'content' : null} />
       {section === 'overview' && (

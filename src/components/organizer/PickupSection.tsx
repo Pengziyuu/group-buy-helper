@@ -36,7 +36,7 @@ export function PickupSection({ campaignId, campaignTitle, campaignStatus, publi
           onCreatePlanCommand={onCreatePlanCommand}
         />
       ) : (
-        <EmptyState title="本機示範不提供LINE領取通知" description="連接 Supabase 的團主後台才能產生領取通知指令。" />
+        <EmptyState title="本機示範不提供 LINE 領取通知" description="連接 Supabase 的團主後台才能產生領取通知指令。" />
       )}
     </section>
   )

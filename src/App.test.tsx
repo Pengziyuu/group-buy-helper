@@ -80,12 +80,12 @@ describe('customer campaign app', () => {
     const orders = [{ ...resident, items: {}, orderedAt: '2026-09-12T00:00:00.000Z', updatedAt: '2026-09-12T00:00:00.000Z' }]
 
     const view = render(<App publishedContent={content(1)} residentCustomer={resident} visibleOrders={orders} />)
-    expect(screen.getByText('限定區目前0件，未達標維持原價')).toBeInTheDocument()
+    expect(screen.getByText('限定區目前 0 件，未達標維持原價')).toBeInTheDocument()
     expect(screen.queryByText(/10折/)).not.toBeInTheDocument()
     view.unmount()
 
     render(<App publishedContent={content(0.95)} residentCustomer={resident} visibleOrders={orders} />)
-    expect(screen.getByText('限定區目前0件，未達標維持95折')).toBeInTheDocument()
+    expect(screen.getByText('限定區目前 0 件，未達標維持 95 折')).toBeInTheDocument()
   })
 
   it('previews base and mix-and-match prices while quantities change', async () => {
@@ -94,7 +94,7 @@ describe('customer campaign app', () => {
     const content: CampaignContent = {
       title: '肉品團購', unitPrice: 150, threshold: 100,
       baseDiscountRate: 0.9,
-      mixMatchDiscount: { name: '任選三件85折', minimumQuantity: 3, rate: 0.85 },
+      mixMatchDiscount: { name: '任選三件 85 折', minimumQuantity: 3, rate: 0.85 },
       announcement: '公告', images: [], openedAt: '2026-09-12T00:00:00.000Z',
       items: [
         { code: 'A', name: '五花肉片', unitPrice: 170, active: true, discountEligible: true },
@@ -115,24 +115,24 @@ describe('customer campaign app', () => {
 
     await user.click(screen.getByRole('button', { name: '增加 A 五花肉片' }))
     await user.click(screen.getByRole('button', { name: '增加 B 高粱酒香腸' }))
-    expect(screen.getByText('再選1件即可享85折')).toBeInTheDocument()
+    expect(screen.getByText('再選 1 件即可享 85 折')).toBeInTheDocument()
     expect(within(screen.getByLabelText('訂單摘要與送出')).getByText('$422')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '增加 A 五花肉片' }))
-    expect(screen.getByText('已套用任選三件85折')).toBeInTheDocument()
+    expect(screen.getByText('已套用任選三件 85 折')).toBeInTheDocument()
     expect(within(screen.getByLabelText('訂單摘要與送出')).getByText('$544')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '增加 C 梅花肉片' }))
     expect(within(screen.getByLabelText('訂單摘要與送出')).getByText('$706')).toBeInTheDocument()
     expect(screen.getByText('任選價 $145')).toBeInTheDocument()
-    expect(screen.getByText('9折價 $162')).toBeInTheDocument()
+    expect(screen.getByText('9 折價 $162')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '查看訂單明細' }))
     const review = screen.getByRole('dialog', { name: '訂單明細' })
     expect(within(review).getByText('五花肉片')).toBeInTheDocument()
     expect(within(review).getByText('2 × $145')).toBeInTheDocument()
     expect(within(review).getByText('$290')).toBeInTheDocument()
-    expect(within(review).getAllByText('任選三件85折')).toHaveLength(2)
+    expect(within(review).getAllByText('任選三件 85 折')).toHaveLength(2)
     expect(within(review).getByText('梅花肉片')).toBeInTheDocument()
     expect(within(review).getByText('1 × $162')).toBeInTheDocument()
     expect(within(review).getByText('商品合計')).toBeInTheDocument()
@@ -509,7 +509,7 @@ describe('customer campaign app', () => {
     expect(screen.getByRole('heading', { name: '首次填寫住戶資料' })).toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: '姓名' })).not.toBeInTheDocument()
     expect(screen.getByText('彭梓育')).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: '彭梓育的LINE頭貼' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: '彭梓育的 LINE 頭貼' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: '三期' })).toBeInTheDocument()
     await user.selectOptions(screen.getByRole('combobox', { name: '期別' }), '3')
     expect(screen.getByRole('group', { name: '戶號' })).toBeInTheDocument()
@@ -594,7 +594,7 @@ describe('customer campaign app', () => {
       />,
     )
 
-    expect(screen.getByText('住戶資料只用於辨識訂單；同一戶號可由多個LINE帳號各自下單。')).toBeInTheDocument()
+    expect(screen.getByText('住戶資料只用於辨識訂單；同一戶號可由多個 LINE 帳號各自下單。')).toBeInTheDocument()
     expect(screen.queryByText(/只能綁定一個帳號/)).not.toBeInTheDocument()
   })
 

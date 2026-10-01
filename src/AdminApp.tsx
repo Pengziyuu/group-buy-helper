@@ -693,7 +693,7 @@ function AdminApp({
                 }}
               />
               {baseDiscountEnabled && (
-                <FormField id="content-base-discount" label="基本折數" helper="例如輸入9代表9折。" className="content-number-field">
+                <FormField id="content-base-discount" label="基本折數" helper="例如輸入 9 代表 9 折。" className="content-number-field">
                   <input
                     className="ui-input"
                     type="number"
@@ -733,7 +733,7 @@ function AdminApp({
                     <input className="ui-input" type="number" min="2" max="100" step="1" value={mixMatchMinimumQuantity} disabled={editorBusy || itemsLocked}
                       onChange={(event) => { const value = Number(event.target.value); if (Number.isInteger(value) && value >= 2 && value <= 100) { setMixMatchMinimumQuantity(value); setMixMatchName(promotionName(value, mixMatchDiscountRate)); markDraft() } }} />
                   </FormField>
-                  <FormField id="content-mix-rate" label="任選優惠折數" helper="例如輸入8.5代表85折。" className="content-number-field">
+                  <FormField id="content-mix-rate" label="任選優惠折數" helper="例如輸入 8.5 代表 85 折。" className="content-number-field">
                     <input className="ui-input" type="number" min="0.1" max="10" step="0.1" value={Number((mixMatchDiscountRate * 10).toFixed(2))} disabled={editorBusy || itemsLocked}
                       onChange={(event) => { const fold = Number(event.target.value); if (fold > 0 && fold <= 10) { setMixMatchDiscountRate(fold / 10); setMixMatchName(promotionName(mixMatchMinimumQuantity, fold / 10)); markDraft() } }} />
                   </FormField>

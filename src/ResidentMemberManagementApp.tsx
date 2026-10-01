@@ -42,7 +42,7 @@ function groupStatusLabel(status: ResidentMember['groupStatus']): string {
 
 function Avatar({ member }: { member: ResidentMember }) {
   if (member.pictureUrl) {
-    return <img src={member.pictureUrl} alt={`${member.displayName}的LINE頭貼`} referrerPolicy="no-referrer" />
+    return <img src={member.pictureUrl} alt={`${member.displayName}的 LINE 頭貼`} referrerPolicy="no-referrer" />
   }
   return <span aria-hidden="true">{nameInitial(member.displayName)}</span>
 }
@@ -209,7 +209,7 @@ export default function ResidentMemberManagementApp({ members, initialFilter = '
       </div>
 
       {onRefreshGroupStatuses && (
-        <section className="resident-group-check" aria-label="LINE群組查驗">
+        <section className="resident-group-check" aria-label="LINE 群組查驗">
           <ul className="resident-group-summary" aria-label="正式群組狀態">
             <li><span className="resident-group-dot" data-status="in_group" aria-hidden="true" />在群組內 <strong>{groupCounts.in}</strong></li>
             <li><span className="resident-group-dot" data-status="not_in_group" aria-hidden="true" />不在群組 <strong>{groupCounts.out}</strong></li>

@@ -48,7 +48,7 @@ describe('OverviewSection', () => {
       summary: { ...summary, orderRows: summary.orderRows.map((order) => ({ ...order, pictureUrl: order.name === '斯祈' ? 'https://profile.line-scdn.net/abc' : null })) },
     })
     const latest = screen.getByRole('list', { name: '最新訂單' })
-    expect(within(latest).getByRole('img', { name: '斯祈的LINE頭貼' })).toHaveAttribute('src', 'https://profile.line-scdn.net/abc')
+    expect(within(latest).getByRole('img', { name: '斯祈的 LINE 頭貼' })).toHaveAttribute('src', 'https://profile.line-scdn.net/abc')
     expect(latest.querySelectorAll('.ui-avatar[data-tone]').length).toBe(summary.orderRows.length - 1)
   })
 

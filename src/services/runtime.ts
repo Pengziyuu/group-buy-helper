@@ -36,7 +36,7 @@ export function resolveRuntimeConfig(environment: RuntimeEnvironment): RuntimeCo
   const residentLiffId = environment.VITE_RESIDENT_LIFF_ID?.trim()
 
   if (supabaseAnonKey?.startsWith('sb_secret_')) {
-    throw new Error('VITE_SUPABASE_ANON_KEY只能使用publishable或anon公開金鑰')
+    throw new Error('VITE_SUPABASE_ANON_KEY 只能使用 publishable 或 anon 公開金鑰')
   }
 
   if (localDemo) {

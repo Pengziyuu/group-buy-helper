@@ -62,7 +62,7 @@ describe('resolveRuntimeConfig', () => {
     expect(() => resolveRuntimeConfig({
       VITE_SUPABASE_URL: 'https://example.supabase.co',
       VITE_SUPABASE_ANON_KEY: 'sb_secret_must-never-reach-browser',
-    })).toThrow('VITE_SUPABASE_ANON_KEY只能使用publishable或anon公開金鑰')
+    })).toThrow('VITE_SUPABASE_ANON_KEY 只能使用 publishable 或 anon 公開金鑰')
 
     expect(() => resolveRuntimeConfig({
       VITE_LOCAL_SUPABASE_DEMO: 'true',
@@ -70,7 +70,7 @@ describe('resolveRuntimeConfig', () => {
       VITE_SUPABASE_ANON_KEY: 'sb_secret_must-never-reach-browser',
       VITE_DEMO_CAMPAIGN_ID: 'campaign-1',
       VITE_DEMO_CAMPAIGN_SLUG: 'slug',
-    })).toThrow('VITE_SUPABASE_ANON_KEY只能使用publishable或anon公開金鑰')
+    })).toThrow('VITE_SUPABASE_ANON_KEY 只能使用 publishable 或 anon 公開金鑰')
   })
 })
 

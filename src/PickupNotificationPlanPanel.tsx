@@ -74,9 +74,9 @@ export default function PickupNotificationPlanPanel({ campaignTitle, campaignSta
     catch (cause) { setError(cause instanceof Error ? cause.message : '目前無法產生通知指令，請稍後再試。') }
     finally { setBusy(false) }
   }
-  return <section className="pickup-notification-panel pickup-plan-panel" aria-label="LINE領取通知">
+  return <section className="pickup-notification-panel pickup-plan-panel" aria-label="LINE 領取通知">
     <header className="pickup-plan-header">
-      <h3>{mode === 'test' ? `LINE通知測試：${campaignTitle}` : 'LINE領取通知'}</h3>
+      <h3>{mode === 'test' ? `LINE 通知測試：${campaignTitle}` : 'LINE 領取通知'}</h3>
       <p>先核對名單與文案，再產生一次性指令；此頁不會直接發送。</p>
     </header>
     <div className="pickup-plan-setup">
@@ -97,15 +97,15 @@ export default function PickupNotificationPlanPanel({ campaignTitle, campaignSta
         return <section className="pickup-step" key={key} aria-label={`${labels[key]}通知`}>
           <div className="pickup-plan-group-heading"><h4>{labels[key]}名單</h4><span>{group?.mentionableCount ?? 0} 位可＠</span></div>
           <p className="pickup-plan-group-meta">預計 {group?.messageCount ?? 0} 則訊息 · 每則最多 20 位</p>
-          {group?.mentionableRecipients.length ? <details className="pickup-plan-roster"><summary>查看名單（{group.mentionableCount}位）</summary><ul className="pickup-recipient-list">{group.mentionableRecipients.map((recipient) => <li key={recipient.memberCode}><span>{formatResidentPeriod(recipient.period)}・{recipient.unit}</span><strong>{recipient.displayName}</strong></li>)}</ul></details> : <p className="pickup-empty-state">目前沒有可＠的購買者。</p>}
+          {group?.mentionableRecipients.length ? <details className="pickup-plan-roster"><summary>查看名單（{group.mentionableCount} 位）</summary><ul className="pickup-recipient-list">{group.mentionableRecipients.map((recipient) => <li key={recipient.memberCode}><span>{formatResidentPeriod(recipient.period)}・{recipient.unit}</span><strong>{recipient.displayName}</strong></li>)}</ul></details> : <p className="pickup-empty-state">目前沒有可＠的購買者。</p>}
           {Boolean(group?.unavailableRecipients.length) && <details className="pickup-plan-roster pickup-unavailable"><summary>無法＠ {group?.unavailableRecipients.length} 位</summary><p>以下住戶不會包含於指令：</p><ul className="pickup-recipient-list">{group?.unavailableRecipients.map((recipient) => <li key={recipient.memberCode}><span>{formatResidentPeriod(recipient.period)}・{recipient.unit}</span><strong>{recipient.displayName}</strong></li>)}</ul></details>}
           <label className="pickup-message-field"><span>{key === 'all' ? '通知內容' : `${labels[key]}通知內容`}</span><textarea aria-label={key === 'all' ? '通知內容' : `${labels[key]}通知內容`} maxLength={mode === 'test' ? 4495 : 4500} rows={5} disabled={busy || Boolean(command)} value={body} onChange={(event) => changeMessage(key, event.target.value)} /></label>
         </section>
       })}
       <div className="pickup-plan-summary"><strong>合計 {total} 位可＠</strong><span>預計 {preview.messageCount} 則 LINE 訊息／上限 5 則</span></div>
-      {preview.messageCount > 5 && <p role="alert" className="pickup-notification-error">需要{preview.messageCount}則訊息，超過單一指令5則上限；目前無法產生涵蓋全部住戶的指令。</p>}
+      {preview.messageCount > 5 && <p role="alert" className="pickup-notification-error">需要 {preview.messageCount} 則訊息，超過單一指令 5 則上限；目前無法產生涵蓋全部住戶的指令。</p>}
       {!command && <Button className="pickup-plan-action" disabled={busy || !preview.previewToken || preview.messageCount > 5 || total === 0 || keys.some((key) => !(plan.mode === 'ambient' ? plan.messages.all : plan.messages[key as 'phase13' | 'phase2']).trim())} onClick={() => { void createCommand() }}>產生指令</Button>}
-      {command && <section className="pickup-command-result" aria-label="一次性LINE群組指令"><strong>指令已產生，通知尚未發送。</strong><p>複製後貼到{mode === 'test' ? '測試群組' : '正式社區群組'}。</p><input className="ui-input" aria-label="一次性LINE群組指令" readOnly value={command.command} onFocus={(event) => event.currentTarget.select()} /><div className="pickup-step-actions"><Button onClick={() => { void navigator.clipboard.writeText(command.command).then(() => setCopyStatus('指令已複製，等待貼到群組。'), () => setError('無法自動複製，請手動選取指令複製。')) }}>複製指令</Button><Button variant="secondary" onClick={() => { setPreview(null); setCommand(null) }}>完成</Button></div>{copyStatus && <p role="status">{copyStatus}</p>}</section>}
+      {command && <section className="pickup-command-result" aria-label="一次性 LINE 群組指令"><strong>指令已產生，通知尚未發送。</strong><p>複製後貼到{mode === 'test' ? '測試群組' : '正式社區群組'}。</p><input className="ui-input" aria-label="一次性 LINE 群組指令" readOnly value={command.command} onFocus={(event) => event.currentTarget.select()} /><div className="pickup-step-actions"><Button onClick={() => { void navigator.clipboard.writeText(command.command).then(() => setCopyStatus('指令已複製，等待貼到群組。'), () => setError('無法自動複製，請手動選取指令複製。')) }}>複製指令</Button><Button variant="secondary" onClick={() => { setPreview(null); setCommand(null) }}>完成</Button></div>{copyStatus && <p role="status">{copyStatus}</p>}</section>}
     </div>}
   </section>
 }
