@@ -12,7 +12,7 @@ permissions:
   issues: write
 
 env:
-  SITE: https://group-buy-helper-liart.vercel.app
+  SITE: https://tuan-go.vercel.app
   SUPABASE_PROJECT: ynezmoyjovjeeimjdizr
 
 jobs:
