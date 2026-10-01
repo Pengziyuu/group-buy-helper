@@ -9,6 +9,12 @@ import { runtimeConfig, usesSupabaseBackend } from './services/runtime'
 import { SUPABASE_AUTH_STORAGE_KEY } from './services/authStorage'
 import type { LiffClient } from './services/liffIdentity'
 import type { Database } from './types/database'
+import { shouldMonitorErrors } from './services/errorMonitoringPolicy'
+
+// Sentry is a separate download, fetched only on the live site; its global handlers catch errors React rethrows.
+if (shouldMonitorErrors(runtimeConfig, import.meta.env.PROD)) {
+  void import('./services/errorMonitoring').then(({ startErrorMonitoring }) => startErrorMonitoring(runtimeConfig, true))
+}
 
 let loadedLiff: Liff | null = null
 const liffClient: LiffClient = {

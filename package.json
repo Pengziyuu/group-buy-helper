@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@line/liff": "^2.29.2",
+    "@sentry/react": "^11.2.0",
     "@supabase/supabase-js": "^2.112.2",
     "exceljs": "^4.4.0",
     "react": "^19.2.8",
