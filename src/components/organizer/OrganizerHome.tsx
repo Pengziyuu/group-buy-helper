@@ -16,6 +16,7 @@ import {
 } from './campaignListView'
 import { copyResidentLink } from './copyResidentLink'
 import { OrganizerLink } from './OrganizerLink'
+import { OrganizerThumb } from './OrganizerThumb'
 import { useOrganizerNavigate } from './organizerNavigation'
 
 const PHASE_BADGES: Record<CampaignPhase, { label: string; tone: 'success' | 'warning' | 'neutral' }> = {
@@ -33,16 +34,6 @@ type OrganizerHomeProps = {
   now?: Date
   onDelete?: (campaignId: string) => Promise<{ warning: string | null } | void>
   onCopyResidentLink?: (path: string) => Promise<void>
-}
-
-function CampaignThumb({ campaign }: { campaign: CampaignListItem }) {
-  const image = campaign.images[0]
-  const [failed, setFailed] = useState(false)
-  useEffect(() => setFailed(false), [image?.src])
-  if (image && !failed) {
-    return <img className="organizer-thumb" src={image.src} alt="" loading="lazy" onError={() => setFailed(true)} />
-  }
-  return <span className="organizer-thumb organizer-thumb-empty" aria-hidden="true">無圖</span>
 }
 
 export function OrganizerHome({ campaigns, autoCloseNotificationState, unboundResidentCount = 0, now, onDelete, onCopyResidentLink }: OrganizerHomeProps) {
@@ -174,7 +165,7 @@ export function OrganizerHome({ campaigns, autoCloseNotificationState, unboundRe
                   }}>
                     <th scope="row">
                       <div className="organizer-campaign-cell">
-                        <CampaignThumb campaign={campaign} />
+                        <OrganizerThumb image={campaign.images[0]} />
                         <div>
                           <OrganizerLink className="organizer-row-link" href={href}>{campaign.title}</OrganizerLink>
                           {phase === 'draft' && <small>住戶看不到・尚未發布</small>}

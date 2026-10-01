@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import AutoCloseNotificationSettings from './AutoCloseNotificationSettings'
@@ -14,6 +14,10 @@ describe('AutoCloseNotificationSettings', () => {
     expect(screen.queryByRole('radio')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '將我設為通知接收者' }))
 
+    // A stray tap only opens a confirmation; nothing changes until it is confirmed.
+    const dialog = screen.getByRole('dialog', { name: '由你接收自動結單通知？' })
+    expect(onSelectCurrentUser).not.toHaveBeenCalled()
+    await user.click(within(dialog).getByRole('button', { name: '確認由我接收' }))
     expect(onSelectCurrentUser).toHaveBeenCalledOnce()
     expect(await screen.findByText('已將你設為自動結單通知接收者。')).toBeInTheDocument()
   })
@@ -33,6 +37,13 @@ describe('AutoCloseNotificationSettings', () => {
     expect(screen.getByText('目前已由另一位已核准團主接收通知。')).toBeInTheDocument()
     expect(document.body).not.toHaveTextContent(/user id|auth|uuid/i)
     await user.click(screen.getByRole('button', { name: '改由我接收通知' }))
+    // Taking over stops the other organizer's notifications, so the dialog says so; cancelling changes nothing.
+    expect(screen.getByRole('dialog', { name: '由你接收自動結單通知？' })).toHaveTextContent('原本的團主就不會再收到')
+    await user.click(screen.getByRole('button', { name: '取消' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(onSelectCurrentUser).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: '改由我接收通知' }))
+    await user.click(screen.getByRole('button', { name: '確認由我接收' }))
     expect(onSelectCurrentUser).toHaveBeenCalledOnce()
   })
 
@@ -42,6 +53,7 @@ describe('AutoCloseNotificationSettings', () => {
     render(<AutoCloseNotificationSettings state="unconfigured" onSelectCurrentUser={onSelectCurrentUser} />)
 
     await user.click(screen.getByRole('button', { name: '將我設為通知接收者' }))
+    await user.click(screen.getByRole('button', { name: '確認由我接收' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('暫時無法儲存')
     expect(screen.getByRole('button', { name: '將我設為通知接收者' })).toBeEnabled()

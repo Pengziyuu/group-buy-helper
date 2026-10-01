@@ -2502,7 +2502,7 @@ describe('campaign templates', () => {
     await user.click(screen.getByRole('button', { name: '建立新團' }))
     const dialog = screen.getByRole('dialog', { name: '建立新團' })
     await user.click(within(dialog).getByRole('radio', { name: '從範本建立' }))
-    await within(dialog).findByRole('combobox', { name: '範本' })
+    await within(dialog).findByRole('radiogroup', { name: '範本' })
     await user.click(within(dialog).getByRole('button', { name: '建立並編輯' }))
 
     expect(templates.createCampaign).toHaveBeenCalledWith('t1', published.title)

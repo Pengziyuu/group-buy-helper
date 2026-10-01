@@ -16,6 +16,8 @@ const templateContent: CampaignTemplateContent = {
   baseDiscountRate: 1, mixMatchDiscount: null, allowCustomItems: false,
 }
 const template = (id: string, name: string): CampaignTemplate => ({ id, name, content: templateContent, updatedAt: '2026-09-24T02:00:00.000Z' })
+const coverSrc = 'https://example.com/ice-cover.jpg'
+const withCover = (item: CampaignTemplate): CampaignTemplate => ({ ...item, content: { ...item.content, images: [{ src: coverSrc, alt: '冰餅' }, { src: 'https://example.com/second.jpg', alt: '' }] } })
 
 const campaign: WorkspaceCampaign = {
   id: 'campaign-1', title: '十月冰餅團', status: 'open', published: true, coverImage: null,
@@ -136,10 +138,18 @@ describe('template settings', () => {
     const row = (await within(section).findByRole('rowheader', { name: '冰餅' })).closest('tr') as HTMLElement
     expect(within(row).getByText('1 個')).toBeInTheDocument()
     expect(within(row).getByTitle('2026/09/24 10:00')).toBeInTheDocument()
+    // No image yet: a placeholder keeps the names lined up.
+    expect(row.querySelector('.organizer-thumb-empty')).toBeInTheDocument()
     unmount()
 
     render(<OrganizerSettings templateActions={actions([])} />)
     expect(await screen.findByText('還沒有範本。在團購工作區按「存成範本」就會出現在這裡。')).toBeInTheDocument()
+  })
+
+  it('shows each template’s first image so templates can be told apart at a glance', async () => {
+    render(<OrganizerSettings templateActions={actions([withCover(template('t1', '冰餅'))])} />)
+    const row = (await screen.findByRole('rowheader', { name: '冰餅' })).closest('tr') as HTMLElement
+    expect(row.querySelector('img.organizer-thumb')).toHaveAttribute('src', coverSrc)
   })
 
   it('renames a template in place and blocks a duplicate name', async () => {
@@ -246,12 +256,18 @@ describe('create from a template', () => {
   it('creates a draft from the chosen template with the template title prefilled', async () => {
     const user = userEvent.setup()
     const create = vi.fn(async () => ({ id: 'new-1', missingImages: 0, contentError: null }))
-    const { navigate, onCreate } = renderShell({ list: vi.fn(async () => [template('t1', '冰餅')]), create })
+    const { navigate, onCreate } = renderShell({ list: vi.fn(async () => [withCover(template('t0', '包子')), withCover(template('t1', '冰餅'))]), create })
 
     await user.click(screen.getByRole('button', { name: '建立新團' }))
     const dialog = screen.getByRole('dialog', { name: '建立新團' })
     await user.click(within(dialog).getByRole('radio', { name: '從範本建立' }))
-    await user.selectOptions(await within(dialog).findByRole('combobox', { name: '範本' }), 't1')
+    // Templates are picture cards, each showing its first image and item count.
+    const choices = await within(dialog).findByRole('radiogroup', { name: '範本' })
+    expect(within(choices).getByRole('radio', { name: '包子' })).toBeChecked()
+    const ice = within(choices).getByRole('radio', { name: '冰餅' })
+    expect(ice.closest('label')?.querySelector('img')).toHaveAttribute('src', coverSrc)
+    expect(ice.closest('label')).toHaveTextContent('1 個品項')
+    await user.click(ice)
     expect(within(dialog).getByRole('textbox', { name: '團購標題' })).toHaveValue('一涼冰餅')
     await user.clear(within(dialog).getByRole('textbox', { name: '團購標題' }))
     await user.type(within(dialog).getByRole('textbox', { name: '團購標題' }), '十月冰餅團')
@@ -271,7 +287,7 @@ describe('create from a template', () => {
     await user.click(screen.getByRole('button', { name: '建立新團' }))
     const dialog = screen.getByRole('dialog', { name: '建立新團' })
     await user.click(within(dialog).getByRole('radio', { name: '從範本建立' }))
-    await within(dialog).findByRole('combobox', { name: '範本' })
+    await within(dialog).findByRole('radiogroup', { name: '範本' })
     await user.click(within(dialog).getByRole('button', { name: '建立並編輯' }))
 
     expect(peekCampaignNotice('new-2')).toBe('有 2 張範本圖片沒有複製成功，請重新加入')

@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
 // LINE reads the raw HTML, not the client-side React title. Keep the SPA entry
 // intact while replacing only the three public preview tags for published slugs.
 type Request = { method?: string; query: { slug?: string | string[] } }
@@ -21,17 +24,30 @@ function publicCover(raw: unknown, supabaseUrl: string): string | null {
   } catch { return null }
 }
 
+const isSpaEntry = (html: string) => html.includes('<div id="root"></div>') && html.includes('property="og:title"')
+
+function bundledEntry(): string | null {
+  try {
+    const html = readFileSync(join(process.cwd(), 'dist', 'index.html'), 'utf8')
+    return isSpaEntry(html) ? html : null
+  } catch { return null }
+}
+
 export default async function campaignPreview(req: Request, res: Response) {
   if (req.method && req.method !== 'GET') return res.status(405).setHeader('Allow', 'GET').send('Method Not Allowed')
   // Deployment-specific VERCEL_URL can be password-protected even while the
   // stable Production domain is public. Never inject metadata into that login page.
-  let html: string
-  try {
-    const response = await fetch('https://group-buy-helper-liart.vercel.app/index.html', { signal: AbortSignal.timeout(6000) })
-    if (!response.ok) throw new Error('SPA entry unavailable')
-    html = await response.text()
-    if (!html.includes('<div id="root"></div>') || !html.includes('property="og:title"')) throw new Error('Unexpected SPA entry')
-  } catch { return res.status(503).send('Unavailable') }
+  // Prefer this deployment's own built page (bundled via vercel.json includeFiles): production's page names
+  // production's script files, which a preview deployment does not have, so the browser got HTML for its JS.
+  let html = bundledEntry()
+  if (!html) {
+    try {
+      const response = await fetch('https://group-buy-helper-liart.vercel.app/index.html', { signal: AbortSignal.timeout(6000) })
+      if (!response.ok) throw new Error('SPA entry unavailable')
+      html = await response.text()
+      if (!isSpaEntry(html)) throw new Error('Unexpected SPA entry')
+    } catch { return res.status(503).send('Unavailable') }
+  }
 
   const slug = req.query.slug
   const supabaseUrl = process.env.VITE_SUPABASE_URL

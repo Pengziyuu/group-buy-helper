@@ -7,6 +7,7 @@ import { SegmentedControl } from '../ui/SegmentedControl'
 import { useModalDialog } from '../ui/useModalDialog'
 import { noticeForTemplateResult, rememberCampaignNotice } from './campaignNotices'
 import { useOrganizerNavigate } from './organizerNavigation'
+import { OrganizerThumb } from './OrganizerThumb'
 
 export type CreateFromTemplateActions = {
   list: () => Promise<CampaignTemplate[]>
@@ -103,11 +104,30 @@ export function CreateCampaignDialog({ onCreate, templates, onClose }: CreateCam
             {usingTemplate && templateList !== null && (templateList.length === 0 ? (
               <p className="organizer-muted">還沒有範本，可以先在團購工作區按「存成範本」。</p>
             ) : (
-              <FormField id={templateFieldId} label="範本" helper="結單日期與到貨時間不會帶入，請在內容設定重新設定。">
-                <select className="ui-input" value={templateId} onChange={(event) => chooseTemplate(event.target.value, templateList)}>
-                  {templateList.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}
-                </select>
-              </FormField>
+              // Picture cards rather than a dropdown, so each template's first image shows before choosing.
+              <div className="ui-field organizer-template-choices">
+                <span id={templateFieldId} className="organizer-template-choices-label">範本</span>
+                <div role="radiogroup" aria-labelledby={templateFieldId} aria-describedby={`${templateFieldId}-helper`}>
+                  {templateList.map((candidate) => (
+                    <label key={candidate.id} className="organizer-template-choice">
+                      <input
+                        type="radio"
+                        name={`${templateFieldId}-choice`}
+                        value={candidate.id}
+                        checked={templateId === candidate.id}
+                        aria-label={candidate.name}
+                        onChange={() => chooseTemplate(candidate.id, templateList)}
+                      />
+                      <OrganizerThumb image={candidate.content.images[0]} />
+                      <span>
+                        <strong>{candidate.name}</strong>
+                        <small>{candidate.content.items.length} 個品項</small>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <div id={`${templateFieldId}-helper`} className="ui-field-helper">結單日期與到貨時間不會帶入，請在內容設定重新設定。</div>
+              </div>
             ))}
             {usingTemplate && templateList === null && !error && <p className="organizer-muted">讀取範本中…</p>}
             <FormField id={inputId} label="團購標題" required>

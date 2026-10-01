@@ -5,6 +5,7 @@ import { ErrorState, LoadingState } from '../ui/AsyncState'
 import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { FeedbackMessage } from '../ui/FeedbackMessage'
+import { OrganizerThumb } from './OrganizerThumb'
 
 export type TemplateSettingsActions = {
   list: () => Promise<CampaignTemplate[]>
@@ -130,27 +131,30 @@ export function TemplateSettings({ actions }: { actions: TemplateSettingsActions
                 return (
                   <tr key={template.id}>
                     <th scope="row">
-                      {editing ? (
-                        <div className="organizer-template-rename">
-                          <input
-                            ref={renameInputRef}
-                            className="ui-input"
-                            aria-label={`${template.name} 的新名稱`}
-                            aria-invalid={renameError ? 'true' : 'false'}
-                            aria-describedby={renameError ? renameErrorId : undefined}
-                            maxLength={100}
-                            value={draftName}
-                            readOnly={renaming}
-                            onChange={(event) => { setDraftName(event.target.value); setRenameError('') }}
-                            onKeyDown={(event) => {
-                              if (event.nativeEvent.isComposing || renaming) return
-                              if (event.key === 'Enter') { event.preventDefault(); void saveName(template) }
-                              if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); cancelRename(template.id) }
-                            }}
-                          />
-                          {renameError && <small id={renameErrorId} role="alert">{renameError}</small>}
-                        </div>
-                      ) : template.name}
+                      <div className="organizer-campaign-cell">
+                        <OrganizerThumb image={template.content.images[0]} />
+                        {editing ? (
+                          <div className="organizer-template-rename">
+                            <input
+                              ref={renameInputRef}
+                              className="ui-input"
+                              aria-label={`${template.name} 的新名稱`}
+                              aria-invalid={renameError ? 'true' : 'false'}
+                              aria-describedby={renameError ? renameErrorId : undefined}
+                              maxLength={100}
+                              value={draftName}
+                              readOnly={renaming}
+                              onChange={(event) => { setDraftName(event.target.value); setRenameError('') }}
+                              onKeyDown={(event) => {
+                                if (event.nativeEvent.isComposing || renaming) return
+                                if (event.key === 'Enter') { event.preventDefault(); void saveName(template) }
+                                if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); cancelRename(template.id) }
+                              }}
+                            />
+                            {renameError && <small id={renameErrorId} role="alert">{renameError}</small>}
+                          </div>
+                        ) : template.name}
+                      </div>
                     </th>
                     <td data-label="品項數">{template.content.items.length} 個</td>
                     <td data-label="最後更新"><RelativeTime value={template.updatedAt} now={now} /></td>

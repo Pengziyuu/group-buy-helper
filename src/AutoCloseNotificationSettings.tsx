@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Button } from './components/ui/Button'
+import { ConfirmDialog } from './components/ui/ConfirmDialog'
 import { FeedbackMessage } from './components/ui/FeedbackMessage'
 import { StatusBadge } from './components/ui/StatusBadge'
 import type { AutoCloseNotificationSettingState } from './services/autoCloseNotificationSettingsGateway'
@@ -18,6 +19,7 @@ const stateMessage: Record<AutoCloseNotificationSettingState, string> = {
 
 export default function AutoCloseNotificationSettings({ state, onSelectCurrentUser }: Props) {
   const [currentState, setCurrentState] = useState(state)
+  const [confirming, setConfirming] = useState(false)
   const [saving, setSaving] = useState(false)
   const [feedback, setFeedback] = useState('')
   const [error, setError] = useState('')
@@ -30,6 +32,7 @@ export default function AutoCloseNotificationSettings({ state, onSelectCurrentUs
 
   const selectCurrentUser = async () => {
     if (saving || currentState === 'current_user') return
+    setConfirming(false)
     setSaving(true)
     setFeedback('')
     setError('')
@@ -68,10 +71,24 @@ export default function AutoCloseNotificationSettings({ state, onSelectCurrentUs
         disabled={currentState === 'current_user'}
         loading={saving}
         loadingLabel="設定中…"
-        onClick={() => { void selectCurrentUser() }}
+        onClick={() => { setFeedback(''); setError(''); setConfirming(true) }}
       >{buttonLabel}</Button>
       {feedback && <FeedbackMessage tone="success">{feedback}</FeedbackMessage>}
       {error && <FeedbackMessage tone="error">{error}</FeedbackMessage>}
+      {/* Easy to tap by mistake, and it changes who LINE notifies, so ask first. */}
+      {confirming && (
+        <ConfirmDialog
+          title="由你接收自動結單通知？"
+          confirmLabel="確認由我接收"
+          destructive={false}
+          onCancel={() => setConfirming(false)}
+          onConfirm={() => { void selectCurrentUser() }}
+        >
+          <p>{currentState === 'other_organizer'
+            ? '之後自動結單時改由你的 LINE 收到通知，原本的團主就不會再收到。'
+            : '之後每次自動結單，都會用 LINE 通知你。'}</p>
+        </ConfirmDialog>
+      )}
     </section>
   )
 }

@@ -17,6 +17,7 @@ describe('OrganizerSettings', () => {
     expect(screen.getByRole('heading', { level: 1, name: '設定' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '自動結單通知' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '改由我接收通知' }))
+    await user.click(screen.getByRole('button', { name: '確認由我接收' }))
     await waitFor(() => expect(onSelectCurrentUser).toHaveBeenCalledOnce())
   })
 

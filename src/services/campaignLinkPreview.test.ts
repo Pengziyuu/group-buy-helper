@@ -1,6 +1,7 @@
 /// <reference types="node" />
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import campaignPreview from '../../api/campaign-preview'
 
@@ -10,12 +11,15 @@ const original = { url: process.env.VITE_SUPABASE_URL, key: process.env.VITE_SUP
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
   if (original.url === undefined) delete process.env.VITE_SUPABASE_URL; else process.env.VITE_SUPABASE_URL = original.url
   if (original.key === undefined) delete process.env.VITE_SUPABASE_ANON_KEY; else process.env.VITE_SUPABASE_ANON_KEY = original.key
   if (original.vercel === undefined) delete process.env.VERCEL_URL; else process.env.VERCEL_URL = original.vercel
 })
 
-async function request(slug: string, rows: unknown, rpcStatus = 200) {
+// root: where the function looks for the bundled dist/index.html; by default an empty folder, so it falls back to production.
+async function request(slug: string, rows: unknown, rpcStatus = 200, root = mkdtempSync(join(tmpdir(), 'campaign-preview-'))) {
+  vi.spyOn(process, 'cwd').mockReturnValue(root)
   process.env.VITE_SUPABASE_URL = 'https://example.supabase.co'
   process.env.VITE_SUPABASE_ANON_KEY = 'public-anon-key'
   process.env.VERCEL_URL = 'example.vercel.app'
@@ -58,6 +62,23 @@ describe('LINE 團購連結預覽', () => {
     const malformed = await request('not-a-slug', [{ title: '不應讀取' }])
     expect(malformed.calls).toHaveLength(1)
     expect(malformed.state.body).not.toContain('不應讀取')
+  })
+  it('serves this deployment’s own page when bundled, so a preview loads its own scripts rather than production’s', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'campaign-preview-'))
+    mkdirSync(join(root, 'dist'))
+    writeFileSync(join(root, 'dist', 'index.html'), page.replace('/assets/app.js', '/assets/own-build.js'))
+    try {
+      const { state, calls } = await request('a'.repeat(36), [{ title: '神農包子', image_url: image }], 200, root)
+      expect(state.body).toContain('/assets/own-build.js')
+      expect(state.body).toContain('神農包子｜團購小幫手')
+      expect(calls.some((call) => call.url.endsWith('/index.html'))).toBe(false)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+  it('bundles the built page with the preview function', () => {
+    const config = JSON.parse(readFileSync(resolve(process.cwd(), 'vercel.json'), 'utf8')) as { functions?: Record<string, { includeFiles?: string }> }
+    expect(config.functions?.['api/campaign-preview.ts']?.includeFiles).toBe('dist/index.html')
   })
   it('routes campaign links through the preview handler before the SPA catch-all', () => {
     const config = JSON.parse(readFileSync(resolve(process.cwd(), 'vercel.json'), 'utf8')) as { rewrites: Array<{ source: string; destination: string }> }
