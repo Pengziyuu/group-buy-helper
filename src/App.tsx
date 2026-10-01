@@ -23,6 +23,7 @@ import { CampaignSummary, type CampaignProgress } from './components/resident/Ca
 import { OrderBreakdown, type BreakdownLine } from './components/resident/OrderBreakdown'
 import { OrderSummaryBar } from './components/resident/OrderSummaryBar'
 import { OrderWall } from './components/resident/OrderWall'
+import { ClosedOrder } from './components/resident/ClosedOrder'
 import { ProductRow } from './components/resident/ProductRow'
 import {
   ResidentBindingForm,
@@ -339,8 +340,9 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
     showNotice('success', '訂單已更新')
   }
 
+  // is-ordering reserves room for the fixed order bar, which a closed campaign no longer shows.
   return (
-    <div className={`resident-page${currentResident ? ' is-ordering' : ''}`}>
+    <div className={`resident-page${currentResident && editable ? ' is-ordering' : ''}`}>
       <header className="resident-topbar">
         <a className="resident-back-link" href="/"><span aria-hidden="true">‹</span>全部團購</a>
       </header>
@@ -384,89 +386,101 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
                   {editedAt && <span>・<EditedMark value={editedAt} /></span>}
                 </p>
               )}
-              {publishedCampaign.mixMatchDiscount && (
-                <div className={`resident-discount-status${draftPricing.mixMatchApplied ? ' is-applied' : ''}`} role="status">
-                  <strong>{draftPricing.mixMatchApplied
-                    ? `已套用${publishedCampaign.mixMatchDiscount.name}`
-                    : `再選 ${Math.max(0, publishedCampaign.mixMatchDiscount.minimumQuantity - draftPricing.mixMatchQuantity)} 件即可享 ${formatDiscountRate(publishedCampaign.mixMatchDiscount.rate)}`}</strong>
-                  <span>{draftPricing.mixMatchApplied
-                    ? `限定區共 ${draftPricing.mixMatchQuantity} 件，全部享優惠價`
-                    : `限定區目前 ${draftPricing.mixMatchQuantity} 件，未達標維持${(publishedCampaign.baseDiscountRate ?? 1) < 1 ? ` ${formatDiscountRate(publishedCampaign.baseDiscountRate!)}` : '原價'}`}</span>
-                </div>
-              )}
-              <div className="resident-order-items" ref={orderItemsRef}>
-                {mixMatchItems.length > 0 && publishedCampaign.mixMatchDiscount && (
-                  <section className="resident-product-section" aria-labelledby="mix-match-products-heading">
-                    <h3 id="mix-match-products-heading">任選優惠專區</h3>
-                    <p className="resident-product-section-note">共同累計件數・{publishedCampaign.mixMatchDiscount.name}</p>
-                    {renderProductRows(mixMatchItems)}
-                  </section>
-                )}
-                {regularItems.length > 0 && (
-                  <section className="resident-product-section" aria-label={publishedCampaign.mixMatchDiscount ? '其他商品' : '商品選擇'}>
-                    <h3>{publishedCampaign.mixMatchDiscount ? '其他商品' : '選擇品項'}</h3>
-                    {renderProductRows(regularItems)}
-                  </section>
-                )}
-                {publishedCampaign.allowCustomItems && (
-                  <section className="resident-custom-items" aria-labelledby="custom-order-items-heading">
-                    <div className="resident-custom-items-heading">
-                      <div>
-                        <h3 id="custom-order-items-heading">額外品項</h3>
-                        <p>名稱由你填寫，金額由團主另計；不納入成團門檻。</p>
-                      </div>
-                      <Button variant="secondary" onClick={addCustomItem} disabled={!controlsEditable || customDraft.length >= 10}>
-                        <span aria-hidden="true">＋</span> 新增額外品項
-                      </Button>
+              {/* A closed campaign shows what was ordered; disabled steppers and a greyed submit bar looked usable. */}
+              {editable ? (
+                <>
+                  {publishedCampaign.mixMatchDiscount && (
+                    <div className={`resident-discount-status${draftPricing.mixMatchApplied ? ' is-applied' : ''}`} role="status">
+                      <strong>{draftPricing.mixMatchApplied
+                        ? `已套用${publishedCampaign.mixMatchDiscount.name}`
+                        : `再選 ${Math.max(0, publishedCampaign.mixMatchDiscount.minimumQuantity - draftPricing.mixMatchQuantity)} 件即可享 ${formatDiscountRate(publishedCampaign.mixMatchDiscount.rate)}`}</strong>
+                      <span>{draftPricing.mixMatchApplied
+                        ? `限定區共 ${draftPricing.mixMatchQuantity} 件，全部享優惠價`
+                        : `限定區目前 ${draftPricing.mixMatchQuantity} 件，未達標維持${(publishedCampaign.baseDiscountRate ?? 1) < 1 ? ` ${formatDiscountRate(publishedCampaign.baseDiscountRate!)}` : '原價'}`}</span>
                     </div>
-                    {customDraft.map((item, index) => (
-                      <div className="resident-custom-item-row" key={item.id}>
-                        <label>
-                          <span>品項名稱</span>
-                          <input
-                            className="ui-input"
-                            aria-label={`額外品項 ${index + 1} 名稱`}
-                            value={item.name}
-                            maxLength={100}
-                            disabled={!controlsEditable}
-                            placeholder="例如：限定口味"
-                            onChange={(event) => updateCustomItem(item.id, { name: event.target.value })}
-                          />
-                        </label>
-                        <QuantityControl
-                          label={`額外品項 ${index + 1}`}
-                          value={item.quantity}
-                          max={20}
-                          disabled={!controlsEditable}
-                          onDecrement={() => updateCustomItem(item.id, { quantity: Math.max(0, item.quantity - 1) })}
-                          onIncrement={() => updateCustomItem(item.id, { quantity: Math.min(20, item.quantity + 1) })}
-                        />
-                        <Button
-                          variant="utility"
-                          aria-label={`移除額外品項 ${index + 1}`}
-                          disabled={!controlsEditable}
-                          onClick={() => removeCustomItem(item.id)}
-                        >移除</Button>
-                      </div>
-                    ))}
-                    {customDraft.length > 0 && <p className="resident-custom-items-note">金額由團主另計</p>}
-                  </section>
-                )}
-              </div>
-              {editable && <p className="resident-order-rule">結單前都可以回來改數量；要整筆取消請找團主。</p>}
-              {notice?.tone === 'error' && <FeedbackMessage className="resident-order-feedback" tone="error">{notice.text}</FeedbackMessage>}
-              <OrderSummaryBar
-                quantity={draftQuantity}
-                quantityUnit={quantityUnit}
-                amount={draftPricing.total}
-                customQuantity={customDraftQuantity}
-                onShowBreakdown={hasDraftItems ? () => setBreakdownOpen(true) : undefined}
-                submitDisabled={!controlsEditable || !draftDirty || !hasDraftItems || !customDraftValid}
-                submitting={submitting}
-                onSubmit={() => { void submit() }}
-                hint={offerChooseItems ? null : submitHint}
-                onChooseItems={offerChooseItems ? chooseItems : undefined}
-              />
+                  )}
+                  <div className="resident-order-items" ref={orderItemsRef}>
+                    {mixMatchItems.length > 0 && publishedCampaign.mixMatchDiscount && (
+                      <section className="resident-product-section" aria-labelledby="mix-match-products-heading">
+                        <h3 id="mix-match-products-heading">任選優惠專區</h3>
+                        <p className="resident-product-section-note">共同累計件數・{publishedCampaign.mixMatchDiscount.name}</p>
+                        {renderProductRows(mixMatchItems)}
+                      </section>
+                    )}
+                    {regularItems.length > 0 && (
+                      <section className="resident-product-section" aria-label={publishedCampaign.mixMatchDiscount ? '其他商品' : '商品選擇'}>
+                        <h3>{publishedCampaign.mixMatchDiscount ? '其他商品' : '選擇品項'}</h3>
+                        {renderProductRows(regularItems)}
+                      </section>
+                    )}
+                    {publishedCampaign.allowCustomItems && (
+                      <section className="resident-custom-items" aria-labelledby="custom-order-items-heading">
+                        <div className="resident-custom-items-heading">
+                          <div>
+                            <h3 id="custom-order-items-heading">額外品項</h3>
+                            <p>名稱由你填寫，金額由團主另計；不納入成團門檻。</p>
+                          </div>
+                          <Button variant="secondary" onClick={addCustomItem} disabled={!controlsEditable || customDraft.length >= 10}>
+                            <span aria-hidden="true">＋</span> 新增額外品項
+                          </Button>
+                        </div>
+                        {customDraft.map((item, index) => (
+                          <div className="resident-custom-item-row" key={item.id}>
+                            <label>
+                              <span>品項名稱</span>
+                              <input
+                                className="ui-input"
+                                aria-label={`額外品項 ${index + 1} 名稱`}
+                                value={item.name}
+                                maxLength={100}
+                                disabled={!controlsEditable}
+                                placeholder="例如：限定口味"
+                                onChange={(event) => updateCustomItem(item.id, { name: event.target.value })}
+                              />
+                            </label>
+                            <QuantityControl
+                              label={`額外品項 ${index + 1}`}
+                              value={item.quantity}
+                              max={20}
+                              disabled={!controlsEditable}
+                              onDecrement={() => updateCustomItem(item.id, { quantity: Math.max(0, item.quantity - 1) })}
+                              onIncrement={() => updateCustomItem(item.id, { quantity: Math.min(20, item.quantity + 1) })}
+                            />
+                            <Button
+                              variant="utility"
+                              aria-label={`移除額外品項 ${index + 1}`}
+                              disabled={!controlsEditable}
+                              onClick={() => removeCustomItem(item.id)}
+                            >移除</Button>
+                          </div>
+                        ))}
+                        {customDraft.length > 0 && <p className="resident-custom-items-note">金額由團主另計</p>}
+                      </section>
+                    )}
+                  </div>
+                  {editable && <p className="resident-order-rule">結單前都可以回來改數量；要整筆取消請找團主。</p>}
+                  {notice?.tone === 'error' && <FeedbackMessage className="resident-order-feedback" tone="error">{notice.text}</FeedbackMessage>}
+                  <OrderSummaryBar
+                    quantity={draftQuantity}
+                    quantityUnit={quantityUnit}
+                    amount={draftPricing.total}
+                    customQuantity={customDraftQuantity}
+                    onShowBreakdown={hasDraftItems ? () => setBreakdownOpen(true) : undefined}
+                    submitDisabled={!controlsEditable || !draftDirty || !hasDraftItems || !customDraftValid}
+                    submitting={submitting}
+                    onSubmit={() => { void submit() }}
+                    hint={offerChooseItems ? null : submitHint}
+                    onChooseItems={offerChooseItems ? chooseItems : undefined}
+                  />
+                </>
+              ) : (
+                <ClosedOrder
+                  items={publishedCampaign.items}
+                  quantities={savedDraft}
+                  customItems={savedCustomDraft}
+                  quantityUnit={quantityUnit}
+                />
+              )}
             </>
           ) : (
             <ResidentBindingForm identity={verifiedResidentIdentity} disabled={!editable} onBind={bindResident} />

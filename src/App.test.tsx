@@ -226,8 +226,9 @@ describe('customer campaign app', () => {
         : order)}
     />)
 
-    expect(screen.getByRole('button', { name: '移除額外品項 1' })).toBeDisabled()
-    expect(screen.getByRole('textbox', { name: '額外品項 1 名稱' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: '移除額外品項 1' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: '額外品項 1 名稱' })).not.toBeInTheDocument()
+    expect(within(screen.getByRole('list', { name: '你訂的品項' })).getByText(/歷史蛋糕/)).toHaveTextContent('歷史蛋糕・另計')
   })
 
   it('shows custom items on the live order wall as unpriced additions', () => {
@@ -598,13 +599,24 @@ describe('customer campaign app', () => {
     expect(screen.queryByText(/只能綁定一個帳號/)).not.toBeInTheDocument()
   })
 
-  it('shows a closed campaign and disables every order control', () => {
+  it('shows a closed campaign as a read-only list of what the resident ordered, without order controls', () => {
     render(<App campaignStatus="closed" />)
 
     expect(screen.getByText('已結單', { selector: '.ui-status-badge' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '送出訂單' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: '增加 A 牛奶（招牌）' })).toBeDisabled()
+    // Disabled steppers and a greyed submit bar looked usable; a closed campaign shows the order instead.
+    expect(screen.queryByRole('button', { name: '增加 A 牛奶（招牌）' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '送出訂單' })).not.toBeInTheDocument()
+    const ordered = screen.getByRole('list', { name: '你訂的品項' })
+    const lines = within(ordered).getAllByRole('listitem').map((line) => line.textContent)
+    expect(lines.length).toBeGreaterThan(0)
+    expect(lines.every((line) => /^[A-Z] .+\d+ 個$/.test(line ?? ''))).toBe(true)
     expect(screen.getByText('本團已結單，無法修改訂單。')).toBeInTheDocument()
+  })
+
+  it('tells a resident without an order that the campaign closed', () => {
+    render(<App campaignStatus="closed" visibleOrders={initialOrders.filter((order) => order.customerId !== currentCustomerId)} />)
+    expect(screen.queryByRole('list', { name: '你訂的品項' })).not.toBeInTheDocument()
+    expect(screen.getByText('本團已結單，你沒有在這團下單。')).toBeInTheDocument()
   })
 
   it('shows item names and prices without 號 and uses plus signs on the live wall', async () => {

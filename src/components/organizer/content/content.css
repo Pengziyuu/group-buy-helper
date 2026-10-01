@@ -51,6 +51,11 @@
 .content-preview-card { margin: 0; padding: var(--space-4); border-radius: var(--radius-surface); background: var(--color-surface); }
 .content-preview-title { margin: var(--space-2) 0 var(--space-1); font-size: var(--font-size-title); font-weight: var(--font-weight-strong); line-height: var(--line-height-heading); overflow-wrap: anywhere; }
 .content-preview-price { margin: 0; font-weight: var(--font-weight-strong); }
+.content-preview-schedule { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); margin: var(--space-3) 0 0; }
+.content-preview-schedule div { min-width: 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface-subtle); }
+.content-preview-schedule dt { margin-bottom: 2px; color: var(--color-text-secondary); font-size: var(--font-size-caption); }
+.content-preview-schedule dd { margin: 0; font-size: var(--font-size-dense); font-weight: var(--font-weight-strong); overflow-wrap: anywhere; }
+.content-preview-schedule dd.content-preview-schedule-note { margin-top: 2px; color: var(--color-text-secondary); font-size: var(--font-size-caption); font-weight: 400; }
 .content-preview-facts { display: grid; gap: 2px; margin-top: var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-dense); }
 .content-preview-facts p { margin: 0; }
 .content-preview-copy { margin: var(--space-3) 0 var(--space-2); white-space: pre-wrap; overflow-wrap: anywhere; }

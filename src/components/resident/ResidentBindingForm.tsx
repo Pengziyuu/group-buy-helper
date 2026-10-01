@@ -112,33 +112,32 @@ export function ResidentBindingForm({ identity, disabled, onBind }: ResidentBind
           </select>
         </label>
         {householdKind === 'resident' && (
-          <>
-            <fieldset className="resident-binding-unit">
-              <legend>戶號</legend>
-              <div className="resident-binding-unit-parts">
-                {period !== 1 && (
-                  <label>
-                    <span>數字</span>
-                    <select className="ui-input" aria-label="戶號數字" value={prefix} onChange={(event) => setPrefix(Number(event.target.value))}>
-                      {HOUSEHOLD_PREFIXES.map((value) => <option key={value} value={value}>{value}</option>)}
-                    </select>
-                  </label>
-                )}
+          <fieldset className="resident-binding-unit">
+            <legend>戶號</legend>
+            <div className="resident-binding-unit-parts">
+              {period !== 1 && (
                 <label>
-                  <span>英文字母</span>
-                  <select className="ui-input" aria-label="戶號英文字母" value={letter} onChange={(event) => setLetter(event.target.value)}>
-                    {HOUSEHOLD_LETTERS.map((value) => <option key={value} value={value}>{value}</option>)}
+                  <span>數字</span>
+                  <select className="ui-input" aria-label="戶號數字" value={prefix} onChange={(event) => setPrefix(Number(event.target.value))}>
+                    {HOUSEHOLD_PREFIXES.map((value) => <option key={value} value={value}>{value}</option>)}
                   </select>
                 </label>
-              </div>
-            </fieldset>
-            <label>
-              <span>樓層</span>
-              <select className="ui-input" value={floor} onChange={(event) => setFloor(Number(event.target.value))}>
-                {HOUSEHOLD_NUMBERS.map((value) => <option key={value} value={value}>{value}</option>)}
-              </select>
-            </label>
-          </>
+              )}
+              <label>
+                <span>英文字母</span>
+                <select className="ui-input" aria-label="戶號英文字母" value={letter} onChange={(event) => setLetter(event.target.value)}>
+                  {HOUSEHOLD_LETTERS.map((value) => <option key={value} value={value}>{value}</option>)}
+                </select>
+              </label>
+              {/* The floor is part of the household number (2A15), so it sits with the other parts. */}
+              <label>
+                <span>樓層</span>
+                <select className="ui-input" value={floor} onChange={(event) => setFloor(Number(event.target.value))}>
+                  {HOUSEHOLD_NUMBERS.map((value) => <option key={value} value={value}>{value}</option>)}
+                </select>
+              </label>
+            </div>
+          </fieldset>
         )}
       </div>
       <Button onClick={() => { void submit() }} disabled={disabled} loading={binding} loadingLabel="住戶資料儲存中…">儲存住戶資料</Button>
