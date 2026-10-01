@@ -85,5 +85,8 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+      # The functions import npm: packages directly; the site's package.json would make Deno expect node_modules.
       - name: Type-check Edge Functions
         run: deno check supabase/functions/*/index.ts
+        env:
+          DENO_NO_PACKAGE_JSON: '1'
