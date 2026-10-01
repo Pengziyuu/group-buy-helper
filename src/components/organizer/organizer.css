@@ -78,12 +78,16 @@
   .organizer-order-table tbody td.organizer-cell-actions { grid-column: 3; grid-row: 1; justify-self: end; align-self: start; padding: 0; }
   .organizer-table tbody td.organizer-cell-progress,
   .organizer-table tbody td.organizer-cell-items,
-  .organizer-table tbody td.organizer-cell-note,
-  .organizer-campaign-table tbody td.organizer-cell-actions { grid-column: 1 / -1; }
+  .organizer-table tbody td.organizer-cell-note { grid-column: 1 / -1; }
   .organizer-table tbody td.organizer-cell-progress { display: block; }
   .organizer-table tbody td:is(.organizer-cell-status, .organizer-cell-progress, .organizer-cell-items)[data-label]::before { content: none; }
   .organizer-table tbody td.organizer-cell-fact { display: grid; align-content: start; justify-content: stretch; gap: 2px; min-width: 0; }
   .organizer-table tbody td.organizer-cell-note { display: grid; justify-items: start; gap: 2px; }
+  /* Campaign cards: the ⋯ menu sits top-right beside the status instead of taking its own row. */
+  .organizer-campaign-table tbody td.organizer-cell-status { padding-right: 38px; }
+  .organizer-campaign-table tbody td.organizer-cell-actions { grid-column: 3; grid-row: 1; justify-self: end; align-self: start; padding: 0; }
+  .organizer-campaign-table .ui-menu[data-size="sm"] .ui-menu-trigger { width: var(--touch-target); height: var(--touch-target); margin: -6px -6px 0 0; border-color: transparent; background: transparent; }
+  .organizer-edited-prefix { display: none; }
 }
 
 /* Organizer settings: one card per setting group. */
@@ -106,8 +110,13 @@
 .organizer-rail-facts div { display: flex; gap: var(--space-2); }
 .organizer-rail-facts dt { min-width: 2.5em; color: var(--color-text-secondary); }
 .organizer-rail-facts dd { margin: 0; }
-.organizer-rail-nav { display: grid; gap: 2px; }
-.organizer-rail-link { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: 36px; padding: 0 var(--space-3); border-radius: var(--radius-control); color: var(--color-text); text-decoration: none; }
+.organizer-rail-nav { display: grid; gap: var(--space-3); }
+/* 查看 and 管理 groups: a small caption over each, an icon on every tab so they read as buttons without hovering. */
+.organizer-rail-group { display: grid; gap: 2px; }
+.organizer-rail-group-label { padding: 0 var(--space-3) var(--space-1); color: var(--color-text-tertiary); font-size: var(--font-size-caption); font-weight: var(--font-weight-strong); }
+.organizer-rail-icon { flex: none; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.organizer-rail-count, .organizer-rail-link small { margin-left: auto; }
+.organizer-rail-link { display: flex; align-items: center; gap: var(--space-2); min-height: 36px; padding: 0 var(--space-3); border-radius: var(--radius-control); color: var(--color-text); text-decoration: none; }
 .organizer-rail-link[aria-current="page"] { background: var(--color-primary-subtle); color: var(--color-primary); font-weight: var(--font-weight-strong); }
 .organizer-rail-link.is-unavailable { color: var(--color-disabled-text); cursor: not-allowed; }
 .organizer-rail-link small { font-size: var(--font-size-caption); }
@@ -127,6 +136,11 @@
   .organizer-rail { position: static; gap: var(--space-2); min-height: 0; max-height: none; overflow: visible; padding: var(--space-3) var(--space-4); border-right: 0; border-bottom: 1px solid var(--color-divider); }
   .organizer-rail-cover, .organizer-rail-facts { display: none; }
   .organizer-rail-nav { display: flex; gap: var(--space-1); overflow-x: auto; }
+  /* Tabs in one row: the groups sit side by side with a divider, captions left to screen readers. */
+  .organizer-rail-group { display: flex; gap: var(--space-1); }
+  .organizer-rail-group + .organizer-rail-group { padding-left: var(--space-1); border-left: 1px solid var(--color-divider); }
+  .organizer-rail-group-label { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .organizer-rail-count { margin-left: 0; }
   .organizer-rail-link { flex: none; min-height: var(--touch-target); }
   /* Keep the four tabs on one line: the reason stays for screen readers and in the tab's title. */
   .organizer-rail-reason { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -182,6 +196,8 @@
 }
 
 @media (max-width: 639px) {
+  /* Four tabs must fit one phone row; the divider alone separates 查看 from 管理 here. */
+  .organizer-rail-icon { display: none; }
   /* Progress gets a full row; the three short numbers share the next one instead of a row each. */
   .organizer-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
   .organizer-kpi.is-progress { grid-column: 1 / -1; }

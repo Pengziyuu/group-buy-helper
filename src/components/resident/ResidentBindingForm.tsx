@@ -1,3 +1,4 @@
+import { nameInitial } from '../ui/nameInitial'
 import { useState } from 'react'
 import { Button } from '../ui/Button'
 import { FeedbackMessage } from '../ui/FeedbackMessage'
@@ -87,7 +88,7 @@ export function ResidentBindingForm({ identity, disabled, onBind }: ResidentBind
         <div className="resident-verified-identity">
           {identity.pictureUrl
             ? <img className="resident-avatar" src={identity.pictureUrl} alt={`${identity.displayName}的LINE頭貼`} referrerPolicy="no-referrer" />
-            : <span className="resident-avatar" aria-hidden="true">{identity.displayName.slice(0, 1)}</span>}
+            : <span className="resident-avatar" aria-hidden="true">{nameInitial(identity.displayName)}</span>}
           <div><small>LINE驗證身分</small><strong>{identity.displayName}</strong></div>
         </div>
       )}

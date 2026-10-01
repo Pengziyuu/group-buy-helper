@@ -1,3 +1,4 @@
+import { nameInitial } from './components/ui/nameInitial'
 import { useState } from 'react'
 import { EmptyState } from './components/ui/AsyncState'
 import { Button } from './components/ui/Button'
@@ -104,7 +105,7 @@ function ResidentAccount({ identity, onLogout }: { identity: ResidentLineIdentit
   const label = `LINE 帳號：${identity.displayName}`
   const avatar = identity.pictureUrl
     ? <img className="resident-avatar" src={identity.pictureUrl} alt="" referrerPolicy="no-referrer" />
-    : <span className="resident-avatar">{identity.displayName.slice(0, 1)}</span>
+    : <span className="resident-avatar">{nameInitial(identity.displayName)}</span>
   if (!onLogout) return <span className="resident-account" role="img" aria-label={label}>{avatar}</span>
   return (
     <Menu

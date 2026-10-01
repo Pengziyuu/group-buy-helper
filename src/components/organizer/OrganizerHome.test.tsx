@@ -94,7 +94,10 @@ describe('OrganizerHome', () => {
     expect(within(draftRow).getByText('額滿自動結單')).toBeInTheDocument()
     expect(screen.queryByText('未設定')).not.toBeInTheDocument()
     expect(within(draftRow).getByTitle('2026/08/12 09:00').textContent).toBe('8/12')
-    expect(within(draftRow).getByText(/^最後編輯/)).toHaveTextContent('最後編輯 8/12')
+    // Not opened yet, so the time is the last edit; phone cards label it 最後編輯 instead of 開團.
+    const editedCell = draftRow.querySelector('td[data-label="最後編輯"]')
+    expect(editedCell).toHaveTextContent('最後編輯 8/12')
+    expect(within(editedCell as HTMLElement).getByText('最後編輯')).toHaveClass('organizer-edited-prefix')
     expect(within(draftRow).queryByRole('button', { name: /複製住戶連結/ })).not.toBeInTheDocument()
 
     const closedRow = rowOf('已結單水果團')

@@ -1,3 +1,5 @@
+import { nameInitial } from './nameInitial'
+
 const AVATAR_TONES = 6
 
 /** A stable 1–6 palette slot per name, so a resident keeps their colour across visits and pages. */
@@ -12,5 +14,5 @@ export function Avatar({ name, pictureUrl, className = '' }: { name: string; pic
   const classes = `ui-avatar ${className}`.trim()
   return pictureUrl
     ? <img className={classes} src={pictureUrl} alt={`${name}的LINE頭貼`} referrerPolicy="no-referrer" />
-    : <span className={classes} data-tone={avatarTone(name)} aria-hidden="true">{name.slice(0, 1).toUpperCase()}</span>
+    : <span className={classes} data-tone={avatarTone(name)} aria-hidden="true">{nameInitial(name)}</span>
 }

@@ -86,6 +86,14 @@ describe('WorkspaceRail', () => {
     expect(overview).toHaveAttribute('href', '/admin/campaign/campaign-1/overview')
     expect(overview).not.toHaveAttribute('aria-current')
     expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['概況', '訂單 6', '內容設定'])
+
+    // Pages for looking (概況、訂單) are grouped apart from pages for changing things (內容設定、領取通知), each tab with an icon.
+    const view = within(nav).getByRole('group', { name: '查看' })
+    expect(within(view).getAllByRole('link').map((link) => link.textContent)).toEqual(['概況', '訂單 6'])
+    const manage = within(nav).getByRole('group', { name: '管理' })
+    expect(within(manage).getByRole('link', { name: '內容設定' })).toBeInTheDocument()
+    expect(within(manage).getByText('領取通知')).toBeInTheDocument()
+    expect(nav.querySelectorAll('.organizer-rail-icon')).toHaveLength(4)
   })
 
   it('asks before closing orders and closes only after confirmation', async () => {

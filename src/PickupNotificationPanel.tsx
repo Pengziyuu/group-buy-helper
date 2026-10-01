@@ -1,3 +1,4 @@
+import { nameInitial } from './components/ui/nameInitial'
 import { useEffect, useId, useRef, useState } from 'react'
 import { Button } from './components/ui/Button'
 import PickupNotificationPlanPanel from './PickupNotificationPlanPanel'
@@ -38,7 +39,7 @@ function RecipientList({ recipients }: { recipients: PickupNotificationRecipient
         <li key={recipient.memberCode}>
           {recipient.pictureUrl
             ? <img src={recipient.pictureUrl} alt="" />
-            : <span className="pickup-recipient-avatar" aria-hidden="true">{recipient.displayName.slice(0, 1)}</span>}
+            : <span className="pickup-recipient-avatar" aria-hidden="true">{nameInitial(recipient.displayName)}</span>}
           <strong>{recipientLabel(recipient)}</strong>
         </li>
       ))}

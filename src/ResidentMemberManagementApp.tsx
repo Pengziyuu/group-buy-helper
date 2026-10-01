@@ -1,3 +1,4 @@
+import { nameInitial } from './components/ui/nameInitial'
 import { useEffect, useState } from 'react'
 import { RelativeTime, useNow } from './components/relativeTime'
 import type { ResidentFilter } from './routing'
@@ -43,7 +44,7 @@ function Avatar({ member }: { member: ResidentMember }) {
   if (member.pictureUrl) {
     return <img src={member.pictureUrl} alt={`${member.displayName}的LINE頭貼`} referrerPolicy="no-referrer" />
   }
-  return <span aria-hidden="true">{member.displayName.slice(0, 1)}</span>
+  return <span aria-hidden="true">{nameInitial(member.displayName)}</span>
 }
 
 export default function ResidentMemberManagementApp({ members, initialFilter = 'all', onSetBlocked, onUpdateHousehold, onRefreshGroupStatuses }: Props) {

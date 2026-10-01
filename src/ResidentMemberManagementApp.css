@@ -31,6 +31,11 @@
 .resident-group-dot[data-status="in_group"] { background: var(--color-success); }
 .resident-group-dot[data-status="not_in_group"] { background: var(--color-danger); }
 
+/* Wide screens: cards side by side, so a long resident list needs less scrolling and rows don't stretch across empty space. */
+@media (min-width: 1024px) {
+  .resident-member-list { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); align-items: start; }
+}
+
 @media (max-width: 1023px) {
   .resident-household-editor select { min-height: var(--touch-target); }
 }

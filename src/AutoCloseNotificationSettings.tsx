@@ -11,8 +11,8 @@ type Props = {
 }
 
 const stateMessage: Record<AutoCloseNotificationSettingState, string> = {
-  unconfigured: '尚未設定通知團主。自動結單仍會完成，但設定前不會傳送LINE通知。',
-  current_user: '目前由你的LINE帳號接收自動結單通知。',
+  unconfigured: '尚未設定通知團主。自動結單仍會完成，但設定前不會傳送 LINE 通知。',
+  current_user: '目前由你的 LINE 帳號接收自動結單通知。',
   other_organizer: '目前已由另一位已核准團主接收通知。',
 }
 
@@ -54,12 +54,12 @@ export default function AutoCloseNotificationSettings({ state, onSelectCurrentUs
     <section className="organizer-settings-section auto-close-notification-settings" aria-labelledby="auto-close-notification-heading">
       <div className="auto-close-notification-heading">
         <div>
-          <p className="auto-close-notification-eyebrow">LINE主動通知</p>
+          <p className="auto-close-notification-eyebrow">LINE 主動通知</p>
           <h2 id="auto-close-notification-heading">自動結單通知</h2>
         </div>
         <StatusBadge tone="neutral">單一收件者</StatusBadge>
       </div>
-      <p>每次因結單時間到期或數量達標而自動結單時，只通知一位團主，約使用1則主動訊息。</p>
+      <p>每次因結單時間到期或數量達標而自動結單時，只通知一位團主，約使用 1 則主動訊息。</p>
       <p className="auto-close-notification-state" data-tone={currentState === 'current_user' ? 'success' : 'neutral'}>
         {stateMessage[currentState]}
       </p>

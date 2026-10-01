@@ -10,7 +10,7 @@ describe('AutoCloseNotificationSettings', () => {
     render(<AutoCloseNotificationSettings state="unconfigured" onSelectCurrentUser={onSelectCurrentUser} />)
 
     expect(screen.getByRole('heading', { name: '自動結單通知' })).toBeInTheDocument()
-    expect(screen.getByText('尚未設定通知團主。自動結單仍會完成，但設定前不會傳送LINE通知。')).toBeInTheDocument()
+    expect(screen.getByText('尚未設定通知團主。自動結單仍會完成，但設定前不會傳送 LINE 通知。')).toBeInTheDocument()
     expect(screen.queryByRole('radio')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '將我設為通知接收者' }))
 
@@ -21,7 +21,7 @@ describe('AutoCloseNotificationSettings', () => {
   it('shows when the current organizer already receives notifications', () => {
     render(<AutoCloseNotificationSettings state="current_user" onSelectCurrentUser={vi.fn()} />)
 
-    expect(screen.getByText('目前由你的LINE帳號接收自動結單通知。')).toBeInTheDocument()
+    expect(screen.getByText('目前由你的 LINE 帳號接收自動結單通知。')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '你目前是通知接收者' })).toBeDisabled()
   })
 
@@ -52,7 +52,7 @@ describe('AutoCloseNotificationSettings', () => {
 
     expect(screen.getByRole('region', { name: '自動結單通知' })).toHaveClass('organizer-settings-section')
     expect(screen.getByText('單一收件者')).toHaveAttribute('data-tone', 'neutral')
-    expect(screen.getByText('目前由你的LINE帳號接收自動結單通知。')).toHaveAttribute('data-tone', 'success')
+    expect(screen.getByText('目前由你的 LINE 帳號接收自動結單通知。')).toHaveAttribute('data-tone', 'success')
     expect(screen.getByRole('button', { name: '你目前是通知接收者' })).toHaveClass('ui-button')
   })
 })

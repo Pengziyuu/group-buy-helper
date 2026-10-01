@@ -195,11 +195,11 @@ export function OrganizerHome({ campaigns, autoCloseNotificationState, unboundRe
                     <td data-label="結單" className="organizer-cell-fact">
                       {closing ? <span className={closing.soon ? 'organizer-soon' : undefined}>{closing.value}</span> : '—'}
                     </td>
-                    <td data-label="開團" className="organizer-cell-fact ui-num">
-                      {/* One wrapper, so phone cards keep "最後編輯" next to its time. */}
+                    {/* Not opened yet: phone cards label the time 最後編輯 rather than 開團, and drop the inline prefix. */}
+                    <td data-label={phase === 'draft' || !campaign.openedAt ? '最後編輯' : '開團'} className="organizer-cell-fact ui-num">
                       <span>
                         {phase === 'draft' || !campaign.openedAt
-                          ? <>最後編輯 <RelativeTime value={campaign.updatedAt} now={today} /></>
+                          ? <><span className="organizer-edited-prefix">最後編輯 </span><RelativeTime value={campaign.updatedAt} now={today} /></>
                           : <RelativeTime value={campaign.openedAt} now={today} />}
                       </span>
                     </td>

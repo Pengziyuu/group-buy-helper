@@ -42,12 +42,26 @@ const STATUS_CONFIRMATIONS: Record<'open' | 'closed', { title: string; body: str
   open: { title: '確認重新開放', body: '重新開放後住戶可以再次下單與修改訂單。', confirm: '確認重新開放' },
 }
 
-const NAV_ITEMS: Array<{ section: WorkspaceSection; label: string }> = [
-  { section: 'overview', label: '概況' },
-  { section: 'orders', label: '訂單' },
-  { section: 'content', label: '內容設定' },
-  { section: 'pickup', label: '領取通知' },
+// Pages for looking at the campaign, then pages for changing it, so organizers can tell them apart at a glance.
+const NAV_GROUPS: Array<{ label: string; items: Array<{ section: WorkspaceSection; label: string }> }> = [
+  { label: '查看', items: [{ section: 'overview', label: '概況' }, { section: 'orders', label: '訂單' }] },
+  { label: '管理', items: [{ section: 'content', label: '內容設定' }, { section: 'pickup', label: '領取通知' }] },
 ]
+
+const NAV_ICON_PATHS: Record<WorkspaceSection, string> = {
+  overview: 'M5 20v-6M12 20V5M19 20v-10',
+  orders: 'M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01',
+  content: 'M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4',
+  pickup: 'M6 16v-5a6 6 0 0 1 12 0v5l2 2H4l2-2zM10 20a2 2 0 0 0 4 0',
+}
+
+function NavIcon({ section }: { section: WorkspaceSection }) {
+  return (
+    <svg className="organizer-rail-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d={NAV_ICON_PATHS[section]} />
+    </svg>
+  )
+}
 
 export function WorkspaceRail({ campaign, section, now, onSetCampaignStatus, onCopyResidentLink, saveTemplate }: WorkspaceRailProps) {
   const [confirming, setConfirming] = useState(false)
@@ -113,27 +127,32 @@ export function WorkspaceRail({ campaign, section, now, onSetCampaignStatus, onC
         <div><dt>開團</dt><dd>{campaign.openedAt ? <RelativeTime value={campaign.openedAt} now={now ?? new Date()} /> : '尚未發布'}</dd></div>
       </dl>
       <nav className="organizer-rail-nav" aria-label="團購分區">
-        {NAV_ITEMS.map((item) => {
-          const reason = sectionUnavailableReason(item.section, campaign.status, campaign.published)
-          if (reason) {
-            return (
-              <span key={item.section} className="organizer-rail-link is-unavailable" title={`${item.label}：${reason}`}>
-                {item.label}<small className="organizer-rail-reason">{reason}</small>
-              </span>
-            )
-          }
-          const count = item.section === 'orders' ? campaign.orderCount : null
-          return (
-            <OrganizerLink
-              key={item.section}
-              className="organizer-rail-link"
-              href={campaignSectionPath(campaign.id, item.section)}
-              aria-current={section === item.section ? 'page' : undefined}
-            >
-              {item.label}{count !== null && <>{' '}<span className="ui-num">{count}</span></>}
-            </OrganizerLink>
-          )
-        })}
+        {NAV_GROUPS.map((group, index) => (
+          <div key={group.label} className="organizer-rail-group" role="group" aria-labelledby={`organizer-rail-group-${index}`}>
+            <span id={`organizer-rail-group-${index}`} className="organizer-rail-group-label">{group.label}</span>
+            {group.items.map((item) => {
+              const reason = sectionUnavailableReason(item.section, campaign.status, campaign.published)
+              if (reason) {
+                return (
+                  <span key={item.section} className="organizer-rail-link is-unavailable" title={`${item.label}：${reason}`}>
+                    <NavIcon section={item.section} />{item.label}<small className="organizer-rail-reason">{reason}</small>
+                  </span>
+                )
+              }
+              const count = item.section === 'orders' ? campaign.orderCount : null
+              return (
+                <OrganizerLink
+                  key={item.section}
+                  className="organizer-rail-link"
+                  href={campaignSectionPath(campaign.id, item.section)}
+                  aria-current={section === item.section ? 'page' : undefined}
+                >
+                  <NavIcon section={item.section} />{item.label}{count !== null && <>{' '}<span className="ui-num organizer-rail-count">{count}</span></>}
+                </OrganizerLink>
+              )
+            })}
+          </div>
+        ))}
       </nav>
       {saveTemplate && (
         <div className="organizer-rail-template">
