@@ -34,6 +34,10 @@
 /* Wide screens: cards side by side, so a long resident list needs less scrolling and rows don't stretch across empty space. */
 @media (min-width: 1024px) {
   .resident-member-list { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); align-items: start; }
+  /* One line per name keeps side-by-side cards the same height; the full name is in the hover title. */
+  .resident-member-name { flex-wrap: nowrap; min-width: 0; }
+  .resident-member-name h2 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; overflow-wrap: normal; }
+  .resident-member-name .ui-status-badge { flex: none; }
 }
 
 @media (max-width: 1023px) {

@@ -244,7 +244,7 @@ export default function ResidentMemberManagementApp({ members, initialFilter = '
               <div className="resident-member-avatar"><Avatar member={member} /></div>
               <div className="resident-member-copy">
                 <div className="resident-member-name">
-                  <h2 id={nameId}>{member.displayName}</h2>
+                  <h2 id={nameId} title={member.displayName}>{member.displayName}</h2>
                   {member.blocked && <StatusBadge tone="neutral">已封鎖</StatusBadge>}
                 </div>
                 <p>{residentHouseholdLabel(member)}</p>
