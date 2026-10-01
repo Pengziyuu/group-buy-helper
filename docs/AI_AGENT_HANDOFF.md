@@ -9,8 +9,8 @@
 - 住戶以 LINE 驗證身分，瀏覽所有已發布團購、下單及查看自己的訂單。
 - 團主以另一個 LIFF 入口登入，管理團購、住戶、訂單與團主備註、匯出與通知；付款由團主依匯出的 Excel 在系統外處理。
 - 前端部署於 Vercel，資料、Auth、Realtime、Storage、pg_cron 與 Edge Functions 位於 Supabase。
-- 正式站：<https://group-buy-helper-liart.vercel.app/>
-- 團主入口：<https://group-buy-helper-liart.vercel.app/admin>
+- 正式站：<https://tuan-go.vercel.app/>（2026-10-02 起；舊網域 `group-buy-helper-liart.vercel.app` 在 Vercel 設為 307 轉址到這裡，已分享的舊連結仍可用）
+- 團主入口：<https://tuan-go.vercel.app/admin>
 - Supabase project ref：`ynezmoyjovjeeimjdizr`
 - 功能基線 commit：`5603ccd809bbc3a55213d87e243e11688e2e3b93`；接手時仍應先執行 `git log -5 --oneline` 與 `git status --short`。
 - 最後完整驗證：69個測試檔、447項測試、lint、production build、本機資料庫重建與正式部署均通過。
@@ -183,8 +183,8 @@ python scripts/start_local_live_demo.py
 ### LINE設定（識別碼不是secret）
 
 - LINE官方帳號：`團購小幫手`，基本ID `@147edsjc`。
-- 團主LIFF ID：`2011099887-PlmOrmYw`，Endpoint為正式站`/admin`。
-- 住戶LIFF ID：`2011099887-TRjJIzLR`，Endpoint為正式站根目錄。
+- 團主LIFF ID：`2011099887-PlmOrmYw`，Endpoint為`https://tuan-go.vercel.app/admin`。
+- 住戶LIFF ID：`2011099887-TRjJIzLR`，Endpoint為`https://tuan-go.vercel.app/`。換網域時兩個LIFF Endpoint要和Vercel轉址同時改；登入用頁內一次性代碼，不依賴Supabase允許網址清單。
 - scope：`openid`、`profile`；Add friend option關閉。
 - Login與Messaging API channels必須位於同一LINE Provider。
 

@@ -43,7 +43,7 @@ export default async function campaignPreview(req: Request, res: Response) {
   let html = bundledEntry()
   if (!html) {
     try {
-      const response = await fetch('https://group-buy-helper-liart.vercel.app/index.html', { signal: AbortSignal.timeout(6000) })
+      const response = await fetch('https://tuan-go.vercel.app/index.html', { signal: AbortSignal.timeout(6000) })
       if (!response.ok) throw new Error('SPA entry unavailable')
       html = await response.text()
       if (!isSpaEntry(html)) throw new Error('Unexpected SPA entry')
