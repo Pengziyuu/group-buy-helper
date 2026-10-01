@@ -2256,7 +2256,8 @@ describe('organizer realtime', () => {
     render(<LocalLiveAdminApp client={client} campaignId="campaign-1" repository={publishedRepository()} ordersRepository={workflow} section="overview" />)
 
     expect(await screen.findByRole('heading', { level: 2, name: '概況' })).toBeInTheDocument()
-    expect(channelFactory).toHaveBeenCalledWith('organizer-campaign-campaign-1')
+    // The subscription starts in an effect after the overview renders; a slow CI runner can show the heading first.
+    await waitFor(() => expect(channelFactory).toHaveBeenCalledWith('organizer-campaign-campaign-1'))
     expect(channel.on).toHaveBeenCalledWith('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: 'campaign_id=eq.campaign-1' }, expect.any(Function))
     expect(channel.on).toHaveBeenCalledWith('postgres_changes', { event: '*', schema: 'public', table: 'order_item', filter: 'campaign_id=eq.campaign-1' }, expect.any(Function))
     expect(await screen.findByText('連線中…')).toBeInTheDocument()
