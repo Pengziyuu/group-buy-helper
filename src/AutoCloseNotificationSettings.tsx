@@ -60,7 +60,7 @@ export default function AutoCloseNotificationSettings({ state, onSelectCurrentUs
         </div>
         <StatusBadge tone="neutral">單一收件者</StatusBadge>
       </div>
-      <p>每次因結單時間到期或數量達標而自動結單時，只通知一位團主，約使用 1 則主動訊息。</p>
+      <p>每次因結單時間到期或啟用的成團門檻達標而自動結單時，只通知一位團主，約使用 1 則主動訊息。</p>
       <p className="auto-close-notification-state" data-tone={currentState === 'current_user' ? 'success' : 'neutral'}>
         {stateMessage[currentState]}
       </p>

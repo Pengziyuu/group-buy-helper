@@ -79,6 +79,7 @@ function sameAsPublished(current: CampaignContent, published: CampaignContent): 
     ...content,
     unitPrice: 0,
     amountThreshold: (content.thresholdKind ?? 'quantity') === 'amount' ? content.amountThreshold ?? null : null,
+    thresholdAutoClose: content.thresholdAutoClose ?? content.thresholdKind !== 'amount',
     mixMatchDiscount: content.mixMatchDiscount
       ? { name: content.mixMatchDiscount.name.trim(), minimumQuantity: content.mixMatchDiscount.minimumQuantity, rate: content.mixMatchDiscount.rate }
       : null,
@@ -130,6 +131,7 @@ function AdminApp({
   const [thresholdConfigured, setThresholdConfigured] = useState(initialDraft.thresholdConfigured !== false)
   const [thresholdInput, setThresholdInput] = useState(initialDraft.thresholdConfigured === false ? '' : String(initialDraft.threshold))
   const [thresholdKind, setThresholdKind] = useState<'quantity' | 'amount'>(initialDraft.thresholdKind ?? 'quantity')
+  const [thresholdAutoClose, setThresholdAutoClose] = useState(initialDraft.thresholdAutoClose ?? initialDraft.thresholdKind !== 'amount')
   const [quantityUnit, setQuantityUnit] = useState<QuantityUnit>(() => normalizeQuantityUnit(initialDraft.quantityUnit))
   const [allowCustomItems, setAllowCustomItems] = useState(initialDraft.allowCustomItems ?? false)
   const [baseDiscountEnabled, setBaseDiscountEnabled] = useState((initialDraft.baseDiscountRate ?? 1) < 1)
@@ -218,6 +220,7 @@ function AdminApp({
     itemNameConfigured,
     itemPriceConfigured,
     thresholdKind,
+    thresholdAutoClose,
     amountThreshold: thresholdKind === 'amount' ? amountThreshold : null,
     quantityUnit,
     allowCustomItems,
@@ -259,6 +262,7 @@ function AdminApp({
         itemNameConfigured,
         itemPriceConfigured,
         thresholdKind,
+        thresholdAutoClose,
         amountThreshold: thresholdKind === 'amount' ? amountThreshold : null,
         quantityUnit,
         allowCustomItems,
@@ -301,7 +305,7 @@ function AdminApp({
       })
     }, delay)
     return () => window.clearTimeout(timer)
-  }, [allowCustomItems, amountThreshold, announcement, arrivalLabel, autoCloseAt, autoSaveCycle, baseDiscountEnabled, baseDiscountRate, campaignItems, draftRevision, editorBusy, images, itemNameConfigured, itemNamesValid, itemPriceConfigured, mixMatchDiscountRate, mixMatchEnabled, mixMatchMinimumQuantity, mixMatchName, numericInputsValid, onSaveDraft, openedAt, quantityUnit, scheduleInputsValid, threshold, thresholdConfigured, thresholdKind, title, unitPrice])
+  }, [allowCustomItems, amountThreshold, announcement, arrivalLabel, autoCloseAt, autoSaveCycle, baseDiscountEnabled, baseDiscountRate, campaignItems, draftRevision, editorBusy, images, itemNameConfigured, itemNamesValid, itemPriceConfigured, mixMatchDiscountRate, mixMatchEnabled, mixMatchMinimumQuantity, mixMatchName, numericInputsValid, onSaveDraft, openedAt, quantityUnit, scheduleInputsValid, threshold, thresholdAutoClose, thresholdConfigured, thresholdKind, title, unitPrice])
 
   const retryAutoSave = () => {
     if (autoSaveFailedRevision === null || editorBusy || autoSaveInFlightRef.current) return
@@ -343,6 +347,7 @@ function AdminApp({
         setThresholdConfigured(true)
         setThresholdInput(String(canonical.threshold))
         setThresholdKind(canonical.thresholdKind ?? 'quantity')
+        setThresholdAutoClose(canonical.thresholdAutoClose ?? canonical.thresholdKind !== 'amount')
         setQuantityUnit(normalizeQuantityUnit(canonical.quantityUnit))
         setAllowCustomItems(canonical.allowCustomItems ?? false)
         setBaseDiscountEnabled((canonical.baseDiscountRate ?? 1) < 1)
@@ -507,6 +512,7 @@ function AdminApp({
                   value={thresholdKind}
                   onChange={(kind) => {
                     setThresholdKind(kind)
+                    setThresholdAutoClose(kind === 'quantity')
                     if (!itemsLocked) {
                       setThresholdConfigured(false)
                       if (kind === 'amount') setAmountThresholdInput('')
@@ -522,7 +528,7 @@ function AdminApp({
               </div>
               <div className="content-field-grid">
                 {thresholdKind === 'quantity' ? (
-                  <FormField id="content-threshold" label="成團門檻" helper="剛好達標後自動結單，超過門檻的訂單不會送出。">
+                  <FormField id="content-threshold" label="成團門檻" helper={thresholdAutoClose ? '剛好達標後自動結單，超過門檻的訂單不會送出。' : '達標後仍可繼續下單，由團主手動結單。'}>
                     <input
                       className="ui-input"
                       disabled={editorBusy}
@@ -545,7 +551,7 @@ function AdminApp({
                     />
                   </FormField>
                 ) : (
-                  <FormField id="content-amount-threshold" label="成團門檻金額" helper="只顯示成團進度，達到金額後不會自動結單。">
+                  <FormField id="content-amount-threshold" label="成團門檻金額" helper={thresholdAutoClose ? '折扣後實收總額達標或超過時自動結單。' : '達標後仍可繼續下單，由團主手動結單。'}>
                     <input
                       className="ui-input"
                       disabled={editorBusy}
@@ -572,6 +578,14 @@ function AdminApp({
                   </FormField>
                 )}
               </div>
+              </div>
+              <div className="content-subsetting">
+                <Switch
+                  checked={thresholdAutoClose}
+                  disabled={editorBusy}
+                  onChange={(enabled) => { setThresholdAutoClose(enabled); markDraft() }}
+                  label="達到成團門檻時自動結單"
+                />
               </div>
               <div className="content-subsetting">
                 <FormField id="content-quantity-unit" label="數量單位" helper="套用於商品數量、訂單總數與品項彙總。">
@@ -636,7 +650,7 @@ function AdminApp({
               <div className="content-subsetting">
               <Switch
                 label="設定結單日期"
-                description="依設定的台灣日期與時間自動結單；若數量先達門檻，會提前結單。"
+                description="依設定的台灣日期與時間自動結單；若已啟用門檻自動結單，達標時可能提前結單。"
                 checked={autoCloseEnabled}
                 disabled={editorBusy}
                 onChange={(checked) => {
@@ -766,6 +780,7 @@ function AdminApp({
               arrivalLabel={arrivalLabel}
               autoCloseAt={autoCloseAt}
               thresholdKind={thresholdKind}
+              thresholdAutoClose={thresholdAutoClose}
               thresholdText={thresholdText}
               allowCustomItems={allowCustomItems}
               images={images}

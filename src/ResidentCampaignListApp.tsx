@@ -29,6 +29,7 @@ export type ResidentCampaignListItem = {
   threshold: number
   thresholdKind?: 'quantity' | 'amount'
   amountThreshold?: number | null
+  thresholdAutoClose?: boolean
   quantityUnit?: QuantityUnit
   images?: CampaignImage[]
   arrivalLabel?: string

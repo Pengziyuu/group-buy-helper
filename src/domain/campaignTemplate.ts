@@ -13,6 +13,7 @@ export type CampaignTemplateContent = {
   threshold: number
   thresholdKind: 'quantity' | 'amount'
   amountThreshold: number | null
+  thresholdAutoClose?: boolean
   quantityUnit: QuantityUnit
   baseDiscountRate: number
   mixMatchDiscount: CampaignMixMatchDiscount | null
@@ -57,6 +58,7 @@ export function templateContentFromCampaign(content: CampaignContent): CampaignT
     threshold: content.threshold,
     thresholdKind: content.thresholdKind === 'amount' ? 'amount' : 'quantity',
     amountThreshold: content.thresholdKind === 'amount' ? content.amountThreshold ?? null : null,
+    thresholdAutoClose: content.thresholdAutoClose ?? content.thresholdKind !== 'amount',
     quantityUnit: normalizeQuantityUnit(content.quantityUnit),
     baseDiscountRate: content.baseDiscountRate ?? 1,
     mixMatchDiscount: content.mixMatchDiscount ? { ...content.mixMatchDiscount } : null,
@@ -73,6 +75,7 @@ export function campaignContentFromTemplate(template: CampaignTemplateContent, t
     threshold: template.threshold,
     thresholdKind: template.thresholdKind,
     amountThreshold: template.amountThreshold,
+    thresholdAutoClose: template.thresholdAutoClose ?? template.thresholdKind !== 'amount',
     quantityUnit: template.quantityUnit,
     allowCustomItems: template.allowCustomItems,
     baseDiscountRate: template.baseDiscountRate,
@@ -128,6 +131,7 @@ export function parseTemplateContent(value: unknown): CampaignTemplateContent {
     threshold: record.threshold as number,
     thresholdKind: record.thresholdKind === 'amount' ? 'amount' : 'quantity',
     amountThreshold: typeof record.amountThreshold === 'number' ? record.amountThreshold : null,
+    thresholdAutoClose: typeof record.thresholdAutoClose === 'boolean' ? record.thresholdAutoClose : record.thresholdKind !== 'amount',
     quantityUnit: normalizeQuantityUnit(typeof record.quantityUnit === 'string' ? record.quantityUnit : undefined),
     baseDiscountRate: typeof record.baseDiscountRate === 'number' ? record.baseDiscountRate : 1,
     mixMatchDiscount: isRecord(mixMatch) && typeof mixMatch.name === 'string'

@@ -71,6 +71,7 @@ export type Database = {
         Row: {
           allow_custom_items: boolean
           amount_threshold: number | null
+          threshold_auto_close: boolean
           announcement: string
           arrival_label: string
           auto_close_at: string | null
@@ -97,6 +98,7 @@ export type Database = {
         Insert: {
           allow_custom_items?: boolean
           amount_threshold?: number | null
+          threshold_auto_close?: boolean
           announcement?: string
           arrival_label?: string
           auto_close_at?: string | null
@@ -123,6 +125,7 @@ export type Database = {
         Update: {
           allow_custom_items?: boolean
           amount_threshold?: number | null
+          threshold_auto_close?: boolean
           announcement?: string
           arrival_label?: string
           auto_close_at?: string | null
@@ -270,6 +273,7 @@ export type Database = {
         Row: {
           allow_custom_items: boolean
           amount_threshold: number | null
+          threshold_auto_close: boolean
           announcement: string
           arrival_label: string
           auto_close_at: string | null
@@ -295,6 +299,7 @@ export type Database = {
         Insert: {
           allow_custom_items?: boolean
           amount_threshold?: number | null
+          threshold_auto_close?: boolean
           announcement?: string
           arrival_label?: string
           auto_close_at?: string | null
@@ -320,6 +325,7 @@ export type Database = {
         Update: {
           allow_custom_items?: boolean
           amount_threshold?: number | null
+          threshold_auto_close?: boolean
           announcement?: string
           arrival_label?: string
           auto_close_at?: string | null
@@ -1253,6 +1259,7 @@ export type Database = {
         Row: {
           allow_custom_items: boolean | null
           amount_threshold: number | null
+          threshold_auto_close: boolean | null
           announcement: string | null
           arrival_label: string | null
           auto_close_at: string | null
@@ -1278,6 +1285,7 @@ export type Database = {
         Insert: {
           allow_custom_items?: boolean | null
           amount_threshold?: number | null
+          threshold_auto_close?: boolean | null
           announcement?: string | null
           arrival_label?: string | null
           auto_close_at?: string | null
@@ -1303,6 +1311,7 @@ export type Database = {
         Update: {
           allow_custom_items?: boolean | null
           amount_threshold?: number | null
+          threshold_auto_close?: boolean | null
           announcement?: string | null
           arrival_label?: string | null
           auto_close_at?: string | null
@@ -1594,6 +1603,7 @@ export type Database = {
         Returns: {
           allow_custom_items: boolean
           amount_threshold: number | null
+          threshold_auto_close: boolean
           announcement: string
           arrival_label: string
           auto_close_at: string | null
@@ -1771,6 +1781,7 @@ export type Database = {
           announcement: string
           arrival_label: string
           auto_close_at: string
+          threshold_auto_close: boolean
           created_at: string
           deadline: string
           id: string
@@ -1790,6 +1801,7 @@ export type Database = {
         Args: never
         Returns: {
           amount_threshold: number
+          threshold_auto_close: boolean
           arrival_label: string
           auto_close_at: string
           created_at: string
@@ -1820,6 +1832,7 @@ export type Database = {
         Returns: {
           allow_custom_items: boolean
           amount_threshold: number
+          threshold_auto_close: boolean
           arrival_label: string
           auto_close_at: string
           images: Json
@@ -1868,6 +1881,7 @@ export type Database = {
         Returns: {
           allow_custom_items: boolean
           amount_threshold: number | null
+          threshold_auto_close: boolean
           announcement: string
           arrival_label: string
           auto_close_at: string | null
@@ -1944,6 +1958,7 @@ export type Database = {
         Returns: {
           allow_custom_items: boolean
           amount_threshold: number | null
+          threshold_auto_close: boolean
           announcement: string
           arrival_label: string
           auto_close_at: string | null

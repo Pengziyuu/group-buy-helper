@@ -270,6 +270,7 @@ export function demoScenarioListItem(scenario: DemoResidentScenario): ResidentCa
     totalAmount: summary.amount,
     threshold: content.threshold,
     thresholdKind: kind,
+    thresholdAutoClose: content.thresholdAutoClose ?? kind === 'quantity',
     amountThreshold: content.amountThreshold ?? null,
     quantityUnit: content.quantityUnit,
     images: content.images,

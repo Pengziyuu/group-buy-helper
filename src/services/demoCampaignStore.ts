@@ -31,6 +31,8 @@ export type CampaignContent = {
   itemPriceConfigured?: boolean
   thresholdKind?: CampaignThresholdKind
   amountThreshold?: number | null
+  /** Omitted in older drafts: quantity auto-closes, amount stays open. */
+  thresholdAutoClose?: boolean
   quantityUnit?: QuantityUnit
   allowCustomItems?: boolean
   baseDiscountRate?: number
@@ -64,6 +66,7 @@ function isCampaignContent(value: unknown): value is CampaignContent {
     && (candidate.itemNameConfigured === undefined || typeof candidate.itemNameConfigured === 'boolean')
     && (candidate.itemPriceConfigured === undefined || typeof candidate.itemPriceConfigured === 'boolean')
     && (candidate.thresholdKind === undefined || candidate.thresholdKind === 'quantity' || candidate.thresholdKind === 'amount')
+    && (candidate.thresholdAutoClose === undefined || typeof candidate.thresholdAutoClose === 'boolean')
     && (candidate.amountThreshold === undefined || candidate.amountThreshold === null
       || (typeof candidate.amountThreshold === 'number' && Number.isFinite(candidate.amountThreshold) && candidate.amountThreshold > 0))
     && (candidate.thresholdKind !== 'amount' || (typeof candidate.amountThreshold === 'number' && candidate.amountThreshold > 0))
@@ -158,6 +161,7 @@ export function campaignContentEquals(left: CampaignContent, right: CampaignCont
     && (left.itemNameConfigured ?? true) === (right.itemNameConfigured ?? true)
     && (left.itemPriceConfigured ?? true) === (right.itemPriceConfigured ?? true)
     && (left.thresholdKind ?? 'quantity') === (right.thresholdKind ?? 'quantity')
+    && (left.thresholdAutoClose ?? left.thresholdKind !== 'amount') === (right.thresholdAutoClose ?? right.thresholdKind !== 'amount')
     && (left.amountThreshold ?? null) === (right.amountThreshold ?? null)
     && normalizeQuantityUnit(left.quantityUnit) === normalizeQuantityUnit(right.quantityUnit)
     && (left.allowCustomItems ?? false) === (right.allowCustomItems ?? false)
