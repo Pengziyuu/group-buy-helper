@@ -100,13 +100,13 @@ const ARRIVAL_OPTIONS: Array<{ value: ArrivalMode; label: string }> = [
 const HOURS = Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, '0'))
 const MINUTES = Array.from({ length: 60 }, (_, minute) => String(minute).padStart(2, '0'))
 
-function promotionName(quantity: number, rate: number): string {
+function promotionName(quantity: number, rate: number, unit: QuantityUnit): string {
   const digits = '零一二三四五六七八九'
   const count = quantity < 10 ? digits[quantity]
     : quantity === 100 ? '一百'
       : `${quantity >= 20 ? `${digits[Math.floor(quantity / 10)]}十` : '十'}${quantity % 10 ? digits[quantity % 10] : ''}`
   const tenth = Number((rate * 10).toFixed(2))
-  return `任選${count}件${tenth < 2 || Number.isInteger(tenth) ? tenth : Number((rate * 100).toFixed(2))}折`
+  return `任選${count}${unit}${tenth < 2 || Number.isInteger(tenth) ? tenth : Number((rate * 100).toFixed(2))}折`
 }
 
 function AdminApp({
@@ -135,7 +135,7 @@ function AdminApp({
   const [baseDiscountEnabled, setBaseDiscountEnabled] = useState((initialDraft.baseDiscountRate ?? 1) < 1)
   const [baseDiscountRate, setBaseDiscountRate] = useState(initialDraft.baseDiscountRate ?? 0.9)
   const [mixMatchEnabled, setMixMatchEnabled] = useState(initialDraft.mixMatchDiscount !== null && initialDraft.mixMatchDiscount !== undefined)
-  const [mixMatchName, setMixMatchName] = useState(initialDraft.mixMatchDiscount?.name ?? '任選三件85折')
+  const [mixMatchName, setMixMatchName] = useState(initialDraft.mixMatchDiscount?.name ?? promotionName(3, 0.85, normalizeQuantityUnit(initialDraft.quantityUnit)))
   const [mixMatchMinimumQuantity, setMixMatchMinimumQuantity] = useState(initialDraft.mixMatchDiscount?.minimumQuantity ?? 3)
   const [mixMatchDiscountRate, setMixMatchDiscountRate] = useState(initialDraft.mixMatchDiscount?.rate ?? 0.85)
   const [amountThreshold, setAmountThreshold] = useState(initialDraft.amountThreshold ?? Math.max(1, initialDraft.threshold * initialDraft.unitPrice))
@@ -348,7 +348,7 @@ function AdminApp({
         setBaseDiscountEnabled((canonical.baseDiscountRate ?? 1) < 1)
         setBaseDiscountRate(canonical.baseDiscountRate ?? 0.9)
         setMixMatchEnabled(canonical.mixMatchDiscount !== null && canonical.mixMatchDiscount !== undefined)
-        setMixMatchName(canonical.mixMatchDiscount?.name ?? '任選三件85折')
+        setMixMatchName(canonical.mixMatchDiscount?.name ?? promotionName(3, 0.85, normalizeQuantityUnit(canonical.quantityUnit)))
         setMixMatchMinimumQuantity(canonical.mixMatchDiscount?.minimumQuantity ?? 3)
         setMixMatchDiscountRate(canonical.mixMatchDiscount?.rate ?? 0.85)
         const canonicalArrival = parseArrivalLabel(canonical.arrivalLabel)
@@ -580,7 +580,11 @@ function AdminApp({
                     disabled={editorBusy}
                     value={quantityUnit}
                     onChange={(event) => {
-                      setQuantityUnit(normalizeQuantityUnit(event.target.value))
+                      const nextUnit = normalizeQuantityUnit(event.target.value)
+                      if (!itemsLocked && mixMatchName === promotionName(mixMatchMinimumQuantity, mixMatchDiscountRate, quantityUnit)) {
+                        setMixMatchName(promotionName(mixMatchMinimumQuantity, mixMatchDiscountRate, nextUnit))
+                      }
+                      setQuantityUnit(nextUnit)
                       markDraft()
                     }}
                   >
@@ -713,7 +717,7 @@ function AdminApp({
               <div className="content-subsetting">
               <Switch
                 label="啟用任選優惠"
-                description="同一住戶在參加任選的品項合計達到最低件數後，這些品項全部套用優惠折數；參加的品項在「品項與價格」勾選。"
+                description="同一住戶在參加任選的品項合計達到最低數量後，這些品項全部套用優惠折數；參加的品項在「品項與價格」勾選。"
                 checked={mixMatchEnabled}
                 disabled={editorBusy || itemsLocked}
                 onChange={(checked) => {
@@ -729,13 +733,13 @@ function AdminApp({
                   <FormField id="content-mix-name" label="任選優惠名稱">
                     <input className="ui-input" value={mixMatchName} readOnly aria-readonly="true" />
                   </FormField>
-                  <FormField id="content-mix-minimum" label="任選最低件數" className="content-number-field">
+                  <FormField id="content-mix-minimum" label="任選最低數量" className="content-number-field">
                     <input className="ui-input" type="number" min="2" max="100" step="1" value={mixMatchMinimumQuantity} disabled={editorBusy || itemsLocked}
-                      onChange={(event) => { const value = Number(event.target.value); if (Number.isInteger(value) && value >= 2 && value <= 100) { setMixMatchMinimumQuantity(value); setMixMatchName(promotionName(value, mixMatchDiscountRate)); markDraft() } }} />
+                      onChange={(event) => { const value = Number(event.target.value); if (Number.isInteger(value) && value >= 2 && value <= 100) { setMixMatchMinimumQuantity(value); setMixMatchName(promotionName(value, mixMatchDiscountRate, quantityUnit)); markDraft() } }} />
                   </FormField>
                   <FormField id="content-mix-rate" label="任選優惠折數" helper="例如輸入 8.5 代表 85 折。" className="content-number-field">
                     <input className="ui-input" type="number" min="0.1" max="10" step="0.1" value={Number((mixMatchDiscountRate * 10).toFixed(2))} disabled={editorBusy || itemsLocked}
-                      onChange={(event) => { const fold = Number(event.target.value); if (fold > 0 && fold <= 10) { setMixMatchDiscountRate(fold / 10); setMixMatchName(promotionName(mixMatchMinimumQuantity, fold / 10)); markDraft() } }} />
+                      onChange={(event) => { const fold = Number(event.target.value); if (fold > 0 && fold <= 10) { setMixMatchDiscountRate(fold / 10); setMixMatchName(promotionName(mixMatchMinimumQuantity, fold / 10, quantityUnit)); markDraft() } }} />
                   </FormField>
                 </div>
               )}

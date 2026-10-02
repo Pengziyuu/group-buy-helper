@@ -7,6 +7,10 @@ export { formatRelativeTime } from '../relativeTime'
 export type OrderSort = 'household' | 'orderedAt'
 export type OrderItemChip = { key: string; label: string; name: string; quantity: number; custom: boolean }
 
+export function orderItemChipText(chip: OrderItemChip): string {
+  return chip.custom ? `${chip.label}×${chip.quantity}（另計）` : `${chip.label}×${chip.quantity}`
+}
+
 const timestamp = (value: string | null | undefined) => Date.parse(value ?? '') || 0
 const lastActivity = (order: OrganizerOrderRow) => Math.max(timestamp(order.orderedAt), timestamp(order.updatedAt))
 

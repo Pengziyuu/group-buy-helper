@@ -42,8 +42,8 @@ describe('OrdersSection', () => {
     expect(within(totals).getByText('62 個')).toBeInTheDocument()
     expect(within(totals).getByText('$2,790')).toBeInTheDocument()
     const row = rowOf(/2K13\s*斯祈/)
-    expect(within(row).getByText('B+2')).toHaveAttribute('title', '花生（招牌）')
-    expect(within(row).getByText('D+2')).toBeInTheDocument()
+    expect(within(row).getByText('B×2')).toHaveAttribute('title', '花生（招牌）')
+    expect(within(row).getByText('D×2')).toBeInTheDocument()
     expect(within(row).getByText('6 個')).toBeInTheDocument()
     expect(screen.queryByRole('columnheader', { name: '付款' })).not.toBeInTheDocument()
     expect(screen.queryByText(/已付款|未付款/)).not.toBeInTheDocument()
@@ -78,7 +78,7 @@ describe('OrdersSection', () => {
     // customItems was attached to initialOrders[0] (斯祈・2K13), not H11 — the household
     // sort puts H11 first on screen, but the custom item belongs to the 2K13 row.
     const row = rowOf(/2K13\s*斯祈/)
-    expect(within(row).getByText('限定蛋糕 ×2・另計')).toBeInTheDocument()
+    expect(within(row).getByText('限定蛋糕×2（另計）')).toBeInTheDocument()
     expect(within(row).getByText('＋另計')).toBeInTheDocument()
   })
 

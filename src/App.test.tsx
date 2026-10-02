@@ -80,12 +80,35 @@ describe('customer campaign app', () => {
     const orders = [{ ...resident, items: {}, orderedAt: '2026-09-12T00:00:00.000Z', updatedAt: '2026-09-12T00:00:00.000Z' }]
 
     const view = render(<App publishedContent={content(1)} residentCustomer={resident} visibleOrders={orders} />)
-    expect(screen.getByText('限定區目前 0 件，未達標維持原價')).toBeInTheDocument()
+    expect(screen.getByText('限定區目前 0 個，未達標維持原價')).toBeInTheDocument()
     expect(screen.queryByText(/10折/)).not.toBeInTheDocument()
     view.unmount()
 
     render(<App publishedContent={content(0.95)} residentCustomer={resident} visibleOrders={orders} />)
-    expect(screen.getByText('限定區目前 0 件，未達標維持 95 折')).toBeInTheDocument()
+    expect(screen.getByText('限定區目前 0 個，未達標維持 95 折')).toBeInTheDocument()
+  })
+
+  it('uses the campaign unit throughout the promotion and keeps each product hint concise', async () => {
+    const user = userEvent.setup()
+    const resident = { customerId: 'resident-1', name: '住戶甲', period: 2, unit: '2A1', householdKind: 'resident' as const }
+    const content: CampaignContent = {
+      title: '零食團購', unitPrice: 60, threshold: 100, quantityUnit: '包',
+      mixMatchDiscount: { name: '任選 3 包 85 折', minimumQuantity: 3, rate: 0.85 },
+      announcement: '公告', images: [], openedAt: '2026-09-12T00:00:00.000Z',
+      items: [{ code: 'A', name: '洋芋片', unitPrice: 60, active: true, discountEligible: true }],
+    }
+    render(<App publishedContent={content} residentCustomer={resident} visibleOrders={[
+      { ...resident, items: {}, orderedAt: '2026-09-12T00:00:00.000Z', updatedAt: '2026-09-12T00:00:00.000Z' },
+    ]} />)
+    const section = screen.getByRole('region', { name: '任選優惠專區' })
+    expect(screen.getByText('再選 3 包即可享 85 折')).toBeInTheDocument()
+    expect(screen.getByText('限定區目前 0 包，未達標維持原價')).toBeInTheDocument()
+    expect(within(section).getByText('任選優惠 $51')).toBeInTheDocument()
+    expect(within(section).queryByText(/共同累計件數|任選滿 3 件/)).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '增加 A 洋芋片' }))
+    await user.click(screen.getByRole('button', { name: '增加 A 洋芋片' }))
+    await user.click(screen.getByRole('button', { name: '增加 A 洋芋片' }))
+    expect(screen.getByText('限定區共 3 包，全部享優惠價')).toBeInTheDocument()
   })
 
   it('previews base and mix-and-match prices while quantities change', async () => {
@@ -115,7 +138,7 @@ describe('customer campaign app', () => {
 
     await user.click(screen.getByRole('button', { name: '增加 A 五花肉片' }))
     await user.click(screen.getByRole('button', { name: '增加 B 高粱酒香腸' }))
-    expect(screen.getByText('再選 1 件即可享 85 折')).toBeInTheDocument()
+    expect(screen.getByText('再選 1 個即可享 85 折')).toBeInTheDocument()
     expect(within(screen.getByLabelText('訂單摘要與送出')).getByText('$422')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '增加 A 五花肉片' }))
@@ -619,7 +642,7 @@ describe('customer campaign app', () => {
     expect(screen.getByText('本團已結單，你沒有在這團下單。')).toBeInTheDocument()
   })
 
-  it('shows item names and prices without 號 and uses plus signs on the live wall', async () => {
+  it('shows item names and prices without 號 and uses quantity markers on the live wall', async () => {
     const user = userEvent.setup()
     const content: CampaignContent = {
       title: '自訂品項團',
@@ -656,7 +679,7 @@ describe('customer campaign app', () => {
     await user.click(screen.getByRole('button', { name: '查看訂單明細' }))
     expect(within(screen.getByRole('dialog', { name: '訂單明細' })).getByText('$150')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '關閉訂單明細' }))
-    expect(screen.getByText('A+2、B+1')).toBeInTheDocument()
+    expect(screen.getByText('A×2、B×1')).toBeInTheDocument()
     expect(within(screen.getByRole('region', { name: '大家的訂單' })).queryByText('三期 3Z15')).not.toBeInTheDocument()
     expect(screen.queryByText(/A號|B號/)).not.toBeInTheDocument()
   })

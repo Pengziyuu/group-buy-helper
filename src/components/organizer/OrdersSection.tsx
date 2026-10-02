@@ -11,7 +11,7 @@ import { ExportOrdersButton } from './ExportOrdersButton'
 import { LiveStatus, type LiveState } from './LiveStatus'
 import { OrderNoteCell } from './OrderNoteCell'
 import {
-  matchesOrderSearch, orderControlLabel, orderHouseholdLabel, orderItemChips, sortOrders, wasEdited, type OrderSort,
+  matchesOrderSearch, orderControlLabel, orderHouseholdLabel, orderItemChips, orderItemChipText, sortOrders, wasEdited, type OrderSort,
 } from './orderView'
 import { EditedMark, RelativeTime, useNow } from '../relativeTime'
 
@@ -136,7 +136,7 @@ export function OrdersSection({
                             <span className="organizer-chips">
                               {chips.map((chip) => (
                                 <span key={chip.key} className={chip.custom ? 'organizer-chip is-custom' : 'organizer-chip'} title={chip.custom ? undefined : chip.name}>
-                                  {chip.custom ? `${chip.label} ×${chip.quantity}・另計` : `${chip.label}+${chip.quantity}`}
+                                  {orderItemChipText(chip)}
                                 </span>
                               ))}
                             </span>

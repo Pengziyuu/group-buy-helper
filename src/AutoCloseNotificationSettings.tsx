@@ -47,9 +47,7 @@ export default function AutoCloseNotificationSettings({ state, onSelectCurrentUs
     }
   }
 
-  const buttonLabel = currentState === 'current_user'
-    ? '你目前是通知接收者'
-    : currentState === 'other_organizer'
+  const buttonLabel = currentState === 'other_organizer'
       ? '改由我接收通知'
       : '將我設為通知接收者'
 
@@ -66,13 +64,12 @@ export default function AutoCloseNotificationSettings({ state, onSelectCurrentUs
       <p className="auto-close-notification-state" data-tone={currentState === 'current_user' ? 'success' : 'neutral'}>
         {stateMessage[currentState]}
       </p>
-      <Button
+      {currentState !== 'current_user' && <Button
         size="sm"
-        disabled={currentState === 'current_user'}
         loading={saving}
         loadingLabel="設定中…"
         onClick={() => { setFeedback(''); setError(''); setConfirming(true) }}
-      >{buttonLabel}</Button>
+      >{buttonLabel}</Button>}
       {feedback && <FeedbackMessage tone="success">{feedback}</FeedbackMessage>}
       {error && <FeedbackMessage tone="error">{error}</FeedbackMessage>}
       {/* Easy to tap by mistake, and it changes who LINE notifies, so ask first. */}
