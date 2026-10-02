@@ -142,7 +142,7 @@
   .organizer-rail-group-label { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .organizer-rail-count { margin-left: 0; }
   .organizer-rail-link { flex: none; min-height: var(--touch-target); }
-  /* Keep the four tabs on one line: the reason stays for screen readers and in the tab's title. */
+  /* Keep the tabs on one line: the reason stays for screen readers and in the tab's title. */
   .organizer-rail-reason { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .organizer-rail-back, .organizer-rail-share a { min-height: var(--touch-target); }
   .organizer-rail-share { margin-top: 0; }
@@ -208,7 +208,9 @@
 }
 
 /* Orders section: totals, toolbar, order table and the in-place note editor. */
+.organizer-order-summary { display: grid; grid-template-columns: minmax(230px, 1fr) minmax(0, 1.6fr); align-items: stretch; gap: var(--space-3); }
 .organizer-order-totals { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); margin: 0; }
+.organizer-order-summary .organizer-order-totals { align-content: center; padding: var(--space-3) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-surface); background: var(--color-surface); }
 .organizer-order-totals div { display: flex; align-items: baseline; gap: var(--space-2); }
 .organizer-order-totals dt { color: var(--color-text-secondary); }
 .organizer-order-totals dd { margin: 0; font-weight: var(--font-weight-strong); font-variant-numeric: tabular-nums; }
@@ -218,6 +220,12 @@
 .organizer-order-person { display: flex; align-items: center; gap: var(--space-2); }
 .organizer-avatar { width: 32px; height: 32px; font-size: var(--font-size-caption); }
 .organizer-order-household { display: block; color: var(--color-text-secondary); font-size: var(--font-size-caption); }
+.organizer-new-label { display: block; color: var(--color-primary); font-size: var(--font-size-caption); }
+@media (max-width: 639px) {
+  .organizer-order-summary { grid-template-columns: minmax(0, 1fr); }
+  .organizer-item-bars li { grid-template-columns: 24px minmax(0, 1fr) 36px; }
+  .organizer-item-bar { display: none; }
+}
 .organizer-note-button { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 32px; max-width: 260px; padding: 0 var(--space-2); border: 1px dashed transparent; border-radius: var(--radius-control); background: transparent; color: var(--color-text); font: inherit; text-align: left; overflow-wrap: anywhere; cursor: text; }
 .organizer-note-button:disabled { cursor: not-allowed; }
 .organizer-note-button[data-empty] { border-color: var(--color-border-strong); color: var(--color-primary); }

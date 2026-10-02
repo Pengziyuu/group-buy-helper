@@ -13,7 +13,6 @@ import { OrdersSection } from './components/organizer/OrdersSection'
 import { OrganizerHome } from './components/organizer/OrganizerHome'
 import { OrganizerSettings } from './components/organizer/OrganizerSettings'
 import { OrganizerShell } from './components/organizer/OrganizerShell'
-import { OverviewSection } from './components/organizer/OverviewSection'
 import { PickupSection } from './components/organizer/PickupSection'
 import { isUnboundResident } from './components/organizer/residentView'
 import type { WorkspaceCampaign } from './components/organizer/WorkspaceRail'
@@ -1151,19 +1150,9 @@ export function LocalLiveAdminApp({
             return nextPublished
           }}
         />
-        {shownSection === 'overview' && orderSummary && (
-          <OverviewSection
-            campaignId={campaignId}
-            campaignTitle={content.title}
-            openedAt={publishedContent?.openedAt ?? null}
-            summary={orderSummary}
-            status={campaignStatus}
-            liveState={liveState}
-            onRetrySync={retrySync}
-          />
-        )}
         {shownSection === 'orders' && orderSummary && (
           <OrdersSection
+            campaignId={campaignId}
             campaignTitle={content.title}
             openedAt={publishedContent?.openedAt ?? null}
             summary={orderSummary}

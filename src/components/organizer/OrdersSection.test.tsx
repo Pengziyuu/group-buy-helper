@@ -49,6 +49,41 @@ describe('OrdersSection', () => {
     expect(screen.queryByText(/已付款|未付款/)).not.toBeInTheDocument()
   })
 
+  it('combines the unique overview details with orders, without a second latest-orders list', () => {
+    renderOrders({ campaignId: 'campaign-1', now: new Date('2026-09-25T04:00:00.000Z') })
+    expect(screen.getByText('62 / 100 個')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar', { name: '成團進度' })).toHaveAttribute('aria-valuenow', '62')
+    expect(screen.getByText('還差 38 個成團')).toBeInTheDocument()
+    expect(within(screen.getByLabelText('訂單總覽')).getByText('今天新增')).toBeInTheDocument()
+    const items = screen.getByRole('list', { name: '品項數量' })
+    expect(within(within(items).getByText('花生（招牌）').closest('li') as HTMLElement).getByText('14')).toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: '最新訂單' })).not.toBeInTheDocument()
+  })
+
+  it('shows discounted amount-threshold progress and retains the closed-campaign pickup shortcut', () => {
+    const amountSummary = buildOrganizerOrderSummary({ orders: initialOrders, items, threshold: 100, thresholdKind: 'amount', amountThreshold: 5000 })
+    renderOrders({ campaignId: 'campaign-1', summary: amountSummary, status: 'closed' })
+    expect(screen.getByText('$2,790 / $5,000')).toBeInTheDocument()
+    expect(screen.getByText('還差 $2,210 成團')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '領取通知' })).toHaveAttribute('href', '/admin/campaign/campaign-1/pickup')
+  })
+
+  it('preserves a marker for orders updated since the previous visit', () => {
+    const key = 'group-buy-helper:organizer-last-seen:campaign-1'
+    window.localStorage.setItem(key, '2026-09-25T03:30:00.000Z')
+    const updated: OrganizerOrderSummary = {
+      ...summary,
+      orderRows: summary.orderRows.map((row, index) => index === 0 ? { ...row, updatedAt: '2026-09-25T03:57:00.000Z' } : row),
+    }
+    try {
+      renderOrders({ campaignId: 'campaign-1', summary: updated })
+      expect(screen.getAllByText('上次查看後有更新')).toHaveLength(1)
+      expect(window.localStorage.getItem(key)).not.toBe('2026-09-25T03:30:00.000Z')
+    } finally {
+      window.localStorage.removeItem(key)
+    }
+  })
+
   it('shows each resident’s LINE picture, or a coloured initial without one', () => {
     const withPictures: OrganizerOrderSummary = {
       ...summary,

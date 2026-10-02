@@ -30,14 +30,15 @@ function renderRail(props: Partial<Parameters<typeof WorkspaceRail>[0]> = {}) {
 }
 
 describe('workspace sections', () => {
-  it('opens drafts on content, open campaigns on the overview and closed campaigns on orders', () => {
+  it('opens drafts on content and published campaigns on orders, including old overview links', () => {
     expect(resolveWorkspaceSection(null, false, 'open')).toBe('content')
     expect(resolveWorkspaceSection('overview', false, 'open')).toBe('content')
     expect(resolveWorkspaceSection('orders', false, 'open')).toBe('content')
-    expect(resolveWorkspaceSection(null, true, 'open')).toBe('overview')
+    expect(resolveWorkspaceSection(null, true, 'open')).toBe('orders')
     expect(resolveWorkspaceSection(null, true, 'closed')).toBe('orders')
     expect(resolveWorkspaceSection(null, true, 'arrived')).toBe('orders')
-    expect(resolveWorkspaceSection('overview', true, 'closed')).toBe('overview')
+    expect(resolveWorkspaceSection('overview', true, 'closed')).toBe('orders')
+    expect(resolveWorkspaceSection('overview', true, 'open')).toBe('orders')
     expect(resolveWorkspaceSection('content', true, 'open')).toBe('content')
     expect(resolveWorkspaceSection('pickup', true, 'open')).toBe('pickup')
   })
@@ -82,18 +83,16 @@ describe('WorkspaceRail', () => {
     expect(within(nav).getByText('結單後才能使用')).toHaveClass('organizer-rail-reason')
     // Phones hide the reason text to keep the tabs on one line, so it also rides on the tab's hover title.
     expect(within(nav).getByText('領取通知')).toHaveAttribute('title', '領取通知：結單後才能使用')
-    const overview = within(nav).getByRole('link', { name: '概況' })
-    expect(overview).toHaveAttribute('href', '/admin/campaign/campaign-1/overview')
-    expect(overview).not.toHaveAttribute('aria-current')
-    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['概況', '訂單 6', '內容設定'])
+    expect(within(nav).queryByRole('link', { name: '概況' })).not.toBeInTheDocument()
+    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['訂單 6', '內容設定'])
 
-    // Pages for looking (概況、訂單) are grouped apart from pages for changing things (內容設定、領取通知), each tab with an icon.
+    // Orders are grouped apart from pages for changing things (內容設定、領取通知).
     const view = within(nav).getByRole('group', { name: '查看' })
-    expect(within(view).getAllByRole('link').map((link) => link.textContent)).toEqual(['概況', '訂單 6'])
+    expect(within(view).getAllByRole('link').map((link) => link.textContent)).toEqual(['訂單 6'])
     const manage = within(nav).getByRole('group', { name: '管理' })
     expect(within(manage).getByRole('link', { name: '內容設定' })).toBeInTheDocument()
     expect(within(manage).getByText('領取通知')).toBeInTheDocument()
-    expect(nav.querySelectorAll('.organizer-rail-icon')).toHaveLength(4)
+    expect(nav.querySelectorAll('.organizer-rail-icon')).toHaveLength(3)
   })
 
   it('asks before closing orders and closes only after confirmation', async () => {
@@ -140,7 +139,7 @@ describe('WorkspaceRail', () => {
     expect(onSetCampaignStatus).toHaveBeenCalledWith('open')
   })
 
-  it('marks a draft and keeps overview, order and pickup sections unavailable until publishing', () => {
+  it('marks a draft and keeps order and pickup sections unavailable until publishing', () => {
     renderRail({
       campaign: { ...openCampaign, published: false, openedAt: null, orderCount: null, residentHref: null, coverImage: null },
       section: 'content',
@@ -153,7 +152,7 @@ describe('WorkspaceRail', () => {
     expect(screen.getByRole('img', { name: '一涼製冰所 超厚三明治冰餅尚未設定圖片' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /訂單/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: '概況' })).not.toBeInTheDocument()
-    expect(screen.getAllByText('發布後可用')).toHaveLength(3)
+    expect(screen.getAllByText('發布後可用')).toHaveLength(2)
     expect(screen.getByRole('link', { name: '內容設定' })).toHaveAttribute('aria-current', 'page')
     expect(screen.queryByRole('button', { name: /複製住戶連結/ })).not.toBeInTheDocument()
   })
@@ -190,6 +189,12 @@ describe('CampaignWorkspace', () => {
       </OrganizerNavigationProvider>,
     )
     expect(navigate).not.toHaveBeenCalled()
+    rerender(
+      <OrganizerNavigationProvider navigate={navigate}>
+        <CampaignWorkspace campaign={openCampaign} requestedSection="overview" section="orders" now={now}><p>分區內容</p></CampaignWorkspace>
+      </OrganizerNavigationProvider>,
+    )
+    expect(navigate).toHaveBeenCalledWith('/admin/campaign/campaign-1/orders', { replace: true })
   })
 })
 

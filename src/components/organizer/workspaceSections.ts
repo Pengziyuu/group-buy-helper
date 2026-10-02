@@ -1,11 +1,11 @@
 import type { CampaignStatus } from '../../domain/orderWorkflow'
 import type { WorkspaceSection } from '../../routing'
 
-// Drafts only have content settings; a bare address opens where the organizer works next:
-// the overview while taking orders, the order list once closed.
-export function resolveWorkspaceSection(requested: WorkspaceSection | null, published: boolean, status: CampaignStatus): WorkspaceSection {
+// Drafts only have content settings; published campaigns open their unified orders page.
+// Preserve old /overview links by replacing them with /orders in CampaignWorkspace.
+export function resolveWorkspaceSection(requested: WorkspaceSection | null, published: boolean, _status: CampaignStatus): WorkspaceSection {
   if (!published) return 'content'
-  if (requested === null) return status === 'open' ? 'overview' : 'orders'
+  if (requested === null || requested === 'overview') return 'orders'
   return requested
 }
 

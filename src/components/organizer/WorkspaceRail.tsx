@@ -44,12 +44,12 @@ const STATUS_CONFIRMATIONS: Record<'open' | 'closed', { title: string; body: str
 
 // Pages for looking at the campaign, then pages for changing it, so organizers can tell them apart at a glance.
 const NAV_GROUPS: Array<{ label: string; items: Array<{ section: WorkspaceSection; label: string }> }> = [
-  { label: '查看', items: [{ section: 'overview', label: '概況' }, { section: 'orders', label: '訂單' }] },
+  { label: '查看', items: [{ section: 'orders', label: '訂單' }] },
   { label: '管理', items: [{ section: 'content', label: '內容設定' }, { section: 'pickup', label: '領取通知' }] },
 ]
 
 const NAV_ICON_PATHS: Record<WorkspaceSection, string> = {
-  overview: 'M5 20v-6M12 20V5M19 20v-10',
+  overview: 'M5 20v-6M12 20V5M19 20v-10', // legacy route only
   orders: 'M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01',
   content: 'M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4',
   pickup: 'M6 16v-5a6 6 0 0 1 12 0v5l2 2H4l2-2zM10 20a2 2 0 0 0 4 0',

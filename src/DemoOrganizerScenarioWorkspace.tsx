@@ -2,7 +2,6 @@ import { useState } from 'react'
 import AdminApp from './AdminApp'
 import { CampaignWorkspace } from './components/organizer/CampaignWorkspace'
 import { OrdersSection } from './components/organizer/OrdersSection'
-import { OverviewSection } from './components/organizer/OverviewSection'
 import { PickupSection } from './components/organizer/PickupSection'
 import type { SaveTemplateActions } from './components/organizer/SaveTemplateDialog'
 import { resolveWorkspaceSection } from './components/organizer/workspaceSections'
@@ -79,11 +78,9 @@ export function DemoOrganizerScenarioWorkspace({ scenario, requestedSection, sav
       saveTemplate={saveTemplate?.(content)}
     >
       <AdminApp key={id} initialContent={content} campaignStatus={status} section={section === 'content' ? 'content' : null} />
-      {section === 'overview' && (
-        <OverviewSection campaignId={id} campaignTitle={content.title} openedAt={content.openedAt} summary={summary} status={status} liveState="unavailable" />
-      )}
       {section === 'orders' && (
         <OrdersSection
+          campaignId={id}
           campaignTitle={content.title}
           openedAt={content.openedAt}
           summary={summary}

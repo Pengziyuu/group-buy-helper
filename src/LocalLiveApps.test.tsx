@@ -468,7 +468,7 @@ describe('local Supabase visual demo apps', () => {
     rerender(<LocalLiveAdminApp {...props} section="orders" />)
     expect(screen.getByRole('heading', { level: 2, name: '訂單' })).toBeInTheDocument()
     rerender(<LocalLiveAdminApp {...props} section="overview" />)
-    expect(screen.getByRole('heading', { level: 2, name: '概況' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: '訂單' })).toBeInTheDocument()
     rerender(<LocalLiveAdminApp {...props} section="content" />)
 
     expect(screen.getByRole('textbox', { name: '團購標題' })).toHaveValue('切換分區前的標題')
@@ -656,7 +656,7 @@ describe('local Supabase visual demo apps', () => {
       publish: vi.fn(),
     }
     const { unmount } = render(<LocalLiveAdminApp client={client} campaignId="campaign-1" repository={repository} ordersRepository={ordersRepository()} />)
-    expect(await screen.findByRole('heading', { level: 2, name: '概況' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 2, name: '訂單' })).toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: '團購標題' })).not.toBeInTheDocument()
     unmount()
 
@@ -2255,7 +2255,7 @@ describe('organizer realtime', () => {
     const workflow = ordersRepository()
     render(<LocalLiveAdminApp client={client} campaignId="campaign-1" repository={publishedRepository()} ordersRepository={workflow} section="overview" />)
 
-    expect(await screen.findByRole('heading', { level: 2, name: '概況' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 2, name: '訂單' })).toBeInTheDocument()
     // The subscription starts in an effect after the overview renders; a slow CI runner can show the heading first.
     await waitFor(() => expect(channelFactory).toHaveBeenCalledWith('organizer-campaign-campaign-1'))
     expect(channel.on).toHaveBeenCalledWith('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: 'campaign_id=eq.campaign-1' }, expect.any(Function))
@@ -2296,7 +2296,7 @@ describe('organizer realtime', () => {
     const user = userEvent.setup()
     const { client, channelFactory, removeChannel, report } = realtimeClient()
     render(<LocalLiveAdminApp client={client} campaignId="campaign-1" repository={publishedRepository()} ordersRepository={ordersRepository()} section="overview" />)
-    expect(await screen.findByRole('heading', { level: 2, name: '概況' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 2, name: '訂單' })).toBeInTheDocument()
 
     report('CHANNEL_ERROR')
     expect(await screen.findByText('即時同步中斷，畫面可能不是最新')).toBeInTheDocument()
@@ -2315,13 +2315,13 @@ describe('organizer realtime', () => {
       .mockResolvedValueOnce(orderSummary)
       .mockRejectedValueOnce(new Error('network'))
     render(<LocalLiveAdminApp client={client} campaignId="campaign-1" repository={publishedRepository()} ordersRepository={workflow} section="overview" />)
-    expect(await screen.findByRole('heading', { level: 2, name: '概況' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 2, name: '訂單' })).toBeInTheDocument()
 
     report('SUBSCRIBED')
     expect(await screen.findByText('即時更新')).toBeInTheDocument()
     act(() => { callbacks[0]() })
     expect(await screen.findByText('即時同步中斷，畫面可能不是最新')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 2, name: '概況' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: '訂單' })).toBeInTheDocument()
   })
 
   it('does not subscribe for drafts and removes the channel when leaving the campaign', async () => {
@@ -2337,7 +2337,7 @@ describe('organizer realtime', () => {
     unmount()
 
     const second = render(<LocalLiveAdminApp client={client} campaignId="campaign-1" repository={publishedRepository()} ordersRepository={ordersRepository()} section="overview" />)
-    expect(await screen.findByRole('heading', { level: 2, name: '概況' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 2, name: '訂單' })).toBeInTheDocument()
     second.unmount()
     expect(removeChannel).toHaveBeenCalledOnce()
     expect(() => report('SUBSCRIBED')).not.toThrow()
@@ -2455,7 +2455,7 @@ describe('organizer loading and error states', () => {
     expect(screen.getByRole('link', { name: '團購' })).toHaveAttribute('aria-current', 'page')
 
     await user.click(screen.getByRole('button', { name: '重試' }))
-    expect(await screen.findByRole('heading', { level: 2, name: '概況' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 2, name: '訂單' })).toBeInTheDocument()
     expect(repository.loadOptionalPublished).toHaveBeenCalledTimes(2)
   })
 })
