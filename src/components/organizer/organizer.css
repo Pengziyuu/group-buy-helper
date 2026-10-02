@@ -209,11 +209,16 @@
 
 /* Orders section: totals, toolbar, order table and the in-place note editor. */
 .organizer-order-summary { display: grid; grid-template-columns: minmax(230px, 1fr) minmax(0, 1.6fr); align-items: stretch; gap: var(--space-3); }
-.organizer-order-totals { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); margin: 0; }
-.organizer-order-summary .organizer-order-totals { align-content: center; padding: var(--space-3) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-surface); background: var(--color-surface); }
-.organizer-order-totals div { display: flex; align-items: baseline; gap: var(--space-2); }
+.organizer-order-totals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: center; gap: var(--space-3); margin: 0; }
+.organizer-order-summary .organizer-order-totals { padding: var(--space-3) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-surface); background: var(--color-surface); }
+.organizer-order-totals div { display: grid; gap: var(--space-1); min-width: 0; }
 .organizer-order-totals dt { color: var(--color-text-secondary); }
-.organizer-order-totals dd { margin: 0; font-weight: var(--font-weight-strong); font-variant-numeric: tabular-nums; }
+.organizer-order-totals dd { margin: 0; font-size: var(--font-size-base); font-weight: var(--font-weight-strong); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.organizer-orders .organizer-item-bars { grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: var(--space-2) var(--space-5); }
+.organizer-orders .organizer-item-bars li { display: flex; min-width: 0; }
+.organizer-orders .organizer-item-name { flex: 0 1 auto; min-width: 0; max-width: 24ch; }
+.organizer-orders .organizer-item-bar { flex: 0 0 72px; }
+.organizer-orders .organizer-item-bars strong { flex: none; min-width: 2ch; }
 .organizer-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
 .organizer-toolbar .ui-input { flex: 1 1 220px; max-width: 320px; }
 .organizer-order-table th[scope="row"] { min-width: 140px; }
@@ -223,8 +228,8 @@
 .organizer-new-label { display: block; color: var(--color-primary); font-size: var(--font-size-caption); }
 @media (max-width: 639px) {
   .organizer-order-summary { grid-template-columns: minmax(0, 1fr); }
-  .organizer-item-bars li { grid-template-columns: 24px minmax(0, 1fr) 36px; }
-  .organizer-item-bar { display: none; }
+  .organizer-order-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .organizer-orders .organizer-item-bar { flex-basis: 64px; }
 }
 .organizer-note-button { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 32px; max-width: 260px; padding: 0 var(--space-2); border: 1px dashed transparent; border-radius: var(--radius-control); background: transparent; color: var(--color-text); font: inherit; text-align: left; overflow-wrap: anywhere; cursor: text; }
 .organizer-note-button:disabled { cursor: not-allowed; }
