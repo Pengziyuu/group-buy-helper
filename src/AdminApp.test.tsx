@@ -261,7 +261,9 @@ describe('organizer campaign editor', () => {
     await user.click(within(schedule).getByRole('radio', { name: '總金額' }))
     expect(within(schedule).getByRole('spinbutton', { name: '成團門檻金額' })).toBeInTheDocument()
     expect(within(schedule).queryByRole('spinbutton', { name: '成團門檻' })).not.toBeInTheDocument()
-    expect(schedule.querySelectorAll('.content-subsetting')).toHaveLength(5)
+    expect(schedule.querySelectorAll('.content-subsetting')).toHaveLength(3)
+    expect(within(screen.getByRole('region', { name: '品項與價格' })).getByRole('combobox', { name: '數量單位' })).toBeInTheDocument()
+    expect(within(schedule).getByRole('spinbutton', { name: '成團門檻金額' }).closest('.content-subsetting')).toContainElement(within(schedule).getByRole('switch', { name: '達到成團門檻時自動結單' }))
     expect(screen.getByRole('region', { name: '優惠與進階' }).querySelectorAll('.content-subsetting')).toHaveLength(3)
   })
 

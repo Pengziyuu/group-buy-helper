@@ -483,6 +483,25 @@ function AdminApp({
 
             <section id="content-items" className="content-section" aria-labelledby="content-items-heading">
               <h3 id="content-items-heading" tabIndex={-1}>品項與價格</h3>
+              <div className="content-subsetting">
+                <FormField id="content-quantity-unit" label="數量單位" helper="套用於商品數量、訂單總數與品項彙總。">
+                  <select
+                    className="ui-input"
+                    disabled={editorBusy}
+                    value={quantityUnit}
+                    onChange={(event) => {
+                      const nextUnit = normalizeQuantityUnit(event.target.value)
+                      if (!itemsLocked && mixMatchName === promotionName(mixMatchMinimumQuantity, mixMatchDiscountRate, quantityUnit)) {
+                        setMixMatchName(promotionName(mixMatchMinimumQuantity, mixMatchDiscountRate, nextUnit))
+                      }
+                      setQuantityUnit(nextUnit)
+                      markDraft()
+                    }}
+                  >
+                    {QUANTITY_UNITS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+                  </select>
+                </FormField>
+              </div>
               {itemsLocked
                 ? <p className="content-lock-note">已開團，品項與價格已鎖定</p>
                 : <p className="content-help">按「＋增加品項」建立商品，代碼會自動延伸為 A～Z、AA～AZ；每個品項都要有名稱與整數單價。</p>}
@@ -578,33 +597,12 @@ function AdminApp({
                   </FormField>
                 )}
               </div>
-              </div>
-              <div className="content-subsetting">
-                <Switch
-                  checked={thresholdAutoClose}
-                  disabled={editorBusy}
-                  onChange={(enabled) => { setThresholdAutoClose(enabled); markDraft() }}
-                  label="達到成團門檻時自動結單"
-                />
-              </div>
-              <div className="content-subsetting">
-                <FormField id="content-quantity-unit" label="數量單位" helper="套用於商品數量、訂單總數與品項彙總。">
-                  <select
-                    className="ui-input"
-                    disabled={editorBusy}
-                    value={quantityUnit}
-                    onChange={(event) => {
-                      const nextUnit = normalizeQuantityUnit(event.target.value)
-                      if (!itemsLocked && mixMatchName === promotionName(mixMatchMinimumQuantity, mixMatchDiscountRate, quantityUnit)) {
-                        setMixMatchName(promotionName(mixMatchMinimumQuantity, mixMatchDiscountRate, nextUnit))
-                      }
-                      setQuantityUnit(nextUnit)
-                      markDraft()
-                    }}
-                  >
-                    {QUANTITY_UNITS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
-                  </select>
-                </FormField>
+              <Switch
+                checked={thresholdAutoClose}
+                disabled={editorBusy}
+                onChange={(enabled) => { setThresholdAutoClose(enabled); markDraft() }}
+                label="達到成團門檻時自動結單"
+              />
               </div>
               <div className="content-subsetting">
               <div className="content-field-group">

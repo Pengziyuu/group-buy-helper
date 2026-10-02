@@ -10,7 +10,6 @@ import { OrganizerNavigationProvider } from './components/organizer/OrganizerLin
 import { useBrowserLocation, useFocusHeadingOnNavigate } from './components/organizer/organizerNavigation'
 import { OrganizerSettings } from './components/organizer/OrganizerSettings'
 import { OrganizerShell } from './components/organizer/OrganizerShell'
-import { OverviewSection } from './components/organizer/OverviewSection'
 import { PickupSection } from './components/organizer/PickupSection'
 import { resolveWorkspaceSection } from './components/organizer/workspaceSections'
 import ResidentMemberManagementApp from './ResidentMemberManagementApp'
@@ -128,18 +127,9 @@ function DemoOrganizerWorkspace({ requestedSection }: { requestedSection: Worksp
       }}
     >
       <AdminApp section={section === 'content' ? 'content' : null} campaignStatus={campaignStatus} />
-      {section === 'overview' && (
-        <OverviewSection
-          campaignId={DEMO_CAMPAIGN_ID}
-          campaignTitle={campaign.title}
-          openedAt={campaign.openedAt}
-          summary={orderSummary}
-          status={campaignStatus}
-          liveState="unavailable"
-        />
-      )}
       {section === 'orders' && (
         <OrdersSection
+          campaignId={DEMO_CAMPAIGN_ID}
           campaignTitle={campaign.title}
           openedAt={campaign.openedAt}
           summary={orderSummary}
