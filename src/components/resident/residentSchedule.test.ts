@@ -24,6 +24,12 @@ describe('describeResidentSchedule', () => {
       .toEqual({ value: '手動決定結單', line: '手動決定結單', soon: false, note: '結單前群組通知' })
   })
 
+  it('describes the selected threshold auto-close setting regardless of threshold kind', () => {
+    expect(describeResidentSchedule({ ...base, thresholdAutoClose: false }, now).closing?.value).toBe('手動決定結單')
+    expect(describeResidentSchedule({ ...base, thresholdKind: 'amount', thresholdAutoClose: true }, now).closing?.value).toBe('達標自動結單')
+    expect(describeResidentSchedule({ ...base, thresholdKind: 'amount', thresholdAutoClose: true, autoCloseAt: '2026-10-04T15:36:00.000Z' }, now).closing?.note).toBe('金額達標會提早結單')
+  })
+
   it('always describes arrival, shortening dates', () => {
     expect(describeResidentSchedule(base, now).arrival).toEqual({ value: '貨到通知', line: '貨到通知' })
     expect(describeResidentSchedule({ ...base, arrivalLabel: '10/07' }, now).arrival).toEqual({ value: '10/7', line: '10/7 到貨' })

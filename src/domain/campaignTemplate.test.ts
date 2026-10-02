@@ -46,6 +46,7 @@ describe('templateContentFromCampaign', () => {
       threshold: 100,
       thresholdKind: 'quantity',
       amountThreshold: null,
+      thresholdAutoClose: true,
       quantityUnit: '盒',
       baseDiscountRate: 0.9,
       mixMatchDiscount: { name: '任選三件85折', minimumQuantity: 3, rate: 0.85 },
@@ -56,6 +57,11 @@ describe('templateContentFromCampaign', () => {
   it('keeps the arrival only when it is the arrival notice', () => {
     expect(templateContentFromCampaign({ ...campaign, arrivalLabel: '貨到通知' }).arrivalLabel).toBe('貨到通知')
     expect(templateContentFromCampaign({ ...campaign, arrivalLabel: undefined })).not.toHaveProperty('arrivalLabel')
+  })
+
+  it('preserves manual closing when creating a campaign from a template', () => {
+    const template = templateContentFromCampaign({ ...campaign, thresholdAutoClose: false })
+    expect(campaignContentFromTemplate(template, '新團').thresholdAutoClose).toBe(false)
   })
 
   it('fills defaults for older content without the newer settings', () => {

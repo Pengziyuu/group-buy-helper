@@ -29,7 +29,7 @@ describe('campaign management gateway', () => {
       openedAt: null, createdAt: '2026-08-12T00:00:00Z', updatedAt: '2026-08-12T01:00:00Z',
       images: [{ src: 'https://example.com/ice.jpg', alt: '冰餅商品照' }], quantityUnit: '盒',
       orderCount: 3, totalQuantity: 8, totalAmount: 1080, paidOrderCount: 2,
-      thresholdKind: 'amount', threshold: 20, amountThreshold: 1500,
+      thresholdKind: 'amount', threshold: 20, amountThreshold: 1500, thresholdAutoClose: false,
       arrivalLabel: '貨到通知',
       autoCloseAt: null,
     }])

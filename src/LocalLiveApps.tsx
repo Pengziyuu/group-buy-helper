@@ -144,6 +144,7 @@ type CampaignRow = {
   threshold: unknown
   threshold_kind?: unknown
   amount_threshold?: unknown
+  threshold_auto_close?: unknown
   quantity_unit?: unknown
   allow_custom_items?: unknown
   base_discount_rate?: unknown
@@ -340,6 +341,7 @@ function campaignContentFromRow(row: CampaignRow | null): CampaignContent {
     threshold: row.threshold,
     thresholdKind: row.threshold_kind === 'amount' ? 'amount' : 'quantity',
     amountThreshold: row.threshold_kind === 'amount' && typeof row.amount_threshold === 'number' ? row.amount_threshold : null,
+    thresholdAutoClose: typeof row.threshold_auto_close === 'boolean' ? row.threshold_auto_close : row.threshold_kind !== 'amount',
     quantityUnit: normalizeQuantityUnit(row.quantity_unit),
     allowCustomItems: row.allow_custom_items === true,
     baseDiscountRate: typeof row.base_discount_rate === 'number' ? row.base_discount_rate : 1,
@@ -1210,6 +1212,7 @@ function residentCampaignListRepository(client: SupabaseClient<Database>): LiveR
           threshold: row.threshold,
           thresholdKind: row.threshold_kind === 'amount' ? 'amount' : 'quantity',
           amountThreshold: row.amount_threshold === null ? null : Number(row.amount_threshold),
+          thresholdAutoClose: row.threshold_auto_close ?? row.threshold_kind !== 'amount',
           quantityUnit: normalizeQuantityUnit(row.quantity_unit),
           images: Array.isArray(row.images) ? row.images.filter(isCampaignImage) : [],
           arrivalLabel: row.arrival_label ?? '貨到通知',
@@ -1370,7 +1373,7 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug, liffId
       if (!resolvedCampaignId) throw new Error('找不到團購活動')
       const { data, error: queryError } = await client
         .from('campaign_public')
-        .select('title,unit_price,threshold,threshold_kind,amount_threshold,quantity_unit,allow_custom_items,base_discount_rate,mix_match_name,mix_match_min_quantity,mix_match_discount_rate,arrival_label,auto_close_at,announcement,images,items,opened_at,status')
+        .select('title,unit_price,threshold,threshold_kind,amount_threshold,threshold_auto_close,quantity_unit,allow_custom_items,base_discount_rate,mix_match_name,mix_match_min_quantity,mix_match_discount_rate,arrival_label,auto_close_at,announcement,images,items,opened_at,status')
         .eq('id', resolvedCampaignId)
         .single()
       if (queryError) throw queryError

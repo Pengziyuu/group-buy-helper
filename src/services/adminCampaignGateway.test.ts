@@ -10,6 +10,7 @@ const content: CampaignContent = {
   itemNameConfigured: true,
   itemPriceConfigured: true,
   thresholdKind: 'quantity',
+  thresholdAutoClose: true,
   amountThreshold: null,
   quantityUnit: '盒',
   allowCustomItems: true,
@@ -34,6 +35,7 @@ function mockClient() {
     threshold: content.threshold,
     threshold_kind: content.thresholdKind,
     amount_threshold: content.amountThreshold,
+    threshold_auto_close: content.thresholdAutoClose,
     quantity_unit: content.quantityUnit,
     allow_custom_items: content.allowCustomItems,
     base_discount_rate: content.baseDiscountRate,
@@ -60,6 +62,7 @@ function mockClient() {
     threshold: content.threshold,
     threshold_kind: content.thresholdKind,
     amount_threshold: content.amountThreshold,
+    threshold_auto_close: content.thresholdAutoClose,
     quantity_unit: content.quantityUnit,
     allow_custom_items: content.allowCustomItems,
     base_discount_rate: content.baseDiscountRate,
@@ -103,6 +106,7 @@ describe('Supabase admin campaign gateway', () => {
       item_price_configured: true,
       threshold_kind: 'quantity',
       amount_threshold: null,
+      threshold_auto_close: true,
       quantity_unit: '盒',
       allow_custom_items: true,
       base_discount_rate: 0.9,
@@ -138,11 +142,13 @@ describe('Supabase admin campaign gateway', () => {
       ...content,
       thresholdKind: 'amount',
       amountThreshold: 5000,
+      thresholdAutoClose: false,
     })
 
     expect(upsert).toHaveBeenCalledWith(expect.objectContaining({
       threshold_kind: 'amount',
       amount_threshold: 5000,
+      threshold_auto_close: false,
     }))
   })
 

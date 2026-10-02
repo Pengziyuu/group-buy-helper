@@ -7,6 +7,7 @@ type ScheduleInput = {
   status: CampaignStatus
   autoCloseAt?: string | null
   thresholdKind?: 'quantity' | 'amount'
+  thresholdAutoClose?: boolean
   arrivalLabel?: string
 }
 
@@ -18,18 +19,20 @@ export function describeResidentSchedule(input: ScheduleInput, now: Date): { clo
   return { closing: input.status === 'open' ? describeClosing(input, now) : null, arrival: describeArrival(input) }
 }
 
-function describeClosing({ autoCloseAt, thresholdKind = 'quantity' }: ScheduleInput, now: Date): ClosingFact {
+function describeClosing({ autoCloseAt, thresholdKind = 'quantity', thresholdAutoClose = thresholdKind === 'quantity' }: ScheduleInput, now: Date): ClosingFact {
   const scheduled = describeAutoClose(autoCloseAt, now)
   if (scheduled) {
-    // A quantity threshold still closes the campaign the moment it is full, even before the time.
+    // Either threshold may close the campaign before its scheduled time.
     return {
       value: scheduled.when,
       line: `${scheduled.when} 結單`,
       soon: scheduled.soon,
-      ...(thresholdKind === 'quantity' ? { note: '額滿會提早結單' } : {}),
+      ...(thresholdAutoClose ? { note: thresholdKind === 'quantity' ? '額滿會提早結單' : '金額達標會提早結單' } : {}),
     }
   }
-  if (thresholdKind === 'quantity') return { value: '額滿自動結單', line: '額滿結單', soon: false }
+  if (thresholdAutoClose) return thresholdKind === 'quantity'
+    ? { value: '額滿自動結單', line: '額滿結單', soon: false }
+    : { value: '達標自動結單', line: '達標結單', soon: false }
   return { value: '手動決定結單', line: '手動決定結單', soon: false, note: '結單前群組通知' }
 }
 

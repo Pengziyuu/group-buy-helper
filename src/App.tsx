@@ -184,7 +184,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
     text: thresholdKind === 'amount'
       ? `${formatMoney(summary.amount)} / ${formatMoney(summary.threshold)}`
       : `${summary.quantity} ${quantityUnit} / ${summary.threshold} ${quantityUnit}`,
-    // Only amount thresholds stay open once formed (quantity ones close), so say ordering continues.
+    // Either threshold type can remain open when automatic closing is disabled.
     remainingText: summary.formed
       ? campaignStatus === 'open' ? '已成團，仍可下單' : '已成團'
       : thresholdKind === 'amount'
@@ -193,7 +193,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
     formed: summary.formed,
   }
   const priceText = minimumPrice === maximumPrice ? `${formatMoney(minimumPrice)}／${quantityUnit}` : `${formatMoney(minimumPrice)}～${formatMoney(maximumPrice)}`
-  const schedule = describeResidentSchedule({ status: campaignStatus, autoCloseAt: publishedCampaign.autoCloseAt, thresholdKind, arrivalLabel: publishedCampaign.arrivalLabel }, new Date())
+  const schedule = describeResidentSchedule({ status: campaignStatus, autoCloseAt: publishedCampaign.autoCloseAt, thresholdKind, thresholdAutoClose: publishedCampaign.thresholdAutoClose, arrivalLabel: publishedCampaign.arrivalLabel }, new Date())
   const breakdownLines: BreakdownLine[] = draftPricing.lines.map((line) => {
     const index = publishedCampaign.items.findIndex((item) => item.code === line.code)
     return {
@@ -231,7 +231,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
     const currentQuantity = draft[code] ?? 0
     const nextQuantity = Math.max(0, currentQuantity + delta)
     const nextDraftQuantity = draftQuantity - currentQuantity + nextQuantity
-    if (thresholdKind === 'quantity' && delta > 0) {
+    if (thresholdKind === 'quantity' && (publishedCampaign.thresholdAutoClose ?? true) && delta > 0) {
       const otherQuantity = Math.max(0, summary.quantity - orderQuantity(savedDraft))
       const maxOrderQuantity = Math.max(0, publishedCampaign.threshold - otherQuantity)
       if (nextDraftQuantity > maxOrderQuantity) {

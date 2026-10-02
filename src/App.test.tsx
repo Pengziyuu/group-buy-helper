@@ -487,6 +487,19 @@ describe('customer campaign app', () => {
     expect(screen.getByRole('status', { name: 'C 抹茶數量' })).toHaveTextContent('1')
   })
 
+  it('continues accepting quantity orders past the threshold when auto closing is disabled', async () => {
+    const user = userEvent.setup()
+    render(<App publishedContent={{
+      title: '持續接單', unitPrice: 45, threshold: 63, thresholdKind: 'quantity', thresholdAutoClose: false,
+      announcement: '公告', images: [], items, openedAt: '2026-08-14T00:05:09.000Z',
+    }} />)
+    await user.click(screen.getByRole('button', { name: '增加 C 抹茶' }))
+    await user.click(screen.getByRole('button', { name: '增加 C 抹茶' }))
+    expect(screen.getByRole('status', { name: 'C 抹茶數量' })).toHaveTextContent('2')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByText('手動決定結單')).toBeInTheDocument()
+  })
+
   it('keeps order totals and the only submit action together', () => {
     render(<App />)
 

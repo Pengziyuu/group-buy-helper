@@ -108,6 +108,31 @@ describe('organizer campaign editor', () => {
     expect(within(screen.getByRole('region', { name: '住戶端預覽' })).getByText('滿 $5,000 成團')).toBeInTheDocument()
   })
 
+  it('allows either threshold type to opt into or out of automatic closing and saves the choice', async () => {
+    const user = userEvent.setup()
+    const onSaveDraft = vi.fn().mockImplementation(async (content: CampaignContent) => content)
+    render(<AdminApp initialContent={{
+      title: '可選結單', unitPrice: 100, threshold: 5, thresholdKind: 'quantity',
+      announcement: '公告', images: [], openedAt: null,
+      items: [{ code: 'A', name: '商品', unitPrice: 100, active: true }],
+    }} initialPublicationState="draft" onSaveDraft={onSaveDraft} />)
+    const toggle = screen.getByRole('switch', { name: '達到成團門檻時自動結單' })
+    expect(toggle).toBeChecked()
+    await user.click(toggle)
+    expect(toggle).not.toBeChecked()
+    expect(screen.getByText('達標後仍可繼續下單，由團主手動結單。')).toBeInTheDocument()
+    await waitFor(() => expect(onSaveDraft).toHaveBeenLastCalledWith(expect.objectContaining({ thresholdKind: 'quantity', thresholdAutoClose: false })))
+    await user.click(screen.getByRole('radio', { name: '總金額' }))
+    expect(toggle).not.toBeChecked()
+    await user.click(toggle)
+    expect(toggle).toBeChecked()
+    expect(screen.getByText('折扣後實收總額達標或超過時自動結單。')).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: '住戶端預覽' })).getByText('達標自動結單', { selector: 'dd' })).toBeInTheDocument()
+    await user.clear(screen.getByRole('spinbutton', { name: '成團門檻金額' }))
+    await user.type(screen.getByRole('spinbutton', { name: '成團門檻金額' }), '500')
+    await waitFor(() => expect(onSaveDraft).toHaveBeenLastCalledWith(expect.objectContaining({ thresholdKind: 'amount', amountThreshold: 500, thresholdAutoClose: true })))
+  })
+
   it('requires a new campaign to set its threshold and item before publishing, even when database placeholders exist', async () => {
     const user = userEvent.setup()
     const onSaveDraft = vi.fn().mockResolvedValue(undefined)
@@ -236,7 +261,7 @@ describe('organizer campaign editor', () => {
     await user.click(within(schedule).getByRole('radio', { name: '總金額' }))
     expect(within(schedule).getByRole('spinbutton', { name: '成團門檻金額' })).toBeInTheDocument()
     expect(within(schedule).queryByRole('spinbutton', { name: '成團門檻' })).not.toBeInTheDocument()
-    expect(schedule.querySelectorAll('.content-subsetting')).toHaveLength(4)
+    expect(schedule.querySelectorAll('.content-subsetting')).toHaveLength(5)
     expect(screen.getByRole('region', { name: '優惠與進階' }).querySelectorAll('.content-subsetting')).toHaveLength(3)
   })
 

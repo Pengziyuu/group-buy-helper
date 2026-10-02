@@ -18,6 +18,7 @@ type ContentPreviewProps = {
   arrivalLabel: string
   autoCloseAt: string | null
   thresholdKind?: 'quantity' | 'amount'
+  thresholdAutoClose?: boolean
   thresholdText: string
   allowCustomItems: boolean
   images: CampaignImage[]
@@ -26,11 +27,11 @@ type ContentPreviewProps = {
 }
 
 export function ContentPreview({
-  status = 'open', title, priceText, arrivalLabel, autoCloseAt, thresholdKind = 'quantity', thresholdText, allowCustomItems, images, announcement, items,
+  status = 'open', title, priceText, arrivalLabel, autoCloseAt, thresholdKind = 'quantity', thresholdAutoClose, thresholdText, allowCustomItems, images, announcement, items,
 }: ContentPreviewProps) {
   const [device, setDevice] = useState<PreviewDevice>('phone')
   // Same wording as the resident campaign page, so the preview never promises a different schedule.
-  const { closing, arrival } = describeResidentSchedule({ status, autoCloseAt, thresholdKind, arrivalLabel }, new Date())
+  const { closing, arrival } = describeResidentSchedule({ status, autoCloseAt, thresholdKind, thresholdAutoClose, arrivalLabel }, new Date())
   const [expanded, setExpanded] = useState(false)
   const [fit, setFit] = useState<{ scale: number; height: number } | null>(null)
   const viewportRef = useRef<HTMLDivElement>(null)
