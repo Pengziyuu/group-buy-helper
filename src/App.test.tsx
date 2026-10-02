@@ -265,7 +265,7 @@ describe('customer campaign app', () => {
         : order)}
     />)
 
-    expect(screen.getByText(/隱藏版口味×3（另計）/)).toBeInTheDocument()
+    expect(screen.getByText(/隱藏版口味\+3・另計/)).toBeInTheDocument()
     expect(screen.getByText(/另有 3 個額外品項/)).toBeInTheDocument()
     expect(screen.getByText('62 個 / 100 個')).toBeInTheDocument()
   })

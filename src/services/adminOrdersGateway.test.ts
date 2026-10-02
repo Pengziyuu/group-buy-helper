@@ -56,7 +56,7 @@ describe('Supabase admin orders gateway', () => {
         A: expect.objectContaining({ listUnitPrice: 45, appliedDiscountType: 'base', finalUnitPrice: 41 }),
         B: expect.objectContaining({ appliedDiscountType: 'mix_match', finalUnitPrice: 38, promotionName: '任選三件85折' }),
       },
-      customItemSummary: '限定蛋糕×2（另計）',
+      customItemSummary: '限定蛋糕+2・另計',
       orderedAt: '2026-08-14T00:10:00Z',
       updatedAt: '2026-08-14T00:12:00Z',
       paid: true,

@@ -59,7 +59,7 @@ describe('organizer order summary', () => {
       quantity: 0,
       amount: 0,
       itemSummary: '',
-      customItemSummary: '限定蛋糕×2（另計）',
+      customItemSummary: '限定蛋糕+2・另計',
     }))
   })
 })

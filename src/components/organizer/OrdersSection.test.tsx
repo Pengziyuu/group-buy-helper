@@ -78,7 +78,7 @@ describe('OrdersSection', () => {
     // customItems was attached to initialOrders[0] (斯祈・2K13), not H11 — the household
     // sort puts H11 first on screen, but the custom item belongs to the 2K13 row.
     const row = rowOf(/2K13\s*斯祈/)
-    expect(within(row).getByText('限定蛋糕×2（另計）')).toBeInTheDocument()
+    expect(within(row).getByText('限定蛋糕+2・另計')).toBeInTheDocument()
     expect(within(row).getByText('＋另計')).toBeInTheDocument()
   })
 

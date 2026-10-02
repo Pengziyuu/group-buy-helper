@@ -53,7 +53,7 @@ export function OrderWall({ orders, currentCustomerId, quantityUnit, itemDisplay
                     .map(([code, quantity]) => `${itemDisplayLabel(code)}+${quantity}`)
                     .join('、') || '無正式品項'}</p>
                   {customItems.length > 0 && (
-                    <p className="resident-wall-custom">{customItems.map((item) => `${item.name}×${item.quantity}（另計）`).join('、')}</p>
+                    <p className="resident-wall-custom">{customItems.map((item) => `${item.name}+${item.quantity}・另計`).join('、')}</p>
                   )}
                   <p className="resident-wall-time">
                     <RelativeTime value={order.orderedAt} now={currentTime} />

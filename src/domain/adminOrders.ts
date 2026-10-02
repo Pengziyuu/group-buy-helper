@@ -130,7 +130,7 @@ export function buildOrganizerOrderSummary({
         .join('、')
       const customItemSummary = (order.customItems ?? [])
         .filter((item) => item.name.trim() && item.quantity > 0)
-        .map((item) => `${item.name.trim()}×${item.quantity}（另計）`)
+        .map((item) => `${item.name.trim()}+${item.quantity}・另計`)
         .join('、')
       return {
         ...order,
