@@ -642,7 +642,7 @@ describe('customer campaign app', () => {
     expect(screen.getByText('本團已結單，你沒有在這團下單。')).toBeInTheDocument()
   })
 
-  it('shows item names and prices without 號 and uses quantity markers on the live wall', async () => {
+  it('shows item names and prices without 號 and uses plus signs on the live wall', async () => {
     const user = userEvent.setup()
     const content: CampaignContent = {
       title: '自訂品項團',
@@ -679,7 +679,7 @@ describe('customer campaign app', () => {
     await user.click(screen.getByRole('button', { name: '查看訂單明細' }))
     expect(within(screen.getByRole('dialog', { name: '訂單明細' })).getByText('$150')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '關閉訂單明細' }))
-    expect(screen.getByText('A×2、B×1')).toBeInTheDocument()
+    expect(screen.getByText('A+2、B+1')).toBeInTheDocument()
     expect(within(screen.getByRole('region', { name: '大家的訂單' })).queryByText('三期 3Z15')).not.toBeInTheDocument()
     expect(screen.queryByText(/A號|B號/)).not.toBeInTheDocument()
   })
