@@ -153,7 +153,7 @@ describe('resident campaign page parts', () => {
     }
     const codes = ['ITEM0', 'A', 'B', 'E']
     render(<OrderWall orders={[order]} quantityUnit="包" itemCodes={codes} itemDisplayLabel={(code) => code === 'ITEM0' ? '甲' : code} />)
-    expect(screen.getByText('甲×1、A×2、E×1')).toBeInTheDocument()
+    expect(screen.getByText('甲+1、A+2、E+1')).toBeInTheDocument()
     // Same "4 包" spacing as the rest of the page.
     expect(screen.getByText('4 包')).toBeInTheDocument()
   })

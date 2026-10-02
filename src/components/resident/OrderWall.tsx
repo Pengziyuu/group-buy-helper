@@ -50,7 +50,7 @@ export function OrderWall({ orders, currentCustomerId, quantityUnit, itemDisplay
                   <p>{Object.entries(order.items)
                     .filter(([, quantity]) => quantity > 0)
                     .sort(([left], [right]) => rank(left) - rank(right) || left.localeCompare(right))
-                    .map(([code, quantity]) => `${itemDisplayLabel(code)}×${quantity}`)
+                    .map(([code, quantity]) => `${itemDisplayLabel(code)}+${quantity}`)
                     .join('、') || '無正式品項'}</p>
                   {customItems.length > 0 && (
                     <p className="resident-wall-custom">{customItems.map((item) => `${item.name}×${item.quantity}（另計）`).join('、')}</p>
