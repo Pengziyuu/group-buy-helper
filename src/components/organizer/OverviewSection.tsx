@@ -10,7 +10,7 @@ import { LiveStatus, type LiveState } from './LiveStatus'
 import { OrganizerLink } from './OrganizerLink'
 import { RelativeTime, useNow } from '../relativeTime'
 import {
-  countOrdersOnTaipeiDay, isNewSince, latestOrders, orderHouseholdLabel, orderItemChips, wasEdited,
+  countOrdersOnTaipeiDay, isNewSince, latestOrders, orderHouseholdLabel, orderItemChips, orderItemChipText, wasEdited,
 } from './orderView'
 
 const currency = (amount: number) => `$${amount.toLocaleString('en-US')}`
@@ -110,7 +110,7 @@ export function OverviewSection({ campaignId, campaignTitle, openedAt, summary, 
                   <span className="organizer-chips">
                     {orderItemChips(order, summary.itemRows).map((chip) => (
                       <span key={chip.key} className={chip.custom ? 'organizer-chip is-custom' : 'organizer-chip'} title={chip.custom ? undefined : chip.name}>
-                        {chip.custom ? `${chip.label} ×${chip.quantity}・另計` : `${chip.label}+${chip.quantity}`}
+                        {orderItemChipText(chip)}
                       </span>
                     ))}
                   </span>

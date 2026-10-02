@@ -114,7 +114,7 @@ describe('OverviewSection', () => {
     const entries = within(latest).getAllByRole('listitem')
     expect(entries).toHaveLength(6)
     expect(entries[0]).toHaveTextContent('已修改・3 分鐘前')
-    expect(within(entries[0]).getAllByText(/^[A-I]\+\d+$/).length).toBeGreaterThan(0)
+    expect(within(entries[0]).getAllByText(/^[A-I]×\d+$/).length).toBeGreaterThan(0)
     expect(screen.getByRole('link', { name: '查看全部 6 筆' })).toHaveAttribute('href', '/admin/campaign/campaign-1/orders')
   })
 

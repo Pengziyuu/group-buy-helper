@@ -176,15 +176,41 @@ describe('organizer campaign editor', () => {
     }} initialPublicationState="draft" />)
     await user.click(screen.getByRole('switch', { name: '啟用任選優惠' }))
     const name = screen.getByRole('textbox', { name: '任選優惠名稱' })
-    expect(name).toHaveValue('任選三件85折')
+    expect(name).toHaveValue('任選三個85折')
     expect(name).toHaveAttribute('readOnly')
-    fireEvent.change(screen.getByRole('spinbutton', { name: '任選最低件數' }), { target: { value: '4' } })
+    fireEvent.change(screen.getByRole('spinbutton', { name: '任選最低數量' }), { target: { value: '4' } })
     fireEvent.change(screen.getByRole('spinbutton', { name: '任選優惠折數' }), { target: { value: '8' } })
-    expect(name).toHaveValue('任選四件8折')
+    expect(name).toHaveValue('任選四個8折')
     fireEvent.change(screen.getByRole('spinbutton', { name: '任選優惠折數' }), { target: { value: '0.5' } })
-    expect(name).toHaveValue('任選四件0.5折')
+    expect(name).toHaveValue('任選四個0.5折')
     fireEvent.change(screen.getByRole('spinbutton', { name: '任選優惠折數' }), { target: { value: '1.5' } })
-    expect(name).toHaveValue('任選四件1.5折')
+    expect(name).toHaveValue('任選四個1.5折')
+  })
+
+  it('generates a promotion name from the selected quantity unit without changing stored published names', async () => {
+    const user = userEvent.setup()
+    render(<AdminApp initialContent={{
+      title: '零食團', unitPrice: 100, threshold: 10, quantityUnit: '包', announcement: '', images: [], openedAt: null,
+      items: [{ code: 'A', name: '洋芋片', unitPrice: 100, active: true }],
+    }} initialPublicationState="draft" />)
+    await user.click(screen.getByRole('switch', { name: '啟用任選優惠' }))
+    const name = screen.getByRole('textbox', { name: '任選優惠名稱' })
+    expect(name).toHaveValue('任選三包85折')
+    fireEvent.change(screen.getByRole('spinbutton', { name: '任選最低數量' }), { target: { value: '4' } })
+    expect(name).toHaveValue('任選四包85折')
+    await user.selectOptions(screen.getByRole('combobox', { name: '數量單位' }), '盒')
+    expect(name).toHaveValue('任選四盒85折')
+  })
+
+  it('uses the latest quantity unit when enabling a promotion after changing the unit', async () => {
+    const user = userEvent.setup()
+    render(<AdminApp initialContent={{
+      title: '零食團', unitPrice: 100, threshold: 10, announcement: '', images: [], openedAt: null,
+      items: [{ code: 'A', name: '洋芋片', unitPrice: 100, active: true }],
+    }} initialPublicationState="draft" />)
+    await user.selectOptions(screen.getByRole('combobox', { name: '數量單位' }), '包')
+    await user.click(screen.getByRole('switch', { name: '啟用任選優惠' }))
+    expect(screen.getByRole('textbox', { name: '任選優惠名稱' })).toHaveValue('任選三包85折')
   })
 
   it('preserves previously published decimal prices when editing unrelated fields', async () => {
@@ -283,14 +309,14 @@ describe('organizer campaign editor', () => {
     await user.click(screen.getByRole('checkbox', { name: '品項 A 加入任選優惠' }))
 
     expect(screen.getByRole('spinbutton', { name: '基本折數' })).toHaveValue(9)
-    expect(screen.getByRole('spinbutton', { name: '任選最低件數' })).toHaveValue(3)
+    expect(screen.getByRole('spinbutton', { name: '任選最低數量' })).toHaveValue(3)
     expect(screen.getByRole('spinbutton', { name: '任選優惠折數' })).toHaveValue(8.5)
-    expect(screen.getByRole('textbox', { name: '任選優惠名稱' })).toHaveValue('任選三件85折')
+    expect(screen.getByRole('textbox', { name: '任選優惠名稱' })).toHaveValue('任選三個85折')
 
     await waitFor(() => expect(onSaveDraft).toHaveBeenCalled())
     expect(onSaveDraft).toHaveBeenLastCalledWith(expect.objectContaining({
       baseDiscountRate: 0.9,
-      mixMatchDiscount: { name: '任選三件85折', minimumQuantity: 3, rate: 0.85 },
+      mixMatchDiscount: { name: '任選三個85折', minimumQuantity: 3, rate: 0.85 },
       items: [
         expect.objectContaining({ code: 'A', discountEligible: true }),
         expect.objectContaining({ code: 'B', discountEligible: false }),
@@ -335,13 +361,13 @@ describe('organizer campaign editor', () => {
     expect(screen.getByRole('spinbutton', { name: '任選優惠折數' })).toHaveValue(8.5)
     expect(screen.getByRole('button', { name: '發布並開團' })).toBeDisabled()
     await waitFor(() => expect(onSaveDraft).toHaveBeenLastCalledWith(expect.objectContaining({
-      mixMatchDiscount: { name: '任選三件85折', minimumQuantity: 3, rate: 0.85 },
+      mixMatchDiscount: { name: '任選三個85折', minimumQuantity: 3, rate: 0.85 },
     })))
     await waitFor(() => expect(screen.getByRole('button', { name: '發布並開團' })).toBeEnabled())
 
     await user.click(screen.getByRole('button', { name: '發布並開團' }))
     expect(onPublish).toHaveBeenCalledWith(expect.objectContaining({
-      mixMatchDiscount: { name: '任選三件85折', minimumQuantity: 3, rate: 0.85 },
+      mixMatchDiscount: { name: '任選三個85折', minimumQuantity: 3, rate: 0.85 },
     }))
   })
 

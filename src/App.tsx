@@ -261,7 +261,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
       ? `任選價 ${formatMoney(currentUnitPrice)}`
       : appliedRate < 1 ? `${formatDiscountRate(appliedRate)}價 ${formatMoney(currentUnitPrice)}` : formatMoney(currentUnitPrice)
     const hint = item.discountEligible && publishedCampaign.mixMatchDiscount && !usesMixMatch
-      ? `任選滿 ${publishedCampaign.mixMatchDiscount.minimumQuantity} 件可享 ${formatMoney(discountedUnitPrice(itemPrice, publishedCampaign.mixMatchDiscount.rate))}`
+      ? `任選優惠 ${formatMoney(discountedUnitPrice(itemPrice, publishedCampaign.mixMatchDiscount.rate))}`
       : undefined
     return (
       <ProductRow
@@ -393,17 +393,17 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
                     <div className={`resident-discount-status${draftPricing.mixMatchApplied ? ' is-applied' : ''}`} role="status">
                       <strong>{draftPricing.mixMatchApplied
                         ? `已套用${publishedCampaign.mixMatchDiscount.name}`
-                        : `再選 ${Math.max(0, publishedCampaign.mixMatchDiscount.minimumQuantity - draftPricing.mixMatchQuantity)} 件即可享 ${formatDiscountRate(publishedCampaign.mixMatchDiscount.rate)}`}</strong>
+                        : `再選 ${Math.max(0, publishedCampaign.mixMatchDiscount.minimumQuantity - draftPricing.mixMatchQuantity)} ${quantityUnit}即可享 ${formatDiscountRate(publishedCampaign.mixMatchDiscount.rate)}`}</strong>
                       <span>{draftPricing.mixMatchApplied
-                        ? `限定區共 ${draftPricing.mixMatchQuantity} 件，全部享優惠價`
-                        : `限定區目前 ${draftPricing.mixMatchQuantity} 件，未達標維持${(publishedCampaign.baseDiscountRate ?? 1) < 1 ? ` ${formatDiscountRate(publishedCampaign.baseDiscountRate!)}` : '原價'}`}</span>
+                        ? `限定區共 ${draftPricing.mixMatchQuantity} ${quantityUnit}，全部享優惠價`
+                        : `限定區目前 ${draftPricing.mixMatchQuantity} ${quantityUnit}，未達標維持${(publishedCampaign.baseDiscountRate ?? 1) < 1 ? ` ${formatDiscountRate(publishedCampaign.baseDiscountRate!)}` : '原價'}`}</span>
                     </div>
                   )}
                   <div className="resident-order-items" ref={orderItemsRef}>
                     {mixMatchItems.length > 0 && publishedCampaign.mixMatchDiscount && (
                       <section className="resident-product-section" aria-labelledby="mix-match-products-heading">
                         <h3 id="mix-match-products-heading">任選優惠專區</h3>
-                        <p className="resident-product-section-note">共同累計件數・{publishedCampaign.mixMatchDiscount.name}</p>
+                        <p className="resident-product-section-note">跨品項合計・{publishedCampaign.mixMatchDiscount.name}</p>
                         {renderProductRows(mixMatchItems)}
                       </section>
                     )}

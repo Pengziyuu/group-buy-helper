@@ -20,13 +20,14 @@ describe('AutoCloseNotificationSettings', () => {
     await user.click(within(dialog).getByRole('button', { name: '確認由我接收' }))
     expect(onSelectCurrentUser).toHaveBeenCalledOnce()
     expect(await screen.findByText('已將你設為自動結單通知接收者。')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '你目前是通知接收者' })).not.toBeInTheDocument()
   })
 
   it('shows when the current organizer already receives notifications', () => {
     render(<AutoCloseNotificationSettings state="current_user" onSelectCurrentUser={vi.fn()} />)
 
     expect(screen.getByText('目前由你的 LINE 帳號接收自動結單通知。')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '你目前是通知接收者' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: '你目前是通知接收者' })).not.toBeInTheDocument()
   })
 
   it('allows another approved organizer to take over without revealing who is currently selected', async () => {
@@ -65,6 +66,6 @@ describe('AutoCloseNotificationSettings', () => {
     expect(screen.getByRole('region', { name: '自動結單通知' })).toHaveClass('organizer-settings-section')
     expect(screen.getByText('單一收件者')).toHaveAttribute('data-tone', 'neutral')
     expect(screen.getByText('目前由你的 LINE 帳號接收自動結單通知。')).toHaveAttribute('data-tone', 'success')
-    expect(screen.getByRole('button', { name: '你目前是通知接收者' })).toHaveClass('ui-button')
+    expect(screen.queryByRole('button', { name: '你目前是通知接收者' })).not.toBeInTheDocument()
   })
 })
