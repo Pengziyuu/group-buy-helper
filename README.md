@@ -1,198 +1,95 @@
 # 團購小幫手
 
-給社區團購團主與住戶使用的 LIFF 團購工具。核心目標是保留 LINE 記事本「大家看得到訂單與成團進度」的可見性，同時自動統計數量。
+以 LINE 為入口的社區團購工具：保留記事本式的公開訂單與成團進度，讓團主不用再從留言手動統計，同時把住戶的戶別與身分資料留在受權限保護的路徑。
 
-> **AI Agent接手：**請先閱讀[`docs/AI_AGENT_HANDOFF.md`](docs/AI_AGENT_HANDOFF.md)。該文件集中記錄目前架構、正式環境、不可破壞的產品規則、安全邊界、部署順序與已知陷阱。
+[![CI](https://github.com/Pengziyuu/group-buy-helper/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Pengziyuu/group-buy-helper/actions/workflows/ci.yml)
+[![Production check](https://github.com/Pengziyuu/group-buy-helper/actions/workflows/production-check.yml/badge.svg?branch=main)](https://github.com/Pengziyuu/group-buy-helper/actions/workflows/production-check.yml)
 
-## 目前完成
+[正式入口](https://tuan-go.vercel.app/) · [技術架構](docs/ARCHITECTURE.md) · [LINE 領取通知設計](docs/line-pickup-notifications.md) · [維護交接](docs/AI_AGENT_HANDOFF.md)
 
-- React + Vite + TypeScript + Tailwind 專案
-- 手機優先的客人端團購頁
-- 即時成團進度與公開訂單牆 UI
-- 客人只能編輯自己的訂單之互動流程
-- 真實六筆資料示範：62/100、總金額 2,790 元
-- 戶號解析規則：整串英數字為戶號、明寫期別才覆蓋、預設二期
-- 一組期別＋戶號可由多個 LINE 帳號各自獨立下單；期別另有「其他」供社區以外的人使用，其不納入 LINE 領取通知
-- 團主公告長文、Emoji 與多張商品圖片展示
-- `/admin` 團主開團編輯器與住戶端即時預覽
-- `/admin` 團購列表可保留舊團、建立新團，並依待發布／開團中／已結單顯示狀態；歷史`arrived`只保留底層相容
-- 新團預設只有 A 號；發布後取得不暴露資料庫 UUID 的 `/campaign/<slug>` 住戶分享連結
-- 草稿會自動暫存並與已發布版本隔離；只有「發布並開團／更新住戶公告」會更新住戶端
-- 商品使用 A～Z、AA～AZ、BA…代碼，住戶端與團主端都顯示真實商品名稱／口味及個別價格，代碼不加「號」
-- 第一次開團前可增加或減少最後字母；正式開團後單價與品項字母鎖定
-- 住戶頁顯示資料庫開團時間；公開訂單牆以相對時間（剛剛／N 分鐘前…）顯示下單時間，每分鐘自動更新；修改過的訂單標「已修改」，修改時間放在滑鼠停留的提示裡
-- LIFF 身分載入與 ID token 邊界
-- demo/live 環境設定防呆
-- Supabase schema、RLS 與 Realtime migration
-- Supabase `campaign_draft`、團主專用 RLS、原子發布 RPC 與前端 gateway
-- 本機 Supabase Auth 團主登入與住戶 Realtime 可視化 Demo
-- 團主內容設定：公告與圖片、品項與價格、成團與時程、優惠與進階四段；圖片可多選依序上傳；品項表在最後一列單價按 Enter 新增；右側可切手機／電腦的住戶頁預覽與「發布前檢查」
-- 團主概況：成團進度、今日新增、品項數量與最新訂單，並即時更新；團主訂單：搜尋、依戶號或下單時間排序、團主備註與整筆取消
-- 團主工作流：結單、重新開放、團主備註與結單後匯出 Excel；到貨由LINE領取通知處理；付款由團主依 Excel 在系統外處理
-- 住戶不能送出空訂單；全部歸零時會提示聯繫團主，由團主在開團中整筆取消，訂單、明細、付款紀錄與備註連帶刪除且不可復原
-- 結單後可匯出成團明細 `.xlsx`；包含 LINE 名稱，單價與總價保留數字及千分位但不顯示 `$` 符號
-- 商品圖片以 `{src, alt}` JSON 保存，資料庫驗證替代文字及最多 10 張限制
-- 團主可上傳 JPG、PNG、WebP 到 Supabase Storage；單檔最多 5 MB，住戶只能公開讀取
-- 團購範本：任一團購可存成範本（含圖片副本，舊團刪除不受影響），建立新團時可從範本帶入公告、圖片、品項、門檻與優惠；結單日期與到貨時間需重新設定
-- 447項前端、領域、migration與Edge Function契約測試
-- 可重建的本機 Supabase migration、seed 與產生型別
+> **體驗說明**：正式站需 LINE 登入；新住戶須符合已綁定正式群組的入會規則，團主帳號另須核准，因此公開網址不是免登入的體驗站。下方畫面取自**本機示範模式**，不代表正式環境資料。
 
-## 本機執行
+## 解決什麼問題
 
-需要 Node.js 22.12.0 以上版本。
+社區團購常在 LINE 記事本下單：大家想看到誰買了什麼、目前是否成團，但團主仍得人工彙整品項、處理超額與通知領貨。團購小幫手把這些工作拆成住戶下單、團主核對和受控的 LINE 通知流程；公開訂單牆保留熟悉的參與感，卻不公開期別、戶號或 LINE 帳號識別碼。
+
+## 畫面（本機示範資料）
+
+**住戶團購列表**：已發布團購分為開團中／已結單，顯示商品、結單資訊與成團進度。
+
+![本機示範的住戶團購列表](docs/assets/resident-list-demo.png)
+
+**團主團購列表**：集中查看草稿、開團中、已結單，以及各團的訂單數和進度。
+
+![本機示範的團主團購列表](docs/assets/organizer-list-demo.png)
+
+這些畫面使用原始碼中的 Demo 素材及資料；正式站有 LINE 驗證、Supabase 權限和不同的實際內容。沒有使用正式住戶資料製作截圖。
+
+## 功能與設計取捨
+
+- **住戶**：以 LINE 身分進入社區已發布團購列表；查看公告、圖片、品項價格及公開訂單牆，建立或修改自己的訂單。品項可顯示真實名稱、口味與優惠後價格；可選的「額外品項」標示金額另計，不混入正式成團統計。
+- **團主**：編輯草稿並於發布前檢查，發布後管理訂單、備註、住戶、範本與圖片；結單後匯出含公式的 `.xlsx` 明細。已發布內容與草稿隔離，避免未發布修改流到住戶端。
+- **門檻與價格**：支援數量／總金額門檻、可選的達標自動結單、基本折扣及指定商品任選優惠；折後成交價由資料庫交易中的訂單快照保存，數量型自動結單的超額限制在資料庫端執行。
+- **LINE 通知**：領取通知按團購建立短效、一次性群組指令，由已核准團主貼到已綁定群組後才由 Bot Reply；正式／測試群組與入口分離。排定或達標自動結單另以 outbox／worker 通知指定團主，不等同於群組領取通知。
+- **隱私界線**：住戶訂單牆可看驗證過的顯示名稱、品項與時間，卻不回傳戶別；自己的戶別走私有路徑，團主視圖才可讀必要戶別。資料庫使用 RLS、欄位權限及受限函式，而非僅在畫面隱藏欄位。
+
+付款不在此系統收取；團主以匯出的明細在系統外處理。這是一個**單一社區部署**，不是多租戶 SaaS。更多資料流、權限與邊界見[技術架構](docs/ARCHITECTURE.md)。
+
+## 技術組成
+
+- **前端**：React 19、TypeScript、Vite、Tailwind CSS；住戶與團主共用元件，但各有路由及授權流程。
+- **資料與服務**：Supabase PostgreSQL、Auth、RLS、RPC、Realtime、Storage、Edge Functions 與排程；LINE LIFF／Messaging API 負責身分與通知。
+- **部署與品質**：Vercel 正式站及分享頁預覽；GitHub Actions 執行 lint、測試、建置、從空資料庫套用 migration／權限驗證、Edge Function 型別檢查與正式網址 smoke check。
+
+```text
+LINE LIFF ──身分驗證──> Supabase Edge Functions ──> Supabase Auth
+    │                                              │
+    └──> Vercel（React 住戶／團主頁） ──> RLS／RPC／安全視圖 ──> PostgreSQL
+                    │                     │
+                    └── Realtime／Storage └── 排程與通知 worker ──> LINE Messaging API
+```
+
+## 在本機試用
+
+需要 Node.js `>=22.12.0`。先試**不連正式資料庫**的瀏覽器 Demo：
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
-- 住戶端：`http://localhost:5173/`
-- 團主後台 Demo：`http://localhost:5173/admin`
+開啟 `http://localhost:5173/`（住戶）或 `http://localhost:5173/admin`（團主）。**沒有提供 Live 環境變數時**才會進入 localStorage Demo；若你的電腦已有 `.env.local`，請先檢查其指向，避免誤連正式資料庫。此模式不能驗證 LINE 登入、跨裝置同步、Storage、資料庫 RLS 或正式通知。
 
-沒有 `.env` 時自動使用 demo 模式，不會連外或修改真實資料。
-Demo 模式以瀏覽器 localStorage 保存草稿與已發布內容；正式 live 模式會改用 Supabase。
-
-## 本機 Supabase 可視化 Demo
-
-先啟動本機 Supabase，再執行一鍵啟動器：
+需要驗證資料庫行為時，安裝 Docker Desktop 並啟動本機 Supabase，再使用本機 Live Demo 啟動器：
 
 ```bash
 npx supabase start
+npx supabase db reset --local --yes
 python scripts/start_local_live_demo.py
 ```
 
-啟動器不會把 Supabase key 寫入檔案，會建立／更新本機專用團主帳號，並在 `5174` 啟動 Live Demo：
+啟動器在 `http://localhost:5174/`／`/admin` 開啟本機 Supabase 模式，並在終端顯示**僅限可丟棄本機資料庫**的測試團主登入資訊。此模式可驗證本機 Auth、RPC、RLS、Storage 與 Realtime；不等於正式 LINE LIFF／群組通知端到端驗收。不要把本機測試帳號或 service-role key 用於正式環境。
 
-- 住戶端：`http://localhost:5174/`
-- 團主後台：`http://localhost:5174/admin`
-- 住戶分享連結：`http://localhost:5174/campaign/<slug>`
-- 同網路手機網址：啟動器會列出 `http://<區網 IP>:5174/`
-- Email：`admin@group-buy.local`
-- 密碼：`LocalDemo-Only-2026!`
+要自行設定 Live 前端，參考 [`.env.example`](.env.example)；`VITE_` 變數會進入瀏覽器 bundle，**只能放 Supabase 公開金鑰與 LIFF ID，不能放 secret／service-role key**。正式部署還需 LINE、Supabase Edge Function secrets、群組綁定和團主核准，請依[維護交接](docs/AI_AGENT_HANDOFF.md)確認順序，勿只複製 `.env.example` 就連到正式資料。
 
-此帳號與密碼只供本機可丟棄的 Supabase 開發資料庫使用，禁止用於正式環境。原本 `5173` 仍是互不影響的 localStorage Demo。
-
-啟動器會自動偵測主要區網 IP；若電腦有多張網卡而選錯，可先設定 `LOCAL_LIVE_DEMO_HOST=192.168.x.x` 再啟動。
-
-Live Demo 驗收方式：團主登入後先進入團購列表，可建立新團或管理舊團。新團預設只有 A 品項，內容修改會自動暫存但住戶端尚不可見；按「發布並開團」後，列表會出現住戶分享連結。已發布內容更新後，開啟中的住戶端會透過 Realtime 自動更新。第一次開團後品項代碼與單價鎖定。團主仍可上傳圖片、結單／重新開放，以及編輯團主備註；結單後住戶端會即時鎖定訂單控制。
-
-## 測試與建置
+## 驗證與部署
 
 ```bash
 npm test
+npm run lint
 npm run build
 ```
 
-## 正式環境設定
+資料庫 migration、SQL 權限測試與 `scripts/verify_*` 行為驗證由 [CI](.github/workflows/ci.yml) 在可丟棄的本機 Supabase 上執行。已部署的 migration 是重建歷史，**不要刪改舊檔**；新的資料庫變更先本機重建，再對正式環境 dry-run、手動套用並讀回權限／結構，最後透過受保護的 `main` 分支 PR 合併。Vercel 部署完成後由 [Production check](.github/workflows/production-check.yml) 驗證固定網址；登入後的 LINE 真實操作仍需具備權限的帳號驗收。
 
-複製 `.env.example` 為 `.env.local`：
+## 專案地圖
 
-```bash
-VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-VITE_SUPABASE_ANON_KEY=YOUR_PUBLISHABLE_OR_ANON_KEY
-# 團主 LIFF
-VITE_LIFF_ID=YOUR_LIFF_ID
-# 住戶 LIFF
-VITE_RESIDENT_LIFF_ID=YOUR_RESIDENT_LIFF_ID
-```
+- [`src/RuntimeApp.tsx`](src/RuntimeApp.tsx)、[`src/routing.ts`](src/routing.ts)：Demo／本機 Supabase／正式 LIFF 模式與網址路由。
+- [`src/LocalLiveApps.tsx`](src/LocalLiveApps.tsx)：正式環境的 Auth 與資料接線；畫面元件在 `src/components/resident/`、`src/components/organizer/`。
+- [`src/domain/`](src/domain/) 與 [`src/services/`](src/services/)：價格、訂單領域邏輯，Supabase gateway 與匯出。
+- [`supabase/migrations/`](supabase/migrations/) 與 [`supabase/functions/`](supabase/functions/)：資料庫歷史、身分驗證及通知邊界；`supabase/seed.sql` 僅供本機示範。
+- [`api/campaign-preview.ts`](api/campaign-preview.ts)：分享連結的公開預覽中介層，不將草稿或私有資料作為公開預覽。
 
-Supabase URL 與 publishable/anon key 必須同時存在，否則應用程式會明確報錯，不會半套進入 live 模式。正式 live 模式的 `/admin`（含 `/admin/residents`、`/admin/settings`）、`/admin/campaign/<uuid>/<分區>`、`/campaign/<slug>` 與根網址全部使用 Supabase；根網址是LINE驗證住戶的全部已發布團購列表。舊版 `/join/<invite>` 僅保留網址相容性，不再作為入會憑證。
+## 授權與重用
 
-Vercel 部署設定已放在 `vercel.json`；`/admin`使用團主專用HTML連結預覽，其餘SPA深層網址rewrite到`index.html`，因此直接開啟或重新整理團主管理／住戶分享連結不會由主機回傳404。
-
-## Supabase
-
-Migration 位於 `supabase/migrations/`。目前採**單一社區部署模型**：一個 Supabase／Vercel deployment 對應一個 LINE 社區群組，資料庫會拒絕第二筆 community 與非預設 community 的 campaign。若未來需要一個部署服務多社區，必須先完成 organizer-community membership、全套 RLS／RPC／Storage 多租戶改造，不可直接移除 constraint。
-
-正式上線前：
-
-1. 建立 Supabase 專案。
-2. 保持 Anonymous Sign-Ins 關閉；住戶與團主都由可信 LINE ID token 交換獨立 Supabase Session。
-3. 執行 migration。
-4. 團主由 LINE 申請及可信核准流程加入 `admin_users`。
-5. 設定 Edge Function secrets：LINE Channel ID、Supabase service role key與住戶內部Email雜湊pepper（`LINE_RESIDENT_EMAIL_PEPPER`）。
-
-本機 Supabase（需要 Docker Desktop）：
-
-```bash
-npx supabase start
-npx supabase db reset
-npx supabase gen types typescript --local > src/types/database.ts
-npx supabase functions serve
-```
-
-`db reset` 會從零套用 migration，並載入 `supabase/seed.sql` 的非敏感示範資料。
-
-本機草稿／發布 RLS 整合驗證（Git Bash）：
-
-```bash
-set -a
-eval "$(npx supabase status -o env)"
-set +a
-python scripts/verify_supabase_draft.py
-python scripts/verify_campaign_management.py
-python scripts/verify_dynamic_items.py
-python scripts/verify_order_workflow.py
-python scripts/verify_storage.py
-python scripts/verify_admin_as_resident.py
-python scripts/verify_campaign_templates.py
-```
-
-七支腳本共驗證 89 項 Supabase 行為（草稿 11、團購管理 9、動態品項 19、工作流 18、Storage 5、團主兼住戶 8、團購範本 19），並使用臨時 Auth 使用者：團購管理腳本驗證團主可原子建立新團、預設 A 號、列表採用最新草稿標題、既有存取權也不能讀取未發布團購，以及未發布 slug 隔離；草稿腳本驗證發布隔離、圖片與開團時間；動態品項腳本驗證安全刪除／停用、歷史數量與訂單時間；工作流腳本驗證團主權限、結單、付款狀態、團主備註，以及整筆取消訂單（住戶不可取消、結單後不可取消、團主可取消且明細與付款紀錄連帶刪除），另外驗證戶籍身分模型：同一期別＋戶號可由第二個已通過 LINE 驗證的帳號綁定共用、舊版兩參數 `bind_customer_self` 仍代理到新版並預設 `resident`、「其他」戶籍種類可在沒有期別與戶號下綁定，領取通知的收件人清單與資格雜湊兩支函式都會排除「其他」戶籍且彼此結果一致，以及團主可將住戶改為「其他」（期別與戶號清空）且舊版三參數 `admin_update_resident_household` 仍正確落定為住戶；Storage 腳本驗證團主上傳／刪除、住戶禁止寫入及公開讀取；團主兼住戶腳本驗證同一 UID 既是團主也能以住戶身分下單、住戶讀不到身分欄位、訂單牆不外漏身分，且住戶不會被提升為團主。範本腳本驗證團主可建立、讀取、改名、刪除範本，住戶與未登入者讀寫不到，同名與壞內容被擋，範本不存在時不能上傳範本圖片，以及範本圖片可複製與清理；同名檢查不分大小寫，複製後的圖片清理以實際內容核對，範本圖片路徑也擋掉了不合格式的路徑。腳本不會輸出或寫入 API key。動態品項腳本會修改本機 seed 資料，執行後請跑一次 `npx supabase db reset` 還原。
-
-## LINE / LIFF
-
-1. 建立 LINE Login channel。
-2. 建立團主 LIFF app，Endpoint URL 指向 Vercel HTTPS `/admin` 網址。
-3. 在同一個 LINE Login channel 建立住戶 LIFF app，Endpoint URL 指向 Vercel HTTPS 根網址。
-4. 兩個 LIFF app 都只啟用 `profile` 與 `openid` scope，Add friend option 關閉。
-5. 團主 LIFF ID 放入 `VITE_LIFF_ID`，住戶 LIFF ID 放入 `VITE_RESIDENT_LIFF_ID`，LINE Login Channel ID 放入Edge Function secret `LINE_CHANNEL_ID`。
-6. 團主與住戶都只把 ID token 交給後端向 LINE 官方驗證；前端 `profile.userId`、名稱與頭貼不作為授權或可信資料來源。
-7. 住戶固定使用短版入口 `https://liff.line.me/<住戶LIFF-ID>`。**僅首次入會的新成員**須由後端以官方驗證的LINE帳號，查驗其是否在已綁定的正式團購群組；LIFF登入本身不是群組資格證明，測試群組也不算。
-   - 不在正式群組時不建立入會資格，提示先加入群組，並可按「已加入，重新確認」重試。
-   - LINE查驗失敗、尚未綁定正式群組或機器人已離群時暫不放行，顯示無法確認，不誤判為住戶未加入。
-   - 既有入會紀錄的住戶不受此新限制；之後退群也不因此停權，原本團主手動封鎖仍有效。
-   - 團主可在「住戶與戶號」按一個按鈕查驗全部未封鎖住戶，以數量與燈號顯示是否在正式群組；此狀態僅供核對，不會自動停用既有住戶。
-   - 團主後台以LINE官方驗證名稱、頭貼、期別／戶號及加入時間顯示住戶名單。
-   - 團主可移除並封鎖陌生住戶；封鎖會立即撤銷community membership，阻止再次加入。解除封鎖後恢復membership。
-8. 新團主第一次以 LIFF 登入時只會取得隨機申請代碼，不會立即取得後台權限。使用可信環境執行：
-
-```bash
-API_URL=https://YOUR_PROJECT.supabase.co \
-SECRET_KEY=YOUR_SERVICE_ROLE_KEY \
-python scripts/approve_line_organizer.py <request-code>
-```
-
-核准腳本不接受或輸出 LINE User ID。每位團主使用自己的 LINE 帳號申請與核准，因此可安全設定兩位以上團主。
-
-## 安全原則
-
-- `line_user_id` 不出現在公開 view 或前端一般查詢。
-- LINE subject 經官方驗證後只保存在 service-role-only 資料表，不出現在列表、訂單牆或前端權限資料。
-- 住戶名稱與頭貼只從LINE官方驗證回應同步；首次社區住戶只填期別與戶號，社區以外人士選擇「其他」則不必填。
-- 住戶端即時成團牆不回傳也不顯示任何人的期別／戶號；自己的期別／戶號只顯示在「我的訂單」。
-- 住戶列表只由安全RPC回傳其community內已發布團購的最小欄位；草稿與其他community永不回傳。
-- 團主管理住戶只使用安全隨機member code；LINE subject、Auth UID與community UUID不回傳前端。
-- 客人只能更新綁定到自己 `auth.uid()` 的訂單。
-- 結單後禁止修改。
-- 正式品項單品數量下限為 0，無上限（僅受資料型別節制）；住戶自訂品項每筆數量限制 1–20、最多 10 筆。
-- 領取通知只發給 `household_kind = 'resident'` 的購買者，排除條件寫在資料庫端的收件人與資格雜湊兩支函式中，兩支函式的條件保持一致。這是縱深防禦，不是修補現存漏洞：期別為 `NULL` 的「其他」戶籍原本就已被既有的期別條件排除，明確加上戶籍種類篩選是為了不再仰賴這個巧合。
-- 團主操作使用 Supabase Auth；敏感寫入不使用公開匿名權限。
-- 草稿僅 `admin_users` 可讀寫；住戶只能讀取已發布的 `campaign_public`。
-- 付款只保存完成狀態，不保存現金、轉帳等付款方式。
-- `campaign-images` bucket 公開讀取，但新增、更新與刪除均由團主 RLS 限制。
-
-## 下一個外部依賴
-
-公開 HTTPS 測試階段需要：
-
-- Supabase Project URL
-- Supabase publishable/anon key
-
-接 LINE LIFF 時另外需要：
-
-- 團主與住戶兩個 LINE LIFF ID
-- LINE Login Channel ID（僅放 Edge Function secret）
-- 團主與住戶的固定LIFF短網址
-
-不要把 service role key、LINE UserID 或其他秘密提交到 Git。
+本 repository 目前**沒有附帶開源授權檔**；公開可讀不等於授權重用。若要以本專案作為範本，請先與維護者確認授權。產品設計與部署注意事項見[維護交接](docs/AI_AGENT_HANDOFF.md)。
