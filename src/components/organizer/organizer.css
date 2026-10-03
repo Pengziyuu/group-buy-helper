@@ -211,7 +211,7 @@
 .organizer-orders { grid-template-columns: minmax(0, 1fr); }
 /* One summary card, half the height of the old three: progress and totals on one line, then the item tally. */
 .organizer-order-overview { display: grid; gap: var(--space-3); padding: var(--space-3) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-surface); background: var(--color-surface); }
-.organizer-order-overview-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-6); }
+.organizer-order-overview-top { display: grid; align-content: start; gap: var(--space-4); }
 .organizer-order-progress { display: grid; flex: 1 1 280px; gap: var(--space-2); min-width: 0; }
 .organizer-order-progress p { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-2); margin: 0; }
 .organizer-order-progress p > span:not(.ui-num) { color: var(--color-text-secondary); font-size: var(--font-size-caption); }
@@ -225,9 +225,18 @@
 .organizer-order-totals dd { margin: 0; font-size: 17px; font-weight: var(--font-weight-strong); font-variant-numeric: tabular-nums; }
 /* Item tally: aligned code, name and quantity columns, so it can be screenshotted for the supplier. */
 .organizer-item-tally-block { padding-top: var(--space-3); border-top: 1px solid var(--color-divider); }
+/* Wide screens: progress and totals on the left, the item list beside them on the right. */
+@media (min-width: 1280px) {
+  .organizer-order-overview { grid-template-columns: minmax(280px, 1fr) auto; gap: var(--space-6); }
+  .organizer-item-tally-block { padding: 0 0 0 var(--space-6); border-top: 0; border-left: 1px solid var(--color-divider); }
+}
+@media (min-width: 1024px) {
+  .organizer-item-tally { grid-auto-flow: column; grid-template-columns: none; grid-template-rows: repeat(var(--tally-rows, 6), auto); grid-auto-columns: minmax(220px, 280px); column-gap: var(--space-6); }
+}
 .organizer-item-tally-heading { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-bottom: var(--space-1); }
 .organizer-item-tally-heading h3 { margin: 0; font-size: var(--font-size-dense); font-weight: var(--font-weight-strong); }
-.organizer-item-tally { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0 var(--space-6); margin: 0; padding: 0; list-style: none; }
+/* Read top to bottom so quantities line up for comparing; long lists continue in a next column (--tally-rows). */
+.organizer-item-tally { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; margin: 0; padding: 0; list-style: none; }
 .organizer-item-tally li { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; align-items: baseline; gap: var(--space-2); padding: 6px 0; border-bottom: 1px dashed var(--color-divider); }
 .organizer-item-tally li[data-empty] { color: var(--color-text-tertiary); }
 .organizer-item-tally .organizer-item-name { overflow-wrap: anywhere; }
@@ -239,8 +248,18 @@
 .organizer-order-table th[scope="row"] { min-width: 140px; }
 /* The note column takes the spare width, so items, quantity, amount and time sit together instead of spread out. */
 .organizer-order-table td.organizer-cell-fact { white-space: nowrap; }
-.organizer-order-table td.organizer-cell-note { width: 100%; }
-.organizer-order-table td.organizer-cell-items { min-width: 200px; }
+/* Room for a few item tags and a readable note where the screen allows; narrower screens let them wrap. */
+@media (min-width: 1280px) {
+  .organizer-order-table td.organizer-cell-items { min-width: 200px; }
+  .organizer-order-table td.organizer-cell-note { min-width: 200px; }
+  /* Spare width goes to the last (menu) column, so the data columns sit together and the menu lines up on the right. */
+  .organizer-order-table td.organizer-cell-actions { width: 100%; }
+}
+.organizer-order-table .organizer-note-button { max-width: 240px; }
+/* Chinese breaks between any two characters, so without a floor a squeezed note column shows one character per line. */
+@media (min-width: 640px) and (max-width: 1279px) {
+  .organizer-order-table td.organizer-cell-note { min-width: 140px; }
+}
 .organizer-order-person { display: flex; align-items: center; gap: var(--space-2); }
 .organizer-avatar { width: 32px; height: 32px; font-size: var(--font-size-caption); }
 .organizer-order-household { display: block; color: var(--color-text-secondary); font-size: var(--font-size-caption); }
@@ -249,7 +268,6 @@
   .organizer-order-overview { padding: var(--space-3); }
   .organizer-order-totals { gap: var(--space-2) var(--space-4); }
   .organizer-toolbar-count { flex-basis: 100%; margin: 0; }
-  .organizer-order-table td.organizer-cell-note { width: auto; }
   /* No note yet: "＋ 新增備註" says it all, so skip the "團主備註" label line. */
   .organizer-order-table td.organizer-cell-note:has(.organizer-note-button[data-empty])::before { content: none; }
 }
