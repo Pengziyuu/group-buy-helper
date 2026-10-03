@@ -1354,9 +1354,16 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug, liffId
 
   useEffect(() => {
     let active = true
-    let syncGeneration = 0
+    let publishedGeneration = 0
+    let residentGeneration = 0
+    let publishedSyncError = ''
+    let residentSyncError = ''
+    let channelSyncError = ''
     let channel: ReturnType<typeof client.channel> | null = null
     let resolvedCampaignId = campaignId
+    const reportSyncError = () => {
+      if (active) setSyncError([channelSyncError, publishedSyncError, residentSyncError].filter(Boolean).join('；'))
+    }
 
     const loadPublished = async (generation?: number) => {
       if (!resolvedCampaignId) throw new Error('找不到團購活動')
@@ -1366,7 +1373,7 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug, liffId
         .eq('id', resolvedCampaignId)
         .single()
       if (queryError) throw queryError
-      if (active && (generation === undefined || generation === syncGeneration)) {
+      if (active && (generation === undefined || generation === publishedGeneration)) {
         setContent(campaignContentFromRow(data))
         setCampaignStatus(campaignStatusFromRow(data))
       }
@@ -1384,7 +1391,7 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug, liffId
       if (wallResult.error) throw wallResult.error
       if (customerResult.error) throw customerResult.error
       if (identityResult.error) throw identityResult.error
-      if (active && (generation === undefined || generation === syncGeneration)) {
+      if (active && (generation === undefined || generation === residentGeneration)) {
         setOrders(visibleOrdersFromRows(wallResult.data ?? []))
         const identity = identityResult.data?.[0]
         if (!identity?.display_name) throw new Error('請先從住戶 LINE 入口登入')
@@ -1434,13 +1441,21 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug, liffId
       await Promise.all([loadPublished(), loadResidentData()])
       if (!active) return
       const runSync = async (...loaders: Array<(generation?: number) => Promise<void>>) => {
-        const generation = ++syncGeneration
-        try {
-          await Promise.all(loaders.map((loader) => loader(generation)))
-          if (active && generation === syncGeneration) setSyncError('')
-        } catch (syncFailure) {
-          if (active && generation === syncGeneration) setSyncError(errorMessage(syncFailure))
-        }
+        await Promise.all(loaders.map(async (loader) => {
+          const published = loader === loadPublished
+          const generation = published ? ++publishedGeneration : ++residentGeneration
+          try {
+            await loader(generation)
+            if (!active || generation !== (published ? publishedGeneration : residentGeneration)) return
+            if (published) publishedSyncError = ''
+            else residentSyncError = ''
+          } catch (syncFailure) {
+            if (!active || generation !== (published ? publishedGeneration : residentGeneration)) return
+            if (published) publishedSyncError = errorMessage(syncFailure)
+            else residentSyncError = errorMessage(syncFailure)
+          }
+          reportSyncError()
+        }))
       }
       retrySyncRef.current = () => runSync(loadPublished, loadResidentData)
       channel = client
@@ -1460,7 +1475,18 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug, liffId
           { event: '*', schema: 'public', table: 'order_item', filter: `campaign_id=eq.${resolvedCampaignId}` },
           () => { void runSync(loadResidentData) },
         )
-        .subscribe()
+        .subscribe((status) => {
+          if (!active) return
+          if (status === 'SUBSCRIBED') {
+            // Close the gap between the first fetch and a ready Realtime channel.
+            channelSyncError = ''
+            reportSyncError()
+            void runSync(loadPublished, loadResidentData)
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            channelSyncError = '即時連線中斷，請重新同步；若持續發生請重新整理頁面。'
+            reportSyncError()
+          }
+        })
     }
 
     void initialize().catch((loadError: unknown) => {
@@ -1471,7 +1497,8 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug, liffId
 
     return () => {
       active = false
-      syncGeneration += 1
+      publishedGeneration += 1
+      residentGeneration += 1
       retrySyncRef.current = null
       if (channel) void client.removeChannel(channel)
     }

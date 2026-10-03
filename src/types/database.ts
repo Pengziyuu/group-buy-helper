@@ -1848,6 +1848,13 @@ export type Database = {
           unit_price: number
         }[]
       }
+      organizer_customer_household: {
+        Args: { p_customer_id: string }
+        Returns: {
+          period: number
+          unit: string
+        }[]
+      }
       owns_customer: { Args: { p_customer_id: string }; Returns: boolean }
       owns_order: { Args: { p_order_id: string }; Returns: boolean }
       process_line_group_binding_event: {
