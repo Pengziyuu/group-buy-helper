@@ -2156,6 +2156,120 @@ describe('local Supabase visual demo apps', () => {
     await waitFor(() => expect(campaignEq).toHaveBeenCalledWith('id', 'resolved-campaign'))
   })
 
+  it('reconciles resident content after the realtime subscription becomes ready', async () => {
+    const { client } = authClient({ access_token: 'resident-token', user: { id: 'resident-user', is_anonymous: false } })
+    const row = { title: published.title, unit_price: published.unitPrice, threshold: published.threshold,
+      announcement: published.announcement, images: published.images, items: published.items,
+      opened_at: published.openedAt, status: 'open' }
+    const single = vi.fn()
+      .mockResolvedValueOnce({ data: row, error: null })
+      .mockResolvedValue({ data: { ...row, title: '訂閱前更新的標題' }, error: null })
+    const campaignEq = vi.fn().mockReturnValue({ single })
+    const wallEq = vi.fn().mockResolvedValue({ data: [], error: null })
+    const channel = { on: vi.fn().mockReturnThis(), subscribe: vi.fn((_callback?: (status: string) => void) => channel) }
+    Object.assign(client, {
+      rpc: vi.fn((name: string) => Promise.resolve(name === 'get_customer_self'
+        ? { data: [], error: null }
+        : name === 'get_line_resident_self'
+          ? { data: [{ display_name: '測試住戶', picture_url: null }], error: null }
+          : { data: [{ id: 'campaign-1' }], error: null })),
+      from: vi.fn((table: string) => table === 'campaign_public'
+        ? { select: vi.fn().mockReturnValue({ eq: campaignEq }) }
+        : { select: vi.fn().mockReturnValue({ eq: wallEq }) }),
+      channel: vi.fn().mockReturnValue(channel),
+      removeChannel: vi.fn().mockResolvedValue(undefined),
+    })
+    render(<LocalLiveResidentApp client={client} campaignSlug="campaign-slug" />)
+    expect(await screen.findByRole('heading', { name: published.title })).toBeInTheDocument()
+    await waitFor(() => expect(channel.subscribe).toHaveBeenCalledWith(expect.any(Function)))
+    act(() => { (channel.subscribe.mock.calls[0][0] as (status: string) => void)('SUBSCRIBED') })
+    expect(await screen.findByRole('heading', { name: '訂閱前更新的標題' })).toBeInTheDocument()
+    expect(single).toHaveBeenCalledTimes(2)
+    act(() => { (channel.subscribe.mock.calls[0][0] as (status: string) => void)('CHANNEL_ERROR') })
+    expect(screen.getByRole('alert')).toHaveTextContent('即時連線')
+    act(() => { (channel.on.mock.calls[1][2] as () => void)() })
+    await waitFor(() => expect(wallEq).toHaveBeenCalledTimes(3))
+    expect(screen.getByRole('alert')).toHaveTextContent('即時連線')
+    act(() => { (channel.subscribe.mock.calls[0][0] as (status: string) => void)('SUBSCRIBED') })
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+    expect(single).toHaveBeenCalledTimes(3)
+  })
+
+  it('does not discard a campaign update when an order event arrives during its fetch', async () => {
+    const { client } = authClient({ access_token: 'resident-token', user: { id: 'resident-user', is_anonymous: false } })
+    const row = { title: published.title, unit_price: published.unitPrice, threshold: published.threshold,
+      announcement: published.announcement, images: published.images, items: published.items,
+      opened_at: published.openedAt, status: 'open' }
+    let finishCampaignFetch!: (result: { data: typeof row; error: null }) => void
+    const pendingCampaign = new Promise<{ data: typeof row; error: null }>((resolve) => { finishCampaignFetch = resolve })
+    const single = vi.fn().mockResolvedValueOnce({ data: row, error: null }).mockImplementationOnce(() => pendingCampaign)
+    const campaignEq = vi.fn().mockReturnValue({ single })
+    const wallEq = vi.fn().mockResolvedValue({ data: [], error: null })
+    const callbacks: Array<() => void> = []
+    const channel = { on: vi.fn((_event: string, _filter: unknown, callback: () => void) => {
+      callbacks.push(callback)
+      return channel
+    }), subscribe: vi.fn(() => channel) }
+    Object.assign(client, {
+      rpc: vi.fn((name: string) => Promise.resolve(name === 'get_customer_self'
+        ? { data: [], error: null }
+        : name === 'get_line_resident_self'
+          ? { data: [{ display_name: '測試住戶', picture_url: null }], error: null }
+          : { data: [{ id: 'campaign-1' }], error: null })),
+      from: vi.fn((table: string) => table === 'campaign_public'
+        ? { select: vi.fn().mockReturnValue({ eq: campaignEq }) }
+        : { select: vi.fn().mockReturnValue({ eq: wallEq }) }),
+      channel: vi.fn().mockReturnValue(channel),
+      removeChannel: vi.fn().mockResolvedValue(undefined),
+    })
+    render(<LocalLiveResidentApp client={client} campaignSlug="campaign-slug" />)
+    expect(await screen.findByRole('heading', { name: published.title })).toBeInTheDocument()
+    await waitFor(() => expect(callbacks).toHaveLength(3))
+    act(() => { callbacks[0]() })
+    await waitFor(() => expect(single).toHaveBeenCalledTimes(2))
+    act(() => { callbacks[1]() })
+    await act(async () => { finishCampaignFetch({ data: { ...row, title: '公告已更新' }, error: null }) })
+    expect(screen.getByRole('heading', { name: '公告已更新' })).toBeInTheDocument()
+  })
+
+  it('keeps a campaign sync error after an unrelated order refresh succeeds', async () => {
+    const { client } = authClient({ access_token: 'resident-token', user: { id: 'resident-user', is_anonymous: false } })
+    const row = { title: published.title, unit_price: published.unitPrice, threshold: published.threshold,
+      announcement: published.announcement, images: published.images, items: published.items,
+      opened_at: published.openedAt, status: 'open' }
+    let rejectCampaignFetch!: (reason: Error) => void
+    const pendingCampaign = new Promise<never>((_, reject) => { rejectCampaignFetch = reject })
+    const single = vi.fn().mockResolvedValueOnce({ data: row, error: null }).mockImplementationOnce(() => pendingCampaign)
+      .mockResolvedValue({ data: row, error: null })
+    const campaignEq = vi.fn().mockReturnValue({ single })
+    const wallEq = vi.fn().mockResolvedValue({ data: [], error: null })
+    const callbacks: Array<() => void> = []
+    const channel = { on: vi.fn((_event: string, _filter: unknown, callback: () => void) => {
+      callbacks.push(callback)
+      return channel
+    }), subscribe: vi.fn(() => channel) }
+    Object.assign(client, {
+      rpc: vi.fn((name: string) => Promise.resolve(name === 'get_customer_self'
+        ? { data: [], error: null }
+        : name === 'get_line_resident_self'
+          ? { data: [{ display_name: '測試住戶', picture_url: null }], error: null }
+          : { data: [{ id: 'campaign-1' }], error: null })),
+      from: vi.fn((table: string) => table === 'campaign_public'
+        ? { select: vi.fn().mockReturnValue({ eq: campaignEq }) }
+        : { select: vi.fn().mockReturnValue({ eq: wallEq }) }),
+      channel: vi.fn().mockReturnValue(channel),
+      removeChannel: vi.fn().mockResolvedValue(undefined),
+    })
+    render(<LocalLiveResidentApp client={client} campaignSlug="campaign-slug" />)
+    expect(await screen.findByRole('heading', { name: published.title })).toBeInTheDocument()
+    await waitFor(() => expect(callbacks).toHaveLength(3))
+    act(() => { callbacks[0]() })
+    await waitFor(() => expect(single).toHaveBeenCalledTimes(2))
+    act(() => { callbacks[1]() })
+    await act(async () => { rejectCampaignFetch(new Error('公告同步失敗')) })
+    expect(screen.getByRole('alert')).toHaveTextContent('公告同步失敗')
+  })
+
   it('ignores an older realtime failure after a manual sync retry succeeds', async () => {
     const user = userEvent.setup()
     const session = { access_token: 'resident-token', user: { id: 'resident-user', is_anonymous: false } }
