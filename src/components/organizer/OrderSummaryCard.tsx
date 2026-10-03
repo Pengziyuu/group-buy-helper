@@ -72,13 +72,14 @@ export function OrderSummaryCard({ campaignTitle, summary, status, ordersToday }
         </dl>
       </div>
 
-      <div className="organizer-item-tally-block">
-        <div className="organizer-item-tally-heading">
-          <h3 id="orders-items-heading">品項數量</h3>
+      {/* Folded by default so the order list stays close to the top; opened when tallying or ordering from the supplier. */}
+      <details className="organizer-item-tally-block">
+        <summary>品項數量 <small>{`${summary.itemRows.length} 項・合計 ${summary.quantity} ${unit}`}</small></summary>
+        <div className="organizer-item-tally-actions">
           <Button size="sm" variant="utility" onClick={() => { void copyItems() }}>複製品項數量</Button>
           {copyFeedback && <FeedbackMessage tone={copyFeedback.tone}>{copyFeedback.text}</FeedbackMessage>}
         </div>
-        {/* Aligned columns, so the list can be screenshotted or copied for the supplier. */}
+        {/* One aligned column, so the list can be scanned, screenshotted or copied for the supplier. */}
         <ol className="organizer-item-tally" aria-label="品項數量">
           {summary.itemRows.map((item) => (
             <li key={item.code} data-empty={item.quantity === 0 || undefined}>
@@ -88,7 +89,7 @@ export function OrderSummaryCard({ campaignTitle, summary, status, ordersToday }
             </li>
           ))}
         </ol>
-      </div>
+      </details>
     </section>
   )
 }

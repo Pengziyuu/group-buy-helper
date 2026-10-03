@@ -56,9 +56,13 @@ describe('OrdersSection', () => {
     expect(screen.getByRole('progressbar', { name: '成團進度' })).toHaveAttribute('aria-valuenow', '62')
     expect(screen.getByText('還差 38 個成團')).toBeInTheDocument()
     expect(within(screen.getByLabelText('訂單總覽')).getByText('今天')).toBeInTheDocument()
-    // One aligned line per item (code, name, quantity), so it can be screenshotted for the supplier.
-    const items = screen.getByRole('list', { name: '品項數量' })
-    expect(within(items).getAllByRole('listitem').map((line) => line.textContent)).toContain('B花生（招牌）14 個')
+    // Folded by default, with the count and total in the summary line, so the order list stays near the top.
+    const folded = screen.getByText('品項數量', { selector: 'summary' }).closest('details') as HTMLElement
+    expect(folded).not.toHaveAttribute('open')
+    expect(folded.querySelector('summary')).toHaveTextContent('品項數量 9 項・合計 62 個')
+    // Opened: one aligned line per item (code, name, quantity), so it can be screenshotted for the supplier.
+    const items = within(folded).getByRole('list', { name: '品項數量', hidden: true })
+    expect(within(items).getAllByRole('listitem', { hidden: true }).map((line) => line.textContent)).toContain('B花生（招牌）14 個')
     expect(screen.queryByRole('list', { name: '最新訂單' })).not.toBeInTheDocument()
   })
 
