@@ -209,32 +209,59 @@
 
 /* Orders section: totals, toolbar, order table and the in-place note editor. */
 .organizer-orders { grid-template-columns: minmax(0, 1fr); }
-.organizer-order-summary { display: grid; grid-template-columns: minmax(230px, 1fr) minmax(0, 1.6fr); align-items: stretch; gap: var(--space-3); }
-.organizer-order-totals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: center; gap: var(--space-3); margin: 0; }
-.organizer-order-summary .organizer-order-totals { padding: var(--space-3) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-surface); background: var(--color-surface); }
-.organizer-order-totals div { display: grid; gap: var(--space-1); min-width: 0; }
-.organizer-order-totals dt { color: var(--color-text-secondary); }
-.organizer-order-totals dd { margin: 0; font-size: var(--font-size-base); font-weight: var(--font-weight-strong); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.organizer-orders > .organizer-panel { width: max-content; min-width: min(100%, 480px); max-width: min(100%, 680px); box-sizing: border-box; }
-.organizer-orders .organizer-item-bars { grid-template-columns: 24px minmax(0, 1fr) 120px 32px; }
-.organizer-orders .organizer-item-bars li { grid-column: 1 / -1; grid-template-columns: subgrid; min-width: 0; }
+/* One summary card, half the height of the old three: progress and totals on one line, then the item tally. */
+.organizer-order-overview { display: grid; gap: var(--space-3); padding: var(--space-3) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-surface); background: var(--color-surface); }
+.organizer-order-overview-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-6); }
+.organizer-order-progress { display: grid; flex: 1 1 280px; gap: var(--space-2); min-width: 0; }
+.organizer-order-progress p { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-2); margin: 0; }
+.organizer-order-progress p > span:not(.ui-num) { color: var(--color-text-secondary); font-size: var(--font-size-caption); }
+.organizer-order-progress strong,
+.organizer-order-progress .ui-num { font-size: 17px; font-weight: var(--font-weight-strong); font-variant-numeric: tabular-nums; }
+.organizer-order-progress strong.is-formed { color: var(--color-success); }
+.organizer-order-progress small { color: var(--color-text-secondary); font-size: var(--font-size-caption); }
+.organizer-order-totals { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-6); margin: 0; }
+.organizer-order-totals div { display: grid; gap: 2px; min-width: 0; }
+.organizer-order-totals dt { color: var(--color-text-secondary); font-size: var(--font-size-caption); }
+.organizer-order-totals dd { margin: 0; font-size: 17px; font-weight: var(--font-weight-strong); font-variant-numeric: tabular-nums; }
+/* Item tally: aligned code, name and quantity columns, so it can be screenshotted for the supplier. */
+.organizer-item-tally-block { padding-top: var(--space-3); border-top: 1px solid var(--color-divider); }
+.organizer-item-tally-heading { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-bottom: var(--space-1); }
+.organizer-item-tally-heading h3 { margin: 0; font-size: var(--font-size-dense); font-weight: var(--font-weight-strong); }
+.organizer-item-tally { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0 var(--space-6); margin: 0; padding: 0; list-style: none; }
+.organizer-item-tally li { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; align-items: baseline; gap: var(--space-2); padding: 6px 0; border-bottom: 1px dashed var(--color-divider); }
+.organizer-item-tally li[data-empty] { color: var(--color-text-tertiary); }
+.organizer-item-tally .organizer-item-name { overflow-wrap: anywhere; }
+.organizer-item-tally strong { font-weight: var(--font-weight-strong); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
 .organizer-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
 .organizer-toolbar .ui-input { flex: 1 1 220px; max-width: 320px; }
+.organizer-toolbar-count { margin: 0 0 0 auto; color: var(--color-text-secondary); font-size: var(--font-size-dense); }
+.organizer-toolbar-new { color: var(--color-primary); }
 .organizer-order-table th[scope="row"] { min-width: 140px; }
+/* The note column takes the spare width, so items, quantity, amount and time sit together instead of spread out. */
+.organizer-order-table td.organizer-cell-fact { white-space: nowrap; }
+.organizer-order-table td.organizer-cell-note { width: 100%; }
+.organizer-order-table td.organizer-cell-items { min-width: 200px; }
 .organizer-order-person { display: flex; align-items: center; gap: var(--space-2); }
 .organizer-avatar { width: 32px; height: 32px; font-size: var(--font-size-caption); }
 .organizer-order-household { display: block; color: var(--color-text-secondary); font-size: var(--font-size-caption); }
-.organizer-new-label { display: block; color: var(--color-primary); font-size: var(--font-size-caption); }
+.organizer-new-badge { display: inline-flex; margin-left: var(--space-1); padding: 0 6px; border-radius: var(--radius-pill); background: var(--color-primary-subtle); color: var(--color-primary); font-size: var(--font-size-caption); font-weight: var(--font-weight-strong); vertical-align: 1px; }
 @media (max-width: 639px) {
-  .organizer-order-summary { grid-template-columns: minmax(0, 1fr); }
-  .organizer-order-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .organizer-orders > .organizer-panel { width: 100%; min-width: 0; max-width: 100%; }
-  .organizer-orders .organizer-item-bars { grid-template-columns: 24px minmax(0, 1fr) 72px 32px; }
+  .organizer-order-overview { padding: var(--space-3); }
+  .organizer-order-totals { gap: var(--space-2) var(--space-4); }
+  .organizer-toolbar-count { flex-basis: 100%; margin: 0; }
+  .organizer-order-table td.organizer-cell-note { width: auto; }
+  /* No note yet: "＋ 新增備註" says it all, so skip the "團主備註" label line. */
+  .organizer-order-table td.organizer-cell-note:has(.organizer-note-button[data-empty])::before { content: none; }
 }
 .organizer-note-button { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 32px; max-width: 260px; padding: 0 var(--space-2); border: 1px dashed transparent; border-radius: var(--radius-control); background: transparent; color: var(--color-text); font: inherit; text-align: left; overflow-wrap: anywhere; cursor: text; }
 .organizer-note-button:disabled { cursor: not-allowed; }
-.organizer-note-button[data-empty] { border-color: var(--color-border-strong); color: var(--color-primary); }
-.organizer-note-button[data-empty]:disabled { border-color: var(--color-border); color: var(--color-disabled-text); }
+.organizer-note-button[data-empty] { color: var(--color-primary); font-size: var(--font-size-dense); }
+.organizer-note-button[data-empty]:disabled { color: var(--color-disabled-text); }
+/* A ＋ 新增備註 on every row read as a column of boxes; with a mouse it appears only on the row being looked at
+   (or tabbed to). Touch screens have no hover, so phones and tablets keep it visible. */
+@media (hover: hover) and (min-width: 1024px) {
+  .organizer-order-table tbody tr:not(:hover):not(:focus-within) .organizer-note-button[data-empty] { opacity: 0; }
+}
 .organizer-note-icon { flex: none; width: 14px; height: 14px; fill: none; stroke: var(--color-text-secondary); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .organizer-note-editor { display: grid; gap: 4px; min-width: 180px; }
 .organizer-note-editor small { font-size: var(--font-size-caption); }
