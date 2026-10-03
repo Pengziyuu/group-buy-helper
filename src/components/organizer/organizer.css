@@ -208,12 +208,12 @@
 }
 
 /* Orders section: totals, toolbar, order table and the in-place note editor. */
-/* Capped width: the summary and table hold little data, and stretched across a wide screen they were mostly gaps. */
-.organizer-orders { grid-template-columns: minmax(0, 1fr); max-width: 1080px; }
-/* One summary card, half the height of the old three: progress and totals on one line, then the item tally. */
+.organizer-orders { grid-template-columns: minmax(0, 1fr); }
+/* One summary card: progress and totals on one line, with the item quantities folded away until needed. */
 .organizer-order-overview { display: grid; gap: var(--space-3); padding: var(--space-3) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-surface); background: var(--color-surface); }
-.organizer-order-overview-top { display: grid; align-content: start; gap: var(--space-4); }
-.organizer-order-progress { display: grid; flex: 1 1 280px; gap: var(--space-2); min-width: 0; }
+.organizer-order-overview-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-8); }
+/* The bar stops at a readable length instead of running across a wide screen. */
+.organizer-order-progress { display: grid; flex: 1 1 280px; gap: var(--space-2); min-width: 0; max-width: 520px; }
 .organizer-order-progress p { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-2); margin: 0; }
 .organizer-order-progress p > span:not(.ui-num) { color: var(--color-text-secondary); font-size: var(--font-size-caption); }
 .organizer-order-progress strong,
@@ -224,16 +224,14 @@
 .organizer-order-totals div { display: grid; gap: 2px; min-width: 0; }
 .organizer-order-totals dt { color: var(--color-text-secondary); font-size: var(--font-size-caption); }
 .organizer-order-totals dd { margin: 0; font-size: 17px; font-weight: var(--font-weight-strong); font-variant-numeric: tabular-nums; }
-/* Item tally: aligned code, name and quantity columns, so it can be screenshotted for the supplier. */
-.organizer-item-tally-block { padding-top: var(--space-3); border-top: 1px solid var(--color-divider); }
-/* Wide screens: progress and totals on the left, the item list beside them on the right. */
-@media (min-width: 1280px) {
-  .organizer-order-overview { grid-template-columns: minmax(280px, 1fr) minmax(260px, 320px); align-items: start; gap: var(--space-6); }
-  .organizer-item-tally-block { padding: 0 0 0 var(--space-6); border-top: 0; border-left: 1px solid var(--color-divider); }
-}
-.organizer-item-tally-heading { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-bottom: var(--space-1); }
-.organizer-item-tally-heading h3 { margin: 0; font-size: var(--font-size-dense); font-weight: var(--font-weight-strong); }
-/* Always one column, top to bottom, so the quantities can be scanned in one pass. */
+/* Item quantities: folded by default; opened, one aligned column to scan or screenshot for the supplier. */
+.organizer-item-tally-block { border-top: 1px solid var(--color-divider); }
+.organizer-item-tally-block > summary { display: flex; align-items: center; gap: var(--space-2); min-height: 36px; padding-top: var(--space-2); color: var(--color-text); font-size: var(--font-size-dense); font-weight: var(--font-weight-strong); cursor: pointer; list-style: none; }
+.organizer-item-tally-block > summary::-webkit-details-marker { display: none; }
+.organizer-item-tally-block > summary::before { content: "▸"; color: var(--color-text-secondary); transition: transform var(--duration-fast, 120ms); }
+.organizer-item-tally-block[open] > summary::before { transform: rotate(90deg); }
+.organizer-item-tally-block > summary small { color: var(--color-text-secondary); font-weight: 400; }
+.organizer-item-tally-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: var(--space-1) 0 var(--space-2); }
 .organizer-item-tally { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; max-width: 360px; margin: 0; padding: 0; list-style: none; }
 .organizer-item-tally li { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; align-items: baseline; gap: var(--space-2); padding: 6px 0; border-bottom: 1px dashed var(--color-divider); }
 .organizer-item-tally li[data-empty] { color: var(--color-text-tertiary); }
@@ -244,19 +242,6 @@
 .organizer-toolbar-count { margin: 0 0 0 auto; color: var(--color-text-secondary); font-size: var(--font-size-dense); }
 .organizer-toolbar-new { color: var(--color-primary); }
 .organizer-order-table th[scope="row"] { min-width: 140px; }
-/* The note column takes the spare width, so items, quantity, amount and time sit together instead of spread out. */
-.organizer-order-table td.organizer-cell-fact { white-space: nowrap; }
-/* Room for a few item tags and a readable note where the screen allows; narrower screens let them wrap. */
-@media (min-width: 1280px) {
-  .organizer-order-table td.organizer-cell-items { min-width: 200px; }
-  .organizer-order-table td.organizer-cell-note { min-width: 200px; }
-}
-/* Within the capped table the note takes the remaining width, so the menu sits right after it. */
-.organizer-order-table td.organizer-cell-note { width: 100%; }
-/* Chinese breaks between any two characters, so without a floor a squeezed note column shows one character per line. */
-@media (min-width: 640px) and (max-width: 1279px) {
-  .organizer-order-table td.organizer-cell-note { min-width: 140px; }
-}
 .organizer-order-person { display: flex; align-items: center; gap: var(--space-2); }
 .organizer-avatar { width: 32px; height: 32px; font-size: var(--font-size-caption); }
 .organizer-order-household { display: block; color: var(--color-text-secondary); font-size: var(--font-size-caption); }
