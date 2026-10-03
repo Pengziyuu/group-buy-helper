@@ -12,12 +12,12 @@
 - 正式站：<https://tuan-go.vercel.app/>（2026-10-02 起；舊網域 `group-buy-helper-liart.vercel.app` 在 Vercel 設為 307 轉址到這裡，已分享的舊連結仍可用）
 - 團主入口：<https://tuan-go.vercel.app/admin>
 - Supabase project ref：`ynezmoyjovjeeimjdizr`
-- 功能基線 commit：`5603ccd809bbc3a55213d87e243e11688e2e3b93`；接手時仍應先執行 `git log -5 --oneline` 與 `git status --short`。
-- 最後完整驗證：69個測試檔、447項測試、lint、production build、本機資料庫重建與正式部署均通過。
+- 不以過去的固定 commit 或測試數量代表現況；接手時先執行 `git log -5 --oneline`、`git status --short`，並查看最新 CI 與正式部署紀錄。公開的專案介紹見 `README.md`，架構與資料流見 `docs/ARCHITECTURE.md`。
+- 最近一次隱私與即時更新修補見 `20261004010000_protect_customer_households.sql`、`src/LocalLiveApps.tsx` 及其測試。維護時重新執行完整測試／建置，而非沿用舊驗證數字。
 
-### 目前唯一需要真人完成的設定
+### 需由真人確認的營運設定
 
-新上線的「自動結單通知」尚未替任何人指定收件者。真正要接收通知的已核准團主必須：
+文件無法代表正式環境的目前收件者狀態；請由已核准團主登入後檢查「自動結單通知」。若顯示尚未設定，真正要接收通知的團主必須：
 
 1. 用自己的 LINE 帳號進入團主 LIFF。
 2. 在團主工作台的「自動結單通知」按「將我設為通知接收者」。
@@ -59,11 +59,11 @@ python scripts/start_local_live_demo.py
 - `src/LocalLiveApps.tsx`：正式Supabase/LIFF組裝層、Auth生命週期及各gateway接線。
 - `src/ResidentCampaignListApp.tsx`：住戶全部已發布團購列表。
 - `src/App.tsx`：住戶團購詳情、下單、自己的訂單與即時訂單牆。
-- `src/CampaignListApp.tsx`：團主工作台、團購列表、住戶管理入口與自動結單通知設定。
+- `src/components/organizer/OrganizerHome.tsx` 與 `OrganizerShell.tsx`：團主首頁、團購列表及共用導覽；`OrganizerSettings.tsx`：通知收件者與範本等設定。`src/ResidentMemberManagementApp.tsx` 為住戶管理。
 - `src/AdminApp.tsx`：團購內容設定。草稿、自動儲存（約 0.5 秒、失敗不自動重試）、發布與開團後鎖定的邏輯都在這裡；畫面由 `src/components/organizer/content/` 的元件組成（上方固定列、跳段標籤、品項表、圖片管理、住戶頁預覽、發布前檢查），判斷規則在 `contentChecks.ts`。
 - 發布前檢查：團購標題、開團資訊、每個品項的名稱與單價、門檻、結單日期、優惠設定都要完成才能發布；圖片不是必填。
 - 內容設定的圖片可一次選多張，依序逐張呼叫既有上傳 gateway；上傳期間不自動儲存也不能發布，全部結束後才自動儲存一次。本機示範沒有上傳服務，改用圖片網址。
-- `src/components/organizer/OverviewSection.tsx`、`OrdersSection.tsx`：團主概況（成團進度、今日新增、品項數量、最新訂單）與訂單（搜尋、排序、團主備註、整筆取消、匯出）；`LocalLiveAdminApp` 訂閱該團 `orders`／`order_item` 的 Realtime 變動後重新載入。相對時間由 `src/components/relativeTime.ts` 每分鐘重算。
+- `src/components/organizer/OrdersSection.tsx` 與 `OrderSummaryCard.tsx`：已發布團購的統一訂單頁，保留成團進度、今日新增、品項數量、搜尋、排序、團主備註、整筆取消及結單後匯出。舊 `OverviewSection.tsx` 不在現行頁面路徑；`/overview` 由 `workspaceSections.ts` 重新導向 `/orders`。`LocalLiveAdminApp` 訂閱該團 `orders`／`order_item` 的 Realtime 變動後重新載入；相對時間由 `src/components/relativeTime.ts` 每分鐘重算。
 - `src/NotificationTestLab.tsx`：與正式通知介面隔離的通知測試中心。
 - `src/services/`：Supabase gateway、Excel匯出與migration／Edge Function契約測試。
 - `src/domain/`：價格、折扣、戶籍、時間、門檻與訂單純領域邏輯。
@@ -73,6 +73,7 @@ python scripts/start_local_live_demo.py
 ### Supabase
 
 - `supabase/migrations/`：唯一schema歷史；新的行為要以新migration向前演進，不修改已部署migration。
+- `supabase/migrations/20261004010000_protect_customer_households.sql`：撤銷住戶角色對 `customer.period/unit` 的直接讀取權，以受管理員檢查的函式維持團主視圖；`supabase/tests/customer_household_privacy.sql` 驗證底表、自己／他人與兩種訂單牆。前端遮罩**不等於**資料庫權限。
 - `supabase/functions/line-organizer-login/`：團主LINE身分交換。
 - `supabase/functions/line-resident-login/`：住戶LINE身分交換。
 - `supabase/functions/line-group-webhook/`：群組綁定與一次性領取通知指令。
@@ -95,7 +96,7 @@ python scripts/start_local_live_demo.py
 - `/admin`：團主首頁（所有團購）。
 - `/admin/residents`：住戶（`?filter=unbound|other|blocked` 開啟對應篩選）。
 - `/admin/settings`：設定（自動結單通知、通知測試中心入口、登出）。
-- `/admin/campaign/<uuid>/<分區>`：團購工作區；分區為 `overview`、`orders`、`content`、`pickup`。只有 UUID 的網址會以 `replaceState` 導向預設分區：草稿 → 內容設定；已發布且開團中 → 概況；已結單 → 訂單。
+- `/admin/campaign/<uuid>/<分區>`：團購工作區；現行分區為 `orders`、`content`、`pickup`。舊 `overview` 連結保留，但會以 `replaceState` 導向訂單頁；只有 UUID 的網址會導向預設分區：草稿 → 內容設定，已發布 → 訂單。
 - 團主端各頁之間以 `history.pushState` 切換，不重新載入，也不重新驗證登入。
 - `/admin/notification-lab`：隔離的通知測試中心。
 - `vercel.json`將`/admin`及其子路徑rewrite到`admin.html`，其他路徑rewrite到`index.html`。
@@ -113,7 +114,7 @@ python scripts/start_local_live_demo.py
 - 成團門檻的「達到成團門檻時自動結單」可分別用於數量或總金額。既有數量團預設開、既有金額團預設關；草稿儲存不改變已發布團的結單規則。
 - 數量型開啟時：剛好達標即在訂單交易內自動結單，超額拒絕；關閉時：只顯示進度，達標後仍可繼續下單，由團主結單。
 - 總金額型以折扣後各正式品項的成交單價乘數量計算；開啟時總額達標或超過即在訂單交易內自動結單；關閉時只顯示進度，可繼續下單。額外品項不計入兩種門檻。
-- 排定結單：台灣時間12:00；到貨文字支援「貨到通知」、`MM/DD`及月份上／中／底。
+- 排定結單：團主選台灣日期與 24 小時制時間，新排程預設 23:00，可自行調整；到貨文字支援「貨到通知」、`MM/DD` 及月份上／中／底。不能再寫死 12:00。
 - 即使每分鐘cron尚未掃描，截止後也不能新增、修改或取消訂單。
 
 ### 折扣
@@ -127,7 +128,9 @@ python scripts/start_local_live_demo.py
 
 - LINE名稱與頭貼只能來自後端驗證過的LINE資料，不能讓使用者手填。
 - 住戶即時訂單牆不得回傳或顯示任何人的期別／戶號，包括呼叫者自己。
+- `customer.period/unit` 底表對 `authenticated` 已撤銷直接讀取；團主只透過 `organizer_order_wall` 的受限函式讀取，住戶的私有戶別走獨立 owner 路徑。每次改動 RLS／欄位 grant 須同時測直接底表查詢、自己與他人，以及住戶／團主兩種牆。
 - 登入住戶自己的期別／戶號只在「我的訂單」顯示。
+- 住戶即時同步在頻道 `SUBSCRIBED` 後補讀，消除初次 fetch 與訂閱就緒的空窗；公告與住戶資料分別記錄版次與錯誤，斷線提示於恢復訂閱後補讀。勿用一個跨資料類型的 generation 吞掉錯誤。
 - 團主後台可看完整住戶資料，但Browser只使用隨機`memberCode`操作，不取得LINE subject、Auth UID或community UUID。
 - 同一期別＋戶號可有多個LINE帳號，各自獨立下單。
 - `household_kind = other`不要求期別／戶號，也不納入LINE領取通知。
@@ -212,7 +215,7 @@ python scripts/start_local_live_demo.py
 5. 手動套用正式migration並讀回schema／權限／cron結果。
 6. 部署相關Edge Functions並實測授權成功與未授權失敗。
 7. 重新產生`src/types/database.ts`。
-8. 在 feature branch commit 並 push，開 Pull Request；GitHub Actions 的 `checks`（lint、測試、build）、`database`（所有 migration 能從空資料庫依序套用，並在重置後的資料庫跑 `scripts/verify_*.py`、`scripts/verify_*.sql`、`supabase/tests/*.sql` 與 `scripts/test_*.py`）與 `functions`（`deno check` 所有 Edge Functions）通過（見 `.github/workflows/ci.yml`；新增驗證腳本放在同樣路徑就會自動被跑）且團主同意後，用 `gh pr merge --rebase --delete-branch` 合併。`main` 有分支保護，不能直接 push。合併後追蹤Vercel Production deployment成功。
+8. 在 feature branch commit 並 push，開 Pull Request；GitHub Actions 的 `checks`（lint、測試、build）、`database`（所有 migration 從空資料庫套用，重置後執行 `scripts/verify_*.py`、`scripts/verify_*.sql`、`supabase/tests/*.sql` 與 `scripts/test_*.py`）及 `functions`（`deno check` 所有 Edge Functions）通過（見 `.github/workflows/ci.yml`），依 branch protection 要求合併。`main` 不能直接 push；合併後追蹤 Vercel Production 部署成功。
 9. 每次 Production 部署成功後，GitHub Actions「Production check」（`.github/workflows/production-check.yml`，`scripts/smokeProduction.mjs`）會自動檢查 `/`、`/admin`、團購頁的腳本與樣式都能載入且仍連正式 Supabase，失敗會開 issue。另外仍要實測固定正式網址，不只測Vercel臨時網址；登入牆存在時至少確認Production bundle包含新版標記，涉及真實操作則由使用者登入驗收。
 
 ### 資料庫修改分兩次上線（先加、後刪）
@@ -229,7 +232,7 @@ python scripts/start_local_live_demo.py
 ## 9. 修改前必查的常見陷阱
 
 - 不要把`campaign_draft.updated_by`當成團購建立者；它只是最後編輯者，`campaign`目前沒有可信creator欄位。
-- 不要以一般`status: open → closed`就判定自動結單；只有排定截止與數量達標才通知。
+- 不要以一般 `status: open → closed` 就判定自動結單；只有排定截止，或已啟用自動結單的數量／金額門檻達標才通知，手動結單不通知。
 - PostgreSQL trigger的`UPDATE OF status`只看原始SET欄位；若BEFORE trigger改變status，AFTER trigger可能不執行。現行自動結單通知因此監聽整筆UPDATE，再比較OLD／NEW狀態。
 - 資格清理與claim若分成兩個SQL敘述會有TOCTOU競態；現行worker在同一原子claim敘述內再次驗證。
 - Push成功但資料庫complete前中斷時，必須以同一LINE retry key重試；不要產生新key。
