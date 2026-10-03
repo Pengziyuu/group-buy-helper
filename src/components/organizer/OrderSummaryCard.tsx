@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react'
+import { useState } from 'react'
 import type { OrganizerOrderSummary } from '../../domain/adminOrders'
 import type { CampaignStatus } from '../../domain/orderWorkflow'
 import { Button } from '../ui/Button'
@@ -13,11 +13,6 @@ type OrderSummaryCardProps = {
   summary: OrganizerOrderSummary
   status: CampaignStatus
   ordersToday: number
-}
-
-/** Rows per column on wide screens: up to 6 in one column, then spread over at most 3 columns. */
-export function tallyRows(itemCount: number): number {
-  return Math.max(6, Math.ceil(itemCount / 3))
 }
 
 /** Plain lines for the supplier: the campaign, each ordered item, and the total. Unordered items are left out. */
@@ -84,7 +79,7 @@ export function OrderSummaryCard({ campaignTitle, summary, status, ordersToday }
           {copyFeedback && <FeedbackMessage tone={copyFeedback.tone}>{copyFeedback.text}</FeedbackMessage>}
         </div>
         {/* Aligned columns, so the list can be screenshotted or copied for the supplier. */}
-        <ol className="organizer-item-tally" aria-label="品項數量" style={{ '--tally-rows': tallyRows(summary.itemRows.length) } as CSSProperties}>
+        <ol className="organizer-item-tally" aria-label="品項數量">
           {summary.itemRows.map((item) => (
             <li key={item.code} data-empty={item.quantity === 0 || undefined}>
               <span className="organizer-item-code">{item.label}</span>
