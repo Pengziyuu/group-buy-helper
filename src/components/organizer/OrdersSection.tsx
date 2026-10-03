@@ -7,13 +7,13 @@ import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { FeedbackMessage } from '../ui/FeedbackMessage'
 import { Avatar } from '../ui/Avatar'
 import { Menu } from '../ui/Menu'
-import { ProgressBar } from '../ui/ProgressBar'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import { ExportOrdersButton } from './ExportOrdersButton'
 import { LiveStatus, type LiveState } from './LiveStatus'
 import { readLastSeen, writeLastSeen } from './lastSeenStore'
 import { OrganizerLink } from './OrganizerLink'
 import { OrderNoteCell } from './OrderNoteCell'
+import { OrderSummaryCard } from './OrderSummaryCard'
 import {
   countOrdersOnTaipeiDay, isNewSince, matchesOrderSearch, orderControlLabel, orderHouseholdLabel, orderItemChips, orderItemChipText, sortOrders, wasEdited, type OrderSort,
 } from './orderView'
@@ -42,7 +42,8 @@ export function OrdersSection({
   const [lastSeen] = useState(() => campaignId ? readLastSeen(campaignId) : null)
   useEffect(() => { if (campaignId) writeLastSeen(campaignId, new Date().toISOString()) }, [campaignId])
   const [query, setQuery] = useState('')
-  const [sort, setSort] = useState<OrderSort>('household')
+  // While open the newest orders (and those marked 新) come first; once closed, households, for handing out.
+  const [sort, setSort] = useState<OrderSort>(() => status === 'open' ? 'orderedAt' : 'household')
   const [busyIds, setBusyIds] = useState<ReadonlySet<string>>(() => new Set())
   const [cancelTarget, setCancelTarget] = useState<OrganizerOrderRow | null>(null)
   const [cancelling, setCancelling] = useState(false)
@@ -50,15 +51,7 @@ export function OrdersSection({
   const currentTime = useNow(now)
   const unit = summary.quantityUnit
   const rows = sortOrders(summary.orderRows.filter((order) => matchesOrderSearch(order, query)), sort)
-  const usesAmount = summary.thresholdKind === 'amount'
-  const progressValue = usesAmount ? summary.amount : summary.quantity
-  const progressText = usesAmount
-    ? `${currency(summary.amount)} / ${currency(summary.threshold)}`
-    : `${summary.quantity} / ${summary.threshold} ${unit}`
-  const remainingText = summary.formed
-    ? status === 'open' ? '已成團，仍可下單' : '已成團'
-    : usesAmount ? `還差 ${currency(summary.remaining)} 成團` : `還差 ${summary.remaining} ${unit}成團`
-  const largestItem = Math.max(1, ...summary.itemRows.map((item) => item.quantity))
+  const updatedSinceLastVisit = summary.orderRows.filter((order) => isNewSince(order, lastSeen)).length
 
   const setBusy = (orderId: string, busy: boolean) => setBusyIds((current) => {
     const next = new Set(current)
@@ -89,41 +82,19 @@ export function OrdersSection({
       <div className="organizer-section-heading">
         <h2 id="orders-heading">訂單</h2>
         <LiveStatus state={liveState} onRetry={onRetrySync} />
-        <ExportOrdersButton summary={summary} campaignTitle={campaignTitle} openedAt={openedAt} status={status} onExport={onExport} />
+        {/* Export only works once orders stop changing, so it appears after closing instead of sitting disabled. */}
+        {status !== 'open' && <ExportOrdersButton summary={summary} campaignTitle={campaignTitle} openedAt={openedAt} status={status} onExport={onExport} />}
       </div>
 
       {status !== 'open' && campaignId && (
         <p className="organizer-section-note">已結單。可以匯出 Excel 核對，並到<OrganizerLink href={campaignSectionPath(campaignId, 'pickup')}>領取通知</OrganizerLink>通知住戶領貨。</p>
       )}
-      <div className="organizer-order-summary">
-        <div className="organizer-kpi is-progress" aria-label="成團進度摘要">
-          <span>成團進度</span>
-          <strong className="ui-num">{progressText}</strong>
-          <ProgressBar label="成團進度" value={progressValue} max={summary.threshold} formed={summary.formed} />
-          <small className={summary.formed ? 'is-formed' : undefined}>{remainingText}</small>
-        </div>
-
-        <dl className="organizer-order-totals" aria-label="訂單總覽">
-          <div><dt>訂單</dt><dd>{summary.orderCount} 筆</dd></div>
-          <div><dt>總數量</dt><dd>{summary.quantity} {unit}</dd></div>
-          <div><dt>總額</dt><dd>{currency(summary.amount)}</dd></div>
-          {status === 'open' && <div><dt>今天新增</dt><dd>{countOrdersOnTaipeiDay(summary.orderRows, currentTime)} 筆</dd></div>}
-        </dl>
-      </div>
-
-      <section className="organizer-panel" aria-labelledby="orders-items-heading">
-        <h3 id="orders-items-heading">品項數量</h3>
-        <ul className="organizer-item-bars" aria-label="品項數量">
-          {summary.itemRows.map((item) => (
-            <li key={item.code}>
-              <span className="organizer-item-code">{item.label}</span>
-              <span className="organizer-item-name">{item.name}</span>
-              <span className="organizer-item-bar" aria-hidden="true"><span style={{ width: `${Math.round((item.quantity / largestItem) * 100)}%` }} /></span>
-              <strong className="ui-num">{item.quantity}</strong>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <OrderSummaryCard
+        campaignTitle={campaignTitle}
+        summary={summary}
+        status={status}
+        ordersToday={countOrdersOnTaipeiDay(summary.orderRows, currentTime)}
+      />
 
       {summary.orderRows.length === 0 ? (
         <EmptyState title="還沒有人下單" description="把住戶連結分享到群組後，訂單會出現在這裡。" />
@@ -144,6 +115,10 @@ export function OrdersSection({
               onChange={setSort}
               options={[{ value: 'household', label: '戶號' }, { value: 'orderedAt', label: '下單時間' }]}
             />
+            <p className="organizer-toolbar-count">
+              {query ? `符合 ${rows.length} 筆` : `共 ${summary.orderCount} 筆`}
+              {updatedSinceLastVisit > 0 && <span className="organizer-toolbar-new">{`・${updatedSinceLastVisit} 筆上次查看後有更新`}</span>}
+            </p>
           </div>
           {rows.length === 0 ? <p className="organizer-muted">沒有符合的訂單。</p> : (
             <div className="organizer-table-wrap">
@@ -172,7 +147,9 @@ export function OrdersSection({
                             <span>
                               <span className="organizer-order-household">{orderHouseholdLabel(order)}</span>
                               {' '}<strong>{order.name}</strong>
-                              {isNewSince(order, lastSeen) && <small className="organizer-new-label">上次查看後有更新</small>}
+                              {isNewSince(order, lastSeen) && (
+                                <span className="organizer-new-badge"><span aria-hidden="true">新</span><span className="ui-visually-hidden">上次查看後有更新</span></span>
+                              )}
                             </span>
                           </span>
                         </th>

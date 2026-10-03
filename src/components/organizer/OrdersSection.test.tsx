@@ -39,8 +39,9 @@ describe('OrdersSection', () => {
     expect(screen.getByRole('heading', { level: 2, name: '訂單' })).toBeInTheDocument()
     const totals = screen.getByLabelText('訂單總覽')
     expect(within(totals).getByText('6 筆')).toBeInTheDocument()
-    expect(within(totals).getByText('62 個')).toBeInTheDocument()
     expect(within(totals).getByText('$2,790')).toBeInTheDocument()
+    // A quantity threshold already shows the total quantity in the progress line; no second copy.
+    expect(within(totals).queryByText('總數量')).not.toBeInTheDocument()
     const row = rowOf(/2K13\s*斯祈/)
     expect(within(row).getByText('B+2')).toHaveAttribute('title', '花生（招牌）')
     expect(within(row).getByText('D+2')).toBeInTheDocument()
@@ -54,10 +55,33 @@ describe('OrdersSection', () => {
     expect(screen.getByText('62 / 100 個')).toBeInTheDocument()
     expect(screen.getByRole('progressbar', { name: '成團進度' })).toHaveAttribute('aria-valuenow', '62')
     expect(screen.getByText('還差 38 個成團')).toBeInTheDocument()
-    expect(within(screen.getByLabelText('訂單總覽')).getByText('今天新增')).toBeInTheDocument()
+    expect(within(screen.getByLabelText('訂單總覽')).getByText('今天')).toBeInTheDocument()
+    // One aligned line per item (code, name, quantity), so it can be screenshotted for the supplier.
     const items = screen.getByRole('list', { name: '品項數量' })
-    expect(within(within(items).getByText('花生（招牌）').closest('li') as HTMLElement).getByText('14')).toBeInTheDocument()
+    expect(within(items).getAllByRole('listitem').map((line) => line.textContent)).toContain('B花生（招牌）14 個')
     expect(screen.queryByRole('list', { name: '最新訂單' })).not.toBeInTheDocument()
+  })
+
+  it('says a formed campaign is formed and by how much, instead of a fraction past its threshold', () => {
+    const formed = buildOrganizerOrderSummary({ orders: initialOrders, items, threshold: 14 })
+    renderOrders({ summary: formed })
+    const progress = screen.getByLabelText('成團進度摘要')
+    expect(progress).toHaveTextContent('已成團')
+    expect(progress).toHaveTextContent('62 個')
+    expect(progress).toHaveTextContent('門檻 14 個・超過 48 個')
+    expect(screen.queryByText('62 / 14 個')).not.toBeInTheDocument()
+  })
+
+  it('copies the item quantities as plain lines for the supplier, leaving out items nobody ordered', async () => {
+    const user = userEvent.setup()
+    renderOrders()
+    await user.click(screen.getByRole('button', { name: '複製品項數量' }))
+    const copied = await navigator.clipboard.readText()
+    expect(copied.split('\n')[0]).toBe('一涼製冰所')
+    expect(copied).toContain('B 花生（招牌） 14 個')
+    expect(copied.trim().split('\n').at(-1)).toBe('合計 62 個')
+    expect(copied).not.toMatch(/ 0 個/)
+    expect(await screen.findByText('已複製')).toBeInTheDocument()
   })
 
   it('shows discounted amount-threshold progress and retains the closed-campaign pickup shortcut', () => {
@@ -65,6 +89,8 @@ describe('OrdersSection', () => {
     renderOrders({ campaignId: 'campaign-1', summary: amountSummary, status: 'closed' })
     expect(screen.getByText('$2,790 / $5,000')).toBeInTheDocument()
     expect(screen.getByText('還差 $2,210 成團')).toBeInTheDocument()
+    // An amount threshold does not show the quantity anywhere else, so the totals keep it.
+    expect(within(screen.getByLabelText('訂單總覽')).getByText('62 個')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '領取通知' })).toHaveAttribute('href', '/admin/campaign/campaign-1/pickup')
   })
 
@@ -78,6 +104,9 @@ describe('OrdersSection', () => {
     try {
       renderOrders({ campaignId: 'campaign-1', summary: updated })
       expect(screen.getAllByText('上次查看後有更新')).toHaveLength(1)
+      // A short visible 新, with the full meaning kept for screen readers.
+      expect(screen.getByText('上次查看後有更新').closest('.organizer-new-badge')).toHaveTextContent(/^新上次查看後有更新$/)
+      expect(screen.getByText(/共 6 筆/).closest('p')).toHaveTextContent('共 6 筆・1 筆上次查看後有更新')
       expect(window.localStorage.getItem(key)).not.toBe('2026-09-25T03:30:00.000Z')
     } finally {
       window.localStorage.removeItem(key)
@@ -109,7 +138,7 @@ describe('OrdersSection', () => {
     })
     renderOrders({ summary: boxSummary })
 
-    expect(within(screen.getByLabelText('訂單總覽')).getByText('62 盒')).toBeInTheDocument()
+    expect(screen.getByLabelText('成團進度摘要')).toHaveTextContent('62 / 100 盒')
     // customItems was attached to initialOrders[0] (斯祈・2K13), not H11 — the household
     // sort puts H11 first on screen, but the custom item belongs to the 2K13 row.
     const row = rowOf(/2K13\s*斯祈/)
@@ -117,26 +146,32 @@ describe('OrdersSection', () => {
     expect(within(row).getByText('＋另計')).toBeInTheDocument()
   })
 
-  it('keeps export disabled until the campaign closes', async () => {
+  it('offers export only once the campaign closes', async () => {
     const user = userEvent.setup()
     const onExport = vi.fn().mockResolvedValue(undefined)
     const { rerender } = renderOrders({ onExport })
-    expect(screen.getByRole('button', { name: '匯出 Excel' })).toBeDisabled()
-    expect(screen.getByText('結單後才能匯出')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '匯出 Excel' })).not.toBeInTheDocument()
+    expect(screen.queryByText('結單後才能匯出')).not.toBeInTheDocument()
 
     rerender(<OrdersSection campaignTitle="一涼製冰所" openedAt="2026-09-20T00:00:00.000Z" summary={summary} status="closed" liveState="live" onExport={onExport} />)
     await user.click(screen.getByRole('button', { name: '匯出 Excel' }))
     expect(onExport).toHaveBeenCalledOnce()
   })
 
-  it('searches by name or household and sorts by household or order time', async () => {
+  it('starts with the newest orders while open and by household once closed, and searches by name or household', async () => {
     const user = userEvent.setup()
-    renderOrders()
+    const { unmount } = renderOrders({ status: 'closed' })
     const names = () => screen.getAllByRole('rowheader').map((cell) => cell.textContent)
-
+    // Closed: sorting and handing out goes by household.
     expect(names()[0]).toMatch(/H11/)
-    await user.click(screen.getByRole('radio', { name: '下單時間' }))
+    unmount()
+
+    renderOrders()
+    // Open: newest first, so orders marked 新 sit at the top.
     expect(names()[0]).toMatch(/Lena/)
+    await user.click(screen.getByRole('radio', { name: '戶號' }))
+    expect(names()[0]).toMatch(/H11/)
+    expect(screen.getByText('共 6 筆')).toBeInTheDocument()
 
     await user.type(screen.getByRole('searchbox', { name: '搜尋訂單' }), '2k13')
     expect(names()).toHaveLength(1)
