@@ -5,6 +5,7 @@ import {
   buildPickupDualModeMessages,
   getLineGroupMemberIdsForCandidates,
   openPickupReplyPayload,
+  parsePickupDualModePayload,
   pickupEligibleRecipientSnapshotHash,
   pickupRecipientSnapshotHash,
   technicalSha256,
@@ -150,17 +151,13 @@ Deno.serve(async (request) => {
         let messages: LineTextV2Message[] = []
         try {
           if (command.audience === 'all' || command.audience === 'combined') {
-            const bodies: unknown = JSON.parse(message)
-            if (!bodies || typeof bodies !== 'object' || Array.isArray(bodies)) throw new Error('invalid bodies')
-            const values = bodies as Record<string, unknown>
-            if (command.audience === 'all'
-              ? Object.keys(values).length !== 1 || typeof values.all !== 'string'
-              : Object.keys(values).length !== 2 || typeof values.phase13 !== 'string' || typeof values.phase2 !== 'string') throw new Error('invalid bodies')
+            const parsed = parsePickupDualModePayload(command.audience, message)
             const confirmed = new Set(confirmedIds)
             messages = buildPickupDualModeMessages(
               command.audience === 'all' ? 'ambient' : 'cold',
               candidates.filter((row) => confirmed.has(row.line_user_id)).map((row) => ({ lineUserId: row.line_user_id, period: row.period })),
-              values as { all: string } | { phase13: string; phase2: string },
+              parsed.bodies,
+              parsed.batching,
             )
           } else {
             messages = buildPickupMentionMessages(confirmedIds.map((lineUserId) => ({ lineUserId })), message)

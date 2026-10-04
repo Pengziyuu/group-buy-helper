@@ -2726,6 +2726,7 @@ describe('organizer realtime', () => {
       .mockResolvedValueOnce({ ...orderSummary, orderCount: 7 })
     render(<LocalLiveAdminApp client={client} campaignId="campaign-1" repository={publishedRepository()} ordersRepository={workflow} section="orders" />)
     expect(await screen.findByRole('heading', { level: 2, name: '訂單' })).toBeInTheDocument()
+    await waitFor(() => expect(callbacks).toHaveLength(2))
 
     report('SUBSCRIBED')
     act(() => { callbacks[0](); callbacks[1](); callbacks[0]() })
@@ -2871,6 +2872,7 @@ describe('organizer loading and error states', () => {
 
     expect(await screen.findByRole('status', { name: '載入住戶…' })).toBeInTheDocument()
     expect(screen.getByRole('navigation', { name: '團主後台' })).toBeInTheDocument()
+    await waitFor(() => expect(list).toHaveBeenCalledOnce())
 
     await act(async () => { failLoad(new Error('讀取住戶失敗：network')) })
     expect(await screen.findByRole('alert')).toHaveTextContent('無法載入這一頁')

@@ -81,6 +81,14 @@ describe('LINE pickup notification edge functions', () => {
     expect(source).toContain("/^(發送領取通知 P-|測試領取通知 T-)([A-Za-z0-9_-]{22})$/")
   })
 
+  it('seals a batching version for new commands while the webhook can still rebuild old commands', () => {
+    const sender = read('supabase/functions/_shared/sendPickupNotification.ts')
+    const webhook = read('supabase/functions/line-group-webhook/index.ts')
+    expect(sender).toContain('serializePickupDualModePayload')
+    expect(webhook).toContain('parsePickupDualModePayload')
+    expect(webhook).toContain('parsed.batching')
+  })
+
   it('disables Supabase JWT verification only for the LINE-signed webhook', () => {
     const config = read('supabase/config.toml')
     expect(config).toMatch(/\[functions\.line-group-webhook\]\s*verify_jwt = false/)

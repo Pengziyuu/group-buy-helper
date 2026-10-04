@@ -71,6 +71,17 @@ describe('pickup notification panel', () => {
     expect(onCreatePlanCommand).toHaveBeenCalledWith({ mode: 'cold', messages: { phase13: '第一則通知', phase2: expect.any(String) } }, preview.previewToken)
     expect(await screen.findByDisplayValue(command.command)).toBeInTheDocument()
   })
+  it('explains that a multi-bubble preview mentions everyone but shows the full text once', async () => {
+    const user = userEvent.setup()
+    const combined = { ...preview, messageCount: 2, mentionableCount: 21, mentionableRecipients: Array.from({ length: 21 }, (_, index) => ({
+      ...preview.mentionableRecipients[0], memberCode: `member-${index}`,
+    })) }
+    render(<PickupNotificationPanel {...baseProps} onPreviewPlan={vi.fn().mockResolvedValue({
+      previewToken: preview.previewToken, messageCount: 2, groups: { all: combined },
+    })} onCreatePlanCommand={vi.fn()} />)
+    await user.click(screen.getByRole('button', { name: '預覽名單' }))
+    expect(await screen.findByText('預計 2 則訊息 · 每則最多 20 位 · 完整文案只在最後一則')).toBeInTheDocument()
+  })
   it('blocks a combined command when bubbles exceed five without dropping recipients', async () => {
     const user = userEvent.setup()
     const phase13 = { ...preview, messageCount: 5, mentionableCount: 81, mentionableRecipients: Array.from({ length: 81 }, (_, i) => ({ ...preview.mentionableRecipients[0], memberCode: `member-${i}` })) }
