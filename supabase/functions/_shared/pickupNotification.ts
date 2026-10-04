@@ -276,10 +276,44 @@ export async function getLineGroupMemberIdsForCandidates(
 export type PickupDualMode = 'ambient' | 'cold'
 export type PickupDualBodies = { all: string } | { phase13: string; phase2: string }
 
+function validatedPickupDualBodies(mode: PickupDualMode, value: unknown): PickupDualBodies {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('通知內容格式錯誤')
+  const bodies = value as Record<string, unknown>
+  if (mode === 'ambient') {
+    if (Object.keys(bodies).length !== 1 || typeof bodies.all !== 'string') throw new Error('通知內容格式錯誤')
+    return { all: bodies.all }
+  }
+  if (mode === 'cold') {
+    if (Object.keys(bodies).length !== 2 || typeof bodies.phase13 !== 'string' || typeof bodies.phase2 !== 'string') throw new Error('通知內容格式錯誤')
+    return { phase13: bodies.phase13, phase2: bodies.phase2 }
+  }
+  throw new Error('通知模式格式錯誤')
+}
+
+export function serializePickupDualModePayload(mode: PickupDualMode, bodies: PickupDualBodies): string {
+  return JSON.stringify({ ...validatedPickupDualBodies(mode, bodies), batching: 'balanced-once' })
+}
+
+export function parsePickupDualModePayload(
+  audience: 'all' | 'combined',
+  raw: string,
+): { bodies: PickupDualBodies; batching: 'balanced-once' | 'repeat' } {
+  const value: unknown = JSON.parse(raw)
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('通知指令內容格式錯誤')
+  const values = value as Record<string, unknown>
+  const batching = Object.hasOwn(values, 'batching') ? values.batching : 'repeat'
+  if (batching !== 'balanced-once' && batching !== 'repeat') throw new Error('通知指令內容格式錯誤')
+  if (batching === 'repeat' && Object.hasOwn(values, 'batching')) throw new Error('通知指令內容格式錯誤')
+  const bodyValues = { ...values }
+  delete bodyValues.batching
+  return { bodies: validatedPickupDualBodies(audience === 'all' ? 'ambient' : 'cold', bodyValues), batching }
+}
+
 export function buildPickupDualModeMessages(
   mode: PickupDualMode,
   recipients: (PickupMentionRecipient & { period: number })[],
   bodies: PickupDualBodies,
+  batching: 'balanced-once' | 'repeat' = 'balanced-once',
 ): LineTextV2Message[] {
   if (mode !== 'ambient' && mode !== 'cold') throw new Error('通知模式格式錯誤')
   if (recipients.some((recipient) => ![1, 2, 3].includes(recipient.period))) throw new Error('通知期別格式錯誤')
@@ -292,7 +326,10 @@ export function buildPickupDualModeMessages(
     ]
   if (groups.some((group) => !group.body.trim())) throw new Error('通知內容不能空白')
   const messages = groups.flatMap((group) => group.recipients.length
-    ? buildPickupMentionMessages(group.recipients, group.body) : [])
+    ? batching === 'repeat'
+      ? buildPickupMentionMessages(group.recipients, group.body)
+      : buildBalancedPickupMentionMessages(group.recipients, group.body)
+    : [])
   if (messages.length > LINE_PUSH_MESSAGE_LIMIT) throw new Error(`需要${messages.length}則訊息，超過單一指令5則上限；目前無法產生涵蓋全部住戶的指令`)
   return messages
 }
@@ -301,6 +338,15 @@ export function buildPickupMentionMessages(
   recipients: PickupMentionRecipient[],
   rawBody: string,
 ): LineTextV2Message[] {
+  const body = validatePickupMentionInputs(recipients, rawBody)
+  const messages: LineTextV2Message[] = []
+  for (let offset = 0; offset < recipients.length; offset += LINE_MENTION_LIMIT) {
+    messages.push(makePickupMentionMessage(recipients.slice(offset, offset + LINE_MENTION_LIMIT), body))
+  }
+  return messages
+}
+
+function validatePickupMentionInputs(recipients: PickupMentionRecipient[], rawBody: string): string {
   const body = rawBody.trim()
   if (!body) throw new Error('通知內容不能空白')
   if (body.includes('{') || body.includes('}')) throw new Error('通知內容不能包含大括號')
@@ -317,21 +363,50 @@ export function buildPickupMentionMessages(
     unique.add(recipient.lineUserId)
   }
 
-  const messages: LineTextV2Message[] = []
-  for (let offset = 0; offset < recipients.length; offset += LINE_MENTION_LIMIT) {
-    const chunk = recipients.slice(offset, offset + LINE_MENTION_LIMIT)
-    const substitution: Record<string, LineMentionSubstitution> = {}
-    const mentions = chunk.map((recipient, index) => {
-      const key = `user${index}`
-      substitution[key] = {
-        type: 'mention',
-        mentionee: { type: 'user', userId: recipient.lineUserId },
-      }
-      return `{${key}}`
-    })
-    const text = `${mentions.join(' ')}\n${body}`
-    if (text.length > 5_000) throw new Error('通知內容過長')
-    messages.push({ type: 'textV2', text, substitution })
+  return body
+}
+
+function makePickupMentionMessage(chunk: PickupMentionRecipient[], body: string | null): LineTextV2Message {
+  const substitution: Record<string, LineMentionSubstitution> = {}
+  const mentions = chunk.map((recipient, index) => {
+    const key = `user${index}`
+    substitution[key] = { type: 'mention', mentionee: { type: 'user', userId: recipient.lineUserId } }
+    return `{${key}}`
+  })
+  const text = `${mentions.join(' ')}${body === null ? '' : `\n${body}`}`
+  if (text.length > 5_000) throw new Error('通知內容過長')
+  return { type: 'textV2', text, substitution }
+}
+
+function buildBalancedPickupMentionMessages(recipients: PickupMentionRecipient[], rawBody: string): LineTextV2Message[] {
+  const body = validatePickupMentionInputs(recipients, rawBody)
+  const count = Math.ceil(recipients.length / LINE_MENTION_LIMIT)
+  if (count === 1) return [makePickupMentionMessage(recipients, body)]
+
+  // Text v2 replaces these tokens with names; their lengths give a stable, approximate
+  // measure of the visible mention lines without relying on mutable display names.
+  const mentionLength = (size: number) => Array.from({ length: size }, (_, index) => `{user${index}}`).join(' ').length
+  let bestSizes: number[] = []
+  let bestSpread = Number.POSITIVE_INFINITY
+  for (let lastSize = Math.max(1, recipients.length - LINE_MENTION_LIMIT * (count - 1));
+    lastSize <= Math.min(LINE_MENTION_LIMIT, recipients.length - count + 1); lastSize++) {
+    const earlier = recipients.length - lastSize
+    const base = Math.floor(earlier / (count - 1))
+    const extra = earlier % (count - 1)
+    const sizes = Array.from({ length: count - 1 }, (_, index) => base + (index < extra ? 1 : 0)).concat(lastSize)
+    if (sizes.some((size) => size < 1 || size > LINE_MENTION_LIMIT)) continue
+    const lengths = sizes.map((size, index) => mentionLength(size) + (index === count - 1 ? 1 + body.length : 0))
+    const spread = Math.max(...lengths) - Math.min(...lengths)
+    if (spread < bestSpread) {
+      bestSizes = sizes
+      bestSpread = spread
+    }
   }
-  return messages
+  if (!bestSizes.length) throw new Error('通知分批格式錯誤')
+  let offset = 0
+  return bestSizes.map((size, index) => {
+    const chunk = recipients.slice(offset, offset + size)
+    offset += size
+    return makePickupMentionMessage(chunk, index === bestSizes.length - 1 ? body : null)
+  })
 }

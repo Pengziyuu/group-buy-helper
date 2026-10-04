@@ -12,6 +12,7 @@ import {
   pickupPeriodSnapshotMatches,
   sealPickupRecipientSnapshot,
   sealPickupReplyPayload,
+  serializePickupDualModePayload,
   technicalSha256,
   type SealedPickupRecipientSnapshot,
 } from './pickupNotification.ts'
@@ -75,7 +76,6 @@ export function createPickupNotificationHandler(destination: 'production' | 'tes
       const audience = mode === 'ambient' ? 'all' : mode === 'cold' ? 'combined' : typeof body.audience === 'string' ? body.audience : ''
       const dual = mode === 'ambient' || mode === 'cold'
       const bodies = body.messages as Record<string, unknown> | undefined
-      const message = dual ? JSON.stringify(bodies) : typeof body.message === 'string' ? body.message : ''
       const previewToken = typeof body.previewToken === 'string' ? body.previewToken : ''
       if (action !== 'preview' && action !== 'create-command') return jsonResponse({ error: '通知動作格式錯誤' }, 400)
       if (!UUID.test(campaignId)) return jsonResponse({ error: '團購識別格式錯誤' }, 400)
@@ -85,6 +85,9 @@ export function createPickupNotificationHandler(destination: 'production' | 'tes
           : Object.keys(bodies).length !== 2 || typeof bodies.phase13 !== 'string' || typeof bodies.phase2 !== 'string'))) {
         return jsonResponse({ error: '通知內容格式錯誤' }, 400)
       }
+      const message = dual
+        ? serializePickupDualModePayload(mode as 'ambient' | 'cold', bodies as { all: string } | { phase13: string; phase2: string })
+        : typeof body.message === 'string' ? body.message : ''
       if (destination === 'test' && (dual
         ? Object.values(bodies as Record<string, string>).some((text) => !text.startsWith('【測試】\n'))
         : !message.startsWith('【測試】\n'))) return jsonResponse({ error: '測試通知必須保留【測試】前綴' }, 400)
