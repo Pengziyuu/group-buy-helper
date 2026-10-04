@@ -1,6 +1,7 @@
 import { nameInitial } from './components/ui/nameInitial'
 import { useEffect, useState } from 'react'
 import { RelativeTime, useNow } from './components/relativeTime'
+import { formatZhTwTimestamp } from './domain/timestamp'
 import type { ResidentFilter } from './routing'
 import type { ResidentMember, ResidentGroupStatusUpdate } from './services/residentMemberManagementGateway'
 import { countResidents, matchesResidentFilter, matchesResidentSearch, residentHouseholdLabel } from './components/organizer/residentView'
@@ -250,10 +251,13 @@ export default function ResidentMemberManagementApp({ members, initialFilter = '
                 <p>{residentHouseholdLabel(member)}</p>
                 <small>加入 <RelativeTime value={member.joinedAt} now={now} /></small>
                 {onRefreshGroupStatuses && !member.blocked && (
-                  <p className="resident-member-group-status">
-                    <span className="resident-group-dot" data-status={member.groupStatus ?? 'unchecked'} aria-hidden="true" />
-                    {groupStatusLabel(member.groupStatus)}
-                  </p>
+                  <>
+                    <p className="resident-member-group-status">
+                      <span className="resident-group-dot" data-status={member.groupStatus ?? 'unchecked'} aria-hidden="true" />
+                      {groupStatusLabel(member.groupStatus)}
+                    </p>
+                    {member.groupCheckedAt && <small>最後查驗 <time dateTime={member.groupCheckedAt}>{formatZhTwTimestamp(member.groupCheckedAt)}</time></small>}
+                  </>
                 )}
               </div>
               <div className="resident-member-actions">

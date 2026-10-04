@@ -47,6 +47,21 @@ const unboundMember = {
 }
 
 describe('ResidentMemberManagementApp', () => {
+  it('shows the stored group check instant in Taipei time only for checked active members', () => {
+    render(<ResidentMemberManagementApp members={[
+      { ...members[0], groupStatus: 'in_group', groupCheckedAt: '2026-09-20T18:35:00Z' },
+      { ...otherMember, groupStatus: 'unchecked', groupCheckedAt: null },
+      { ...members[1], groupStatus: 'not_in_group', groupCheckedAt: '2026-09-20T18:35:00Z' },
+    ]} onSetBlocked={vi.fn()} onUpdateHousehold={vi.fn()} onRefreshGroupStatuses={vi.fn()} />)
+
+    const checkedCard = screen.getByRole('article', { name: '住戶甲' })
+    const checkedTime = within(checkedCard).getByText('2026/09/21 02:35')
+    expect(checkedTime).toHaveAttribute('datetime', '2026-09-20T18:35:00Z')
+    expect(checkedTime.closest('small')).toHaveTextContent('最後查驗 2026/09/21 02:35')
+    expect(within(screen.getByRole('article', { name: '住戶丙' })).queryByText(/最後查驗/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('article', { name: '陌生住戶' })).not.toBeInTheDocument()
+  })
+
   it('checks every active resident with one button and summarises the result with lights', async () => {
     const user = userEvent.setup()
     const active = [
@@ -63,13 +78,16 @@ describe('ResidentMemberManagementApp', () => {
     const summary = screen.getByRole('list', { name: '正式群組狀態' })
     expect(within(summary).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['在群組內 1', '不在群組 0', '尚未查驗 1'])
     expect(screen.queryByRole('button', { name: /更新住戶甲的群組狀態/ })).not.toBeInTheDocument()
-    expect(screen.queryByText(/最後查驗/)).not.toBeInTheDocument()
+    expect(within(screen.getByRole('article', { name: '住戶甲' })).getByText('2026/09/20 09:00')).toBeInTheDocument()
+    expect(within(screen.getByRole('article', { name: '住戶丙' })).queryByText(/最後查驗/)).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '更新全部群組狀態' }))
     expect(onRefreshGroupStatuses).toHaveBeenCalledOnce()
     expect(onRefreshGroupStatuses).toHaveBeenCalledWith([members[0].memberCode, otherMember.memberCode])
     expect(await screen.findByText('已更新 2 位住戶的群組狀態')).toBeInTheDocument()
     expect(within(summary).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['在群組內 1', '不在群組 1', '尚未查驗 0'])
+    expect(within(screen.getByRole('article', { name: '住戶甲' })).getByText('2026/09/24 09:00')).toBeInTheDocument()
+    expect(within(screen.getByRole('article', { name: '住戶丙' })).getByText('2026/09/24 09:00')).toBeInTheDocument()
     expect(within(screen.getByRole('article', { name: '住戶丙' })).getByText('不在群組')).toBeInTheDocument()
     expect(screen.queryByRole('article', { name: '陌生住戶' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('radio', { name: '已封鎖 1' }))

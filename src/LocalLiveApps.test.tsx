@@ -15,6 +15,7 @@ import { initialOrders, items } from './data/demo'
 import { buildOrganizerOrderSummary } from './domain/adminOrders'
 import type { OrganizerOrderSummary } from './domain/adminOrders'
 import { templateContentFromCampaign } from './domain/campaignTemplate'
+import { OrganizerNavigationProvider } from './components/organizer/OrganizerLink'
 import type { AdminCampaignSupabaseClient } from './services/adminCampaignGateway'
 import type { CampaignContent } from './services/demoCampaignStore'
 import type { LineOrganizerResult } from './services/lineOrganizerGateway'
@@ -492,6 +493,39 @@ describe('local Supabase visual demo apps', () => {
     expect(await screen.findByRole('textbox', { name: '團購標題' })).toHaveValue('第二團')
     const rail = screen.getByRole('complementary', { name: '團購工作區' })
     expect(within(rail).getByRole('heading', { level: 1, name: '第二團' })).toBeInTheDocument()
+  })
+
+  it('confirms publication when post-publish metadata fails and allows a read retry', async () => {
+    const user = userEvent.setup()
+    const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
+    const { client } = authClient(session)
+    const loadResidentSlug = vi.fn()
+      .mockResolvedValueOnce('original-slug')
+      .mockRejectedValueOnce(new Error('分享連結讀取失敗'))
+      .mockResolvedValue('new-slug')
+    const repository: LiveAdminRepository = {
+      loadPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalPublished: vi.fn().mockResolvedValue(published),
+      loadOptionalDraft: vi.fn().mockResolvedValue(null),
+      saveDraft: vi.fn().mockResolvedValue(published),
+      publish: vi.fn().mockResolvedValue({ ...published, title: '正式新標題' }),
+      loadResidentSlug,
+    }
+    render(<LocalLiveAdminApp client={client} campaignId="campaign-1"
+      repository={repository} ordersRepository={ordersRepository()} section="content" />)
+    const title = await screen.findByRole('textbox', { name: '團購標題' })
+    await user.type(title, '！')
+    await waitFor(() => expect(screen.getByRole('button', { name: '更新住戶頁' })).toBeEnabled())
+    await user.click(screen.getByRole('button', { name: '更新住戶頁' }))
+
+    expect(repository.publish).toHaveBeenCalledWith('campaign-1')
+    expect(await screen.findByText('住戶頁已更新')).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: '團購標題' })).toHaveValue('正式新標題')
+    expect(screen.queryByText(/發布失敗/)).not.toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent('分享連結讀取失敗')
+    await user.click(screen.getByRole('button', { name: '重新讀取發布資訊' }))
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+    expect(screen.getByRole('link', { name: '開啟住戶頁' })).toHaveAttribute('href', '/c/new-slug')
   })
 
   it('does not let a late publish for the previous campaign overwrite the one now shown', async () => {
@@ -1901,6 +1935,304 @@ describe('local Supabase visual demo apps', () => {
     expect(await screen.findByRole('button', { name: '增加 A 牛奶（招牌）' })).toBeInTheDocument()
   })
 
+  it('keeps a realtime disconnect warning after a successful order wall refresh', async () => {
+    const user = userEvent.setup()
+    const session = { access_token: 'resident-token', user: { id: 'resident-uid', is_anonymous: false } }
+    const { client } = authClient(session)
+    const campaignRow = {
+      title: published.title, unit_price: published.unitPrice, threshold: published.threshold,
+      announcement: published.announcement, images: published.images, items: published.items,
+      opened_at: published.openedAt, status: 'open',
+    }
+    const wallEq = vi.fn().mockResolvedValue({ data: [], error: null })
+    const rpc = vi.fn((name: string) => Promise.resolve(name === 'get_customer_self'
+      ? { data: [{ id: 'customer-1', name: '測試住戶', period: 2, unit: '1A1' }], error: null }
+      : name === 'get_line_resident_self'
+        ? { data: [{ display_name: '測試住戶', picture_url: null }], error: null }
+        : name === 'submit_customer_order'
+          ? { data: null, error: null }
+          : { data: [{ id: 'campaign-1' }], error: null }))
+    let reportStatus: ((status: string) => void) | undefined
+    const channel = { on: vi.fn(), subscribe: vi.fn() }
+    channel.on.mockReturnValue(channel)
+    channel.subscribe.mockImplementation((callback: (status: string) => void) => { reportStatus = callback; return channel })
+    Object.assign(client, {
+      rpc,
+      from: vi.fn((table: string) => table === 'campaign_public'
+        ? { select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: campaignRow, error: null }) }) }) }
+        : { select: vi.fn().mockReturnValue({ eq: wallEq }) }),
+      channel: vi.fn().mockReturnValue(channel),
+    })
+
+    render(<LocalLiveResidentApp client={client} campaignSlug="campaign-slug" />)
+    await user.click(await screen.findByRole('button', { name: '增加 A 牛奶（招牌）' }))
+    act(() => { reportStatus?.('CHANNEL_ERROR') })
+    expect(screen.getByRole('alert')).toHaveTextContent('即時連線中斷')
+    await user.click(screen.getByRole('button', { name: '送出訂單' }))
+    expect(await screen.findByText('訂單已更新')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('即時連線中斷')
+  })
+
+  it('ignores a pre-commit Realtime wall result that finishes after a committed write and failed read', async () => {
+    const user = userEvent.setup()
+    const session = { access_token: 'resident-token', user: { id: 'resident-uid', is_anonymous: false } }
+    const { client } = authClient(session)
+    const campaignRow = {
+      title: published.title, unit_price: published.unitPrice, threshold: published.threshold,
+      announcement: published.announcement, images: published.images, items: published.items,
+      opened_at: published.openedAt, status: 'open',
+    }
+    let finishOldWall!: (value: { data: []; error: null }) => void
+    const oldWall = new Promise<{ data: []; error: null }>((resolve) => { finishOldWall = resolve })
+    const wallEq = vi.fn()
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockImplementationOnce(() => oldWall)
+      .mockResolvedValueOnce({ data: null, error: new Error('提交後讀回失敗') })
+    const rpc = vi.fn((name: string) => Promise.resolve(name === 'get_customer_self'
+      ? { data: [{ id: 'customer-1', name: '測試住戶', period: 2, unit: '1A1' }], error: null }
+      : name === 'get_line_resident_self'
+        ? { data: [{ display_name: '測試住戶', picture_url: null }], error: null }
+        : name === 'submit_customer_order'
+          ? { data: null, error: null }
+          : { data: [{ id: 'campaign-1' }], error: null }))
+    let ordersChanged!: () => void
+    const channel = { on: vi.fn(), subscribe: vi.fn() }
+    channel.on.mockImplementation((_event: string, options: { table: string }, callback: () => void) => {
+      if (options.table === 'orders') ordersChanged = callback
+      return channel
+    })
+    channel.subscribe.mockReturnValue(channel)
+    Object.assign(client, {
+      rpc,
+      from: vi.fn((table: string) => table === 'campaign_public'
+        ? { select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: campaignRow, error: null }) }) }) }
+        : { select: vi.fn().mockReturnValue({ eq: wallEq }) }),
+      channel: vi.fn().mockReturnValue(channel),
+    })
+
+    render(<LocalLiveResidentApp client={client} campaignSlug="campaign-slug" />)
+    await user.click(await screen.findByRole('button', { name: '增加 A 牛奶（招牌）' }))
+    act(() => { ordersChanged() })
+    await waitFor(() => expect(wallEq).toHaveBeenCalledTimes(2))
+    await user.click(screen.getByRole('button', { name: '送出訂單' }))
+    expect(await screen.findByText('訂單已更新')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('提交後讀回失敗')
+    expect(screen.getByText(/你已送出 1/)).toBeInTheDocument()
+    await act(async () => { finishOldWall({ data: [], error: null }) })
+    expect(screen.getByRole('alert')).toHaveTextContent('提交後讀回失敗')
+    expect(screen.getByText(/你已送出 1/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '送出訂單' })).toBeDisabled()
+  })
+
+  it('keeps a failed-read warning through stale retries, then accepts matching and later changed orders', async () => {
+    const user = userEvent.setup()
+    const session = { access_token: 'resident-token', user: { id: 'resident-uid', is_anonymous: false } }
+    const { client } = authClient(session)
+    const campaignRow = {
+      title: published.title, unit_price: published.unitPrice, threshold: published.threshold,
+      announcement: published.announcement, images: published.images, items: published.items,
+      opened_at: published.openedAt, status: 'open',
+    }
+    const ownRow = (qty: number) => ({
+      order_id: 'order-1', customer_id: 'customer-1', customer_name: '測試住戶',
+      picture_url: null, period: 2, unit: '1A1', item_code: published.items[0].code,
+      qty, ordered_at: '2026-08-14T01:00:00Z', order_updated_at: '2026-08-14T01:00:00Z',
+    })
+    const wallEq = vi.fn()
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({ data: null, error: new Error('提交後讀回失敗') })
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({ data: [ownRow(1)], error: null })
+      .mockResolvedValueOnce({ data: [ownRow(2)], error: null })
+      .mockResolvedValueOnce({ data: [], error: null })
+    const rpc = vi.fn((name: string) => Promise.resolve(name === 'get_customer_self'
+      ? { data: [{ id: 'customer-1', name: '測試住戶', period: 2, unit: '1A1' }], error: null }
+      : name === 'get_line_resident_self'
+        ? { data: [{ display_name: '測試住戶', picture_url: null }], error: null }
+        : name === 'submit_customer_order'
+          ? { data: null, error: null }
+          : { data: [{ id: 'campaign-1' }], error: null }))
+    let ordersChanged!: () => void
+    const channel = { on: vi.fn(), subscribe: vi.fn() }
+    channel.on.mockImplementation((_event: string, options: { table: string }, callback: () => void) => {
+      if (options.table === 'orders') ordersChanged = callback
+      return channel
+    })
+    channel.subscribe.mockReturnValue(channel)
+    Object.assign(client, {
+      rpc,
+      from: vi.fn((table: string) => table === 'campaign_public'
+        ? { select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: campaignRow, error: null }) }) }) }
+        : { select: vi.fn().mockReturnValue({ eq: wallEq }) }),
+      channel: vi.fn().mockReturnValue(channel),
+    })
+
+    render(<LocalLiveResidentApp client={client} campaignSlug="campaign-slug" />)
+    await user.click(await screen.findByRole('button', { name: '增加 A 牛奶（招牌）' }))
+    await user.click(screen.getByRole('button', { name: '送出訂單' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('提交後讀回失敗')
+    expect(screen.getByText(/你已送出 1/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '重新同步' }))
+    await waitFor(() => expect(wallEq).toHaveBeenCalledTimes(3))
+    expect(screen.getByRole('alert')).toHaveTextContent('提交後讀回失敗')
+    expect(screen.getByText(/你已送出 1/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '送出訂單' })).toBeDisabled()
+
+    await user.click(screen.getByRole('button', { name: '重新同步' }))
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+    expect(within(screen.getByRole('region', { name: '大家的訂單' })).getByText('A+1')).toBeInTheDocument()
+    act(() => { ordersChanged() })
+    expect(await screen.findByText(/你已送出 2/)).toBeInTheDocument()
+    act(() => { ordersChanged() })
+    await waitFor(() => expect(screen.queryByText(/你已送出/)).not.toBeInTheDocument())
+    expect(screen.getByRole('button', { name: '選擇品項' })).toBeEnabled()
+  })
+
+  it('does not let a delayed failed submit read warn after a newer Realtime read confirms the order', async () => {
+    const user = userEvent.setup()
+    const session = { access_token: 'resident-token', user: { id: 'resident-uid', is_anonymous: false } }
+    const { client } = authClient(session)
+    const campaignRow = {
+      title: published.title, unit_price: published.unitPrice, threshold: published.threshold,
+      announcement: published.announcement, images: published.images, items: published.items,
+      opened_at: published.openedAt, status: 'open',
+    }
+    const ownRow = {
+      order_id: 'order-1', customer_id: 'customer-1', customer_name: '測試住戶',
+      picture_url: null, period: 2, unit: '1A1', item_code: published.items[0].code,
+      qty: 1, ordered_at: '2026-08-14T01:00:00Z', order_updated_at: '2026-08-14T01:00:00Z',
+    }
+    let failOldRead!: (value: { data: null; error: Error }) => void
+    const oldRead = new Promise<{ data: null; error: Error }>((resolve) => { failOldRead = resolve })
+    const wallEq = vi.fn()
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockImplementationOnce(() => oldRead)
+      .mockResolvedValueOnce({ data: [ownRow], error: null })
+    const rpc = vi.fn((name: string) => Promise.resolve(name === 'get_customer_self'
+      ? { data: [{ id: 'customer-1', name: '測試住戶', period: 2, unit: '1A1' }], error: null }
+      : name === 'get_line_resident_self'
+        ? { data: [{ display_name: '測試住戶', picture_url: null }], error: null }
+        : name === 'submit_customer_order'
+          ? { data: null, error: null }
+          : { data: [{ id: 'campaign-1' }], error: null }))
+    let ordersChanged!: () => void
+    const channel = { on: vi.fn(), subscribe: vi.fn() }
+    channel.on.mockImplementation((_event: string, options: { table: string }, callback: () => void) => {
+      if (options.table === 'orders') ordersChanged = callback
+      return channel
+    })
+    channel.subscribe.mockReturnValue(channel)
+    Object.assign(client, {
+      rpc,
+      from: vi.fn((table: string) => table === 'campaign_public'
+        ? { select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: campaignRow, error: null }) }) }) }
+        : { select: vi.fn().mockReturnValue({ eq: wallEq }) }),
+      channel: vi.fn().mockReturnValue(channel),
+    })
+
+    render(<LocalLiveResidentApp client={client} campaignSlug="campaign-slug" />)
+    await user.click(await screen.findByRole('button', { name: '增加 A 牛奶（招牌）' }))
+    await user.click(screen.getByRole('button', { name: '送出訂單' }))
+    await waitFor(() => expect(wallEq).toHaveBeenCalledTimes(2))
+    act(() => { ordersChanged() })
+    await waitFor(() => expect(within(screen.getByRole('region', { name: '大家的訂單' })).getByText('A+1')).toBeInTheDocument())
+    await act(async () => { failOldRead({ data: null, error: new Error('延遲讀取失敗') }) })
+    expect(await screen.findByText('訂單已更新')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByText(/你已送出 1/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '送出訂單' })).toBeDisabled()
+  })
+
+  it('keeps a committed order warning across a same-campaign subscription restart with a stale wall', async () => {
+    const user = userEvent.setup()
+    const session = { access_token: 'resident-token', user: { id: 'resident-uid', is_anonymous: false } }
+    const { client } = authClient(session)
+    const campaignRow = {
+      title: published.title, unit_price: published.unitPrice, threshold: published.threshold,
+      announcement: published.announcement, images: published.images, items: published.items,
+      opened_at: published.openedAt, status: 'open',
+    }
+    const wallEq = vi.fn()
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({ data: null, error: new Error('提交後讀回失敗') })
+      .mockResolvedValue({ data: [], error: null })
+    const rpc = vi.fn((name: string) => Promise.resolve(name === 'get_customer_self'
+      ? { data: [{ id: 'customer-1', name: '測試住戶', period: 2, unit: '1A1' }], error: null }
+      : name === 'get_line_resident_self'
+        ? { data: [{ display_name: '測試住戶', picture_url: null }], error: null }
+        : name === 'submit_customer_order'
+          ? { data: null, error: null }
+          : { data: [{ id: 'campaign-1' }], error: null }))
+    const channel = { on: vi.fn(), subscribe: vi.fn() }
+    channel.on.mockReturnValue(channel)
+    channel.subscribe.mockReturnValue(channel)
+    Object.assign(client, {
+      rpc,
+      from: vi.fn((table: string) => table === 'campaign_public'
+        ? { select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: campaignRow, error: null }) }) }) }
+        : { select: vi.fn().mockReturnValue({ eq: wallEq }) }),
+      channel: vi.fn().mockReturnValue(channel),
+    })
+
+    const view = render(<LocalLiveResidentApp client={client} campaignSlug="campaign-slug" />)
+    await user.click(await screen.findByRole('button', { name: '增加 A 牛奶（招牌）' }))
+    await user.click(screen.getByRole('button', { name: '送出訂單' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('提交後讀回失敗')
+    view.rerender(<LocalLiveResidentApp client={client} campaignId="campaign-1" campaignSlug="campaign-slug" />)
+    await waitFor(() => expect(wallEq).toHaveBeenCalledTimes(3))
+    expect(screen.getByRole('alert')).toHaveTextContent('提交後讀回失敗')
+    expect(screen.getByText(/你已送出 1/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '送出訂單' })).toBeDisabled()
+  })
+
+  it('reports a committed order as success even when the follow-up wall read fails', async () => {
+    const user = userEvent.setup()
+    const session = { access_token: 'resident-token', user: { id: 'resident-uid', is_anonymous: false } }
+    const { client } = authClient(session)
+    const campaignRow = {
+      title: published.title, unit_price: published.unitPrice, threshold: published.threshold,
+      announcement: published.announcement, images: published.images, items: published.items,
+      opened_at: published.openedAt, status: 'open',
+    }
+    const ownWallRow = {
+      order_id: 'order-1', customer_id: 'customer-1', customer_name: '測試住戶',
+      picture_url: null, period: 2, unit: '1A1', item_code: published.items[0].code,
+      qty: 1, ordered_at: '2026-08-14T01:00:00Z', order_updated_at: '2026-08-14T01:00:00Z',
+    }
+    const wallEq = vi.fn()
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({ data: null, error: new Error('訂單牆暫時無法讀取') })
+      .mockResolvedValue({ data: [ownWallRow], error: null })
+    const rpc = vi.fn((name: string) => Promise.resolve(name === 'get_customer_self'
+      ? { data: [{ id: 'customer-1', name: '測試住戶', period: 2, unit: '1A1' }], error: null }
+      : name === 'get_line_resident_self'
+        ? { data: [{ display_name: '測試住戶', picture_url: null }], error: null }
+        : name === 'submit_customer_order'
+          ? { data: null, error: null }
+          : { data: [{ id: 'campaign-1' }], error: null }))
+    Object.assign(client, {
+      rpc,
+      from: vi.fn((table: string) => table === 'campaign_public'
+        ? { select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: campaignRow, error: null }) }) }) }
+        : { select: vi.fn().mockReturnValue({ eq: wallEq }) }),
+    })
+
+    render(<LocalLiveResidentApp client={client} campaignSlug="campaign-slug" />)
+    await user.click(await screen.findByRole('button', { name: '增加 A 牛奶（招牌）' }))
+    await user.click(screen.getByRole('button', { name: '送出訂單' }))
+
+    expect(rpc).toHaveBeenCalledWith('submit_customer_order', expect.objectContaining({ p_campaign_id: 'campaign-1' }))
+    expect(await screen.findByText('訂單已更新')).toBeInTheDocument()
+    expect(screen.queryByText(/訂單更新失敗/)).not.toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent('訂單牆暫時無法讀取')
+    expect(screen.getByText(/你已送出 1/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '送出訂單' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: '重新同步' }))
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+    expect(wallEq).toHaveBeenCalledTimes(3)
+  })
+
   it('loads published campaign content for a verified LINE resident session', async () => {
     const session = { access_token: 'resident-token', user: { id: 'resident-user', is_anonymous: false } }
     const { client } = authClient(session)
@@ -2610,8 +2942,11 @@ describe('campaign templates', () => {
     const user = userEvent.setup()
     const { client } = authClient(session)
     const templates = templateRepository()
+    const navigate = vi.fn()
     templates.list.mockResolvedValue([{ id: 't1', name: '冰餅', content: templateContentFromCampaign(published), updatedAt: '2026-09-25T00:00:00.000Z' }] as never)
-    render(<LocalLiveAdminApp client={client} page="settings" repository={repository()} ordersRepository={ordersRepository()} templateRepository={templates} autoCloseNotificationSettingsRepository={settingsRepository()} />)
+    render(<OrganizerNavigationProvider navigate={navigate}>
+      <LocalLiveAdminApp client={client} page="settings" repository={repository()} ordersRepository={ordersRepository()} templateRepository={templates} autoCloseNotificationSettingsRepository={settingsRepository()} />
+    </OrganizerNavigationProvider>)
 
     expect(await screen.findByRole('rowheader', { name: '冰餅' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '建立新團' }))
@@ -2621,5 +2956,6 @@ describe('campaign templates', () => {
     await user.click(within(dialog).getByRole('button', { name: '建立並編輯' }))
 
     expect(templates.createCampaign).toHaveBeenCalledWith('t1', published.title)
+    expect(navigate).toHaveBeenCalledWith('/admin/campaign/campaign-2/content')
   })
 })

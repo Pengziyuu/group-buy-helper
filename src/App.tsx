@@ -110,6 +110,8 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
   const [savedDraft, setSavedDraft] = useState<Record<string, number>>({ ...(ownOrder?.items ?? {}) })
   const [customDraft, setCustomDraft] = useState<CustomOrderItem[]>(() => ownOrder?.customItems?.map((item) => ({ ...item })) ?? [])
   const [savedCustomDraft, setSavedCustomDraft] = useState<CustomOrderItem[]>(() => ownOrder?.customItems?.map((item) => ({ ...item })) ?? [])
+  const lastAppliedOrders = useRef<{ orders: VisibleOrder[]; customerId: string | undefined } | null>(null)
+  const awaitingOwnOrder = useRef<{ customerId: string; items: Record<string, number>; customItems: CustomOrderItem[] } | null>(null)
   const customItemSequence = useRef(0)
   const orderItemsRef = useRef<HTMLDivElement>(null)
   const noticeSequence = useRef(0)
@@ -126,7 +128,17 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
   }, [activeImageIndex, publishedCampaign.images])
 
   useEffect(() => {
-    if (visibleOrders && !draftDirty) {
+    if (visibleOrders && !draftDirty
+      && (lastAppliedOrders.current?.orders !== visibleOrders
+        || lastAppliedOrders.current.customerId !== currentResident?.customerId)) {
+      const pending = awaitingOwnOrder.current
+      if (pending && pending.customerId === currentResident?.customerId) {
+        // A readable wall can still predate a committed order.
+        if (!ownOrder || !orderItemsEqual(ownOrder.items, pending.items)
+          || !customOrderItemsEqual(ownOrder.customItems ?? [], pending.customItems)) return
+      }
+      awaitingOwnOrder.current = null
+      lastAppliedOrders.current = { orders: visibleOrders, customerId: currentResident?.customerId }
       const nextSavedDraft = { ...(ownOrder?.items ?? {}) }
       setDraft(nextSavedDraft)
       setSavedDraft(nextSavedDraft)
@@ -134,7 +146,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
       setCustomDraft(nextCustomDraft)
       setSavedCustomDraft(nextCustomDraft)
     }
-  }, [draftDirty, ownOrder, visibleOrders])
+  }, [currentResident?.customerId, draftDirty, ownOrder, visibleOrders])
 
   const showNotice = (tone: Notice['tone'], text: string) => {
     noticeSequence.current += 1
@@ -315,6 +327,11 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
       try {
         const submittedCustomItems = validCustomOrderItems(customDraft)
         await onSubmitOrder(draft, submittedCustomItems)
+        if (currentResident) awaitingOwnOrder.current = {
+          customerId: currentResident.customerId,
+          items: { ...draft },
+          customItems: submittedCustomItems.map((item) => ({ ...item })),
+        }
         setSavedDraft({ ...draft })
         setCustomDraft(submittedCustomItems)
         setSavedCustomDraft(submittedCustomItems)

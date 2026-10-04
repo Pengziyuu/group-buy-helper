@@ -10,7 +10,6 @@ import { FeedbackMessage } from './FeedbackMessage'
 import { EmptyState, ErrorState, LoadingState } from './AsyncState'
 import { ConfirmDialog } from './ConfirmDialog'
 import { QuantityControl } from './QuantityControl'
-import { AppHeader, Breadcrumbs, SectionNav } from './Navigation'
 import { StickyActionBar } from './StickyActionBar'
 
 describe('shared UI primitives', () => {
@@ -179,17 +178,8 @@ describe('shared UI primitives', () => {
     expect(screen.getByRole('button', { name: '增加 額外品項' })).toBeDisabled()
   })
 
-  it('provides lightweight app and section navigation with a sticky action container', () => {
-    render(<>
-      <AppHeader title="團購小幫手" leading={<a href="/">全部開團</a>} trailing={<button>登出</button>} />
-      <Breadcrumbs items={[{ label: '我的團購', href: '/admin' }, { label: '冰餅團' }]} />
-      <SectionNav label="頁面區段" items={[{ label: '內容設定', href: '#content' }, { label: '訂單管理', href: '#orders' }]} />
-      <StickyActionBar><button>送出訂單</button></StickyActionBar>
-    </>)
-
-    expect(screen.getByRole('banner')).toHaveTextContent('團購小幫手')
-    expect(screen.getByRole('navigation', { name: '麵包屑' })).toHaveTextContent('冰餅團')
-    expect(screen.getByRole('navigation', { name: '頁面區段' })).toBeInTheDocument()
+  it('provides a sticky action container', () => {
+    render(<StickyActionBar><button>送出訂單</button></StickyActionBar>)
     expect(screen.getByRole('region', { name: '主要操作' })).toHaveTextContent('送出訂單')
   })
 })

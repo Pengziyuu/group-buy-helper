@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import type { Session, SupabaseClient } from '@supabase/supabase-js'
-import AdminApp from './AdminApp'
 import NotificationTestLab from './NotificationTestLab'
-import App from './App'
+import { LazySectionBoundary } from './components/ui/LazySectionBoundary'
 import ResidentCampaignListApp, {
   type ResidentCampaignListItem,
   type ResidentLineIdentity,
@@ -59,7 +58,7 @@ import {
 import { loadLiffIdentity, type LiffClient } from './services/liffIdentity'
 import { Button } from './components/ui/Button'
 import { normalizeQuantityUnit, type QuantityUnit } from './domain/quantityUnit'
-import { parseCustomOrderItems, type CustomOrderItem } from './domain/customOrderItem'
+import { customOrderItemsEqual, parseCustomOrderItems, type CustomOrderItem } from './domain/customOrderItem'
 import { ErrorState, LoadingState } from './components/ui/AsyncState'
 import { FeedbackMessage } from './components/ui/FeedbackMessage'
 import {
@@ -69,6 +68,9 @@ import {
   SUPABASE_AUTH_STORAGE_KEY,
   type AuthSessionStorage,
 } from './services/authStorage'
+
+const AdminApp = lazy(() => import('./AdminApp'))
+const App = lazy(() => import('./App'))
 
 export type LiveAdminRepository = {
   loadPublished(campaignId: string): Promise<CampaignContent>
@@ -202,6 +204,15 @@ function visibleOrdersFromRows(rows: OrderWallRow[]): VisibleOrder[] {
     orders.set(row.order_id, order)
   }
   return [...orders.values()]
+}
+
+type PendingOwnOrder = { campaignId: string; customerId: string; items: Record<string, number>; customItems: CustomOrderItem[] }
+
+function matchesPendingOwnOrder(orders: VisibleOrder[], pending: PendingOwnOrder): boolean {
+  const ownOrder = orders.find((order) => order.customerId === pending.customerId)
+  if (!ownOrder || !customOrderItemsEqual(ownOrder.customItems ?? [], pending.customItems)) return false
+  const codes = new Set([...Object.keys(ownOrder.items), ...Object.keys(pending.items)])
+  return [...codes].every((code) => (ownOrder.items[code] ?? 0) === (pending.items[code] ?? 0))
 }
 
 function errorMessage(error: unknown): string {
@@ -491,6 +502,7 @@ export function LocalLiveAdminApp({
   const [residentMembers, setResidentMembers] = useState<ResidentMember[] | null>(null)
   const [autoCloseNotificationState, setAutoCloseNotificationState] = useState<AutoCloseNotificationSettingState | null>(null)
   const [residentSlug, setResidentSlug] = useState<string | null>(null)
+  const [publishSyncWarning, setPublishSyncWarning] = useState<{ campaignId: string; message: string } | null>(null)
   const [publicationState, setPublicationState] = useState<'draft' | 'published'>('published')
   const [error, setError] = useState('')
   const [email, setEmail] = useState('')
@@ -748,6 +760,7 @@ export function LocalLiveAdminApp({
     setOrderSummary(null)
     setCampaignStatus(null)
     setResidentSlug(null)
+    setPublishSyncWarning(null)
     if (!organizerUserId || !campaignId) return
     let active = true
     setError('')
@@ -1064,6 +1077,21 @@ export function LocalLiveAdminApp({
   const retrySync = () => setLiveAttempt((current) => current + 1)
   const published = publishedContent !== null
   const shownSection = resolveWorkspaceSection(section, published, campaignStatus)
+  const refreshPublishedMetadata = async (targetId: string, publishedVersion: CampaignContent) => {
+    const [slugResult, summaryResult] = await Promise.allSettled([
+      gateway.loadResidentSlug?.(targetId) ?? Promise.resolve(null),
+      ordersGateway.loadSummary(targetId, publishedVersion.threshold, publishedVersion.thresholdKind, publishedVersion.amountThreshold, publishedVersion.quantityUnit),
+    ])
+    if (currentCampaignIdRef.current !== targetId) return
+    if (slugResult.status === 'fulfilled') setResidentSlug(slugResult.value)
+    if (summaryResult.status === 'fulfilled') setOrderSummary(summaryResult.value)
+    const failures = [slugResult, summaryResult]
+      .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+      .map((result) => errorMessage(result.reason))
+    setPublishSyncWarning(failures.length > 0
+      ? { campaignId: targetId, message: `發布已成功，但部分資訊暫時無法更新：${failures.join('；')}` }
+      : null)
+  }
   // The write already succeeded; a failed refresh only means the list may be stale, which the live status reports.
   const refreshAfterWrite = async () => {
     const requestedCampaignId = campaignId
@@ -1125,6 +1153,14 @@ export function LocalLiveAdminApp({
           setCampaignStatus(nextStatus)
         }}
       >
+        {shownSection === 'content' && publishSyncWarning?.campaignId === campaignId && (
+          <FeedbackMessage tone="warning" urgent actionLabel="重新讀取發布資訊"
+            onAction={() => { if (publishedContent) void refreshPublishedMetadata(campaignId, publishedContent) }}>
+            {publishSyncWarning.message}
+          </FeedbackMessage>
+        )}
+        <LazySectionBoundary key={campaignId}>
+          <Suspense fallback={shownSection === 'content' ? <LiveLoading label="載入團購內容設定…" /> : null}>
         <AdminApp
           section={shownSection === 'content' ? 'content' : null}
           initialContent={content}
@@ -1139,17 +1175,17 @@ export function LocalLiveAdminApp({
             const requestedCampaignId = campaignId
             await gateway.saveDraft(campaignId, nextContent)
             const nextPublished = await gateway.publish(campaignId)
-            const nextResidentSlug = await gateway.loadResidentSlug?.(campaignId) ?? null
-            const nextSummary = await ordersGateway.loadSummary(campaignId, nextPublished.threshold, nextPublished.thresholdKind, nextPublished.amountThreshold, nextPublished.quantityUnit)
             if (currentCampaignIdRef.current === requestedCampaignId) {
               setContent(nextPublished)
               setPublishedContent(nextPublished)
-              setResidentSlug(nextResidentSlug)
-              setOrderSummary(nextSummary)
+              setPublishSyncWarning(null)
             }
+            await refreshPublishedMetadata(requestedCampaignId, nextPublished)
             return nextPublished
           }}
         />
+          </Suspense>
+        </LazySectionBoundary>
         {shownSection === 'orders' && orderSummary && (
           <OrdersSection
             campaignId={campaignId}
@@ -1349,13 +1385,28 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug, liffId
   const [attempt, setAttempt] = useState(0)
   const [error, setError] = useState('')
   const [syncError, setSyncError] = useState('')
+  const [submitRefreshError, setSubmitRefreshError] = useState('')
   const sessionPromise = useRef<Promise<Session> | null>(null)
   const retrySyncRef = useRef<(() => Promise<void>) | null>(null)
+  const residentGeneration = useRef(0)
+  const awaitingOwnOrder = useRef<PendingOwnOrder | null>(null)
+
+  const applyWall = (rows: OrderWallRow[], customerId: string | undefined) => {
+    const nextOrders = visibleOrdersFromRows(rows)
+    const pending = awaitingOwnOrder.current
+    if (pending && pending.customerId === customerId && !matchesPendingOwnOrder(nextOrders, pending)) {
+      // A successful query alone does not prove the committed order is visible.
+      setSubmitRefreshError((current) => current || '訂單已送出，但訂單牆尚未顯示本次訂單，請重新同步。')
+      return
+    }
+    awaitingOwnOrder.current = null
+    setOrders(nextOrders)
+    setSubmitRefreshError('')
+  }
 
   useEffect(() => {
     let active = true
     let publishedGeneration = 0
-    let residentGeneration = 0
     let publishedSyncError = ''
     let residentSyncError = ''
     let channelSyncError = ''
@@ -1391,8 +1442,8 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug, liffId
       if (wallResult.error) throw wallResult.error
       if (customerResult.error) throw customerResult.error
       if (identityResult.error) throw identityResult.error
-      if (active && (generation === undefined || generation === residentGeneration)) {
-        setOrders(visibleOrdersFromRows(wallResult.data ?? []))
+      if (active && (generation === undefined || generation === residentGeneration.current)) {
+        applyWall(wallResult.data ?? [], customerResult.data?.[0]?.id)
         const identity = identityResult.data?.[0]
         if (!identity?.display_name) throw new Error('請先從住戶 LINE 入口登入')
         setResidentIdentity({ displayName: identity.display_name, pictureUrl: identity.picture_url })
@@ -1436,6 +1487,10 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug, liffId
         : null
       if (!resolvedId) throw new Error('找不到已發布的團購活動')
       if (campaignId && campaignId !== resolvedId) throw new Error('團購連結與活動不一致')
+      if (awaitingOwnOrder.current && awaitingOwnOrder.current.campaignId !== resolvedId) {
+        awaitingOwnOrder.current = null
+        setSubmitRefreshError('')
+      }
       resolvedCampaignId = resolvedId
       if (active) setJoinedCampaignId(resolvedId)
       await Promise.all([loadPublished(), loadResidentData()])
@@ -1443,14 +1498,14 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug, liffId
       const runSync = async (...loaders: Array<(generation?: number) => Promise<void>>) => {
         await Promise.all(loaders.map(async (loader) => {
           const published = loader === loadPublished
-          const generation = published ? ++publishedGeneration : ++residentGeneration
+          const generation = published ? ++publishedGeneration : ++residentGeneration.current
           try {
             await loader(generation)
-            if (!active || generation !== (published ? publishedGeneration : residentGeneration)) return
+            if (!active || generation !== (published ? publishedGeneration : residentGeneration.current)) return
             if (published) publishedSyncError = ''
             else residentSyncError = ''
           } catch (syncFailure) {
-            if (!active || generation !== (published ? publishedGeneration : residentGeneration)) return
+            if (!active || generation !== (published ? publishedGeneration : residentGeneration.current)) return
             if (published) publishedSyncError = errorMessage(syncFailure)
             else residentSyncError = errorMessage(syncFailure)
           }
@@ -1498,7 +1553,7 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug, liffId
     return () => {
       active = false
       publishedGeneration += 1
-      residentGeneration += 1
+      residentGeneration.current += 1
       retrySyncRef.current = null
       if (channel) void client.removeChannel(channel)
     }
@@ -1511,6 +1566,8 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug, liffId
   if (error) return <LiveError message={error} />
   if (!joinedCampaignId || !content || !campaignStatus || residentCustomer === undefined || !residentIdentity) return <LiveLoading label="連線住戶端即時資料…" />
   return (
+    <LazySectionBoundary>
+      <Suspense fallback={<LiveLoading label="載入住戶團購頁…" />}>
     <App
       publishedContent={content}
       campaignStatus={campaignStatus}
@@ -1518,7 +1575,7 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug, liffId
       visibleOrders={orders}
       residentCustomer={residentCustomer}
       verifiedResidentIdentity={residentIdentity}
-      syncError={syncError}
+      syncError={[syncError, submitRefreshError].filter(Boolean).join('；')}
       onSyncRetry={() => {
         void retrySyncRef.current?.()
       }}
@@ -1556,13 +1613,31 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug, liffId
           p_custom_items: customItems,
         })
         if (submitError) throw submitError
-        const { data, error: wallError } = await client.from('order_wall')
-          .select('order_id,customer_id,customer_name,picture_url,period,unit,household_kind,item_code,qty,final_unit_price,custom_items,ordered_at,order_updated_at')
-          .eq('campaign_id', joinedCampaignId)
-        if (wallError) throw wallError
-        setOrders(visibleOrdersFromRows(data ?? []))
+        // Invalidate Realtime queries started before this committed RPC.
+        const generation = ++residentGeneration.current
+        if (residentCustomer) awaitingOwnOrder.current = {
+          campaignId: joinedCampaignId,
+          customerId: residentCustomer.customerId,
+          items: { ...items },
+          customItems: customItems.map((item) => ({ ...item })),
+        }
+        try {
+          const { data, error: wallError } = await client.from('order_wall')
+            .select('order_id,customer_id,customer_name,picture_url,period,unit,household_kind,item_code,qty,final_unit_price,custom_items,ordered_at,order_updated_at')
+            .eq('campaign_id', joinedCampaignId)
+          if (wallError) throw wallError
+          if (generation === residentGeneration.current) applyWall(data ?? [], residentCustomer?.customerId)
+        } catch (refreshError) {
+          // The RPC committed. A failed follow-up read is a sync warning,
+          // never an invitation for the resident to submit the same order again.
+          if (generation === residentGeneration.current) {
+            setSubmitRefreshError(`訂單已送出，但訂單牆暫時無法更新：${errorMessage(refreshError)}`)
+          }
+        }
       }}
     />
+      </Suspense>
+    </LazySectionBoundary>
   )
 }
 

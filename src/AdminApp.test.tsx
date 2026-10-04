@@ -1,15 +1,488 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import AdminApp from './AdminApp'
+import { CampaignWorkspace } from './components/organizer/CampaignWorkspace'
+import { OrganizerLink, OrganizerNavigationProvider } from './components/organizer/OrganizerLink'
+import { useBrowserLocation } from './components/organizer/organizerNavigation'
+import { OrganizerShell } from './components/organizer/OrganizerShell'
 import type { CampaignContent } from './services/demoCampaignStore'
 
 const png = (name: string) => new File(['image'], name, { type: 'image/png' })
 
 beforeEach(() => localStorage.clear())
 
+const campaignA = 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+const campaignB = 'bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'
+
+function navigationDraft(title: string): CampaignContent {
+  return {
+    title, unitPrice: 50, threshold: 10, announcement: '公告', images: [],
+    items: [{ code: 'A', name: '商品', unitPrice: 50, active: true }], openedAt: null,
+  }
+}
+
+/** Uses the real organizer link/location/shell and remounts the editor on a campaign change. */
+function NavigationHarness({ drafts, onSaveDraft, onCreate, onUploadImage }: {
+  drafts: Map<string, CampaignContent>
+  onSaveDraft: (id: string, content: CampaignContent) => Promise<void>
+  onCreate?: (title: string) => Promise<{ id: string }>
+  onUploadImage?: (file: File) => Promise<string>
+}) {
+  const [location, navigate] = useBrowserLocation({ pathname: window.location.pathname, search: '' })
+  const id = [campaignA, campaignB].find((candidate) => location.pathname.startsWith(`/admin/campaign/${candidate}/`))
+  const section = location.pathname.endsWith('/orders') ? 'orders' : 'content'
+  return (
+    <OrganizerNavigationProvider navigate={navigate}>
+      <OrganizerShell current="campaigns" onCreate={onCreate}>
+        {id ? (
+          <CampaignWorkspace
+            key={id}
+            campaign={{ id, title: drafts.get(id)!.title, status: 'open', published: Boolean(drafts.get(id)!.openedAt), coverImage: null, openedAt: drafts.get(id)!.openedAt, orderCount: null, residentHref: null }}
+            requestedSection={section}
+            section={section}
+          >
+            <AdminApp section={section === 'content' ? 'content' : null} initialContent={drafts.get(id)!} initialPublicationState="draft" onSaveDraft={(content) => onSaveDraft(id, content)} onUploadImage={onUploadImage} />
+            {section === 'orders' && <h2>訂單</h2>}
+            <OrganizerLink href={`/admin/campaign/${id === campaignA ? campaignB : campaignA}/content`}>切換活動</OrganizerLink>
+          </CampaignWorkspace>
+        ) : (
+          <main>
+            <h1>團購列表</h1>
+            <OrganizerLink href={`/admin/campaign/${campaignA}/content`}>活動 A</OrganizerLink>
+            <OrganizerLink href={`/admin/campaign/${campaignB}/content`}>活動 B</OrganizerLink>
+          </main>
+        )}
+      </OrganizerShell>
+    </OrganizerNavigationProvider>
+  )
+}
+
 describe('organizer campaign editor', () => {
+  it('keeps the editor mounted when navigating during an image upload without other edits', async () => {
+    window.history.replaceState(null, '', `/admin/campaign/${campaignA}/content`)
+    const drafts = new Map([[campaignA, navigationDraft('活動 A')], [campaignB, navigationDraft('活動 B')]])
+    let finishUpload!: (url: string) => void
+    const onUploadImage = vi.fn(() => new Promise<string>((resolve) => { finishUpload = resolve }))
+    const onSaveDraft = vi.fn(async (id: string, content: CampaignContent) => { drafts.set(id, content) })
+    try {
+      render(<NavigationHarness drafts={drafts} onSaveDraft={onSaveDraft} onUploadImage={onUploadImage} />)
+      await userEvent.setup().upload(screen.getByLabelText('加入圖片'), png('待上傳.png'))
+      expect(onUploadImage).toHaveBeenCalledOnce()
+      fireEvent.click(screen.getByRole('link', { name: '所有團購' }))
+      expect(window.location.pathname).toBe(`/admin/campaign/${campaignA}/content`)
+      expect(window.dispatchEvent(new Event('beforeunload', { cancelable: true }))).toBe(false)
+      finishUpload('https://storage.test/uploaded.png')
+      await waitFor(() => expect(onSaveDraft).toHaveBeenCalledWith(campaignA, expect.objectContaining({ images: [expect.objectContaining({ src: 'https://storage.test/uploaded.png' })] })))
+      fireEvent.click(screen.getByRole('link', { name: '所有團購' }))
+      await waitFor(() => expect(window.location.pathname).toBe('/admin'))
+      expect(drafts.get(campaignA)?.images[0]?.src).toBe('https://storage.test/uploaded.png')
+    } finally {
+      window.history.replaceState(null, '', '/')
+    }
+  })
+
+  it('saves the current draft before the create-dialog navigation to another campaign', async () => {
+    window.history.replaceState(null, '', `/admin/campaign/${campaignA}/content`)
+    const drafts = new Map([[campaignA, navigationDraft('活動 A')], [campaignB, navigationDraft('活動 B')]])
+    let finishSave!: () => void
+    const onSaveDraft = vi.fn((id: string, content: CampaignContent) => new Promise<void>((resolve) => {
+      finishSave = () => { drafts.set(id, content); resolve() }
+    }))
+    const onCreate = vi.fn(async () => ({ id: campaignB }))
+    try {
+      render(<NavigationHarness drafts={drafts} onSaveDraft={onSaveDraft} onCreate={onCreate} />)
+      fireEvent.change(screen.getByRole('textbox', { name: '團購標題' }), { target: { value: '活動 A 未儲存' } })
+      fireEvent.click(screen.getByRole('button', { name: '建立新團' }))
+      fireEvent.click(within(screen.getByRole('dialog', { name: '建立新團' })).getByRole('button', { name: '建立並編輯' }))
+      await waitFor(() => expect(onSaveDraft).toHaveBeenCalledWith(campaignA, expect.objectContaining({ title: '活動 A 未儲存' })))
+      expect(onCreate).not.toHaveBeenCalled()
+      expect(window.location.pathname).toBe(`/admin/campaign/${campaignA}/content`)
+      finishSave()
+      await waitFor(() => expect(onCreate).toHaveBeenCalledOnce())
+      await waitFor(() => expect(window.location.pathname).toBe(`/admin/campaign/${campaignB}/content`))
+      expect(drafts.get(campaignA)?.title).toBe('活動 A 未儲存')
+    } finally {
+      window.history.replaceState(null, '', '/')
+    }
+  })
+
+  it('does not create a new campaign when the current draft cannot be saved', async () => {
+    window.history.replaceState(null, '', `/admin/campaign/${campaignA}/content`)
+    const drafts = new Map([[campaignA, navigationDraft('活動 A')], [campaignB, navigationDraft('活動 B')]])
+    const onSaveDraft = vi.fn().mockRejectedValueOnce(new Error('網路中斷'))
+      .mockImplementation(async (id: string, content: CampaignContent) => { drafts.set(id, content) })
+    const onCreate = vi.fn(async () => ({ id: campaignB }))
+    try {
+      render(<NavigationHarness drafts={drafts} onSaveDraft={onSaveDraft} onCreate={onCreate} />)
+      fireEvent.change(screen.getByRole('textbox', { name: '團購標題' }), { target: { value: '活動 A 未存' } })
+      fireEvent.click(screen.getByRole('button', { name: '建立新團' }))
+      const dialog = screen.getByRole('dialog', { name: '建立新團' })
+      fireEvent.click(within(dialog).getByRole('button', { name: '建立並編輯' }))
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent('先儲存目前團購')
+      expect(onCreate).not.toHaveBeenCalled()
+      expect(window.location.pathname).toBe(`/admin/campaign/${campaignA}/content`)
+      fireEvent.click(within(dialog).getByRole('button', { name: '建立並編輯' }))
+      await waitFor(() => expect(onCreate).toHaveBeenCalledOnce())
+      await waitFor(() => expect(window.location.pathname).toBe(`/admin/campaign/${campaignB}/content`))
+      expect(drafts.get(campaignA)?.title).toBe('活動 A 未存')
+    } finally {
+      window.history.replaceState(null, '', '/')
+    }
+  })
+
+  it('saves the latest content before leaving for the campaign list within the debounce window', async () => {
+    window.history.replaceState(null, '', `/admin/campaign/${campaignA}/content`)
+    const drafts = new Map([[campaignA, navigationDraft('活動 A')], [campaignB, navigationDraft('活動 B')]])
+    let finishSave!: () => void
+    const onSaveDraft = vi.fn((id: string, content: CampaignContent) => new Promise<void>((resolve) => {
+      finishSave = () => { drafts.set(id, content); resolve() }
+    }))
+    try {
+      render(<NavigationHarness drafts={drafts} onSaveDraft={onSaveDraft} />)
+      fireEvent.change(screen.getByRole('textbox', { name: '團購標題' }), { target: { value: '活動 A 新標題' } })
+      fireEvent.click(screen.getByRole('link', { name: '所有團購' }))
+
+      expect(onSaveDraft).toHaveBeenCalledTimes(1)
+      expect(onSaveDraft).toHaveBeenCalledWith(campaignA, expect.objectContaining({ title: '活動 A 新標題' }))
+      expect(window.location.pathname).toBe(`/admin/campaign/${campaignA}/content`)
+      finishSave()
+      await waitFor(() => expect(window.location.pathname).toBe('/admin'))
+      fireEvent.click(screen.getByRole('link', { name: '活動 A' }))
+      expect(screen.getByRole('textbox', { name: '團購標題' })).toHaveValue('活動 A 新標題')
+    } finally {
+      window.history.replaceState(null, '', '/')
+    }
+  })
+
+  it('waits for an in-flight save and writes newer edits to A before opening B', async () => {
+    window.history.replaceState(null, '', `/admin/campaign/${campaignA}/content`)
+    const drafts = new Map([[campaignA, navigationDraft('活動 A')], [campaignB, navigationDraft('活動 B')]])
+    const finish: Array<() => void> = []
+    const onSaveDraft = vi.fn((id: string, content: CampaignContent) => new Promise<void>((resolve) => {
+      finish.push(() => { drafts.set(id, content); resolve() })
+    }))
+    try {
+      render(<NavigationHarness drafts={drafts} onSaveDraft={onSaveDraft} />)
+      const title = screen.getByRole('textbox', { name: '團購標題' })
+      fireEvent.change(title, { target: { value: '活動 A 第一版' } })
+      await waitFor(() => expect(onSaveDraft).toHaveBeenCalledTimes(1))
+      fireEvent.click(screen.getByRole('link', { name: '切換活動' }))
+      expect(window.location.pathname).toBe(`/admin/campaign/${campaignA}/content`)
+      fireEvent.change(title, { target: { value: '活動 A 第二版' } })
+      finish[0]()
+      await waitFor(() => expect(onSaveDraft).toHaveBeenCalledTimes(2))
+      expect(onSaveDraft).toHaveBeenLastCalledWith(campaignA, expect.objectContaining({ title: '活動 A 第二版' }))
+      expect(window.location.pathname).toBe(`/admin/campaign/${campaignA}/content`)
+      finish[1]()
+      await waitFor(() => expect(window.location.pathname).toBe(`/admin/campaign/${campaignB}/content`))
+      expect(screen.getByRole('textbox', { name: '團購標題' })).toHaveValue('活動 B')
+      expect(drafts.get(campaignA)?.title).toBe('活動 A 第二版')
+      expect(drafts.get(campaignB)?.title).toBe('活動 B')
+    } finally {
+      window.history.replaceState(null, '', '/')
+    }
+  })
+
+  it('keeps saves bound to their campaign when switching directly from A to B', async () => {
+    window.history.replaceState(null, '', `/admin/campaign/${campaignA}/content`)
+    const drafts = new Map([[campaignA, navigationDraft('活動 A')], [campaignB, navigationDraft('活動 B')]])
+    const onSaveDraft = vi.fn(async (id: string, content: CampaignContent) => { drafts.set(id, content) })
+    try {
+      render(<NavigationHarness drafts={drafts} onSaveDraft={onSaveDraft} />)
+      fireEvent.change(screen.getByRole('textbox', { name: '團購標題' }), { target: { value: '活動 A 新版' } })
+      fireEvent.click(screen.getByRole('link', { name: '切換活動' }))
+      await waitFor(() => expect(window.location.pathname).toBe(`/admin/campaign/${campaignB}/content`))
+      fireEvent.change(screen.getByRole('textbox', { name: '團購標題' }), { target: { value: '活動 B 新版' } })
+      await waitFor(() => expect(onSaveDraft).toHaveBeenCalledTimes(2))
+      expect(onSaveDraft.mock.calls.map(([id, content]) => [id, content.title])).toEqual([
+        [campaignA, '活動 A 新版'], [campaignB, '活動 B 新版'],
+      ])
+      expect(drafts.get(campaignA)?.title).toBe('活動 A 新版')
+      expect(drafts.get(campaignB)?.title).toBe('活動 B 新版')
+    } finally {
+      window.history.replaceState(null, '', '/')
+    }
+  })
+
+  it('blocks navigation on a failed save and keeps the error visible for retry', async () => {
+    window.history.replaceState(null, '', `/admin/campaign/${campaignA}/content`)
+    const drafts = new Map([[campaignA, navigationDraft('活動 A')], [campaignB, navigationDraft('活動 B')]])
+    const onSaveDraft = vi.fn()
+      .mockRejectedValueOnce(new Error('網路中斷'))
+      .mockImplementation(async (id: string, content: CampaignContent) => { drafts.set(id, content) })
+    try {
+      render(<NavigationHarness drafts={drafts} onSaveDraft={onSaveDraft} />)
+      fireEvent.change(screen.getByRole('textbox', { name: '團購標題' }), { target: { value: '活動 A 待存' } })
+      fireEvent.click(screen.getByRole('link', { name: '所有團購' }))
+
+      expect(await screen.findByText('儲存失敗：網路中斷')).toBeInTheDocument()
+      expect(window.location.pathname).toBe(`/admin/campaign/${campaignA}/content`)
+      expect(screen.getByRole('textbox', { name: '團購標題' })).toHaveValue('活動 A 待存')
+      expect(screen.getByRole('status')).not.toHaveTextContent('已自動儲存')
+      expect(drafts.get(campaignA)?.title).toBe('活動 A')
+
+      fireEvent.click(screen.getByRole('button', { name: '重試' }))
+      await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/^已自動儲存/))
+      fireEvent.click(screen.getByRole('link', { name: '所有團購' }))
+      await waitFor(() => expect(window.location.pathname).toBe('/admin'))
+      expect(drafts.get(campaignA)?.title).toBe('活動 A 待存')
+    } finally {
+      window.history.replaceState(null, '', '/')
+    }
+  })
+
+  it('persists a draft before opening the orders section', async () => {
+    window.history.replaceState(null, '', `/admin/campaign/${campaignA}/content`)
+    const drafts = new Map([[campaignA, navigationDraft('活動 A')], [campaignB, navigationDraft('活動 B')]])
+    drafts.get(campaignA)!.openedAt = '2026-09-20T00:00:00.000Z'
+    let finishSave!: () => void
+    const onSaveDraft = vi.fn((id: string, content: CampaignContent) => new Promise<void>((resolve) => {
+      finishSave = () => { drafts.set(id, content); resolve() }
+    }))
+    try {
+      render(<NavigationHarness drafts={drafts} onSaveDraft={onSaveDraft} />)
+      fireEvent.change(screen.getByRole('textbox', { name: '團購標題' }), { target: { value: '活動 A 已修改' } })
+      fireEvent.click(screen.getByRole('link', { name: '訂單' }))
+      expect(onSaveDraft).toHaveBeenCalledWith(campaignA, expect.objectContaining({ title: '活動 A 已修改' }))
+      expect(screen.queryByRole('heading', { level: 2, name: '訂單' })).not.toBeInTheDocument()
+      finishSave()
+      await waitFor(() => expect(screen.getByRole('heading', { level: 2, name: '訂單' })).toBeInTheDocument())
+      expect(screen.queryByRole('textbox', { name: '團購標題' })).not.toBeInTheDocument()
+      fireEvent.click(screen.getByRole('link', { name: '內容設定' }))
+      expect(await screen.findByRole('textbox', { name: '團購標題' })).toHaveValue('活動 A 已修改')
+    } finally {
+      window.history.replaceState(null, '', '/')
+    }
+  })
+
+  it('holds a browser Back navigation until the unsaved draft is persisted', async () => {
+    window.history.replaceState(null, '', '/admin')
+    const drafts = new Map([[campaignA, navigationDraft('活動 A')], [campaignB, navigationDraft('活動 B')]])
+    let finishSave!: () => void
+    const onSaveDraft = vi.fn((id: string, content: CampaignContent) => new Promise<void>((resolve) => {
+      finishSave = () => { drafts.set(id, content); resolve() }
+    }))
+    try {
+      render(<NavigationHarness drafts={drafts} onSaveDraft={onSaveDraft} />)
+      fireEvent.click(screen.getByRole('link', { name: '活動 A' }))
+      await screen.findByRole('textbox', { name: '團購標題' })
+      fireEvent.change(screen.getByRole('textbox', { name: '團購標題' }), { target: { value: '返回前修改' } })
+      act(() => window.history.back())
+
+      await waitFor(() => expect(onSaveDraft).toHaveBeenCalledTimes(1))
+      expect(onSaveDraft).toHaveBeenCalledWith(campaignA, expect.objectContaining({ title: '返回前修改' }))
+      await waitFor(() => expect(window.location.pathname).toBe(`/admin/campaign/${campaignA}/content`))
+      finishSave()
+      await waitFor(() => expect(window.location.pathname).toBe('/admin'))
+      expect(drafts.get(campaignA)?.title).toBe('返回前修改')
+    } finally {
+      window.history.replaceState(null, '', '/')
+    }
+  })
+
+  it('keeps the editor and failure message visible if saving on Back fails', async () => {
+    window.history.replaceState(null, '', '/admin')
+    window.history.pushState(null, '', `/admin/campaign/${campaignA}/content`)
+    const drafts = new Map([[campaignA, navigationDraft('活動 A')], [campaignB, navigationDraft('活動 B')]])
+    const onSaveDraft = vi.fn().mockRejectedValue(new Error('伺服器無法儲存'))
+    try {
+      render(<NavigationHarness drafts={drafts} onSaveDraft={onSaveDraft} />)
+      fireEvent.change(screen.getByRole('textbox', { name: '團購標題' }), { target: { value: '返回失敗的修改' } })
+      act(() => window.history.back())
+      expect(await screen.findByText('儲存失敗：伺服器無法儲存')).toBeInTheDocument()
+      await waitFor(() => expect(window.location.pathname).toBe(`/admin/campaign/${campaignA}/content`))
+      expect(screen.getByRole('textbox', { name: '團購標題' })).toHaveValue('返回失敗的修改')
+      expect(screen.getByRole('status')).not.toHaveTextContent('已自動儲存')
+      expect(drafts.get(campaignA)?.title).toBe('活動 A')
+    } finally {
+      window.history.replaceState(null, '', '/')
+    }
+  })
+
+  it('preserves the previous history entry after a failed Back save', async () => {
+    window.history.replaceState(null, '', '/admin')
+    window.history.pushState(null, '', `/admin/campaign/${campaignA}/content`)
+    const drafts = new Map([[campaignA, navigationDraft('活動 A')], [campaignB, navigationDraft('活動 B')]])
+    const onSaveDraft = vi.fn()
+      .mockRejectedValueOnce(new Error('網路中斷'))
+      .mockImplementation(async (id: string, content: CampaignContent) => { drafts.set(id, content) })
+    try {
+      render(<NavigationHarness drafts={drafts} onSaveDraft={onSaveDraft} />)
+      fireEvent.change(screen.getByRole('textbox', { name: '團購標題' }), { target: { value: '返回後要保留' } })
+      act(() => window.history.back())
+      expect(await screen.findByText('儲存失敗：網路中斷')).toBeInTheDocument()
+      await waitFor(() => expect(window.location.pathname).toBe(`/admin/campaign/${campaignA}/content`))
+      fireEvent.click(screen.getByRole('button', { name: '重試' }))
+      await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/^已自動儲存/))
+      act(() => window.history.back())
+      await waitFor(() => expect(window.location.pathname).toBe('/admin'))
+      expect(drafts.get(campaignA)?.title).toBe('返回後要保留')
+    } finally {
+      window.history.replaceState(null, '', '/')
+    }
+  })
+
+  it('saves before Forward without duplicating campaign history entries', async () => {
+    window.history.replaceState(null, '', '/admin')
+    const drafts = new Map([[campaignA, navigationDraft('活動 A')], [campaignB, navigationDraft('活動 B')]])
+    let finishSave!: () => void
+    const onSaveDraft = vi.fn((id: string, content: CampaignContent) => new Promise<void>((resolve) => {
+      finishSave = () => { drafts.set(id, content); resolve() }
+    }))
+    try {
+      render(<NavigationHarness drafts={drafts} onSaveDraft={onSaveDraft} />)
+      fireEvent.click(screen.getByRole('link', { name: '活動 A' }))
+      await screen.findByRole('textbox', { name: '團購標題' })
+      fireEvent.click(screen.getByRole('link', { name: '切換活動' }))
+      await waitFor(() => expect(window.location.pathname).toBe(`/admin/campaign/${campaignB}/content`))
+      act(() => window.history.back())
+      await waitFor(() => expect(window.location.pathname).toBe(`/admin/campaign/${campaignA}/content`))
+      fireEvent.change(screen.getByRole('textbox', { name: '團購標題' }), { target: { value: '向前前已存' } })
+      act(() => window.history.forward())
+      await waitFor(() => expect(onSaveDraft).toHaveBeenCalledWith(campaignA, expect.objectContaining({ title: '向前前已存' })))
+      await waitFor(() => expect(window.location.pathname).toBe(`/admin/campaign/${campaignA}/content`))
+      finishSave()
+      await waitFor(() => expect(window.location.pathname).toBe(`/admin/campaign/${campaignB}/content`))
+      act(() => window.history.back())
+      await waitFor(() => expect(window.location.pathname).toBe(`/admin/campaign/${campaignA}/content`))
+    } finally {
+      window.history.replaceState(null, '', '/')
+    }
+  })
+
+  it('restores and replays a multi-entry Back jump after saving without landing on an intermediate campaign', async () => {
+    window.history.replaceState(null, '', '/admin')
+    const drafts = new Map([[campaignA, navigationDraft('活動 A')], [campaignB, navigationDraft('活動 B')]])
+    let finishSave!: () => void
+    const onSaveDraft = vi.fn((id: string, content: CampaignContent) => new Promise<void>((resolve) => {
+      finishSave = () => { drafts.set(id, content); resolve() }
+    }))
+    try {
+      render(<NavigationHarness drafts={drafts} onSaveDraft={onSaveDraft} />)
+      fireEvent.click(screen.getByRole('link', { name: '活動 A' }))
+      await screen.findByRole('textbox', { name: '團購標題' })
+      fireEvent.click(screen.getByRole('link', { name: '切換活動' }))
+      await waitFor(() => expect(window.location.pathname).toBe(`/admin/campaign/${campaignB}/content`))
+      fireEvent.change(screen.getByRole('textbox', { name: '團購標題' }), { target: { value: '活動 B 要保留' } })
+      act(() => window.history.go(-2))
+      await waitFor(() => expect(onSaveDraft).toHaveBeenCalledWith(campaignB, expect.objectContaining({ title: '活動 B 要保留' })))
+      await waitFor(() => expect(window.location.pathname).toBe(`/admin/campaign/${campaignB}/content`))
+      finishSave()
+      await waitFor(() => expect(window.location.pathname).toBe('/admin'))
+      expect(drafts.get(campaignB)?.title).toBe('活動 B 要保留')
+    } finally {
+      window.history.replaceState(null, '', '/')
+    }
+  })
+
+  it('lands on the requested old unindexed history entry after a multi-entry Back jump', async () => {
+    window.history.replaceState(null, '', '/admin/settings')
+    window.history.pushState(null, '', '/admin')
+    window.history.pushState(null, '', `/admin/campaign/${campaignB}/content`)
+    const drafts = new Map([[campaignA, navigationDraft('活動 A')], [campaignB, navigationDraft('活動 B')]])
+    let finishSave!: () => void
+    const onSaveDraft = vi.fn((id: string, content: CampaignContent) => new Promise<void>((resolve) => {
+      finishSave = () => { drafts.set(id, content); resolve() }
+    }))
+    try {
+      render(<NavigationHarness drafts={drafts} onSaveDraft={onSaveDraft} />)
+      fireEvent.change(screen.getByRole('textbox', { name: '團購標題' }), { target: { value: '活動 B 不應遺失' } })
+      act(() => window.history.go(-2))
+      await waitFor(() => expect(onSaveDraft).toHaveBeenCalledWith(campaignB, expect.objectContaining({ title: '活動 B 不應遺失' })))
+      expect(screen.getByRole('textbox', { name: '團購標題' })).toHaveValue('活動 B 不應遺失')
+      finishSave()
+      await waitFor(() => {
+        expect(screen.queryByRole('textbox', { name: '團購標題' })).not.toBeInTheDocument()
+        expect(window.location.pathname).toBe('/admin/settings')
+      })
+      expect(drafts.get(campaignB)?.title).toBe('活動 B 不應遺失')
+    } finally {
+      window.history.replaceState(null, '', '/')
+    }
+  })
+
+  it('keeps an unsaved editor reachable when an old unindexed history jump cannot save', async () => {
+    window.history.replaceState(null, '', '/admin/settings')
+    window.history.pushState(null, '', '/admin')
+    window.history.pushState(null, '', `/admin/campaign/${campaignB}/content`)
+    const drafts = new Map([[campaignA, navigationDraft('活動 A')], [campaignB, navigationDraft('活動 B')]])
+    const onSaveDraft = vi.fn().mockRejectedValueOnce(new Error('草稿儲存失敗'))
+      .mockImplementation(async (id: string, content: CampaignContent) => { drafts.set(id, content) })
+    try {
+      render(<NavigationHarness drafts={drafts} onSaveDraft={onSaveDraft} />)
+      fireEvent.change(screen.getByRole('textbox', { name: '團購標題' }), { target: { value: '活動 B 仍待儲存' } })
+      act(() => window.history.go(-2))
+      expect(await screen.findByText('儲存失敗：草稿儲存失敗')).toBeInTheDocument()
+      await waitFor(() => expect(window.location.pathname).toBe(`/admin/campaign/${campaignB}/content`))
+      expect(screen.getByRole('textbox', { name: '團購標題' })).toHaveValue('活動 B 仍待儲存')
+      fireEvent.click(screen.getByRole('button', { name: '重試' }))
+      await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/^已自動儲存/))
+      act(() => window.history.back())
+      await waitFor(() => expect(window.location.pathname).toBe('/admin/settings'))
+      expect(drafts.get(campaignB)?.title).toBe('活動 B 仍待儲存')
+    } finally {
+      window.history.replaceState(null, '', '/')
+    }
+  })
+
+  it('keeps the correct Back distance after a failed legacy Forward and a later campaign navigation', async () => {
+    window.history.replaceState(null, '', `/admin/campaign/${campaignB}/content`)
+    window.history.pushState({ __organizerHistoryIndex: 0 }, '', `/admin/campaign/${campaignB}/orders`)
+    const drafts = new Map([[campaignA, navigationDraft('活動 A')], [campaignB, {
+      ...navigationDraft('活動 B'), openedAt: '2026-09-20T00:00:00.000Z',
+    }]])
+    let failOnce = true
+    let finishASave!: () => void
+    const onSaveDraft = vi.fn((id: string, content: CampaignContent): Promise<void> => {
+      if (id === campaignB && failOnce) { failOnce = false; return Promise.reject(new Error('首次失敗')) }
+      if (id === campaignA) return new Promise((resolve) => { finishASave = () => { drafts.set(id, content); resolve() } })
+      drafts.set(id, content)
+      return Promise.resolve()
+    })
+    try {
+      render(<NavigationHarness drafts={drafts} onSaveDraft={onSaveDraft} />)
+      act(() => window.history.back())
+      await screen.findByRole('textbox', { name: '團購標題' })
+      fireEvent.change(screen.getByRole('textbox', { name: '團購標題' }), { target: { value: '活動 B 已修改' } })
+      act(() => window.history.forward())
+      expect(await screen.findByText('儲存失敗：首次失敗')).toBeInTheDocument()
+      await waitFor(() => expect(window.location.pathname).toBe(`/admin/campaign/${campaignB}/content`))
+      expect(window.history.state).toEqual(expect.objectContaining({ __organizerHistoryIndex: 1 }))
+      fireEvent.click(screen.getByRole('button', { name: '重試' }))
+      await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/^已自動儲存/))
+      fireEvent.click(screen.getByRole('link', { name: '切換活動' }))
+      await waitFor(() => expect(window.location.pathname).toBe(`/admin/campaign/${campaignA}/content`))
+      expect(window.history.state).toEqual(expect.objectContaining({ __organizerHistoryIndex: 2 }))
+      fireEvent.change(screen.getByRole('textbox', { name: '團購標題' }), { target: { value: '活動 A 已修改' } })
+      act(() => window.history.go(-2))
+      await waitFor(() => expect(onSaveDraft).toHaveBeenCalledWith(campaignA, expect.objectContaining({ title: '活動 A 已修改' })))
+      await waitFor(() => expect(window.location.pathname).toBe(`/admin/campaign/${campaignA}/content`))
+      finishASave()
+      await waitFor(() => expect(window.location.pathname).toBe(`/admin/campaign/${campaignB}/orders`))
+      expect(drafts.get(campaignA)?.title).toBe('活動 A 已修改')
+    } finally {
+      window.history.replaceState(null, '', '/')
+    }
+  })
+
+  it('warns on full-page unload while a draft is unsaved, but not after saving', async () => {
+    window.history.replaceState(null, '', `/admin/campaign/${campaignA}/content`)
+    const drafts = new Map([[campaignA, navigationDraft('活動 A')], [campaignB, navigationDraft('活動 B')]])
+    const onSaveDraft = vi.fn().mockResolvedValue(undefined)
+    try {
+      render(<NavigationHarness drafts={drafts} onSaveDraft={onSaveDraft} />)
+      expect(window.dispatchEvent(new Event('beforeunload', { cancelable: true }))).toBe(true)
+      fireEvent.change(screen.getByRole('textbox', { name: '團購標題' }), { target: { value: '待儲存' } })
+      expect(window.dispatchEvent(new Event('beforeunload', { cancelable: true }))).toBe(false)
+      await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/^已自動儲存/))
+      expect(window.dispatchEvent(new Event('beforeunload', { cancelable: true }))).toBe(true)
+    } finally {
+      window.history.replaceState(null, '', '/')
+    }
+  })
+
   it('loads the current campaign into the editor and resident preview', () => {
     render(<AdminApp />)
 
@@ -486,6 +959,25 @@ describe('organizer campaign editor', () => {
     await user.click(screen.getByRole('button', { name: '更新住戶頁' }))
     expect(onPublish).toHaveBeenCalledWith(expect.objectContaining({ title: 'Supabase 草稿新版' }))
     expect(await screen.findByText('住戶頁已更新')).toBeInTheDocument()
+  })
+
+  it('clears a failed draft save after the same content is published successfully', async () => {
+    const user = userEvent.setup()
+    const content: CampaignContent = {
+      ...navigationDraft('已開團'), openedAt: '2026-08-12T00:00:00Z',
+    }
+    const onSaveDraft = vi.fn().mockRejectedValue(new Error('草稿暫時無法儲存'))
+    const onPublish = vi.fn(async (next: CampaignContent) => next)
+    render(<AdminApp initialContent={content} initialPublicationState="published" publishedContent={content}
+      onSaveDraft={onSaveDraft} onPublish={onPublish} />)
+
+    await user.type(screen.getByRole('textbox', { name: '團購標題' }), '新版')
+    expect(await screen.findByText('儲存失敗：草稿暫時無法儲存')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '更新住戶頁' }))
+    expect(await screen.findByText('住戶頁已更新')).toBeInTheDocument()
+    expect(onPublish).toHaveBeenCalledWith(expect.objectContaining({ title: '已開團新版' }))
+    expect(screen.queryByText('儲存失敗：草稿暫時無法儲存')).not.toBeInTheDocument()
+    expect(window.dispatchEvent(new Event('beforeunload', { cancelable: true }))).toBe(true)
   })
 
   it('shows the actual campaign workflow state in the resident preview', () => {
