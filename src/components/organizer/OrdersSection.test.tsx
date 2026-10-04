@@ -81,10 +81,11 @@ describe('OrdersSection', () => {
     renderOrders()
     await user.click(screen.getByRole('button', { name: '複製品項數量' }))
     const copied = await navigator.clipboard.readText()
-    expect(copied.split('\n')[0]).toBe('一涼製冰所')
-    expect(copied).toContain('B 花生（招牌） 14 個')
-    expect(copied.trim().split('\n').at(-1)).toBe('合計 62 個')
-    expect(copied).not.toMatch(/ 0 個/)
+    expect(copied.split('\n')).toEqual([
+      '一涼製冰所',
+      ...summary.itemRows.filter((item) => item.quantity > 0).map((item) => `${item.name} ${item.quantity} 個`),
+      '合計 62 個',
+    ])
     expect(await screen.findByText('已複製')).toBeInTheDocument()
   })
 
