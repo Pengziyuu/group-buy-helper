@@ -63,7 +63,7 @@ python scripts/start_local_live_demo.py
 - `src/AdminApp.tsx`：團購內容設定。草稿、自動儲存（約 0.5 秒、失敗不自動重試）、發布與開團後鎖定的邏輯都在這裡；畫面由 `src/components/organizer/content/` 的元件組成（上方固定列、跳段標籤、品項表、圖片管理、住戶頁預覽、發布前檢查），判斷規則在 `contentChecks.ts`。
 - 發布前檢查：團購標題、開團資訊、每個品項的名稱與單價、門檻、結單日期、優惠設定都要完成才能發布；圖片不是必填。
 - 內容設定的圖片可一次選多張，依序逐張呼叫既有上傳 gateway；上傳期間不自動儲存也不能發布，全部結束後才自動儲存一次。本機示範沒有上傳服務，改用圖片網址。
-- `src/components/organizer/OrdersSection.tsx` 與 `OrderSummaryCard.tsx`：已發布團購的統一訂單頁，保留成團進度、今日新增、品項數量、搜尋、排序、團主備註、整筆取消及結單後匯出。舊 `OverviewSection.tsx` 不在現行頁面路徑；`/overview` 由 `workspaceSections.ts` 重新導向 `/orders`。`LocalLiveAdminApp` 訂閱該團 `orders`／`order_item` 的 Realtime 變動後重新載入；相對時間由 `src/components/relativeTime.ts` 每分鐘重算。
+- `src/components/organizer/OrdersSection.tsx` 與 `OrderSummaryCard.tsx`：已發布團購的統一訂單頁，保留成團進度、今日新增、品項數量、搜尋、排序、團主備註、整筆取消及結單後匯出。舊 `OverviewSection.tsx` 已移除；舊 `/overview` 連結仍由 `workspaceSections.ts` 重新導向 `/orders`。`LocalLiveAdminApp` 訂閱該團 `orders`／`order_item` 的 Realtime 變動後重新載入；相對時間由 `src/components/relativeTime.ts` 每分鐘重算。
 - `src/NotificationTestLab.tsx`：與正式通知介面隔離的通知測試中心。
 - `src/services/`：Supabase gateway、Excel匯出與migration／Edge Function契約測試。
 - `src/domain/`：價格、折扣、戶籍、時間、門檻與訂單純領域邏輯。

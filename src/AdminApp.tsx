@@ -13,6 +13,7 @@ import {
 } from './components/organizer/content/contentChecks'
 import { ImageManager } from './components/organizer/content/ImageManager'
 import { ItemTable } from './components/organizer/content/ItemTable'
+import { organizerHistoryIndex, organizerHistoryState, useOrganizerNavigationBlocker } from './components/organizer/organizerNavigation'
 import { PublishChecklist } from './components/organizer/content/PublishChecklist'
 import { FormField } from './components/ui/FormField'
 import { SegmentedControl } from './components/ui/SegmentedControl'
@@ -171,6 +172,19 @@ function AdminApp({
   const latestRevisionRef = useRef(0)
   const autoSaveInFlightRef = useRef(false)
   const flushAutoSaveImmediatelyRef = useRef(false)
+  const autoSaveTimerRef = useRef<number | null>(null)
+  const saveAttemptRef = useRef<Promise<boolean> | null>(null)
+  const failedRevisionRef = useRef<number | null>(null)
+  const navigationPendingRef = useRef(false)
+  const legacyNavigationPendingRef = useRef(false)
+  const currentPathRef = useRef(`${window.location.pathname}${window.location.search}`)
+  const currentHistoryIndexRef = useRef(organizerHistoryIndex())
+  const currentHistoryStateRef = useRef(window.history.state)
+  if (!navigationPendingRef.current) {
+    currentPathRef.current = `${window.location.pathname}${window.location.search}`
+    currentHistoryIndexRef.current = organizerHistoryIndex()
+    currentHistoryStateRef.current = window.history.state
+  }
   // The version residents see. Without an explicit copy, a campaign loaded as published starts as its own
   // published version, while one loaded as having unpublished changes has none to compare against.
   const [lastPublished, setLastPublished] = useState<CampaignContent | null>(() => {
@@ -241,75 +255,175 @@ function AdminApp({
   const markDraft = () => {
     latestRevisionRef.current += 1
     setDraftRevision(latestRevisionRef.current)
+    failedRevisionRef.current = null
     setAutoSaveFailedRevision(null)
     setAutoSaveError(null)
     setNotice(null)
   }
 
-  useEffect(() => {
-    if (draftRevision === savedRevisionRef.current || editorBusy || autoSaveInFlightRef.current || !numericInputsValid || !scheduleInputsValid || !itemNamesValid) return
-    const revision = draftRevision
-    const delay = flushAutoSaveImmediatelyRef.current ? 0 : 500
-    flushAutoSaveImmediatelyRef.current = false
-    const timer = window.setTimeout(() => {
-      autoSaveInFlightRef.current = true
-      setAutoSaving(true)
-      const content: CampaignContent = {
-        title,
-        unitPrice,
-        threshold,
-        thresholdConfigured,
-        itemNameConfigured,
-        itemPriceConfigured,
-        thresholdKind,
-        thresholdAutoClose,
-        amountThreshold: thresholdKind === 'amount' ? amountThreshold : null,
-        quantityUnit,
-        allowCustomItems,
-        baseDiscountRate: baseDiscountEnabled ? baseDiscountRate : 1,
-        mixMatchDiscount: mixMatchEnabled ? {
-          name: mixMatchName.trim(),
-          minimumQuantity: mixMatchMinimumQuantity,
-          rate: mixMatchDiscountRate,
-        } : null,
-        arrivalLabel,
-        autoCloseAt,
-        announcement,
-        images,
-        items: campaignItems,
-        openedAt,
-      }
-      const saving = onSaveDraft ? onSaveDraft(content) : new Promise<void>((resolve) => {
-        saveDraftCampaign(content)
-        resolve()
-      })
-      void saving.then(() => {
+  const saveRevision = (revision: number, content: CampaignContent): Promise<boolean> => {
+    autoSaveInFlightRef.current = true
+    setAutoSaving(true)
+    let saving: Promise<void>
+    try {
+      saving = onSaveDraft ? onSaveDraft(content) : Promise.resolve(saveDraftCampaign(content))
+    } catch (error) {
+      saving = Promise.reject(error)
+    }
+    const attempt = saving.then(() => {
         savedRevisionRef.current = revision
         if (latestRevisionRef.current === revision) {
+          failedRevisionRef.current = null
           setAutoSaveFailedRevision(null)
           setAutoSaveError(null)
           setLastSavedAt(new Date())
         }
+        return true
       }).catch((error: unknown) => {
         savedRevisionRef.current = revision
         if (latestRevisionRef.current === revision) {
+          failedRevisionRef.current = revision
           setAutoSaveFailedRevision(revision)
           setAutoSaveError(messageFromError(error))
         }
+        return false
       }).finally(() => {
         autoSaveInFlightRef.current = false
+        saveAttemptRef.current = null
         const hasNewerRevision = latestRevisionRef.current > revision
         flushAutoSaveImmediatelyRef.current = hasNewerRevision
         if (!hasNewerRevision) setAutoSaving(false)
         setAutoSaveCycle((cycle) => cycle + 1)
       })
+    saveAttemptRef.current = attempt
+    return attempt
+  }
+  const saveRevisionRef = useRef(saveRevision)
+  saveRevisionRef.current = saveRevision
+  const currentContentRef = useRef(currentContent)
+  currentContentRef.current = currentContent
+
+  // Keep the latest committed form and save callback for navigation and history guards.
+  const navigationSaveRef = useRef<() => Promise<boolean>>(async () => true)
+  navigationSaveRef.current = async () => {
+    // An upload can add images after the last saved revision; do not leave
+    // before it finishes even when no form field has changed yet.
+    if (operationLock.current || editorBusy) return false
+    if (saveAttemptRef.current) {
+      const saved = await saveAttemptRef.current
+      if (!saved && latestRevisionRef.current === savedRevisionRef.current) return false
+      // Edits made while waiting need the new render's content, not this callback's old snapshot.
+      return navigationSaveRef.current()
+    }
+    if (latestRevisionRef.current === savedRevisionRef.current && failedRevisionRef.current === null) return true
+    if (!numericInputsValid || !scheduleInputsValid || !itemNamesValid) return false
+    if (autoSaveTimerRef.current !== null) window.clearTimeout(autoSaveTimerRef.current)
+    autoSaveTimerRef.current = null
+    return saveRevision(latestRevisionRef.current, currentContent())
+  }
+
+  useOrganizerNavigationBlocker(async () => {
+    if (navigationPendingRef.current) return false
+    navigationPendingRef.current = true
+    try {
+      return await navigationSaveRef.current()
+    } finally {
+      navigationPendingRef.current = false
+    }
+  })
+
+  useEffect(() => {
+    const needsSave = () => latestRevisionRef.current !== savedRevisionRef.current
+      || failedRevisionRef.current !== null || autoSaveInFlightRef.current || navigationPendingRef.current
+      || operationLock.current || editorBusy
+    const onPopState = (event: PopStateEvent) => {
+      if (!needsSave()) return
+      const target = `${window.location.pathname}${window.location.search}`
+      const source = currentPathRef.current
+      if (target === source) return
+      event.stopImmediatePropagation()
+      const targetIndex = organizerHistoryIndex()
+      if (legacyNavigationPendingRef.current || navigationPendingRef.current && targetIndex === null) return
+      if (targetIndex === null || currentHistoryIndexRef.current === null) {
+        // Older same-document history entries have no index: the browser does
+        // not expose how many entries a single Back/Forward jump crossed.
+        // Keep the actual destination in place instead of guessing a delta.
+        navigationPendingRef.current = true
+        legacyNavigationPendingRef.current = true
+        void navigationSaveRef.current().then((saved) => {
+          if (saved) {
+            navigationPendingRef.current = false
+            legacyNavigationPendingRef.current = false
+            window.dispatchEvent(new PopStateEvent('popstate', { state: window.history.state }))
+          } else if (`${window.location.pathname}${window.location.search}` !== source) {
+            // Preserve the destination as the previous entry when saving fails.
+            const restoredState = targetIndex === null ? currentHistoryStateRef.current
+              : organizerHistoryState(targetIndex + 1, currentHistoryStateRef.current)
+            window.history.pushState(restoredState, '', source)
+          }
+        }).finally(() => {
+          navigationPendingRef.current = false
+          legacyNavigationPendingRef.current = false
+        })
+        return
+      }
+      const indexDelta = targetIndex !== null && currentHistoryIndexRef.current !== null
+        && targetIndex !== currentHistoryIndexRef.current ? targetIndex - currentHistoryIndexRef.current : -1
+      // Popstate already moved to the destination. Go back to the original
+      // entry without overwriting either history entry while saving the draft.
+      if (navigationPendingRef.current) { window.history.go(-indexDelta); return }
+      navigationPendingRef.current = true
+      const restored = new Promise<void>((resolve) => {
+        const onRestore = (restoreEvent: PopStateEvent) => {
+          if (`${window.location.pathname}${window.location.search}` !== source) return
+          restoreEvent.stopImmediatePropagation()
+          window.removeEventListener('popstate', onRestore, true)
+          resolve()
+        }
+        window.addEventListener('popstate', onRestore, true)
+        window.history.go(-indexDelta)
+      })
+      void Promise.all([restored, navigationSaveRef.current()]).then(([, saved]) => {
+        if (saved) {
+          navigationPendingRef.current = false
+          window.history.go(indexDelta)
+        }
+      }).finally(() => { navigationPendingRef.current = false })
+    }
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!needsSave()) return
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('popstate', onPopState, true)
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => {
+      window.removeEventListener('popstate', onPopState, true)
+      window.removeEventListener('beforeunload', onBeforeUnload)
+    }
+  }, [editorBusy])
+
+  useEffect(() => {
+    if (draftRevision === savedRevisionRef.current || editorBusy || autoSaveInFlightRef.current || !numericInputsValid || !scheduleInputsValid || !itemNamesValid) return
+    const revision = draftRevision
+    const content = currentContentRef.current()
+    const delay = flushAutoSaveImmediatelyRef.current ? 0 : 500
+    flushAutoSaveImmediatelyRef.current = false
+    const timer = window.setTimeout(() => {
+      autoSaveTimerRef.current = null
+      void saveRevisionRef.current(revision, content)
     }, delay)
-    return () => window.clearTimeout(timer)
+    autoSaveTimerRef.current = timer
+    return () => {
+      window.clearTimeout(timer)
+      if (autoSaveTimerRef.current === timer) autoSaveTimerRef.current = null
+    }
   }, [allowCustomItems, amountThreshold, announcement, arrivalLabel, autoCloseAt, autoSaveCycle, baseDiscountEnabled, baseDiscountRate, campaignItems, draftRevision, editorBusy, images, itemNameConfigured, itemNamesValid, itemPriceConfigured, mixMatchDiscountRate, mixMatchEnabled, mixMatchMinimumQuantity, mixMatchName, numericInputsValid, onSaveDraft, openedAt, quantityUnit, scheduleInputsValid, threshold, thresholdAutoClose, thresholdConfigured, thresholdKind, title, unitPrice])
 
   const retryAutoSave = () => {
     if (autoSaveFailedRevision === null || editorBusy || autoSaveInFlightRef.current) return
     savedRevisionRef.current = Math.min(savedRevisionRef.current, autoSaveFailedRevision - 1)
+    failedRevisionRef.current = null
     flushAutoSaveImmediatelyRef.current = true
     setAutoSaveFailedRevision(null)
     setAutoSaveError(null)
@@ -376,6 +490,10 @@ function AdminApp({
       }
       savedRevisionRef.current = draftRevision
       latestRevisionRef.current = draftRevision
+      failedRevisionRef.current = null
+      setAutoSaveFailedRevision(null)
+      setAutoSaveError(null)
+      setLastSavedAt(new Date())
       setLastPublished(normalizeCampaignContent(canonical ?? content))
       setNotice({ tone: 'info', text: wasOpened ? '住戶頁已更新' : '已發布並開團' })
     } catch (error) {

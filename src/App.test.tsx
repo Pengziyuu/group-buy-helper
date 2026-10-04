@@ -706,6 +706,51 @@ describe('customer campaign app', () => {
     expect(within(wall).getByText('已修改')).toHaveAttribute('title', '最後修改 2026/08/14 08:12')
   })
 
+  it('keeps a committed order locally when the server wall has not refreshed yet', async () => {
+    const user = userEvent.setup()
+    const resident = { ...initialOrders[0], householdKind: 'resident' as const }
+    const onSubmitOrder = vi.fn().mockResolvedValue(undefined)
+    render(<App residentCustomer={resident} visibleOrders={[]} onSubmitOrder={onSubmitOrder} />)
+
+    await user.click(screen.getByRole('button', { name: '增加 A 牛奶（招牌）' }))
+    await user.click(screen.getByRole('button', { name: '送出訂單' }))
+
+    expect(await screen.findByText('訂單已更新')).toBeInTheDocument()
+    expect(screen.getByText(/你已送出 1/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '送出訂單' })).toBeDisabled()
+  })
+
+  it('keeps committed custom items until the wall matches the entire submitted order, then accepts cancellation', async () => {
+    const user = userEvent.setup()
+    const resident = { ...initialOrders[0], items: { A: 1 }, householdKind: 'resident' as const }
+    const onSubmitOrder = vi.fn().mockResolvedValue(undefined)
+    const content: CampaignContent = {
+      title: '可自訂品項', unitPrice: 45, threshold: 100, allowCustomItems: true,
+      announcement: '公告', images: [], items, openedAt: '2026-08-14T00:05:09.000Z',
+    }
+    const view = render(<App publishedContent={content} residentCustomer={resident} visibleOrders={[resident]} onSubmitOrder={onSubmitOrder} />)
+    await user.click(screen.getByRole('button', { name: '新增額外品項' }))
+    await user.type(screen.getByRole('textbox', { name: '額外品項 1 名稱' }), '限定蛋糕')
+    await user.click(screen.getByRole('button', { name: '增加 額外品項 1' }))
+    await user.click(screen.getByRole('button', { name: '送出訂單' }))
+    expect(await screen.findByText('訂單已更新')).toBeInTheDocument()
+    expect(screen.getByText(/另有 1 個額外品項/, { selector: '.resident-sent span' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '送出訂單' })).toBeDisabled()
+
+    // Same catalog quantities are insufficient: the custom-item snapshot is still stale.
+    view.rerender(<App publishedContent={content} residentCustomer={resident} visibleOrders={[{ ...resident, customItems: [] }]} onSubmitOrder={onSubmitOrder} />)
+    expect(screen.getByText(/另有 1 個額外品項/, { selector: '.resident-sent span' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: '額外品項 1 名稱' })).toHaveValue('限定蛋糕')
+    expect(screen.getByRole('button', { name: '送出訂單' })).toBeDisabled()
+
+    const submittedCustomItems = onSubmitOrder.mock.calls[0][1]
+    view.rerender(<App publishedContent={content} residentCustomer={resident} visibleOrders={[{ ...resident, customItems: submittedCustomItems }]} onSubmitOrder={onSubmitOrder} />)
+    expect(screen.getByText(/另有 1 個額外品項/, { selector: '.resident-sent span' })).toBeInTheDocument()
+    view.rerender(<App publishedContent={content} residentCustomer={resident} visibleOrders={[]} onSubmitOrder={onSubmitOrder} />)
+    await waitFor(() => expect(screen.queryByText(/你已送出/)).not.toBeInTheDocument())
+    expect(screen.getByRole('button', { name: '選擇品項' })).toBeEnabled()
+  })
+
   it('preserves an unsent draft when another household updates through Realtime', async () => {
     const user = userEvent.setup()
     const resident = { ...initialOrders[0], householdKind: 'resident' as const }

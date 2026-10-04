@@ -91,6 +91,12 @@ describe('RuntimeApp production live routing', () => {
 describe('RuntimeApp localStorage resident demo routing', () => {
   afterEach(() => { window.history.replaceState(null, '', '/') })
 
+  it('loads demo-only routes on demand with a visible pending state', async () => {
+    render(<RuntimeApp config={{ mode: 'demo' }} pathname="/" />)
+    expect(screen.getByRole('status', { name: '載入示範畫面…' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '團購' })).toBeInTheDocument()
+  })
+
   it('ignores a popstate event so a resident page keeps its LIFF-resolved pathname', () => {
     const config = { mode: 'demo' as const }
     render(<RuntimeApp config={config} pathname="/" />)
@@ -155,13 +161,14 @@ describe('RuntimeApp localStorage organizer demo routing', () => {
     expect(screen.getByRole('heading', { level: 1, name: '團購' })).toBeInTheDocument()
   })
 
-  it('opens the demo residents and settings pages', () => {
+  it('opens the demo residents and settings pages', async () => {
     const config = { mode: 'demo' as const }
     const { rerender } = render(<RuntimeApp config={config} pathname="/admin/residents" />)
     expect(screen.getByRole('heading', { level: 1, name: /^住戶 \d+ 位$/ })).toBeInTheDocument()
 
     rerender(<RuntimeApp config={config} pathname="/admin/settings" />)
     expect(screen.getByRole('heading', { level: 1, name: '設定' })).toBeInTheDocument()
+    await screen.findByText(/還沒有範本。在團購工作區/)
   })
 
   it('moves focus to the new page heading after clicking an organizer nav link', async () => {

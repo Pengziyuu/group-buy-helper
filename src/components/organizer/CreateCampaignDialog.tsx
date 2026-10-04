@@ -6,7 +6,7 @@ import { FormField } from '../ui/FormField'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import { useModalDialog } from '../ui/useModalDialog'
 import { noticeForTemplateResult, rememberCampaignNotice } from './campaignNotices'
-import { useOrganizerNavigate } from './organizerNavigation'
+import { useOrganizerNavigate, useOrganizerNavigationPreflight } from './organizerNavigation'
 import { OrganizerThumb } from './OrganizerThumb'
 
 export type CreateFromTemplateActions = {
@@ -24,6 +24,7 @@ const messageOf = (error: unknown) => error instanceof Error ? error.message : S
 
 export function CreateCampaignDialog({ onCreate, templates, onClose }: CreateCampaignDialogProps) {
   const navigate = useOrganizerNavigate()
+  const preflight = useOrganizerNavigationPreflight()
   const dialogRef = useRef<HTMLElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const titleId = useId()
@@ -68,6 +69,11 @@ export function CreateCampaignDialog({ onCreate, templates, onClose }: CreateCam
     setBusy(true)
     setError('')
     try {
+      if (!await preflight()) {
+        setError('請先儲存目前團購草稿或等待圖片上傳完成，再建立新團。')
+        setBusy(false)
+        return
+      }
       if (usingTemplate && templates) {
         const result = await templates.create(templateId, nextTitle)
         const notice = noticeForTemplateResult(result)

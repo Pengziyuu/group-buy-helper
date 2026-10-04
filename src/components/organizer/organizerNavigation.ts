@@ -3,6 +3,17 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 export type OrganizerLocation = { pathname: string; search: string }
 export type NavigateOptions = { replace?: boolean }
 export type OrganizerNavigate = (path: string, options?: NavigateOptions) => void
+export type OrganizerNavigationBlocker = () => Promise<boolean>
+const HISTORY_INDEX = '__organizerHistoryIndex'
+
+export function organizerHistoryIndex(): number | null {
+  const index = (window.history.state as Record<string, unknown> | null)?.[HISTORY_INDEX]
+  return typeof index === 'number' && Number.isInteger(index) ? index : null
+}
+
+export function organizerHistoryState(index: number, state: unknown): Record<string, unknown> {
+  return { ...(state && typeof state === 'object' ? state : {}), [HISTORY_INDEX]: index }
+}
 
 // Without a provider (isolated component tests), replacing only rewrites the address bar.
 function browserNavigate(path: string, options: NavigateOptions = {}) {
@@ -10,10 +21,31 @@ function browserNavigate(path: string, options: NavigateOptions = {}) {
   else window.location.assign(path)
 }
 
-export const OrganizerNavigationContext = createContext<OrganizerNavigate>(browserNavigate)
+type NavigationContextValue = {
+  navigate: OrganizerNavigate
+  registerBlocker: (blocker: OrganizerNavigationBlocker) => () => void
+  preflight: () => Promise<boolean>
+}
+
+export const OrganizerNavigationContext = createContext<NavigationContextValue>({
+  navigate: browserNavigate,
+  registerBlocker: () => () => {},
+  preflight: async () => true,
+})
 
 export function useOrganizerNavigate(): OrganizerNavigate {
-  return useContext(OrganizerNavigationContext)
+  return useContext(OrganizerNavigationContext).navigate
+}
+
+export function useOrganizerNavigationPreflight(): () => Promise<boolean> {
+  return useContext(OrganizerNavigationContext).preflight
+}
+
+export function useOrganizerNavigationBlocker(blocker: OrganizerNavigationBlocker): void {
+  const { registerBlocker } = useContext(OrganizerNavigationContext)
+  const latest = useRef(blocker)
+  latest.current = blocker
+  useEffect(() => registerBlocker(() => latest.current()), [registerBlocker])
 }
 
 export type UseBrowserLocationOptions = { enabled?: boolean }
@@ -27,6 +59,7 @@ export function useBrowserLocation(
   // Bumped only for a push navigation or a popstate, never a replace, so the
   // organizer focus effect can tell "moved to a new page" from "URL corrected in place".
   const [navigationTick, setNavigationTick] = useState(0)
+  const historyIndexRef = useRef(organizerHistoryIndex() ?? 0)
   if (source.pathname !== initial.pathname || source.search !== initial.search) {
     setSource(initial)
     setLocation(initial)
@@ -34,7 +67,11 @@ export function useBrowserLocation(
 
   useEffect(() => {
     if (!enabled) return
+    if (organizerHistoryIndex() === null) {
+      window.history.replaceState({ ...(window.history.state ?? {}), [HISTORY_INDEX]: historyIndexRef.current }, '')
+    }
     const sync = () => {
+      historyIndexRef.current = organizerHistoryIndex() ?? historyIndexRef.current
       setLocation({ pathname: window.location.pathname, search: window.location.search })
       setNavigationTick((tick) => tick + 1)
     }
@@ -48,7 +85,11 @@ export function useBrowserLocation(
     if (options.replace) {
       window.history.replaceState(window.history.state, '', next)
     } else {
-      window.history.pushState(null, '', next)
+      // A failed legacy-history save may push a source entry with a newly
+      // assigned index, without triggering popstate on this location hook.
+      historyIndexRef.current = organizerHistoryIndex() ?? historyIndexRef.current
+      historyIndexRef.current += 1
+      window.history.pushState({ [HISTORY_INDEX]: historyIndexRef.current }, '', next)
       document.documentElement.scrollTop = 0
       setNavigationTick((tick) => tick + 1)
     }
