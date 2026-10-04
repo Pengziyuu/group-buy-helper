@@ -150,7 +150,8 @@ describe('organizer campaign editor', () => {
       finishSave()
       await waitFor(() => expect(window.location.pathname).toBe('/admin'))
       fireEvent.click(screen.getByRole('link', { name: '活動 A' }))
-      expect(screen.getByRole('textbox', { name: '團購標題' })).toHaveValue('活動 A 新標題')
+      expect(await screen.findByRole('textbox', { name: '團購標題' })).toHaveValue('活動 A 新標題')
+      expect(window.location.pathname).toBe(`/admin/campaign/${campaignA}/content`)
     } finally {
       window.history.replaceState(null, '', '/')
     }
