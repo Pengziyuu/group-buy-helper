@@ -71,7 +71,7 @@ const published: CampaignContent = {
 
 const orderSummary = buildOrganizerOrderSummary({ orders: initialOrders, items, threshold: 80 })
 const ordersRepository = (): LiveAdminOrdersRepository => ({
-  loadCampaignStatus: vi.fn().mockResolvedValue('open'),
+  loadCampaignState: vi.fn().mockResolvedValue({ status: 'open', closedAt: null }),
   loadSummary: vi.fn().mockResolvedValue(orderSummary),
   setCampaignStatus: vi.fn().mockResolvedValue(undefined),
   setOrderPaid: vi.fn().mockResolvedValue(undefined),
@@ -791,10 +791,12 @@ describe('local Supabase visual demo apps', () => {
     expect(screen.queryByRole('textbox', { name: '團購標題' })).not.toBeInTheDocument()
     unmount()
 
-    const closedOrders = { ...ordersRepository(), loadCampaignStatus: vi.fn().mockResolvedValue('closed') }
+    const closedOrders = { ...ordersRepository(), loadCampaignState: vi.fn().mockResolvedValue({ status: 'closed', closedAt: '2026-09-23T04:00:00.000Z' }) }
     render(<LocalLiveAdminApp client={client} campaignId="campaign-1" repository={repository} ordersRepository={closedOrders} />)
     expect(await screen.findByRole('heading', { level: 2, name: '訂單' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '匯出 Excel' })).toBeEnabled()
+    const railFacts = screen.getByRole('complementary', { name: '團購工作區' }).querySelector('.organizer-rail-facts') as HTMLElement
+    expect(within(railFacts).getByText('結單').nextElementSibling).toHaveTextContent(/9\/23/)
   })
 
   it('uses LINE instead of email and shows a safe organizer approval code', async () => {
@@ -1584,7 +1586,7 @@ describe('local Supabase visual demo apps', () => {
     expect(client.auth.getUser).toHaveBeenCalled()
     expect(client.auth.signOut).toHaveBeenCalled()
     expect(repository.loadPublished).not.toHaveBeenCalled()
-    expect(workflowRepository.loadCampaignStatus).not.toHaveBeenCalled()
+    expect(workflowRepository.loadCampaignState).not.toHaveBeenCalled()
     expect(workflowRepository.loadSummary).not.toHaveBeenCalled()
   })
 
@@ -1634,7 +1636,7 @@ describe('local Supabase visual demo apps', () => {
 
     expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
     expect(repository.loadPublished).not.toHaveBeenCalled()
-    expect(workflowRepository.loadCampaignStatus).not.toHaveBeenCalled()
+    expect(workflowRepository.loadCampaignState).not.toHaveBeenCalled()
     expect(workflowRepository.loadSummary).not.toHaveBeenCalled()
   })
 
@@ -1755,7 +1757,7 @@ describe('local Supabase visual demo apps', () => {
     expect(await screen.findByRole('heading', { name: '團主登入' })).toBeInTheDocument()
     expect(client.auth.signOut).not.toHaveBeenCalled()
     expect(repository.loadPublished).not.toHaveBeenCalled()
-    expect(workflowRepository.loadCampaignStatus).not.toHaveBeenCalled()
+    expect(workflowRepository.loadCampaignState).not.toHaveBeenCalled()
     expect(workflowRepository.loadSummary).not.toHaveBeenCalled()
   })
 
@@ -1976,6 +1978,10 @@ describe('local Supabase visual demo apps', () => {
 
     expect(await screen.findByText('彭梓育')).toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: '姓名' })).not.toBeInTheDocument()
+    await user.selectOptions(screen.getByRole('combobox', { name: '期別' }), '二期')
+    await user.selectOptions(screen.getByRole('combobox', { name: '戶號數字' }), '1')
+    await user.selectOptions(screen.getByRole('combobox', { name: '戶號英文字母' }), 'A')
+    await user.selectOptions(screen.getByRole('combobox', { name: '樓層' }), '1')
     await user.click(screen.getByRole('button', { name: '儲存住戶資料' }))
 
     expect(rpc).toHaveBeenCalledWith('bind_customer_self', {

@@ -46,6 +46,7 @@ export function DemoOrganizerScenarioWorkspace({ scenario, requestedSection, sav
   const id = demoScenarioOrganizerId(scenario.slug)
   const residentHref = residentCampaignPath(scenario.slug)
   const [status, setStatus] = useState<CampaignStatus>(scenario.status)
+  const [closedAt, setClosedAt] = useState<string | null>(scenario.closedAt ?? null)
   const [orders, setOrders] = useState<OrganizerVisibleOrder[]>(() => demoScenarioOrganizerOrders(scenario))
   const summary = buildOrganizerOrderSummary({
     orders,
@@ -67,6 +68,7 @@ export function DemoOrganizerScenarioWorkspace({ scenario, requestedSection, sav
         coverImage: content.images[0] ?? null,
         openedAt: content.openedAt,
         autoCloseAt: content.autoCloseAt ?? null,
+        closedAt,
         arrivalLabel: content.arrivalLabel,
         thresholdKind: content.thresholdKind ?? 'quantity',
         orderCount: orders.length,
@@ -74,7 +76,11 @@ export function DemoOrganizerScenarioWorkspace({ scenario, requestedSection, sav
       }}
       requestedSection={requestedSection}
       section={section}
-      onSetCampaignStatus={async (next) => setStatus(next)}
+      onSetCampaignStatus={async (next) => {
+        // As the database records it: stamped when it closes, cleared when it reopens.
+        setClosedAt(next === 'open' ? null : new Date().toISOString())
+        setStatus(next)
+      }}
       saveTemplate={saveTemplate?.(content)}
     >
       <AdminApp key={id} initialContent={content} campaignStatus={status} section={section === 'content' ? 'content' : null} />

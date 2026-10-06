@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { initialOrders, items } from '../../data/demo'
 import { buildOrganizerOrderSummary, type OrganizerOrderSummary } from '../../domain/adminOrders'
 import { OrdersSection } from './OrdersSection'
@@ -76,6 +76,14 @@ describe('OrdersSection', () => {
     expect(screen.queryByText('62 / 14 個')).not.toBeInTheDocument()
   })
 
+  it('says a closed campaign that missed its threshold did not form, as the campaign list does', () => {
+    renderOrders({ status: 'closed' })
+    const progress = screen.getByLabelText('成團進度摘要')
+    expect(progress).toHaveTextContent('62 / 100 個')
+    expect(progress).toHaveTextContent('結單時未達成團門檻')
+    expect(progress).not.toHaveTextContent('還差')
+  })
+
   it('copies the item quantities as plain lines for the supplier, leaving out items nobody ordered', async () => {
     const user = userEvent.setup()
     renderOrders()
@@ -144,7 +152,7 @@ describe('OrdersSection', () => {
     const amountSummary = buildOrganizerOrderSummary({ orders: initialOrders, items, threshold: 100, thresholdKind: 'amount', amountThreshold: 5000 })
     renderOrders({ campaignId: 'campaign-1', summary: amountSummary, status: 'closed' })
     expect(screen.getByText('$2,790 / $5,000')).toBeInTheDocument()
-    expect(screen.getByText('還差 $2,210 成團')).toBeInTheDocument()
+    expect(screen.getByText('結單時未達成團門檻')).toBeInTheDocument()
     // An amount threshold does not show the quantity anywhere else, so the totals keep it.
     expect(within(screen.getByLabelText('訂單總覽')).getByText('62 個')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '領取通知' })).toHaveAttribute('href', '/admin/campaign/campaign-1/pickup')
@@ -263,6 +271,48 @@ describe('OrdersSection', () => {
     const saved = await screen.findByRole('button', { name: '編輯 H11 備註' })
     expect(saved).toHaveTextContent('改放警衛室')
     expect(saved).toHaveFocus()
+  })
+
+  describe('on a phone, where each order is a card', () => {
+    const original = window.matchMedia
+    beforeEach(() => {
+      window.matchMedia = ((query: string) => ({ matches: query === '(max-width: 639px)', media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() })) as unknown as typeof window.matchMedia
+    })
+    afterEach(() => { window.matchMedia = original })
+
+    it('offers 新增備註 in the ⋯ menu of an order without a note, opening the note field', async () => {
+      const user = userEvent.setup()
+      const onSetOrderOrganizerNote = vi.fn().mockResolvedValue(undefined)
+      renderOrders({ onSetOrderOrganizerNote, onCancelOrder: vi.fn() })
+
+      await user.click(screen.getByRole('button', { name: /^更多操作 1E7・/ }))
+      expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['新增備註', '取消整筆訂單'])
+      await user.click(screen.getByRole('menuitem', { name: '新增 1E7 備註' }))
+      const input = screen.getByRole('textbox', { name: '1E7 備註' })
+      expect(input).toHaveFocus()
+      await user.type(input, '放門口{Enter}')
+      expect(onSetOrderOrganizerNote).toHaveBeenCalledWith('order-2', '放門口')
+
+      // An order that already has a note shows it on the card, so its menu has nothing to add.
+      await user.click(screen.getByRole('button', { name: '更多操作 H11・佩怡' }))
+      expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['取消整筆訂單'])
+    })
+
+    it('still offers 新增備註 once the campaign has closed and orders can no longer be cancelled', async () => {
+      const user = userEvent.setup()
+      renderOrders({ status: 'closed', onSetOrderOrganizerNote: vi.fn().mockResolvedValue(undefined), onCancelOrder: vi.fn() })
+
+      await user.click(screen.getByRole('button', { name: /^更多操作 1E7・/ }))
+      expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['新增備註'])
+      expect(screen.queryByRole('button', { name: '更多操作 H11・佩怡' })).not.toBeInTheDocument()
+    })
+  })
+
+  it('keeps 新增備註 out of the ⋯ menu on wider screens, where the note column has it', async () => {
+    const user = userEvent.setup()
+    renderOrders({ onSetOrderOrganizerNote: vi.fn().mockResolvedValue(undefined), onCancelOrder: vi.fn() })
+    await user.click(screen.getByRole('button', { name: /^更多操作 1E7・/ }))
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['取消整筆訂單'])
   })
 
   it('cancels a note edit with Escape and saves on leaving the field', async () => {

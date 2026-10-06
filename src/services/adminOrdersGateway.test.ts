@@ -23,7 +23,7 @@ describe('Supabase admin orders gateway', () => {
       { order_id: 'order-1', paid: true, organizer_note: '請放管理室' },
       { order_id: 'order-2', paid: false, organizer_note: null },
     ])
-    const single = vi.fn().mockResolvedValue({ data: { status: 'open' }, error: null })
+    const single = vi.fn().mockResolvedValue({ data: { status: 'closed', closed_at: '2026-09-23T04:00:00+00:00' }, error: null })
     const campaignQuery = { select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single }) }) }
     const from = vi.fn((table: string) => {
       if (table === 'campaign_item') return itemQuery
@@ -35,7 +35,8 @@ describe('Supabase admin orders gateway', () => {
     const client = { from, rpc } as unknown as AdminOrdersSupabaseClient
     const gateway = createAdminOrdersGateway(client)
 
-    await expect(gateway.loadCampaignStatus('campaign-1')).resolves.toBe('open')
+    await expect(gateway.loadCampaignState('campaign-1')).resolves.toEqual({ status: 'closed', closedAt: '2026-09-23T04:00:00+00:00' })
+    expect(campaignQuery.select).toHaveBeenCalledWith('status,closed_at')
 
     const summary = await gateway.loadSummary('campaign-1', 10)
 

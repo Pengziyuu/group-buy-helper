@@ -640,6 +640,7 @@ describe('customer campaign app', () => {
       />,
     )
 
+    await user.selectOptions(screen.getByRole('combobox', { name: '期別' }), '其他')
     await user.click(screen.getByRole('button', { name: '儲存住戶資料' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('這個戶號已被綁定')
   })
@@ -659,6 +660,7 @@ describe('customer campaign app', () => {
       />,
     )
 
+    await user.selectOptions(screen.getByRole('combobox', { name: '期別' }), '其他')
     await user.click(screen.getByRole('button', { name: '儲存住戶資料' }))
 
     const alert = await screen.findByRole('alert')
@@ -716,6 +718,12 @@ describe('customer campaign app', () => {
 
     render(<App campaignStatus="closed" />)
     expect(closingBox()).toHaveTextContent('結單已結單')
+  })
+
+  it('says a closed campaign that missed its threshold did not form, instead of how much is still needed', () => {
+    render(<App campaignStatus="closed" />)
+    expect(screen.queryByText(/還差/)).not.toBeInTheDocument()
+    expect(screen.getByText('結單時未達成團門檻')).toHaveClass('is-missed')
   })
 
   it('tells a resident without an order that the campaign closed', () => {

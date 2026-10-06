@@ -53,26 +53,30 @@ type ResidentBindingFormProps = {
   onBind: (input: ResidentBindingInput) => Promise<void>
 }
 
+// Nothing is picked at first: a preset household was easy to save without looking, binding someone to the wrong door.
+const PLACEHOLDER = <option value="" disabled>請選擇</option>
+
 export function ResidentBindingForm({ identity, disabled, onBind }: ResidentBindingFormProps) {
-  const [householdKind, setHouseholdKind] = useState<HouseholdKind>('resident')
-  const [period, setPeriod] = useState<ResidentPeriod>(2)
-  const [prefix, setPrefix] = useState(1)
-  const [letter, setLetter] = useState('A')
-  const [floor, setFloor] = useState(1)
+  const [householdKind, setHouseholdKind] = useState<HouseholdKind | null>(null)
+  const [period, setPeriod] = useState<ResidentPeriod | null>(null)
+  const [prefix, setPrefix] = useState<number | null>(null)
+  const [letter, setLetter] = useState('')
+  const [floor, setFloor] = useState<number | null>(null)
   const [binding, setBinding] = useState(false)
   const [error, setError] = useState('')
+  // What would be saved, or null until every part the chosen phase needs has been picked.
+  const selection: ResidentBindingInput | null = householdKind === 'other'
+    ? { kind: 'other', period: null, unit: null }
+    : householdKind === 'resident' && period !== null && (period === 1 || prefix !== null) && letter !== '' && floor !== null
+      ? { kind: 'resident', period, unit: formatHouseholdUnit({ kind: 'resident', period, prefix: period === 1 ? null : prefix, letter, number: floor }) }
+      : null
 
   const submit = async () => {
+    if (!selection) return
     setBinding(true)
     setError('')
     try {
-      await onBind(householdKind === 'other'
-        ? { kind: 'other', period: null, unit: null }
-        : {
-            kind: 'resident',
-            period,
-            unit: formatHouseholdUnit({ kind: 'resident', period, prefix: period === 1 ? null : prefix, letter, number: floor }),
-          })
+      await onBind(selection)
     } catch (failure) {
       setError(residentBindingErrorMessage(failure))
     } finally {
@@ -97,7 +101,7 @@ export function ResidentBindingForm({ identity, disabled, onBind }: ResidentBind
           <span>期別</span>
           <select
             className="ui-input"
-            value={householdKind === 'other' ? 'other' : period}
+            value={householdKind === 'other' ? 'other' : period ?? ''}
             onChange={(event) => {
               if (event.target.value === 'other') {
                 setHouseholdKind('other')
@@ -107,6 +111,7 @@ export function ResidentBindingForm({ identity, disabled, onBind }: ResidentBind
               }
             }}
           >
+            {PLACEHOLDER}
             {RESIDENT_PERIODS.map((value) => <option key={value} value={value}>{periodFormatter.format(value)}期</option>)}
             <option value="other">其他</option>
           </select>
@@ -118,7 +123,8 @@ export function ResidentBindingForm({ identity, disabled, onBind }: ResidentBind
               {period !== 1 && (
                 <label>
                   <span>數字</span>
-                  <select className="ui-input" aria-label="戶號數字" value={prefix} onChange={(event) => setPrefix(Number(event.target.value))}>
+                  <select className="ui-input" aria-label="戶號數字" value={prefix ?? ''} onChange={(event) => setPrefix(Number(event.target.value))}>
+                    {PLACEHOLDER}
                     {HOUSEHOLD_PREFIXES.map((value) => <option key={value} value={value}>{value}</option>)}
                   </select>
                 </label>
@@ -126,13 +132,15 @@ export function ResidentBindingForm({ identity, disabled, onBind }: ResidentBind
               <label>
                 <span>英文字母</span>
                 <select className="ui-input" aria-label="戶號英文字母" value={letter} onChange={(event) => setLetter(event.target.value)}>
+                  {PLACEHOLDER}
                   {HOUSEHOLD_LETTERS.map((value) => <option key={value} value={value}>{value}</option>)}
                 </select>
               </label>
               {/* The floor is part of the household number (2A15), so it sits with the other parts. */}
               <label>
                 <span>樓層</span>
-                <select className="ui-input" value={floor} onChange={(event) => setFloor(Number(event.target.value))}>
+                <select className="ui-input" value={floor ?? ''} onChange={(event) => setFloor(Number(event.target.value))}>
+                  {PLACEHOLDER}
                   {HOUSEHOLD_NUMBERS.map((value) => <option key={value} value={value}>{value}</option>)}
                 </select>
               </label>
@@ -140,7 +148,7 @@ export function ResidentBindingForm({ identity, disabled, onBind }: ResidentBind
           </fieldset>
         )}
       </div>
-      <Button onClick={() => { void submit() }} disabled={disabled} loading={binding} loadingLabel="住戶資料儲存中…">儲存住戶資料</Button>
+      <Button onClick={() => { void submit() }} disabled={disabled || !selection} loading={binding} loadingLabel="住戶資料儲存中…">儲存住戶資料</Button>
       {error && <FeedbackMessage className="resident-binding-feedback" tone="error">{error}</FeedbackMessage>}
       <p className="resident-binding-note">住戶資料只用於辨識訂單；同一戶號可由多個 LINE 帳號各自下單。</p>
     </div>

@@ -211,11 +211,14 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', camp
       ? `${formatMoney(summary.amount)} / ${formatMoney(summary.threshold)}`
       : `${summary.quantity} ${quantityUnit} / ${summary.threshold} ${quantityUnit}`,
     // Either threshold type can remain open when automatic closing is disabled.
+    // Once closed, nothing more can be ordered, so a shortfall is no longer something to make up.
     remainingText: summary.formed
       ? campaignStatus === 'open' ? '已成團，仍可下單' : '已成團'
-      : thresholdKind === 'amount'
-        ? `還差 ${formatMoney(summary.remaining)} 成團`
-        : `還差 ${summary.remaining} ${quantityUnit}成團`,
+      : campaignStatus !== 'open'
+        ? '結單時未達成團門檻'
+        : thresholdKind === 'amount'
+          ? `還差 ${formatMoney(summary.remaining)} 成團`
+          : `還差 ${summary.remaining} ${quantityUnit}成團`,
     formed: summary.formed,
   }
   const priceText = minimumPrice === maximumPrice ? `${formatMoney(minimumPrice)}／${quantityUnit}` : `${formatMoney(minimumPrice)}～${formatMoney(maximumPrice)}`

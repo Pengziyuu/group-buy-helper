@@ -62,6 +62,19 @@ describe('WorkspaceRail', () => {
     expect(screen.queryByText('未設定')).not.toBeInTheDocument()
   })
 
+  it('shows the day a closed campaign closed, as the campaign list does', () => {
+    renderRail({ campaign: { ...openCampaign, status: 'closed', closedAt: '2026-09-23T04:00:00.000Z' } })
+    const facts = screen.getByRole('complementary', { name: '團購工作區' }).querySelector('.organizer-rail-facts') as HTMLElement
+    expect([...facts.querySelectorAll('dt')].map((term) => term.textContent)).toEqual(['結單', '到貨', '開團'])
+    expect(within(facts).getByText('結單').nextElementSibling).toHaveTextContent('9/23')
+  })
+
+  it('leaves the closing day out for a closed campaign that never recorded one', () => {
+    renderRail({ campaign: { ...openCampaign, status: 'closed', closedAt: null } })
+    const facts = screen.getByRole('complementary', { name: '團購工作區' }).querySelector('.organizer-rail-facts') as HTMLElement
+    expect([...facts.querySelectorAll('dt')].map((term) => term.textContent)).toEqual(['到貨', '開團'])
+  })
+
   it('shows the campaign, its schedule and the sections an open campaign can use', () => {
     renderRail()
 

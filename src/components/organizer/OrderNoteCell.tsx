@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { OrganizerOrderRow } from '../../domain/adminOrders'
 import { Pencil, Plus } from 'lucide-react'
 import { Icon } from '../ui/Icon'
@@ -9,9 +9,12 @@ type OrderNoteCellProps = {
   disabled: boolean
   onSave?: (note: string) => Promise<void>
   onSavingChange: (saving: boolean) => void
+  /** Opens the note field from elsewhere, such as the phone card's ⋯ menu. */
+  editRequested?: boolean
+  onEditRequestHandled?: () => void
 }
 
-export function OrderNoteCell({ order, controlLabel, disabled, onSave, onSavingChange }: OrderNoteCellProps) {
+export function OrderNoteCell({ order, controlLabel, disabled, onSave, onSavingChange, editRequested = false, onEditRequestHandled }: OrderNoteCellProps) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
@@ -33,12 +36,19 @@ export function OrderNoteCell({ order, controlLabel, disabled, onSave, onSavingC
     buttonRef.current?.focus()
   }, [editing])
 
-  const start = () => {
+  const start = useCallback(() => {
     settledRef.current = false
     setDraft(note)
     setError('')
     setEditing(true)
-  }
+  }, [note])
+
+  // The parent clears the request once it is handled, so the field opens once per request.
+  useEffect(() => {
+    if (!editRequested) return
+    onEditRequestHandled?.()
+    if (!editing && !disabled && onSave) start()
+  }, [editRequested, onEditRequestHandled, editing, disabled, onSave, start])
 
   const finish = (returnFocus: boolean) => {
     returnFocusRef.current = returnFocus
