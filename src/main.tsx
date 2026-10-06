@@ -12,8 +12,15 @@ import type { Database } from './types/database'
 import { shouldMonitorErrors } from './services/errorMonitoringPolicy'
 
 // Sentry is a separate download, fetched only on the live site; its global handlers catch errors React rethrows.
+// It waits until the page has loaded and the browser is idle, so on a slow phone connection it does not
+// compete with the app's own scripts and first queries.
 if (shouldMonitorErrors(runtimeConfig, import.meta.env.PROD)) {
-  void import('./services/errorMonitoring').then(({ startErrorMonitoring }) => startErrorMonitoring(runtimeConfig, true))
+  const startMonitoring = () => {
+    void import('./services/errorMonitoring').then(({ startErrorMonitoring }) => startErrorMonitoring(runtimeConfig, true))
+  }
+  const whenIdle = () => window.requestIdleCallback ? window.requestIdleCallback(startMonitoring, { timeout: 3000 }) : window.setTimeout(startMonitoring, 1000)
+  if (document.readyState === 'complete') whenIdle()
+  else window.addEventListener('load', whenIdle, { once: true })
 }
 
 let loadedLiff: Liff | null = null

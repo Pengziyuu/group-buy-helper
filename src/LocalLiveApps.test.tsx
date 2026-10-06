@@ -249,6 +249,67 @@ describe('local Supabase visual demo apps', () => {
     expect(signIn).not.toHaveBeenCalled()
   })
 
+  it('asks for the campaign list together with the stored-session check instead of after it', async () => {
+    const session = { access_token: 'resident-access', user: { id: 'resident-uid', is_anonymous: false } }
+    const { client } = authClient(session)
+    let verify!: (value: unknown) => void
+    client.auth.getUser = vi.fn(() => new Promise((resolve) => { verify = resolve })) as never
+    client.rpc = vi.fn().mockImplementation((name: string) => Promise.resolve(name === 'get_line_resident_self'
+      ? { data: [{ display_name: '彭梓育', picture_url: null }], error: null }
+      : { data: null, error: null })) as never
+    const list = vi.fn().mockResolvedValue([])
+    const liffClient: LiffClient = {
+      init: vi.fn(), isLoggedIn: vi.fn().mockReturnValue(false), login: vi.fn(), getProfile: vi.fn(), getIDToken: vi.fn(),
+    }
+
+    render(<LocalLiveResidentApp client={client} liffId="2011099887-Resident" liffClient={liffClient}
+      lineResidentGateway={{ signIn: vi.fn() }} residentListRepository={{ list }} />)
+
+    await waitFor(() => expect(client.auth.getUser).toHaveBeenCalled())
+    // The session check has not answered yet, and the list is already on its way.
+    expect(list).toHaveBeenCalledOnce()
+    expect(client.rpc).toHaveBeenCalledWith('get_line_resident_self')
+    act(() => verify({ data: { user: session.user }, error: null }))
+    expect(await screen.findByRole('heading', { name: '團購' })).toBeInTheDocument()
+  })
+
+  it('opens with the list this resident saw last time, swaps in the fresh one, and forgets it on logout', async () => {
+    const user = userEvent.setup()
+    const session = { access_token: 'resident-access', user: { id: 'resident-uid', is_anonymous: false } }
+    window.localStorage.setItem('group-buy-helper.auth.session', JSON.stringify(session))
+    window.localStorage.setItem('group-buy-helper.resident-page.v1.campaigns', JSON.stringify({
+      userId: 'resident-uid', savedAt: Date.now() - 60_000, identity: { displayName: '彭梓育', pictureUrl: null },
+      data: [{ slug: 'abcd1234', title: '上次的早餐團', status: 'open', unitPrice: 55, openedAt: '2026-08-14T08:00:00.000Z', totalQuantity: 8, threshold: 10 }],
+    }))
+    try {
+      const { client } = authClient(session)
+      client.rpc = vi.fn().mockImplementation((name: string) => Promise.resolve(name === 'get_line_resident_self'
+        ? { data: [{ display_name: '彭梓育', picture_url: null }], error: null }
+        : { data: null, error: null })) as never
+      let deliver!: (value: unknown) => void
+      const list = vi.fn(() => new Promise((resolve) => { deliver = resolve }))
+      const liffClient: LiffClient = {
+        init: vi.fn(), isLoggedIn: vi.fn().mockReturnValue(false), login: vi.fn(), getProfile: vi.fn(), getIDToken: vi.fn(),
+      }
+
+      render(<LocalLiveResidentApp client={client} liffId="2011099887-Resident" liffClient={liffClient}
+        lineResidentGateway={{ signIn: vi.fn() }} residentListRepository={{ list } as never} />)
+
+      // Before any reply from the server.
+      expect(screen.getByRole('heading', { name: '上次的早餐團' })).toBeInTheDocument()
+      await waitFor(() => expect(list).toHaveBeenCalled())
+      act(() => deliver([{ slug: 'abcd1234', title: '最新的早餐團', status: 'open', unitPrice: 55, openedAt: '2026-08-14T08:00:00.000Z', totalQuantity: 9, threshold: 10 }]))
+      expect(await screen.findByRole('heading', { name: '最新的早餐團' })).toBeInTheDocument()
+      expect(window.localStorage.getItem('group-buy-helper.resident-page.v1.campaigns')).toContain('最新的早餐團')
+
+      await user.click(screen.getByRole('button', { name: 'LINE 帳號：彭梓育' }))
+      await user.click(screen.getByRole('menuitem', { name: '登出' }))
+      expect(window.localStorage.getItem('group-buy-helper.resident-page.v1.campaigns')).toBeNull()
+    } finally {
+      window.localStorage.clear()
+    }
+  })
+
   it('falls back to LINE after clearing an invalid cached resident session', async () => {
     const session = { access_token: 'expired-access', user: { id: 'resident-uid', is_anonymous: false } }
     const { client } = authClient(session, new Error('JWT expired'))

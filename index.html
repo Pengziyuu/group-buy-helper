@@ -8,9 +8,29 @@
     <meta property="og:title" content="團購小幫手｜住戶入口" />
     <meta property="og:description" content="查看社區開團資訊並下單。" />
     <title>團購小幫手｜住戶入口</title>
+    <!-- Shown the moment the page arrives, while the app's scripts still download; React replaces it.
+         Plain values here, as the design tokens arrive with those scripts. -->
+    <style>
+      body { margin: 0; background: #f5f5f7; }
+      .boot-bar { display: flex; align-items: center; height: 44px; padding: 0 12px; border-bottom: 1px solid rgb(0 0 0 / 8%); color: #1d1d1f; font: 600 14px/1 system-ui, -apple-system, "PingFang TC", "Noto Sans TC", sans-serif; }
+      .boot-list { display: grid; gap: 12px; max-width: 1200px; margin: 0 auto; padding: 16px 12px; }
+      .boot-card { display: flex; gap: 12px; align-items: center; min-height: 126px; padding: 10px; box-sizing: border-box; border: 1px solid #d2d2d7; border-radius: 18px; background: #fff; }
+      .boot-lines { flex: 1; display: grid; gap: 10px; }
+      .boot-block { display: block; height: 12px; border-radius: 6px; background: linear-gradient(90deg, #ececef 25%, #fafafc 50%, #ececef 75%); background-size: 200% 100%; animation: boot-sheen 1.4s ease-in-out infinite; }
+      .boot-thumb { width: 104px; height: 104px; flex: none; }
+      @keyframes boot-sheen { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+      @media (prefers-reduced-motion: reduce) { .boot-block { animation: none; } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div aria-busy="true" aria-label="載入團購小幫手…" role="status">
+      <div class="boot-bar">團購小幫手</div>
+      <div class="boot-list" aria-hidden="true">
+        <div class="boot-card"><span class="boot-block boot-thumb"></span><span class="boot-lines"><span class="boot-block" style="width:80%;height:16px"></span><span class="boot-block" style="width:36%"></span><span class="boot-block" style="height:6px"></span></span></div>
+        <div class="boot-card"><span class="boot-block boot-thumb"></span><span class="boot-lines"><span class="boot-block" style="width:70%;height:16px"></span><span class="boot-block" style="width:30%"></span><span class="boot-block" style="height:6px"></span></span></div>
+        <div class="boot-card"><span class="boot-block boot-thumb"></span><span class="boot-lines"><span class="boot-block" style="width:76%;height:16px"></span><span class="boot-block" style="width:40%"></span><span class="boot-block" style="height:6px"></span></span></div>
+      </div>
+    </div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

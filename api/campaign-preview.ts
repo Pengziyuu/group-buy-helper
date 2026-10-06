@@ -25,7 +25,8 @@ function publicCover(raw: unknown, supabaseUrl: string): string | null {
   } catch { return null }
 }
 
-const isSpaEntry = (html: string) => html.includes('<div id="root"></div>') && html.includes('property="og:title"')
+// The root may already hold the loading outline shown before the scripts run.
+const isSpaEntry = (html: string) => html.includes('<div id="root">') && html.includes('property="og:title"')
 
 function bundledEntry(): string | null {
   try {
