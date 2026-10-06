@@ -4,7 +4,7 @@
 import type { OrganizerVisibleOrder } from '../domain/adminOrders'
 import { normalizeQuantityUnit } from '../domain/quantityUnit'
 import type { CampaignListItem } from '../services/campaignManagementGateway'
-import type { ResidentMember } from '../services/residentMemberManagementGateway'
+import type { ResidentGroupStatus, ResidentGroupStatusUpdate, ResidentMember } from '../services/residentMemberManagementGateway'
 import { demoScenarioListItem, type DemoResidentScenario } from './demoResidentScenarios'
 
 /** A UUID-shaped id built from the scenario slug, as organizer routes expect. */
@@ -71,6 +71,24 @@ export function demoDraftCampaign(now = Date.now()): CampaignListItem {
   }
 }
 
+// A mix of LINE group states, as the live residents page shows after checks against the group:
+// most are in it, a few left, one could not be confirmed, and a few were never checked.
+function demoGroupStatus(index: number): ResidentGroupStatus {
+  if (index % 9 === 4) return 'not_in_group'
+  if (index % 15 === 11) return 'unknown'
+  if (index % 7 === 6) return 'unchecked'
+  return 'in_group'
+}
+
+/** Stands in for checking members against the LINE group: everyone asked about comes back checked now. */
+export async function demoRefreshGroupStatuses(memberCodes: string[], now: Date = new Date()): Promise<ResidentGroupStatusUpdate[]> {
+  return memberCodes.map((memberCode) => {
+    const index = Number(memberCode.replace(/\D/g, '')) || 0
+    const status = demoGroupStatus(index)
+    return { memberCode, groupStatus: status === 'unchecked' ? 'in_group' : status, groupCheckedAt: now.toISOString() }
+  })
+}
+
 /** Residents drawn from the scenario orders, with every household state the organizer filters by. */
 export function demoOrganizerMembers(scenarios: DemoResidentScenario[]): ResidentMember[] {
   const seen = new Map<string, ResidentMember>()
@@ -89,6 +107,8 @@ export function demoOrganizerMembers(scenarios: DemoResidentScenario[]): Residen
       joinedAt: order.orderedAt,
       blocked: index % 17 === 9,
       blockedAt: index % 17 === 9 ? order.orderedAt : null,
+      groupStatus: demoGroupStatus(index),
+      groupCheckedAt: demoGroupStatus(index) === 'unchecked' ? null : order.updatedAt,
     })
   }
   return [...seen.values()]
