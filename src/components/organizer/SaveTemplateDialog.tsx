@@ -5,6 +5,7 @@ import { FeedbackMessage } from '../ui/FeedbackMessage'
 import { FormField } from '../ui/FormField'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import { useModalDialog } from '../ui/useModalDialog'
+import { modalPortal } from '../ui/modalPortal'
 
 export type SaveTemplateActions = {
   loadTemplates: () => Promise<CampaignTemplate[]>
@@ -71,7 +72,7 @@ export function SaveTemplateDialog({ defaultName, loadTemplates, saveNew, replac
     }
   }
 
-  return (
+  return modalPortal(
     <div className="ui-dialog-backdrop" onMouseDown={(event) => {
       if (event.target === event.currentTarget && !busy) onClose()
     }}>

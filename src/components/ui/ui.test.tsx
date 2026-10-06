@@ -37,6 +37,17 @@ describe('shared UI primitives', () => {
     expect(screen.getByRole('button', { name: '關閉' })).toHaveTextContent('×')
   })
 
+  it('opens the confirmation dialog over the whole page, outside whatever positioned box opened it', () => {
+    const { container } = render(
+      <div style={{ position: 'sticky' }}>
+        <ConfirmDialog title="確認結單" confirmLabel="確認結單" onConfirm={vi.fn()} onCancel={vi.fn()}>結單後住戶就不能再下單。</ConfirmDialog>
+      </div>,
+    )
+    const dialog = screen.getByRole('dialog', { name: '確認結單' })
+    expect(container).not.toContainElement(dialog)
+    expect(dialog.closest('.ui-dialog-backdrop')?.parentElement).toBe(document.body)
+  })
+
   it('reserves the solid danger button for the confirmation dialog', () => {
     render(
       <ConfirmDialog title="確認刪除團購" confirmLabel="確認永久刪除" onConfirm={vi.fn()} onCancel={vi.fn()}>

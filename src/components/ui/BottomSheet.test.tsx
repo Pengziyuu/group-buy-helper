@@ -42,6 +42,15 @@ describe('BottomSheet', () => {
     expect(trigger).toHaveFocus()
   })
 
+  it('opens over the whole page, outside whatever positioned box opened it', async () => {
+    const user = userEvent.setup()
+    const { container } = render(<div style={{ position: 'sticky' }}><Example /></div>)
+    await user.click(screen.getByRole('button', { name: '明細' }))
+    const sheet = screen.getByRole('dialog', { name: '訂單明細' })
+    expect(container).not.toContainElement(sheet)
+    expect(sheet.closest('.ui-sheet-backdrop')?.parentElement).toBe(document.body)
+  })
+
   it('closes from the close button and the backdrop but not from inside the sheet', async () => {
     const user = userEvent.setup()
     render(<Example />)

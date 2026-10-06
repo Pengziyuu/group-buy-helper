@@ -135,6 +135,26 @@ describe('WorkspaceRail', () => {
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('更新團購狀態失敗：network')
   })
 
+  it('opens its dialogs over the whole page, not inside the sticky rail where the page would show above the backdrop', async () => {
+    const user = userEvent.setup()
+    renderRail({
+      onSetCampaignStatus: vi.fn().mockResolvedValue(undefined),
+      saveTemplate: { loadTemplates: vi.fn(async () => []), saveNew: vi.fn(), replace: vi.fn() },
+    })
+    const rail = screen.getByRole('complementary', { name: '團購工作區' })
+
+    await user.click(within(rail).getByRole('button', { name: '結單' }))
+    const confirm = screen.getByRole('dialog', { name: '確認結單' })
+    expect(rail).not.toContainElement(confirm)
+    expect(confirm.parentElement?.parentElement).toBe(document.body)
+    await user.keyboard('{Escape}')
+
+    await user.click(within(rail).getByRole('button', { name: '存成範本' }))
+    const template = screen.getByRole('dialog', { name: '存成範本' })
+    expect(rail).not.toContainElement(template)
+    expect(template.parentElement?.parentElement).toBe(document.body)
+  })
+
   it('shows closed and legacy arrived campaigns as closed and offers reopening', async () => {
     const user = userEvent.setup()
     const onSetCampaignStatus = vi.fn().mockResolvedValue(undefined)
