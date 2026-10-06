@@ -7,6 +7,7 @@ import ResidentCampaignListApp, {
   type ResidentLineIdentity,
 } from './ResidentCampaignListApp'
 import ResidentMyOrdersApp, { type ResidentMyOrder } from './ResidentMyOrdersApp'
+import { withFormation } from './components/resident/campaignFormation'
 import { residentMyOrdersRepository, type ResidentMyOrdersRepository } from './services/residentMyOrders'
 import { ResidentCampaignSkeleton, ResidentListSkeleton } from './components/resident/ResidentSkeletons'
 import { clearResidentPageCache, readResidentPageCache, writeResidentPageCache } from './services/residentPageCache'
@@ -74,7 +75,10 @@ import {
 } from './services/authStorage'
 
 const AdminApp = lazy(() => import('./AdminApp'))
-const App = lazy(() => import('./App'))
+// The campaign page's code is fetched as soon as the page starts signing in (see LocalLiveResidentCampaignApp),
+// not once sign-in and the campaign data have arrived, which cost a further round trip.
+const loadResidentCampaignPage = () => import('./App')
+const App = lazy(loadResidentCampaignPage)
 
 export type LiveAdminRepository = {
   loadPublished(campaignId: string): Promise<CampaignContent>
@@ -1317,7 +1321,14 @@ function LocalLiveResidentListApp({
     const initialize = async () => {
       const auth = { client, liffId, liffClient, lineResidentGateway }
       if (page === 'orders') {
-        const signedIn = await authenticateResident(auth, attempt > 0, () => (residentOrdersRepository ?? residentMyOrdersRepository(client)).list())
+        const signedIn = await authenticateResident(auth, attempt > 0, async () => {
+          const [orders, campaigns] = await Promise.all([
+            (residentOrdersRepository ?? residentMyOrdersRepository(client)).list(),
+            // Only says which closed campaigns did not form; the orders still show without it.
+            (residentListRepository ?? residentCampaignListRepository(client)).list().catch(() => null),
+          ])
+          return withFormation(orders, campaigns)
+        })
         if (!signedIn || !active) return
         setIdentity(signedIn.identity)
         setOrders(signedIn.data)
@@ -1428,6 +1439,8 @@ async function ensureResidentSession(client: SupabaseClient<Database>, allowAnon
 }
 
 function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug, liffId, liffClient, lineResidentGateway }: LocalLiveResidentAppProps & { campaignSlug: string }) {
+  // A failed early fetch is left to the page's own load, which shows the error and a retry.
+  useEffect(() => { loadResidentCampaignPage().catch(() => undefined) }, [])
   const [content, setContent] = useState<CampaignContent | null>(null)
   const [campaignStatus, setCampaignStatus] = useState<CampaignStatus | null>(null)
   const [campaignClosedAt, setCampaignClosedAt] = useState<string | null>(null)

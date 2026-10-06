@@ -5,9 +5,11 @@ type ProgressBarProps = {
   className?: string
   /** The threshold is reached: the fill switches to the success colour. */
   formed?: boolean
+  /** Closed short of the threshold: the fill turns grey, as nothing more can be ordered. */
+  missed?: boolean
 }
 
-export function ProgressBar({ label, value, max, className = '', formed = false }: ProgressBarProps) {
+export function ProgressBar({ label, value, max, className = '', formed = false, missed = false }: ProgressBarProps) {
   const safeMax = Math.max(1, max)
   const clampedValue = Math.min(safeMax, Math.max(0, value))
   const percent = (clampedValue / safeMax) * 100
@@ -20,6 +22,7 @@ export function ProgressBar({ label, value, max, className = '', formed = false 
       aria-valuemax={safeMax}
       aria-valuenow={clampedValue}
       data-formed={formed ? 'true' : undefined}
+      data-missed={missed && !formed ? 'true' : undefined}
     >
       <span style={{ width: `${percent}%` }} />
     </div>

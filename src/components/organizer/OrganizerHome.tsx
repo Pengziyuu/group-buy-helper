@@ -179,7 +179,7 @@ export function OrganizerHome({ campaigns, autoCloseNotificationState, unboundRe
                       {phase === 'draft' ? <span className="organizer-muted">發布後開始接單</span> : (
                         <div className="organizer-progress-cell">
                           <span className="ui-num">{progress.text}</span>
-                          <ProgressBar label={`${campaign.title}成團進度`} value={progress.value} max={progress.max} formed={progress.formed} />
+                          <ProgressBar label={`${campaign.title}成團進度`} value={progress.value} max={progress.max} formed={progress.formed} missed={campaign.status !== 'open'} />
                           <small className={progress.formed ? 'is-formed' : undefined}>{progress.statusText}</small>
                         </div>
                       )}

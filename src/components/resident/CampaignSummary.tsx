@@ -50,7 +50,7 @@ export function CampaignSummary({ title, status, priceText, schedule, progress, 
           <strong>{progress.text}</strong>
           <span className={progress.formed ? 'is-formed' : status !== 'open' ? 'is-missed' : undefined}>{progress.remainingText}</span>
         </p>
-        <ProgressBar label="成團進度" value={progress.value} max={progress.max} formed={progress.formed} />
+        <ProgressBar label="成團進度" value={progress.value} max={progress.max} formed={progress.formed} missed={status !== 'open'} />
         <p className="resident-summary-meta">
           {orderCount} 筆訂單
           {opened && <>・<time dateTime={openedAt!} title={formatZhTwTimestamp(openedAt!)}>{/\d$/.test(opened) ? `${opened} ` : opened}開團</time></>}

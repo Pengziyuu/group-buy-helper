@@ -4,12 +4,13 @@ import { EmptyState } from './components/ui/AsyncState'
 import { Button } from './components/ui/Button'
 import { Menu } from './components/ui/Menu'
 import { ProgressBar } from './components/ui/ProgressBar'
+import { residentCampaignProgress } from './components/resident/campaignFormation'
 import { formatMoney } from './components/resident/residentFormat'
 import { describeResidentSchedule } from './components/resident/residentSchedule'
 import { ResidentTabBar, type ResidentTab } from './components/resident/ResidentTabBar'
 import type { CampaignStatus } from './domain/orderWorkflow'
 import { residentCampaignPath } from './routing'
-import { normalizeQuantityUnit, type QuantityUnit } from './domain/quantityUnit'
+import type { QuantityUnit } from './domain/quantityUnit'
 import type { CampaignImage } from './services/demoCampaignStore'
 import './components/resident/resident.css'
 import { ChevronRight } from 'lucide-react'
@@ -58,20 +59,6 @@ function byNewestOpening(left: ResidentCampaignListItem, right: ResidentCampaign
   return Date.parse(right.openedAt) - Date.parse(left.openedAt)
 }
 
-function campaignProgress(campaign: ResidentCampaignListItem) {
-  if (campaign.thresholdKind === 'amount') {
-    const value = campaign.totalAmount ?? 0
-    const target = campaign.amountThreshold ?? campaign.threshold
-    return { value, target, text: `${formatMoney(value)} / ${formatMoney(target)}` }
-  }
-  const unit = normalizeQuantityUnit(campaign.quantityUnit)
-  return {
-    value: campaign.totalQuantity,
-    target: campaign.threshold,
-    text: `${campaign.totalQuantity} ${unit} / ${campaign.threshold} ${unit}`,
-  }
-}
-
 export function CampaignThumbnail({ campaign, ordered }: { campaign: Pick<ResidentCampaignListItem, 'title' | 'images'>; ordered?: string }) {
   const [failed, setFailed] = useState(false)
   const image = campaign.images?.[0]
@@ -94,8 +81,10 @@ function orderedMark(quantity: number, customQuantity: number): string | undefin
 
 function CampaignRow({ campaign, now }: { campaign: ResidentCampaignListItem; now: Date }) {
   const open = campaign.status === 'open'
-  const progress = campaignProgress(campaign)
+  const progress = residentCampaignProgress(campaign)
   const formed = progress.value >= progress.target
+  // Closed short of the threshold: nothing more can be ordered, so say it did not form.
+  const missed = !open && !formed
   const { closing, arrival } = describeResidentSchedule(campaign, now)
   const ordered = orderedMark(campaign.myQuantity ?? 0, campaign.myCustomQuantity ?? 0)
   const households = campaign.orderHouseholdCount ? `・${campaign.orderHouseholdCount} 人` : ''
@@ -114,8 +103,9 @@ function CampaignRow({ campaign, now }: { campaign: ResidentCampaignListItem; no
         <p className="resident-campaign-progress-text">
           {progress.text}{households}
           {formed && <span className="resident-campaign-formed">{open ? '已成團，仍可下單' : '已成團'}</span>}
+          {missed && <span className="resident-campaign-missed">未成團</span>}
         </p>
-        <ProgressBar label={`${campaign.title}成團進度`} value={progress.value} max={progress.target} formed={formed} />
+        <ProgressBar label={`${campaign.title}成團進度`} value={progress.value} max={progress.target} formed={formed} missed={missed} />
       </div>
       <Icon icon={ChevronRight} size={20} className="resident-campaign-chevron" />
     </article>
