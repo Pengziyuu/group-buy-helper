@@ -309,15 +309,17 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', camp
     )
   })
 
+  // Adding a custom item means wanting one, so it starts at 1 (and counts toward the threshold cap).
   const addCustomItem = () => {
     if (!controlsEditable || customDraft.length >= 10) return
+    setNotice(null)
+    if (!withinThreshold(draftQuantity + customDraftQuantity + 1)) return
     customItemSequence.current += 1
     setCustomDraft((current) => [...current, {
       id: `custom-${Date.now()}-${customItemSequence.current}`,
       name: '',
-      quantity: 0,
+      quantity: 1,
     }])
-    setNotice(null)
   }
 
   const updateCustomItem = (id: string, update: Partial<Pick<CustomOrderItem, 'name' | 'quantity'>>) => {
@@ -456,43 +458,41 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', camp
                         <div className="resident-custom-items-heading">
                           <div>
                             <h3 id="custom-order-items-heading">額外品項</h3>
-                            <p>名稱由你填寫，數量算入成團數量，金額由團主另計。</p>
+                            <p>清單沒有的可自己填，金額由團主另計</p>
                           </div>
                           <Button variant="secondary" onClick={addCustomItem} disabled={!controlsEditable || customDraft.length >= 10}>
                             <span aria-hidden="true">＋</span> 新增額外品項
                           </Button>
                         </div>
+                        {/* Laid out like a product row: a pencil where the item code goes, the name to type where
+                            the name goes, the same stepper in the same column; its minus removes the row at 1. */}
                         {customDraft.map((item, index) => (
-                          <div className="resident-custom-item-row" key={item.id}>
-                            <label>
-                              <span>品項名稱</span>
-                              <input
-                                className="ui-input"
-                                aria-label={`額外品項 ${index + 1} 名稱`}
-                                value={item.name}
-                                maxLength={100}
-                                disabled={!controlsEditable}
-                                placeholder="例如：限定口味"
-                                onChange={(event) => updateCustomItem(item.id, { name: event.target.value })}
-                              />
-                            </label>
+                          <div className="resident-product-row resident-custom-item-row" key={item.id} data-selected={item.quantity > 0 ? 'true' : undefined}>
+                            <span className="resident-product-code" aria-hidden="true">
+                              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M4 20h4L19 9l-4-4L4 16v4Zm9-13 4 4" />
+                              </svg>
+                            </span>
+                            <input
+                              className="ui-input"
+                              aria-label={`額外品項 ${index + 1} 名稱`}
+                              value={item.name}
+                              maxLength={100}
+                              disabled={!controlsEditable}
+                              placeholder="例如：限定口味"
+                              onChange={(event) => updateCustomItem(item.id, { name: event.target.value })}
+                            />
                             <QuantityControl
                               label={`額外品項 ${index + 1}`}
                               value={item.quantity}
                               max={20}
                               disabled={!controlsEditable}
-                              onDecrement={() => updateCustomItem(item.id, { quantity: Math.max(0, item.quantity - 1) })}
+                              onDecrement={() => updateCustomItem(item.id, { quantity: Math.max(1, item.quantity - 1) })}
                               onIncrement={() => updateCustomItem(item.id, { quantity: Math.min(20, item.quantity + 1) })}
+                              onRemove={() => removeCustomItem(item.id)}
                             />
-                            <Button
-                              variant="utility"
-                              aria-label={`移除額外品項 ${index + 1}`}
-                              disabled={!controlsEditable}
-                              onClick={() => removeCustomItem(item.id)}
-                            >移除</Button>
                           </div>
                         ))}
-                        {customDraft.length > 0 && <p className="resident-custom-items-note">金額由團主另計</p>}
                       </section>
                     )}
                   </div>

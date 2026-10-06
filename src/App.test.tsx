@@ -178,10 +178,10 @@ describe('customer campaign app', () => {
     expect(within(screen.getByLabelText('訂單摘要與送出')).getByText('$270')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '新增額外品項' }))
     await user.type(screen.getByRole('textbox', { name: '額外品項 1 名稱' }), '限定蛋糕')
-    await user.click(screen.getByRole('button', { name: '增加 額外品項 1' }))
+    // A new custom item starts at 1; one more makes 2.
     await user.click(screen.getByRole('button', { name: '增加 額外品項 1' }))
 
-    expect(screen.getByText('金額由團主另計')).toBeInTheDocument()
+    expect(screen.getByText('清單沒有的可自己填，金額由團主另計')).toBeInTheDocument()
     expect(screen.getByText('62 個 / 100 個')).toBeInTheDocument()
     expect(within(screen.getByLabelText('訂單摘要與送出')).getByText('$270')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '送出訂單' }))
@@ -204,10 +204,29 @@ describe('customer campaign app', () => {
     expect(within(bar).getByRole('button', { name: '送出訂單' })).toBeDisabled()
 
     await user.type(screen.getByRole('textbox', { name: '額外品項 1 名稱' }), '限定蛋糕')
-    await user.click(screen.getByRole('button', { name: '增加 額外品項 1' }))
 
     expect(within(bar).queryByText('請填寫額外品項的名稱與數量。')).not.toBeInTheDocument()
     expect(within(bar).getByRole('button', { name: '送出訂單' })).toBeEnabled()
+  })
+
+  it('lines custom items up with the formal ones and removes one from its stepper once it is down to 1', async () => {
+    const user = userEvent.setup()
+    render(<App publishedContent={{
+      title: '額外品項移除', unitPrice: 45, threshold: 100, allowCustomItems: true,
+      announcement: '公告', images: [], items, openedAt: '2026-08-14T00:05:09.000Z',
+    }} />)
+
+    await user.click(screen.getByRole('button', { name: '新增額外品項' }))
+    expect(screen.getByRole('status', { name: '額外品項 1數量' })).toHaveTextContent('1')
+    // No separate remove button: at 1 the minus becomes the remove control.
+    expect(screen.queryByRole('button', { name: '減少 額外品項 1' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '增加 額外品項 1' }))
+    await user.click(screen.getByRole('button', { name: '減少 額外品項 1' }))
+    expect(screen.getByRole('status', { name: '額外品項 1數量' })).toHaveTextContent('1')
+
+    await user.click(screen.getByRole('button', { name: '移除 額外品項 1' }))
+    expect(screen.queryByRole('textbox', { name: '額外品項 1 名稱' })).not.toBeInTheDocument()
   })
 
   it('locks every order control while a custom order submission is pending', async () => {
@@ -231,7 +250,7 @@ describe('customer campaign app', () => {
     expect(input).toBeDisabled()
     expect(screen.getByRole('button', { name: '新增額外品項' })).toBeDisabled()
     expect(screen.getByRole('button', { name: '增加 額外品項 1' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: '移除額外品項 1' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '減少 額外品項 1' })).toBeDisabled()
 
     await act(async () => { finishSubmit() })
     await screen.findByText('訂單已更新')
@@ -249,7 +268,7 @@ describe('customer campaign app', () => {
         : order)}
     />)
 
-    expect(screen.queryByRole('button', { name: '移除額外品項 1' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '移除 額外品項 1' })).not.toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: '額外品項 1 名稱' })).not.toBeInTheDocument()
     expect(within(screen.getByRole('list', { name: '你訂的品項' })).getByText(/歷史蛋糕/)).toHaveTextContent('歷史蛋糕・另計')
   })
@@ -504,10 +523,10 @@ describe('customer campaign app', () => {
     await user.click(screen.getByRole('button', { name: '增加 C 抹茶' }))
     expect(screen.getByRole('alert')).toHaveTextContent('目前其他住戶已訂 57 個，成團上限為 63 個，本次最多可訂 6 個。')
 
+    // A new custom item starts at 1, so adding one is itself held back.
     await user.click(screen.getByRole('button', { name: /新增額外品項/ }))
-    await user.click(screen.getByRole('button', { name: '增加 額外品項 1' }))
     expect(screen.getByRole('alert')).toHaveTextContent('本次最多可訂 6 個。')
-    expect(screen.getByRole('status', { name: '額外品項 1數量' })).toHaveTextContent('0')
+    expect(screen.queryByRole('textbox', { name: '額外品項 1 名稱' })).not.toBeInTheDocument()
   })
 
   it('continues accepting quantity orders past the threshold when auto closing is disabled', async () => {
@@ -779,7 +798,6 @@ describe('customer campaign app', () => {
     const view = render(<App publishedContent={content} residentCustomer={resident} visibleOrders={[resident]} onSubmitOrder={onSubmitOrder} />)
     await user.click(screen.getByRole('button', { name: '新增額外品項' }))
     await user.type(screen.getByRole('textbox', { name: '額外品項 1 名稱' }), '限定蛋糕')
-    await user.click(screen.getByRole('button', { name: '增加 額外品項 1' }))
     await user.click(screen.getByRole('button', { name: '送出訂單' }))
     expect(await screen.findByText('訂單已更新')).toBeInTheDocument()
     expect(screen.getByText(/另有 1 個額外品項/, { selector: '.resident-sent span' })).toBeInTheDocument()

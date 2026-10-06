@@ -198,8 +198,12 @@
 .organizer-item-tally-block[open] > summary::before { transform: rotate(90deg); }
 .organizer-item-tally-block > summary small { color: var(--color-text-secondary); font-weight: 400; }
 .organizer-item-tally-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: var(--space-1) 0 var(--space-2); }
-.organizer-item-tally { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; max-width: 360px; margin: 0; padding: 0; list-style: none; }
-.organizer-item-tally li { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; align-items: baseline; gap: var(--space-2); padding: 6px 0; border-bottom: 1px dashed var(--color-divider); }
+.organizer-item-tally { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; max-width: 520px; margin: 0; padding: 0; list-style: none; }
+.organizer-item-tally li { display: grid; grid-template-columns: 24px minmax(0, 11em) minmax(48px, 1fr) 4.5em; align-items: center; gap: var(--space-2); padding: 6px 0; border-bottom: 1px dashed var(--color-divider); }
+/* The bar shows the gaps between items at a glance; the most-ordered item fills the track. */
+.organizer-item-bar { display: block; height: 8px; overflow: hidden; border-radius: 4px; background: var(--color-surface-subtle); }
+.organizer-item-bar span { display: block; height: 100%; border-radius: 4px; background: var(--color-primary); }
+.organizer-item-tally li.is-custom .organizer-item-bar span { background: var(--color-warning); }
 .organizer-item-tally li[data-empty] { color: var(--color-text-tertiary); }
 .organizer-item-tally .organizer-item-name { overflow-wrap: anywhere; }
 .organizer-item-tally strong { font-weight: var(--font-weight-strong); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
