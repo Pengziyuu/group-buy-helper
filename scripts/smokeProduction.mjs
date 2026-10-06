@@ -18,7 +18,8 @@ export async function checkSite(base, projectRef, fetchImpl = fetch) {
     const response = await fetchImpl(new URL(path, base))
     const html = await response.text()
     if (!response.ok) { problems.push(`${path}: HTTP ${response.status}`); continue }
-    if (!html.includes('<div id="root"></div>')) { problems.push(`${path}: page has no app root`); continue }
+    // The root may already hold the loading outline shown before the scripts run.
+    if (!html.includes('<div id="root">')) { problems.push(`${path}: page has no app root`); continue }
 
     const assets = assetsIn(html)
     const scripts = assets.filter((asset) => asset.endsWith('.js'))

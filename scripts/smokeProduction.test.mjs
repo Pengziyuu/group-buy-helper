@@ -29,6 +29,11 @@ describe('production smoke check', () => {
     expect(await checkSite(BASE, PROJECT, site())).toEqual([])
   })
 
+  it('accepts a root that already shows the loading outline before the scripts run', async () => {
+    const withOutline = { body: page(['/assets/main.js']).replace('<div id="root"></div>', '<div id="root"><div role="status">載入中</div></div>'), type: 'text/html' }
+    expect(await checkSite(BASE, PROJECT, site({ '/': withOutline }))).toEqual([])
+  })
+
   it('catches a page whose script comes back as HTML, as the blank preview campaign page did', async () => {
     const problems = await checkSite(BASE, PROJECT, site({
       [`/campaign/${'0'.repeat(36)}`]: { body: page(['/assets/main-old.js']), type: 'text/html' },

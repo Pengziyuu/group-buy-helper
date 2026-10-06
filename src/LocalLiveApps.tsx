@@ -8,6 +8,8 @@ import ResidentCampaignListApp, {
 } from './ResidentCampaignListApp'
 import ResidentMyOrdersApp, { type ResidentMyOrder } from './ResidentMyOrdersApp'
 import { residentMyOrdersRepository, type ResidentMyOrdersRepository } from './services/residentMyOrders'
+import { ResidentCampaignSkeleton, ResidentListSkeleton } from './components/resident/ResidentSkeletons'
+import { clearResidentPageCache, readResidentPageCache, writeResidentPageCache } from './services/residentPageCache'
 import ResidentMemberManagementApp from './ResidentMemberManagementApp'
 import { CampaignWorkspace } from './components/organizer/CampaignWorkspace'
 import { OrdersSection } from './components/organizer/OrdersSection'
@@ -1265,18 +1267,24 @@ function ResidentAdmissionPrompt({ error, onRetry }: { error: ResidentAdmissionE
   </main>
 }
 
-async function authenticateResident(
+/**
+ * The signed-in resident, plus whatever the page loads first. With a stored session the page's own
+ * query goes out together with the session check and the name lookup, so the page waits for one
+ * round trip instead of three; it is thrown away if the stored session turns out to be unusable.
+ */
+async function authenticateResident<T>(
   { client, liffId, liffClient, lineResidentGateway }: LocalLiveResidentAppProps,
   recheck: boolean,
-): Promise<ResidentLineIdentity | null> {
+  loadData: () => Promise<T>,
+): Promise<{ identity: ResidentLineIdentity; data: T } | null> {
   // Restored admitted residents are not subject to a new group-membership gate.
-  const restored = recheck ? null : await loadRestoredResidentIdentity(client)
+  const restored = recheck ? null : await loadRestoredResident(client, loadData)
   if (restored) return restored
   if (!liffId || !liffClient) throw new Error('住戶 LINE 登入設定不完整')
   const identity = await loadLiffIdentity(liffClient, liffId)
   if (!identity) return null
   const result = await (lineResidentGateway ?? createLineResidentGateway(client)).signIn(identity.idToken)
-  return result.identity
+  return { identity: result.identity, data: await loadData() }
 }
 
 function LocalLiveResidentListApp({
@@ -1288,9 +1296,13 @@ function LocalLiveResidentListApp({
   residentOrdersRepository,
   page,
 }: LocalLiveResidentAppProps) {
-  const [identity, setIdentity] = useState<ResidentLineIdentity | null>(null)
-  const [campaigns, setCampaigns] = useState<ResidentCampaignListItem[] | null>(null)
-  const [orders, setOrders] = useState<ResidentMyOrder[] | null>(null)
+  // What this resident saw last time shows at once; the fresh copy replaces it when it arrives.
+  const [cached] = useState(() => page === 'orders'
+    ? { orders: readResidentPageCache<ResidentMyOrder[]>('orders'), campaigns: null }
+    : { orders: null, campaigns: readResidentPageCache<ResidentCampaignListItem[]>('campaigns') })
+  const [identity, setIdentity] = useState<ResidentLineIdentity | null>(cached.orders?.identity ?? cached.campaigns?.identity ?? null)
+  const [campaigns, setCampaigns] = useState<ResidentCampaignListItem[] | null>(cached.campaigns?.data ?? null)
+  const [orders, setOrders] = useState<ResidentMyOrder[] | null>(cached.orders?.data ?? null)
   const [error, setError] = useState('')
   const [admissionError, setAdmissionError] = useState<ResidentAdmissionError | null>(null)
   const [attempt, setAttempt] = useState(0)
@@ -1298,26 +1310,28 @@ function LocalLiveResidentListApp({
   useEffect(() => {
     let active = true
     const initialize = async () => {
-      const trustedIdentity = await authenticateResident({ client, liffId, liffClient, lineResidentGateway }, attempt > 0)
-      if (!trustedIdentity || !active) return
+      const auth = { client, liffId, liffClient, lineResidentGateway }
       if (page === 'orders') {
-        const nextOrders = await (residentOrdersRepository ?? residentMyOrdersRepository(client)).list()
-        if (active) {
-          setIdentity(trustedIdentity)
-          setOrders(nextOrders)
-        }
+        const signedIn = await authenticateResident(auth, attempt > 0, () => (residentOrdersRepository ?? residentMyOrdersRepository(client)).list())
+        if (!signedIn || !active) return
+        setIdentity(signedIn.identity)
+        setOrders(signedIn.data)
+        writeResidentPageCache('orders', signedIn.identity, signedIn.data)
         return
       }
-      const nextCampaigns = await (residentListRepository ?? residentCampaignListRepository(client)).list()
-      if (active) {
-        setIdentity(trustedIdentity)
-        setCampaigns(nextCampaigns)
-      }
+      const signedIn = await authenticateResident(auth, attempt > 0, () => (residentListRepository ?? residentCampaignListRepository(client)).list())
+      if (!signedIn || !active) return
+      setIdentity(signedIn.identity)
+      setCampaigns(signedIn.data)
+      writeResidentPageCache('campaigns', signedIn.identity, signedIn.data)
     }
     void initialize().catch((loadError: unknown) => {
       if (!active) return
-      if (loadError instanceof ResidentAdmissionError) setAdmissionError(loadError)
-      else setError(errorMessage(loadError))
+      // No longer admitted: what was saved for this account should not open next time either.
+      if (loadError instanceof ResidentAdmissionError) {
+        clearResidentPageCache()
+        setAdmissionError(loadError)
+      } else setError(errorMessage(loadError))
     })
     return () => { active = false }
   }, [client, liffClient, liffId, lineResidentGateway, residentListRepository, residentOrdersRepository, page, attempt])
@@ -1328,6 +1342,7 @@ function LocalLiveResidentListApp({
   }} />
   if (error) return <LiveError message={error} title="無法載入住戶入口" />
   const logout = async () => {
+    clearResidentPageCache()
     const { error: remoteError } = await client.auth.signOut()
     if (remoteError) {
       await client.auth.signOut({ scope: 'local' })
@@ -1343,14 +1358,17 @@ function LocalLiveResidentListApp({
     setError('已登出，請重新開啟住戶 LINE 入口')
   }
   if (page === 'orders') {
-    if (!identity || !orders) return <LiveLoading label="確認 LINE 住戶身分並載入我的訂單…" />
+    if (!identity || !orders) return <ResidentListSkeleton page="orders" label="確認 LINE 住戶身分並載入我的訂單…" />
     return <ResidentMyOrdersApp identity={identity} orders={orders} onLogout={logout} />
   }
-  if (!identity || !campaigns) return <LiveLoading label="確認 LINE 住戶身分並載入開團列表…" />
+  if (!identity || !campaigns) return <ResidentListSkeleton page="campaigns" label="確認 LINE 住戶身分並載入開團列表…" />
   return <ResidentCampaignListApp identity={identity} campaigns={campaigns} onLogout={logout} />
 }
 
-async function loadRestoredResidentIdentity(client: SupabaseClient<Database>): Promise<ResidentLineIdentity | null> {
+async function loadRestoredResident<T>(
+  client: SupabaseClient<Database>,
+  loadData: () => Promise<T>,
+): Promise<{ identity: ResidentLineIdentity; data: T } | null> {
   const { data, error } = await client.auth.getSession()
   if (error) {
     if (isRetryableAuthError(error)) throw error
@@ -1360,7 +1378,14 @@ async function loadRestoredResidentIdentity(client: SupabaseClient<Database>): P
   const session = data.session
   if (!session) return null
 
-  const { data: verified, error: verificationError } = await client.auth.getUser(session.access_token)
+  // All three in flight together; the session check still decides, before either result is used.
+  const [verification, identityResult, dataResult] = await Promise.allSettled([
+    client.auth.getUser(session.access_token),
+    client.rpc('get_line_resident_self'),
+    loadData(),
+  ])
+  if (verification.status === 'rejected') throw verification.reason
+  const { data: verified, error: verificationError } = verification.value
   if (verificationError && isRetryableAuthError(verificationError)) throw verificationError
   if (verificationError
     || !verified.user
@@ -1370,11 +1395,13 @@ async function loadRestoredResidentIdentity(client: SupabaseClient<Database>): P
     return null
   }
 
-  const { data: identityRows, error: identityError } = await client.rpc('get_line_resident_self')
+  if (identityResult.status === 'rejected') throw identityResult.reason
+  const { data: identityRows, error: identityError } = identityResult.value
   if (identityError) throw identityError
   const row = identityRows?.[0]
   if (!row?.display_name) return null
-  return { displayName: row.display_name, pictureUrl: row.picture_url }
+  if (dataResult.status === 'rejected') throw dataResult.reason
+  return { identity: { displayName: row.display_name, pictureUrl: row.picture_url }, data: dataResult.value }
 }
 
 async function ensureResidentSession(client: SupabaseClient<Database>, allowAnonymous = true): Promise<Session> {
@@ -1489,25 +1516,33 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug, liffId
       }
     }
 
-    const initialize = async () => {
-      if (liffId || liffClient) {
-        const identity = await authenticateResident({ client, liffId, liffClient, lineResidentGateway }, attempt > 0)
-        if (!identity || !active) return
-      } else {
-        // Preserve the local-live fixture/session path when no LIFF is configured.
-        sessionPromise.current ??= ensureResidentSession(client, false)
-        await sessionPromise.current
-      }
-      if (!active) return
+    const joinCampaign = async () => {
       const { data: joinedRows, error: joinError } = await client.rpc('join_campaign_by_slug', {
         p_slug: campaignSlug,
       })
       if (joinError) throw joinError
-      const resolvedId = Array.isArray(joinedRows) && joinedRows[0]
+      return Array.isArray(joinedRows) && joinedRows[0]
         && typeof joinedRows[0] === 'object' && 'id' in joinedRows[0]
         && typeof joinedRows[0].id === 'string'
         ? joinedRows[0].id
         : null
+    }
+
+    const initialize = async () => {
+      let resolvedId: string | null
+      if (liffId || liffClient) {
+        // Joining goes out with the session check, as the list does with its own query.
+        const signedIn = await authenticateResident({ client, liffId, liffClient, lineResidentGateway }, attempt > 0, joinCampaign)
+        if (!signedIn || !active) return
+        resolvedId = signedIn.data
+      } else {
+        // Preserve the local-live fixture/session path when no LIFF is configured.
+        sessionPromise.current ??= ensureResidentSession(client, false)
+        await sessionPromise.current
+        if (!active) return
+        resolvedId = await joinCampaign()
+      }
+      if (!active) return
       if (!resolvedId) throw new Error('找不到已發布的團購活動')
       if (campaignId && campaignId !== resolvedId) throw new Error('團購連結與活動不一致')
       if (awaitingOwnOrder.current && awaitingOwnOrder.current.campaignId !== resolvedId) {
@@ -1587,10 +1622,10 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug, liffId
     setAttempt((current) => current + 1)
   }} />
   if (error) return <LiveError message={error} />
-  if (!joinedCampaignId || !content || !campaignStatus || residentCustomer === undefined || !residentIdentity) return <LiveLoading label="連線住戶端即時資料…" />
+  if (!joinedCampaignId || !content || !campaignStatus || residentCustomer === undefined || !residentIdentity) return <ResidentCampaignSkeleton label="連線住戶端即時資料…" />
   return (
     <LazySectionBoundary>
-      <Suspense fallback={<LiveLoading label="載入住戶團購頁…" />}>
+      <Suspense fallback={<ResidentCampaignSkeleton label="載入住戶團購頁…" />}>
     <App
       publishedContent={content}
       campaignStatus={campaignStatus}

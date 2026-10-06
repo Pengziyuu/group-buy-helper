@@ -76,6 +76,18 @@ describe('LINE 團購連結預覽', () => {
       rmSync(root, { recursive: true, force: true })
     }
   })
+  it('still recognises the page when its root holds the loading outline shown before the scripts arrive', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'campaign-preview-'))
+    mkdirSync(join(root, 'dist'))
+    writeFileSync(join(root, 'dist', 'index.html'), page.replace('<div id="root"></div>', '<div id="root"><div role="status">載入中</div></div>'))
+    try {
+      const { state, calls } = await request('a'.repeat(36), [{ title: '神農包子', image_url: image }], 200, root)
+      expect(state.body).toContain('神農包子｜團購小幫手')
+      expect(calls.some((call) => call.url.endsWith('/index.html'))).toBe(false)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
   it('bundles the built page with the preview function', () => {
     const config = JSON.parse(readFileSync(resolve(process.cwd(), 'vercel.json'), 'utf8')) as { functions?: Record<string, { includeFiles?: string }> }
     expect(config.functions?.['api/campaign-preview.ts']?.includeFiles).toBe('dist/index.html')
