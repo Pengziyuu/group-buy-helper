@@ -187,6 +187,8 @@
 
 @media (max-width: 639px) {
   .resident-topbar { position: relative; top: auto; min-height: var(--touch-target); padding-inline: var(--space-3); }
+  /* The campaign page keeps its slim header, and the way back to all campaigns, in view while reading. */
+  .resident-page:not(.has-tabbar) .resident-topbar { position: sticky; top: 0; }
   .resident-list { padding: var(--space-4) var(--space-3) var(--space-8); }
   .resident-campaign { gap: var(--space-3); padding: var(--space-3) var(--space-3) var(--space-8); }
   .resident-card { padding: var(--space-5) var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-surface); }
@@ -228,7 +230,12 @@
    beside the account menu once the header has room. The campaign page has its own order bar there,
    so only the list and my orders carry the tabs. */
 .resident-topbar-end { display: flex; align-items: center; gap: var(--space-3); }
-.resident-tabbar { position: fixed; right: 0; bottom: 0; left: 0; z-index: var(--z-sticky); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid var(--color-border); background: var(--color-sticky-bg); -webkit-backdrop-filter: var(--blur-sticky); backdrop-filter: var(--blur-sticky); }
+.resident-tabbar { position: fixed; right: 0; bottom: 0; left: 0; z-index: var(--z-sticky); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid rgb(0 0 0 / 8%); background: var(--color-tabbar-bg); -webkit-backdrop-filter: var(--blur-sticky); backdrop-filter: var(--blur-sticky); transition: transform 0.2s ease; }
+/* Out of the way while scrolling down; back on scroll up, or as soon as a tab takes keyboard focus. */
+.resident-tabbar[data-hidden="true"]:not(:focus-within) { transform: translateY(100%); }
+@media (prefers-reduced-motion: reduce) {
+  .resident-tabbar { transition: none; }
+}
 .resident-tabbar a { display: grid; justify-items: center; gap: 2px; min-height: 56px; padding: 6px 0 4px; color: var(--color-text-secondary); font-size: var(--font-size-caption); text-decoration: none; }
 .resident-tabbar a[aria-current="page"] { color: var(--color-primary); font-weight: var(--font-weight-strong); }
 .resident-tabbar a:focus-visible { outline: 2px solid var(--color-focus); outline-offset: -4px; }
@@ -261,7 +268,8 @@
 .resident-my-order-foot a { display: inline-flex; align-items: center; min-height: var(--touch-target); margin-left: auto; color: var(--color-primary); font-size: var(--font-size-dense); text-decoration: none; }
 
 @media (min-width: 1024px) {
-  .resident-tabbar { position: static; display: flex; gap: var(--space-1); padding: 0; border: 0; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .resident-tabbar,
+  .resident-tabbar[data-hidden="true"]:not(:focus-within) { position: static; display: flex; gap: var(--space-1); padding: 0; border: 0; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; transform: none; }
   .resident-tabbar a { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 var(--space-3); border-radius: var(--radius-control); font-size: var(--font-size-dense); }
   .resident-tabbar a[aria-current="page"] { background: var(--color-primary-subtle); }
   .resident-tabbar svg { width: 18px; height: 18px; }
@@ -278,5 +286,5 @@
 /* Jumped to from my orders: clear the sticky header. */
 #my-order { scroll-margin-top: calc(52px + var(--space-3)); }
 @media (max-width: 639px) {
-  #my-order { scroll-margin-top: var(--space-3); }
+  #my-order { scroll-margin-top: calc(var(--touch-target) + var(--space-3)); }
 }

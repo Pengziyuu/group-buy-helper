@@ -17,6 +17,8 @@
   --color-surface-subtle: #fafafc;
   --color-surface-raised: #fff;
   --color-sticky-bg: rgb(245 245 247 / 92%);
+  /* Lighter than the sticky header, so content shows through as it scrolls under the tab bar. */
+  --color-tabbar-bg: rgb(245 245 247 / 72%);
   --color-overlay: rgb(29 29 31 / 40%);
 
   --color-text: #1d1d1f;
