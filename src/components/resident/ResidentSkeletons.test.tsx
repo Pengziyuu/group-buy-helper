@@ -11,6 +11,18 @@ describe('resident skeletons', () => {
       .toHaveAttribute('aria-current', 'page')
   })
 
+  it('carries on the sheen from where the outline in index.html has got to, rather than restarting it', () => {
+    window.__skeletonStart = performance.now() - 2000
+    try {
+      const { container } = render(<ResidentListSkeleton page="campaigns" label="載入中" />)
+      const delays = [...container.querySelectorAll<HTMLElement>('.sk-block')].map((block) => parseInt(block.style.animationDelay, 10))
+      // 2000ms into a 1400ms sweep is 600ms into the current one.
+      expect(delays.every((delay) => delay <= -600 && delay > -700)).toBe(true)
+    } finally {
+      delete window.__skeletonStart
+    }
+  })
+
   it('keeps the way back to all campaigns usable while a campaign loads', () => {
     render(<ResidentCampaignSkeleton label="連線住戶端即時資料…" />)
 

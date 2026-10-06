@@ -1,10 +1,11 @@
+import { TAB_ICONS } from './skeletonMarkup'
 import { useHiddenWhileScrollingDown } from './useHiddenWhileScrollingDown'
 
 export type ResidentTab = 'campaigns' | 'orders'
 
 const TABS: { tab: ResidentTab; href: string; label: string; icon: string }[] = [
-  { tab: 'campaigns', href: '/', label: '團購', icon: 'M6 7h12l-1 13H7L6 7Zm3 0a3 3 0 0 1 6 0' },
-  { tab: 'orders', href: '/orders', label: '我的訂單', icon: 'M7 3h10v18l-2.5-1.5L12 21l-2.5-1.5L7 21V3Zm3 5h4m-4 4h4' },
+  { tab: 'campaigns', href: '/', label: '團購', icon: TAB_ICONS.campaigns },
+  { tab: 'orders', href: '/orders', label: '我的訂單', icon: TAB_ICONS.orders },
 ]
 
 /** The resident's two top-level pages. A bar along the bottom on phones, beside the account menu on wide screens. */

@@ -299,28 +299,3 @@
 @media (max-width: 639px) {
   #my-order { scroll-margin-top: calc(var(--touch-target) + var(--space-3)); }
 }
-
-/* Loading: grey outlines of the page, with a slow sheen that stops under reduced motion. */
-.resident-skeleton-block { display: block; height: 12px; border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--color-neutral-subtle) 25%, var(--color-surface-subtle) 50%, var(--color-neutral-subtle) 75%); background-size: 200% 100%; animation: resident-skeleton-sheen 1.4s ease-in-out infinite; }
-@keyframes resident-skeleton-sheen { from { background-position: 100% 0; } to { background-position: -100% 0; } }
-@media (prefers-reduced-motion: reduce) {
-  .resident-skeleton-block { animation: none; }
-}
-.resident-skeleton-block.is-avatar { width: 32px; height: 32px; border-radius: 50%; }
-.resident-skeleton-block.is-heading { width: 72px; height: 16px; margin-bottom: var(--space-3); }
-.resident-skeleton-block.is-title { width: 80%; height: 16px; }
-.resident-skeleton-block.is-short { width: 36%; }
-.resident-skeleton-block.is-bar { width: 100%; height: 6px; border-radius: 3px; }
-.resident-skeleton-block.is-badge { width: 56px; height: 22px; border-radius: var(--radius-pill); }
-.resident-skeleton-block.is-box { height: 52px; border-radius: var(--radius-control); }
-.resident-skeleton-block.is-picture { width: 100%; height: auto; aspect-ratio: 4 / 3; border-radius: var(--radius-control); }
-.resident-skeleton-block.is-thumb { width: 104px; height: 104px; flex: none; border-radius: var(--radius-control); }
-.resident-skeleton-cards { display: grid; gap: var(--space-3); }
-.resident-skeleton-card { display: flex; align-items: center; gap: var(--space-3); min-height: 126px; padding: 10px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-surface); background: var(--color-surface); }
-.resident-skeleton-lines { flex: 1; display: grid; gap: 10px; }
-.resident-skeleton-section { display: grid; gap: var(--space-3); }
-.resident-skeleton-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
-@media (min-width: 1024px) {
-  .resident-skeleton-cards { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
-  .resident-campaign[role="status"] { grid-template-columns: minmax(0, 1fr); grid-template-areas: none; }
-}
