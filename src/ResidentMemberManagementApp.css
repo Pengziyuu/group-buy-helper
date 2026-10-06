@@ -7,10 +7,14 @@
 .resident-member-card.is-blocked { background: var(--color-surface-subtle); }
 .resident-member-avatar :is(img, span) { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: var(--color-neutral-subtle); color: var(--color-text); font-weight: var(--font-weight-strong); }
 .resident-member-copy { display: grid; gap: 2px; min-width: 0; }
-.resident-member-name { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.resident-member-name { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-height: 24px; }
 .resident-member-name h2 { margin: 0; font-size: var(--font-size-base); font-weight: var(--font-weight-strong); overflow-wrap: anywhere; }
 .resident-member-copy p { margin: 0; }
-.resident-member-copy small { color: var(--color-text-secondary); font-size: var(--font-size-caption); }
+/* Household, then when they joined: one line under the name. */
+.resident-member-meta { overflow-wrap: anywhere; color: var(--color-text-secondary); font-size: var(--font-size-dense); }
+.resident-member-meta > span { color: var(--color-text); }
+/* If the line must wrap, it wraps between the household and the date, not inside either. */
+.resident-member-meta > :is(span, time) { white-space: nowrap; }
 .resident-member-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-2); }
 .resident-household-editor { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--color-divider); }
 .resident-household-editor label { display: grid; gap: 4px; color: var(--color-text-secondary); font-size: var(--font-size-caption); }
@@ -20,14 +24,21 @@
 .resident-household-unit-parts { display: flex; gap: var(--space-2); }
 .resident-household-editor-actions { display: flex; gap: var(--space-2); }
 
-/* One-button LINE group check: counts and one light per resident. */
-.resident-group-check { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-4); margin-bottom: var(--space-4); padding: var(--space-3) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-surface); background: var(--color-surface); }
-.resident-group-check p { flex-basis: 100%; margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-caption); }
-.resident-group-check-actions { display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-1); }
-.resident-group-check .resident-group-checked-at { flex-basis: auto; font-variant-numeric: tabular-nums; }
-.resident-group-summary { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); margin: 0; padding: 0; list-style: none; }
+/* One-line LINE group check: the counts, then when it was last checked and the refresh button. */
+.resident-group-check { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-4); margin-bottom: var(--space-4); padding: var(--space-2) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-surface); background: var(--color-surface); }
+.resident-group-check-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin-left: auto; }
+.resident-group-checked-at { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-caption); font-variant-numeric: tabular-nums; }
+.resident-group-checked-at span[title] { cursor: help; text-decoration: underline dotted; text-underline-offset: 3px; }
+.resident-group-summary { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); margin: 0; padding: 0; list-style: none; }
 .resident-group-summary li,
-.resident-member-copy .resident-member-group-status { display: inline-flex; align-items: center; gap: var(--space-2); }
+.resident-group-filter { display: inline-flex; align-items: center; gap: var(--space-2); }
+/* The exception counts are buttons that list just those residents. */
+.resident-group-filter { min-height: 32px; padding: 0 var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-pill); background: var(--color-surface); color: var(--color-text); font: inherit; cursor: pointer; }
+.resident-group-filter[aria-pressed="true"] { border-color: var(--color-primary); background: var(--color-primary-subtle); color: var(--color-primary); }
+.resident-group-filter:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+@media (hover: hover) {
+  .resident-group-filter:hover:not([aria-pressed="true"]) { background: var(--color-fill-hover); }
+}
 .resident-group-summary strong { font-variant-numeric: tabular-nums; font-weight: var(--font-weight-strong); }
 .resident-group-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--color-control-off); }
 .resident-group-dot[data-status="in_group"] { background: var(--color-success); }
@@ -35,7 +46,8 @@
 
 /* Wide screens: cards side by side, so a long resident list needs less scrolling and rows don't stretch across empty space. */
 @media (min-width: 1024px) {
-  .resident-member-list { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); align-items: start; }
+  /* 400px leaves the name and the household line room beside 調整戶號 and ⋯. */
+  .resident-member-list { grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); align-items: start; }
   /* One line per name keeps side-by-side cards the same height; the full name is in the hover title. */
   .resident-member-name { flex-wrap: nowrap; min-width: 0; }
   .resident-member-name h2 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; overflow-wrap: normal; }

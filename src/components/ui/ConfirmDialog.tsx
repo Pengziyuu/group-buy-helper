@@ -1,6 +1,7 @@
 import { useId, useRef, type ReactNode } from 'react'
 import { Button } from './Button'
 import { useModalDialog } from './useModalDialog'
+import { modalPortal } from './modalPortal'
 
 type ConfirmDialogProps = {
   title: string
@@ -29,7 +30,7 @@ export function ConfirmDialog({
 
   useModalDialog({ dialogRef, initialFocusRef: cancelRef, onDismiss: onCancel, busy })
 
-  return (
+  return modalPortal(
     <div className="ui-dialog-backdrop" onMouseDown={(event) => {
       if (event.target === event.currentTarget && !busy) onCancel()
     }}>

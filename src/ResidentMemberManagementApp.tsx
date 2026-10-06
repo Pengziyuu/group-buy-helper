@@ -1,6 +1,7 @@
 import { nameInitial } from './components/ui/nameInitial'
 import { useEffect, useState } from 'react'
-import { RelativeTime, useNow } from './components/relativeTime'
+import { formatRelativeTime, useNow } from './components/relativeTime'
+import { formatShortDate } from './domain/campaignSchedule'
 import { formatZhTwTimestamp } from './domain/timestamp'
 import type { ResidentFilter } from './routing'
 import type { ResidentMember, ResidentGroupStatusUpdate } from './services/residentMemberManagementGateway'
@@ -35,6 +36,23 @@ type Props = {
 
 const GROUP_CHECK_BATCH_SIZE = 20
 const GROUP_CHECK_BUSY = 'group-check'
+const GROUP_CHECK_NOTE = '群組狀態僅供核對，不會自動停用既有住戶。'
+
+/** The group counts that can be clicked to list just those residents. */
+type GroupFilter = 'not_in_group' | 'unchecked'
+
+function matchesGroupFilter(member: ResidentMember, groupFilter: GroupFilter | null): boolean {
+  if (!groupFilter) return true
+  if (member.blocked) return false
+  if (groupFilter === 'not_in_group') return member.groupStatus === 'not_in_group'
+  return member.groupStatus !== 'in_group' && member.groupStatus !== 'not_in_group'
+}
+
+/** A short time with the exact one on hover, then a word: "8/14 加入", "3 小時前查驗". */
+function TimeThen({ value, text, word }: { value: string; text: string; word: string }) {
+  if (!text) return null
+  return <time dateTime={value} title={formatZhTwTimestamp(value)}>{text}{/\d$/.test(text) ? ' ' : ''}{word}</time>
+}
 
 function groupStatusLabel(status: ResidentMember['groupStatus']): string {
   if (status === 'in_group') return '在群組內'
@@ -54,6 +72,7 @@ export default function ResidentMemberManagementApp({ members, initialFilter = '
   const now = useNow()
   const [visibleMembers, setVisibleMembers] = useState(members)
   const [filter, setFilter] = useState<ResidentFilter>(initialFilter)
+  const [groupFilter, setGroupFilter] = useState<GroupFilter | null>(null)
   const [query, setQuery] = useState('')
   const [removeTarget, setRemoveTarget] = useState<ResidentMember | null>(null)
   const [editTargetCode, setEditTargetCode] = useState('')
@@ -71,11 +90,16 @@ export default function ResidentMemberManagementApp({ members, initialFilter = '
 
   const activeMembers = visibleMembers.filter((member) => !member.blocked)
   const counts = countResidents(visibleMembers)
-  const shownMembers = visibleMembers.filter((member) => matchesResidentFilter(member, filter) && matchesResidentSearch(member, query))
-  const groupCounts = {
-    in: activeMembers.filter((member) => member.groupStatus === 'in_group').length,
-    out: activeMembers.filter((member) => member.groupStatus === 'not_in_group').length,
+  const groupCounts: Record<'in_group' | GroupFilter, number> = {
+    in_group: activeMembers.filter((member) => member.groupStatus === 'in_group').length,
+    not_in_group: activeMembers.filter((member) => member.groupStatus === 'not_in_group').length,
+    unchecked: activeMembers.filter((member) => matchesGroupFilter(member, 'unchecked')).length,
   }
+  // A count that drops to 0 after a check disappears, and so does its filter.
+  const activeGroupFilter = groupFilter && groupCounts[groupFilter] > 0 ? groupFilter : null
+  const shownMembers = visibleMembers.filter((member) => matchesResidentFilter(member, filter)
+    && matchesGroupFilter(member, activeGroupFilter)
+    && matchesResidentSearch(member, query))
   // The stored timestamps are per account (and per batch); no single button-run time is persisted.
   const latestGroupCheckedAt = activeMembers.reduce<string | null>((latest, member) => {
     const checkedAt = member.groupCheckedAt
@@ -209,7 +233,7 @@ export default function ResidentMemberManagementApp({ members, initialFilter = '
         <SegmentedControl
           label="住戶篩選"
           value={filter}
-          onChange={setFilter}
+          onChange={(value) => { setFilter(value); setGroupFilter(null) }}
           options={[
             { value: 'all', label: '全部', count: counts.all },
             { value: 'unbound', label: '未填戶號', count: counts.unbound },
@@ -221,12 +245,32 @@ export default function ResidentMemberManagementApp({ members, initialFilter = '
 
       {onRefreshGroupStatuses && (
         <section className="resident-group-check" aria-label="LINE 群組查驗">
+          {/* One line: the counts (0 left out; the exceptions list just those residents), then when and refresh. */}
           <ul className="resident-group-summary" aria-label="正式群組狀態">
-            <li><span className="resident-group-dot" data-status="in_group" aria-hidden="true" />在群組內 <strong>{groupCounts.in}</strong></li>
-            <li><span className="resident-group-dot" data-status="not_in_group" aria-hidden="true" />不在群組 <strong>{groupCounts.out}</strong></li>
-            <li><span className="resident-group-dot" data-status="unchecked" aria-hidden="true" />尚未查驗 <strong>{activeMembers.length - groupCounts.in - groupCounts.out}</strong></li>
+            <li><span className="resident-group-dot" data-status="in_group" aria-hidden="true" />在群組內 <strong>{groupCounts.in_group}</strong></li>
+            {(['not_in_group', 'unchecked'] as const).filter((status) => groupCounts[status] > 0).map((status) => {
+              const label = status === 'not_in_group' ? '不在群組' : '尚未查驗'
+              const pressed = activeGroupFilter === status
+              return (
+                <li key={status}>
+                  <button
+                    type="button"
+                    className="resident-group-filter"
+                    aria-label={`只看${label} ${groupCounts[status]}`}
+                    aria-pressed={pressed}
+                    onClick={() => { setFilter('all'); setGroupFilter(pressed ? null : status) }}
+                  >
+                    <span className="resident-group-dot" data-status={status} aria-hidden="true" />{label} <strong>{groupCounts[status]}</strong>
+                  </button>
+                </li>
+              )
+            })}
           </ul>
           <div className="resident-group-check-actions">
+            <p className="resident-group-checked-at">
+              {latestGroupCheckedAt ? <TimeThen value={latestGroupCheckedAt} text={formatRelativeTime(latestGroupCheckedAt, now, { withTime: true })} word="查驗" /> : <span>尚無查驗紀錄</span>}
+              ・<span title={GROUP_CHECK_NOTE}>僅供核對</span>
+            </p>
             <Button
               variant="secondary"
               size="sm"
@@ -235,13 +279,9 @@ export default function ResidentMemberManagementApp({ members, initialFilter = '
               onClick={() => { void refreshAllGroupStatuses() }}
             >
               <Icon icon={RefreshCw} />
-              {groupCheckProgress ? `查驗中…${groupCheckProgress.done}/${groupCheckProgress.total}` : '更新全部群組狀態'}
+              {groupCheckProgress ? `查驗中…${groupCheckProgress.done}/${groupCheckProgress.total}` : '更新'}
             </Button>
-            <p className="resident-group-checked-at">{latestGroupCheckedAt
-              ? <>最近一次查驗 <time dateTime={latestGroupCheckedAt}>{formatZhTwTimestamp(latestGroupCheckedAt)}</time></>
-              : '尚無查驗紀錄'}</p>
           </div>
-          <p>群組狀態僅供核對，不會自動停用既有住戶。</p>
         </section>
       )}
 
@@ -262,17 +302,15 @@ export default function ResidentMemberManagementApp({ members, initialFilter = '
                 <div className="resident-member-name">
                   <h2 id={nameId} title={member.displayName}>{member.displayName}</h2>
                   {member.blocked && <StatusBadge tone="neutral">已封鎖</StatusBadge>}
+                  {/* Nearly everyone is in the group, so only the exceptions are marked. */}
+                  {onRefreshGroupStatuses && !member.blocked && member.groupStatus !== 'in_group' && (
+                    <StatusBadge tone={member.groupStatus === 'not_in_group' ? 'danger' : 'neutral'}>{groupStatusLabel(member.groupStatus)}</StatusBadge>
+                  )}
                 </div>
-                <p>{residentHouseholdLabel(member)}</p>
-                <small>加入 <RelativeTime value={member.joinedAt} now={now} /></small>
-                {onRefreshGroupStatuses && !member.blocked && (
-                  <>
-                    <p className="resident-member-group-status">
-                      <span className="resident-group-dot" data-status={member.groupStatus ?? 'unchecked'} aria-hidden="true" />
-                      {groupStatusLabel(member.groupStatus)}
-                    </p>
-                  </>
-                )}
+                <p className="resident-member-meta">
+                  {/* The join day, not "3 小時前": the line stays short enough to sit beside the buttons. */}
+                  <span>{residentHouseholdLabel(member)}</span>・<TimeThen value={member.joinedAt} text={formatShortDate(member.joinedAt, now)} word="加入" />
+                </p>
               </div>
               <div className="resident-member-actions">
                 {canEditHousehold && (

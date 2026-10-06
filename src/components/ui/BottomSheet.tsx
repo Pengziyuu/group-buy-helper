@@ -1,6 +1,7 @@
 import { useId, useRef, type ReactNode } from 'react'
 import { Button } from './Button'
 import { useModalDialog } from './useModalDialog'
+import { modalPortal } from './modalPortal'
 import { X } from 'lucide-react'
 import { Icon } from './Icon'
 
@@ -17,7 +18,7 @@ export function BottomSheet({ title, onClose, children }: BottomSheetProps) {
 
   useModalDialog({ dialogRef: sheetRef, initialFocusRef: closeRef, onDismiss: onClose })
 
-  return (
+  return modalPortal(
     <div className="ui-sheet-backdrop" onMouseDown={(event) => {
       if (event.target === event.currentTarget) onClose()
     }}>

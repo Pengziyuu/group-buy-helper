@@ -5,6 +5,7 @@ import { FeedbackMessage } from '../ui/FeedbackMessage'
 import { FormField } from '../ui/FormField'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import { useModalDialog } from '../ui/useModalDialog'
+import { modalPortal } from '../ui/modalPortal'
 import { noticeForTemplateResult, rememberCampaignNotice } from './campaignNotices'
 import { useOrganizerNavigate, useOrganizerNavigationPreflight } from './organizerNavigation'
 import { OrganizerThumb } from './OrganizerThumb'
@@ -91,7 +92,7 @@ export function CreateCampaignDialog({ onCreate, templates, onClose }: CreateCam
     }
   }
 
-  return (
+  return modalPortal(
     <div className="ui-dialog-backdrop" onMouseDown={(event) => {
       if (event.target === event.currentTarget && !busy) onClose()
     }}>
