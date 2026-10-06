@@ -59,7 +59,8 @@ describe('ResidentCampaignListApp', () => {
 
     const closed = screen.getByRole('region', { name: '已結單' })
     expect(within(closed).getByRole('link', { name: '水果團購' })).toBeInTheDocument()
-    expect(within(closed).getByText('已結單', { selector: '.ui-status-badge' })).toBeInTheDocument()
+    // The section heading already says 已結單; the card does not repeat it.
+    expect(within(closed).queryByText('已結單', { selector: '.ui-status-badge' })).not.toBeInTheDocument()
     expect(within(closed).getByText('12 箱 / 12 箱')).toBeInTheDocument()
     // Closed campaigns keep only the arrival fact.
     expect(facts('水果團購時程')).toEqual(['貨到通知'])

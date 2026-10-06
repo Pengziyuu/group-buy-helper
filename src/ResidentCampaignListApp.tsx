@@ -4,7 +4,6 @@ import { EmptyState } from './components/ui/AsyncState'
 import { Button } from './components/ui/Button'
 import { Menu } from './components/ui/Menu'
 import { ProgressBar } from './components/ui/ProgressBar'
-import { StatusBadge } from './components/ui/StatusBadge'
 import { formatMoney } from './components/resident/residentFormat'
 import { describeResidentSchedule } from './components/resident/residentSchedule'
 import type { CampaignStatus } from './domain/orderWorkflow'
@@ -85,9 +84,8 @@ function CampaignRow({ campaign, now }: { campaign: ResidentCampaignListItem; no
       <CampaignThumbnail campaign={campaign} />
       <div className="resident-campaign-row-body">
         <h3><a href={residentCampaignPath(campaign.slug)}>{campaign.title}</a></h3>
-        {open
-          ? <p className="resident-campaign-price"><strong>{formatMoney(campaign.unitPrice)}</strong> 起</p>
-          : <p className="resident-campaign-price"><StatusBadge tone="neutral">已結單</StatusBadge></p>}
+        {/* Closed cards sit under the 已結單 heading, so they carry no status badge of their own. */}
+        {open && <p className="resident-campaign-price"><strong>{formatMoney(campaign.unitPrice)}</strong> 起</p>}
         <p className="resident-campaign-facts" role="group" aria-label={`${campaign.title}時程`}>
           {closing && <span className="resident-campaign-fact" data-tone={closing.soon ? 'warning' : undefined}>{closing.line}</span>}
           <span className="resident-campaign-fact">{arrival.line}</span>

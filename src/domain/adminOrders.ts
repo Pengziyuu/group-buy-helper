@@ -45,7 +45,6 @@ export type OrganizerOrderRow = OrganizerVisibleOrder & {
   orderId: string
   quantity: number
   amount: number
-  itemSummary: string
   customItemSummary: string
   paid: boolean
   organizerNote: string
@@ -121,13 +120,6 @@ export function buildOrganizerOrderSummary({
         if (!item) throw new Error(`找不到品項 ${code}`)
         return sum + itemQuantity * (order.itemPriceSnapshots?.[code]?.finalUnitPrice ?? item.unitPrice)
       }, 0)
-      const itemSummary = visibleItems
-        .map(([code, itemQuantity]) => {
-          const item = itemByCode.get(code)
-          const finalUnitPrice = order.itemPriceSnapshots?.[code]?.finalUnitPrice ?? item?.unitPrice
-          return item ? `${item.label} ${item.name}×${itemQuantity}（$${finalUnitPrice}/件）` : `${code}×${itemQuantity}`
-        })
-        .join('、')
       const customItemSummary = (order.customItems ?? [])
         .filter((item) => item.name.trim() && item.quantity > 0)
         .map((item) => `${item.name.trim()}+${item.quantity}・另計`)
@@ -137,7 +129,6 @@ export function buildOrganizerOrderSummary({
         orderId: order.orderId ?? order.customerId,
         quantity,
         amount,
-        itemSummary,
         customItemSummary,
         paid: order.paid ?? false,
         organizerNote: order.organizerNote ?? '',

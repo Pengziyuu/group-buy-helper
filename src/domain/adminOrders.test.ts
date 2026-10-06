@@ -35,7 +35,6 @@ describe('organizer order summary', () => {
       name: '斯祈',
       quantity: 6,
       amount: 300,
-      itemSummary: 'B 花生（招牌）×2（$60/件）、D 草莓×2（$45/件）、E 可可×2（$45/件）',
       organizerNote: '',
     }))
     expect(summary.fulfillment).toEqual({ total: 6, paid: 0, unpaid: 6 })
@@ -58,7 +57,6 @@ describe('organizer order summary', () => {
     expect(summary.orderRows[0]).toEqual(expect.objectContaining({
       quantity: 0,
       amount: 0,
-      itemSummary: '',
       customItemSummary: '限定蛋糕+2・另計',
     }))
   })

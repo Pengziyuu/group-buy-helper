@@ -37,6 +37,10 @@ export function ContentPreview({
   const viewportRef = useRef<HTMLDivElement>(null)
   const frameRef = useRef<HTMLDivElement>(null)
   const desktop = device === 'desktop'
+  const activeItems = items.filter((item) => item.active)
+  // Before any item has a price the caller's price reads $0, which looks like a mistake rather than unfinished.
+  const priced = activeItems.some((item) => item.unitPrice !== undefined)
+  const hasAnnouncement = announcement.trim() !== ''
 
   // The desktop layout is drawn at its real width and scaled down to fit the column.
   useLayoutEffect(() => {
@@ -80,7 +84,7 @@ export function ContentPreview({
             <div className="content-preview-card content-preview-summary">
               <StatusBadge tone={status === 'open' ? 'success' : 'neutral'}>{campaignStatusLabel(status)}</StatusBadge>
               <p className="content-preview-title">{title.trim() || '未命名團購'}</p>
-              <p className="content-preview-price">{priceText}</p>
+              {priced && <p className="content-preview-price">{priceText}</p>}
               {/* The same two boxes, in the same order, as the resident campaign page. */}
               <dl className="content-preview-schedule" role="group" aria-label="團購時程">
                 <div>
@@ -99,28 +103,34 @@ export function ContentPreview({
               <div role="region" tabIndex={0} aria-label={`住戶端圖片預覽，共 ${images.length} 張`}>
                 <ImageGallery images={images} />
               </div>
-              <p id="content-preview-announcement" className={`content-preview-copy ${expanded ? 'is-expanded' : 'is-collapsed'}`}>
-                <LinkifiedText text={announcement} />
-              </p>
-              <button
-                type="button"
-                className="content-preview-toggle"
-                aria-expanded={expanded}
-                aria-controls="content-preview-announcement"
-                onClick={() => setExpanded((current) => !current)}
-              >
-                {expanded ? '收合完整預覽' : '展開完整預覽'}
-              </button>
+              {hasAnnouncement ? (
+                <>
+                  <p id="content-preview-announcement" className={`content-preview-copy ${expanded ? 'is-expanded' : 'is-collapsed'}`}>
+                    <LinkifiedText text={announcement} />
+                  </p>
+                  <button
+                    type="button"
+                    className="content-preview-toggle"
+                    aria-expanded={expanded}
+                    aria-controls="content-preview-announcement"
+                    onClick={() => setExpanded((current) => !current)}
+                  >
+                    {expanded ? '收合完整預覽' : '展開完整預覽'}
+                  </button>
+                </>
+              ) : <p className="content-preview-empty">還沒填開團資訊</p>}
             </div>
-            <ul className="content-preview-card content-preview-items" aria-label="品項預覽">
-              {items.map((item, index) => item.active ? (
-                <li key={item.code}>
-                  <span className="content-preview-code">{itemLabel(index)}</span>
-                  <span>{item.name.trim() || '未命名品項'}</span>
-                  <span>{item.unitPrice === undefined ? '未定價' : `$${item.unitPrice}`}</span>
-                </li>
-              ) : null)}
-            </ul>
+            {activeItems.length > 0 ? (
+              <ul className="content-preview-card content-preview-items" aria-label="品項預覽">
+                {items.map((item, index) => item.active ? (
+                  <li key={item.code}>
+                    <span className="content-preview-code">{itemLabel(index)}</span>
+                    <span>{item.name.trim() || '未命名品項'}</span>
+                    <span>{item.unitPrice === undefined ? '未定價' : `$${item.unitPrice}`}</span>
+                  </li>
+                ) : null)}
+              </ul>
+            ) : <p className="content-preview-card content-preview-empty">新增品項後會顯示在這裡</p>}
           </div>
         </div>
       </div>
