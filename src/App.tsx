@@ -118,6 +118,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', camp
   const lastAppliedOrders = useRef<{ orders: VisibleOrder[]; customerId: string | undefined } | null>(null)
   const awaitingOwnOrder = useRef<{ customerId: string; items: Record<string, number>; customItems: CustomOrderItem[] } | null>(null)
   const customItemSequence = useRef(0)
+  const focusCustomItemId = useRef<string | null>(null)
   const orderItemsRef = useRef<HTMLDivElement>(null)
   const noticeSequence = useRef(0)
   const [notice, setNotice] = useState<Notice | null>(null)
@@ -315,11 +316,10 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', camp
     setNotice(null)
     if (!withinThreshold(draftQuantity + customDraftQuantity + 1)) return
     customItemSequence.current += 1
-    setCustomDraft((current) => [...current, {
-      id: `custom-${Date.now()}-${customItemSequence.current}`,
-      name: '',
-      quantity: 1,
-    }])
+    const id = `custom-${Date.now()}-${customItemSequence.current}`
+    // The new row's name field takes focus: ready to type, and scrolled into view inside the order card.
+    focusCustomItemId.current = id
+    setCustomDraft((current) => [...current, { id, name: '', quantity: 1 }])
   }
 
   const updateCustomItem = (id: string, update: Partial<Pick<CustomOrderItem, 'name' | 'quantity'>>) => {
@@ -474,6 +474,11 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', camp
                               </svg>
                             </span>
                             <input
+                              ref={(element) => {
+                                if (!element || focusCustomItemId.current !== item.id) return
+                                focusCustomItemId.current = null
+                                element.focus()
+                              }}
                               className="ui-input"
                               aria-label={`額外品項 ${index + 1} 名稱`}
                               value={item.name}
