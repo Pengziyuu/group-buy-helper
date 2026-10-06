@@ -4,6 +4,8 @@ import type { CampaignStatus } from '../../domain/orderWorkflow'
 import { buildOrderExportRows, downloadOrderExport } from '../../services/orderExport'
 import { Button } from '../ui/Button'
 import { FeedbackMessage } from '../ui/FeedbackMessage'
+import { Download } from 'lucide-react'
+import { Icon } from '../ui/Icon'
 
 type ExportOrdersButtonProps = {
   summary: OrganizerOrderSummary
@@ -46,7 +48,7 @@ export function ExportOrdersButton({ summary, campaignTitle, openedAt, status, o
         aria-describedby={reason ? reasonId : undefined}
         onClick={() => { void exportOrders() }}
       >
-        匯出 Excel
+        <Icon icon={Download} />匯出 Excel
       </Button>
       {reason && <small id={reasonId}>{reason}</small>}
       {error && <FeedbackMessage tone="error">{error}</FeedbackMessage>}

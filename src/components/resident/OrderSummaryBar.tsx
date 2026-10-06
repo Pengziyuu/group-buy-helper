@@ -1,6 +1,8 @@
 import { formatMoney } from './residentFormat'
 import { Button } from '../ui/Button'
-import { StickyActionBar } from '../ui/StickyActionBar'
+import { StickyActionBar } from '../ui/StickyActionBar'
+import { ReceiptText } from 'lucide-react'
+import { Icon } from '../ui/Icon'
 
 type OrderSummaryBarProps = {
   quantity: number
@@ -26,7 +28,7 @@ export function OrderSummaryBar({ quantity, quantityUnit, amount, customQuantity
           <strong>{formatMoney(amount)}</strong>
         </div>
         {onShowBreakdown && (
-          <Button variant="utility" size="sm" aria-label="查看訂單明細" onClick={onShowBreakdown}>明細</Button>
+          <Button variant="utility" size="sm" aria-label="查看訂單明細" onClick={onShowBreakdown}><Icon icon={ReceiptText} />明細</Button>
         )}
         {onChooseItems
           ? <Button className="resident-submit" onClick={onChooseItems}>選擇品項</Button>

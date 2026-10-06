@@ -3,6 +3,8 @@ import { itemLabel, MAX_CAMPAIGN_ITEMS } from '../../../domain/itemLabel'
 import type { CampaignItem } from '../../../services/demoCampaignStore'
 import { Button } from '../../ui/Button'
 import { appendItem, applyPriceToAll, nextItemCode } from './contentChecks'
+import { Plus } from 'lucide-react'
+import { Icon } from '../../ui/Icon'
 
 const PRICE_PATTERN = /^\d+$/
 const MAX_PRICE = 9999999
@@ -146,7 +148,7 @@ export function ItemTable({ items, locked, disabled, mixMatchEnabled, onChange }
       {!locked && (
         <div className="content-item-actions">
           <Button variant="secondary" size="sm" disabled={!canAdd} onClick={addItem}>
-            <span aria-hidden="true">＋</span>增加品項
+            <Icon icon={Plus} />增加品項
           </Button>
           <Button
             variant="utility"

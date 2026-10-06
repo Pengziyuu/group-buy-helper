@@ -17,6 +17,13 @@
   cursor: pointer;
   transition: background-color var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast), transform var(--duration-fast);
 }
+/* Icons (Icon.tsx) never shrink, and sit beside a button's words with a small gap. */
+.ui-icon { flex: none; }
+.ui-button > span { display: inline-flex; align-items: center; gap: 6px; }
+/* A search box with its magnifier inside, at the start. Size it on the wrapper. */
+.ui-search-field { position: relative; display: flex; }
+.ui-search-field .ui-icon { position: absolute; top: 50%; left: 12px; color: var(--color-text-secondary); transform: translateY(-50%); pointer-events: none; }
+.ui-search-field .ui-input { flex: 1; min-width: 0; padding-left: 36px; }
 .ui-button:active:not(:disabled) { transform: scale(var(--press-scale)); }
 .ui-button[data-variant="secondary"] { border-color: var(--color-primary); background: var(--color-surface); color: var(--color-primary); }
 .ui-button[data-variant="utility"] { padding-inline: 14px; border-color: var(--color-border-strong); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-text); font-weight: var(--font-weight-regular); }
@@ -146,7 +153,7 @@ div.ui-gallery-main { cursor: default; }
 .ui-gallery-backdrop { position: absolute; inset: -20px; z-index: 0; background-position: center; background-size: cover; filter: blur(18px); opacity: 0.58; transform: scale(1.08); }
 /* Pinned to the 4:3 frame: a percentage height inside the grid frame would follow the image instead, cropping portrait photos. */
 .ui-gallery-main .ui-gallery-image { position: absolute; inset: 0; z-index: 1; display: block; width: 100%; height: 100%; object-fit: contain; }
-.ui-gallery-zoom { position: absolute; right: var(--space-2); bottom: var(--space-2); z-index: 2; padding: 2px 10px; border-radius: var(--radius-pill); background: rgb(29 29 31 / 72%); color: var(--color-on-primary); font-size: var(--font-size-caption); }
+.ui-gallery-zoom { display: inline-flex; align-items: center; gap: 4px; position: absolute; right: var(--space-2); bottom: var(--space-2); z-index: 2; padding: 2px 10px; border-radius: var(--radius-pill); background: rgb(29 29 31 / 72%); color: var(--color-on-primary); font-size: var(--font-size-caption); }
 .ui-gallery-fallback { display: grid; place-items: center; aspect-ratio: 4 / 3; border-radius: var(--radius-control); background: var(--color-surface-subtle); color: var(--color-text-secondary); font-size: var(--font-size-dense); }
 .ui-gallery-thumbs { display: flex; gap: var(--space-2); overflow-x: auto; padding-block: 4px; margin-block: -4px; }
 .ui-gallery-thumb { flex: none; width: 56px; height: 56px; padding: 0; overflow: hidden; border: 2px solid transparent; border-radius: var(--radius-control); background: var(--color-surface-subtle); cursor: pointer; }

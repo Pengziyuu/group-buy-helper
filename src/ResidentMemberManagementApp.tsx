@@ -21,7 +21,9 @@ import {
   RESIDENT_PERIODS,
   type ResidentPeriod,
 } from './domain/household'
-import './ResidentMemberManagementApp.css'
+import './ResidentMemberManagementApp.css'
+import { Pencil, RefreshCw, Search } from 'lucide-react'
+import { Icon } from './components/ui/Icon'
 
 type Props = {
   members: ResidentMember[]
@@ -193,14 +195,17 @@ export default function ResidentMemberManagementApp({ members, initialFilter = '
       </div>
 
       <div className="resident-member-toolbar">
-        <input
-          className="ui-input resident-member-search"
-          type="search"
-          aria-label="搜尋住戶"
-          placeholder="搜尋名字或戶號"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
+        <div className="ui-search-field resident-member-search-field">
+          <Icon icon={Search} />
+          <input
+            className="ui-input resident-member-search"
+            type="search"
+            aria-label="搜尋住戶"
+            placeholder="搜尋名字或戶號"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </div>
         <SegmentedControl
           label="住戶篩選"
           value={filter}
@@ -229,7 +234,7 @@ export default function ResidentMemberManagementApp({ members, initialFilter = '
               disabled={Boolean(busyCode) || activeMembers.length === 0}
               onClick={() => { void refreshAllGroupStatuses() }}
             >
-              <span aria-hidden="true">↻</span>
+              <Icon icon={RefreshCw} />
               {groupCheckProgress ? `查驗中…${groupCheckProgress.done}/${groupCheckProgress.total}` : '更新全部群組狀態'}
             </Button>
             <p className="resident-group-checked-at">{latestGroupCheckedAt
@@ -272,7 +277,7 @@ export default function ResidentMemberManagementApp({ members, initialFilter = '
               <div className="resident-member-actions">
                 {canEditHousehold && (
                   <Button variant="utility" size="sm" aria-label={`調整住戶資料 ${member.displayName}`} disabled={Boolean(busyCode)} onClick={() => openHouseholdEditor(member)}>
-                    調整戶號
+                    <Icon icon={Pencil} />調整戶號
                   </Button>
                 )}
                 {member.blocked ? (

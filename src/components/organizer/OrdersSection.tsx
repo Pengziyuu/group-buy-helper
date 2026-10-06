@@ -18,6 +18,8 @@ import {
   countOrdersOnTaipeiDay, isNewSince, matchesOrderSearch, orderControlLabel, orderHouseholdLabel, orderItemChips, orderItemChipText, sortOrders, wasEdited, type OrderSort,
 } from './orderView'
 import { EditedMark, RelativeTime, useNow } from '../relativeTime'
+import { Search } from 'lucide-react'
+import { Icon } from '../ui/Icon'
 
 const currency = (amount: number) => `$${amount.toLocaleString('en-US')}`
 
@@ -101,14 +103,17 @@ export function OrdersSection({
       ) : (
         <>
           <div className="organizer-toolbar">
-            <input
-              className="ui-input"
-              type="search"
-              aria-label="搜尋訂單"
-              placeholder="搜尋名字或戶號"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
+            <div className="ui-search-field organizer-order-search">
+              <Icon icon={Search} />
+              <input
+                className="ui-input"
+                type="search"
+                aria-label="搜尋訂單"
+                placeholder="搜尋名字或戶號"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </div>
             <SegmentedControl
               label="訂單排序"
               value={sort}

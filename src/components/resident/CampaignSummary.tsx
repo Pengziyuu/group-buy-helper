@@ -3,7 +3,9 @@ import { StatusBadge } from '../ui/StatusBadge'
 import { campaignStatusLabel, type CampaignStatus } from '../../domain/orderWorkflow'
 import { formatZhTwTimestamp } from '../../domain/timestamp'
 import { formatRelativeTime, useNow } from '../relativeTime'
-import type { ClosingFact, ScheduleFact } from './residentSchedule'
+import type { ClosingFact, ScheduleFact } from './residentSchedule'
+import { Clock, Truck } from 'lucide-react'
+import { Icon } from '../ui/Icon'
 
 export type CampaignProgress = {
   value: number
@@ -35,11 +37,11 @@ export function CampaignSummary({ title, status, priceText, schedule, progress, 
         <p className="resident-summary-price">{priceText}</p>
         <dl className="resident-summary-facts" role="group" aria-label="團購時程">
           <div>
-            <dt>結單</dt>
+            <dt><Icon icon={Clock} size={14} />結單</dt>
             <dd>{schedule.closing?.value ?? '已結單'}</dd>
             {schedule.closing?.note && <dd className="resident-summary-fact-note">{schedule.closing.note}</dd>}
           </div>
-          <div><dt>預計到貨</dt><dd>{schedule.arrival.value}</dd></div>
+          <div><dt><Icon icon={Truck} size={14} />預計到貨</dt><dd>{schedule.arrival.value}</dd></div>
         </dl>
       </div>
       <div className="resident-summary-progress">

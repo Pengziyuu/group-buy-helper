@@ -1,4 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { Ellipsis } from 'lucide-react'
+import { Icon } from './Icon'
 
 export type MenuItem = {
   label: string
@@ -22,7 +24,7 @@ type MenuProps = {
 const POPUP_GAP = 4
 const VIEWPORT_MARGIN = 8
 
-export function Menu({ label, items, triggerContent = '⋯', size = 'md', className = '' }: MenuProps) {
+export function Menu({ label, items, triggerContent = <Icon icon={Ellipsis} size={18} />, size = 'md', className = '' }: MenuProps) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)

@@ -12,7 +12,9 @@ import { StatusBadge } from '../ui/StatusBadge'
 import { copyResidentLink } from './copyResidentLink'
 import { OrganizerLink } from './OrganizerLink'
 import { SaveTemplateDialog, type SaveTemplateActions } from './SaveTemplateDialog'
-import { sectionUnavailableReason } from './workspaceSections'
+import { sectionUnavailableReason } from './workspaceSections'
+import { Bell, BookmarkPlus, ChartColumn, ChevronLeft, Copy, ExternalLink, List, Lock, LockOpen, Pencil, type LucideIcon } from 'lucide-react'
+import { Icon } from '../ui/Icon'
 
 export type WorkspaceCampaign = {
   id: string
@@ -48,19 +50,15 @@ const NAV_GROUPS: Array<{ label: string; items: Array<{ section: WorkspaceSectio
   { label: '管理', items: [{ section: 'content', label: '內容設定' }, { section: 'pickup', label: '領取通知' }] },
 ]
 
-const NAV_ICON_PATHS: Record<WorkspaceSection, string> = {
-  overview: 'M5 20v-6M12 20V5M19 20v-10', // legacy route only
-  orders: 'M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01',
-  content: 'M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4',
-  pickup: 'M6 16v-5a6 6 0 0 1 12 0v5l2 2H4l2-2zM10 20a2 2 0 0 0 4 0',
+const NAV_ICONS: Record<WorkspaceSection, LucideIcon> = {
+  overview: ChartColumn, // legacy route only
+  orders: List,
+  content: Pencil,
+  pickup: Bell,
 }
 
 function NavIcon({ section }: { section: WorkspaceSection }) {
-  return (
-    <svg className="organizer-rail-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path d={NAV_ICON_PATHS[section]} />
-    </svg>
-  )
+  return <Icon icon={NAV_ICONS[section]} size={18} className="organizer-rail-icon" />
 }
 
 export function WorkspaceRail({ campaign, section, now, onSetCampaignStatus, onCopyResidentLink, saveTemplate }: WorkspaceRailProps) {
@@ -108,7 +106,7 @@ export function WorkspaceRail({ campaign, section, now, onSetCampaignStatus, onC
 
   return (
     <aside className="organizer-rail" aria-label="團購工作區">
-      <OrganizerLink className="organizer-rail-back" href="/admin"><span aria-hidden="true">‹</span> 所有團購</OrganizerLink>
+      <OrganizerLink className="organizer-rail-back" href="/admin"><Icon icon={ChevronLeft} />所有團購</OrganizerLink>
       <div className="organizer-rail-cover">
         {campaign.coverImage
           ? <img src={campaign.coverImage.src} alt={campaign.coverImage.alt} />
@@ -118,7 +116,7 @@ export function WorkspaceRail({ campaign, section, now, onSetCampaignStatus, onC
       <div className="organizer-rail-status">
         <StatusBadge tone={badge.tone}>{badge.label}</StatusBadge>
         {campaign.published && onSetCampaignStatus && (
-          <Button variant="secondary" size="sm" onClick={() => { setStatusError(''); setConfirming(true) }}>{action.label}</Button>
+          <Button variant="secondary" size="sm" onClick={() => { setStatusError(''); setConfirming(true) }}><Icon icon={action.next === 'closed' ? Lock : LockOpen} />{action.label}</Button>
         )}
       </div>
       <dl className="organizer-rail-facts">
@@ -156,7 +154,7 @@ export function WorkspaceRail({ campaign, section, now, onSetCampaignStatus, onC
       </nav>
       {saveTemplate && (
         <div className="organizer-rail-template">
-          <Button variant="secondary" size="sm" onClick={() => { setTemplateFeedback(''); setSavingTemplate(true) }}>存成範本</Button>
+          <Button variant="secondary" size="sm" onClick={() => { setTemplateFeedback(''); setSavingTemplate(true) }}><Icon icon={BookmarkPlus} />存成範本</Button>
           {templateFeedback && <FeedbackMessage tone="success">{templateFeedback}</FeedbackMessage>}
         </div>
       )}
@@ -171,8 +169,8 @@ export function WorkspaceRail({ campaign, section, now, onSetCampaignStatus, onC
       {campaign.residentHref && (
         <div className="organizer-rail-share">
           <span>住戶連結</span>
-          <Button variant="utility" size="sm" aria-label={`複製住戶連結 ${campaign.title}`} onClick={() => { void copyLink() }}>複製</Button>
-          <a href={campaign.residentHref} target="_blank" rel="noreferrer">開啟住戶頁<span aria-hidden="true"> ↗</span></a>
+          <Button variant="utility" size="sm" aria-label={`複製住戶連結 ${campaign.title}`} onClick={() => { void copyLink() }}><Icon icon={Copy} />複製</Button>
+          <a href={campaign.residentHref} target="_blank" rel="noreferrer">開啟住戶頁<Icon icon={ExternalLink} size={14} /></a>
         </div>
       )}
       {copyFeedback && <FeedbackMessage tone="success">{copyFeedback}</FeedbackMessage>}

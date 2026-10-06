@@ -1,3 +1,6 @@
+import { Minus, Plus, Trash2 } from 'lucide-react'
+import { Icon } from './Icon'
+
 type QuantityControlProps = {
   label: string
   value: number
@@ -16,15 +19,13 @@ export function QuantityControl({ label, value, min = 0, max = Number.POSITIVE_I
     <div className="ui-quantity-control">
       {removes ? (
         <button type="button" aria-label={`移除 ${label}`} data-variant="remove" disabled={disabled} onClick={onRemove}>
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
-          </svg>
+          <Icon icon={Trash2} size={18} />
         </button>
       ) : (
-        <button type="button" aria-label={`減少 ${label}`} disabled={disabled || value <= min} onClick={onDecrement}>−</button>
+        <button type="button" aria-label={`減少 ${label}`} disabled={disabled || value <= min} onClick={onDecrement}><Icon icon={Minus} size={18} /></button>
       )}
       <output aria-label={`${label}數量`}>{value}</output>
-      <button type="button" aria-label={`增加 ${label}`} disabled={disabled || value >= max} onClick={onIncrement}>＋</button>
+      <button type="button" aria-label={`增加 ${label}`} disabled={disabled || value >= max} onClick={onIncrement}><Icon icon={Plus} size={18} /></button>
     </div>
   )
 }

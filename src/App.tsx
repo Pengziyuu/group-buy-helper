@@ -33,7 +33,9 @@ import {
 import './components/resident/resident.css'
 import { MY_ORDER_SECTION_ID } from './routing'
 import { useWideLayout } from './components/resident/useWideLayout'
-import { useHiddenWhileScrollingDown } from './components/resident/useHiddenWhileScrollingDown'
+import { useHiddenWhileScrollingDown } from './components/resident/useHiddenWhileScrollingDown'
+import { ChevronLeft, Pencil, Plus } from 'lucide-react'
+import { Icon } from './components/ui/Icon'
 
 const defaultContent: CampaignContent = {
   title: campaign.title,
@@ -384,7 +386,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', camp
   return (
     <div className={`resident-page${currentResident && editable ? ' is-ordering' : ''}`}>
       <header className="resident-topbar" data-hidden={headerHidden || undefined}>
-        <a className="resident-back-link" href="/"><span aria-hidden="true">‹</span>全部團購</a>
+        <a className="resident-back-link" href="/"><Icon icon={ChevronLeft} size={20} />全部團購</a>
       </header>
       {syncError && (
         <FeedbackMessage
@@ -461,7 +463,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', camp
                             <p>清單沒有的可自己填，金額由團主另計</p>
                           </div>
                           <Button variant="secondary" onClick={addCustomItem} disabled={!controlsEditable || customDraft.length >= 10}>
-                            <span aria-hidden="true">＋</span> 新增額外品項
+                            <Icon icon={Plus} />新增額外品項
                           </Button>
                         </div>
                         {/* Laid out like a product row: a pencil where the item code goes, the name to type where
@@ -469,9 +471,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', camp
                         {customDraft.map((item, index) => (
                           <div className="resident-product-row resident-custom-item-row" key={item.id} data-selected={item.quantity > 0 ? 'true' : undefined}>
                             <span className="resident-product-code" aria-hidden="true">
-                              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M4 20h4L19 9l-4-4L4 16v4Zm9-13 4 4" />
-                              </svg>
+                              <Icon icon={Pencil} />
                             </span>
                             <input
                               ref={(element) => {

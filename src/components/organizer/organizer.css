@@ -3,7 +3,7 @@
 .organizer-topbar { position: sticky; top: 0; z-index: var(--z-sticky); display: flex; align-items: center; gap: var(--space-4); min-height: 52px; padding: 0 var(--space-6); border-bottom: 1px solid var(--color-divider); background: var(--color-surface); }
 .organizer-brand { display: inline-flex; align-items: center; min-height: 32px; color: var(--color-text); font-weight: var(--font-weight-strong); text-decoration: none; }
 .organizer-nav { display: flex; gap: var(--space-1); }
-.organizer-nav a { display: inline-flex; align-items: center; min-height: 32px; padding: 0 var(--space-3); border-radius: var(--radius-control); color: var(--color-text-secondary); text-decoration: none; }
+.organizer-nav a { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 var(--space-3); border-radius: var(--radius-control); color: var(--color-text-secondary); text-decoration: none; }
 .organizer-nav a[aria-current="page"] { background: var(--color-neutral-subtle); color: var(--color-text); font-weight: var(--font-weight-strong); }
 .organizer-create { margin-left: auto; }
 .organizer-page { width: min(100%, 1440px); margin: 0 auto; padding: var(--space-5) var(--space-6) var(--space-10); }
@@ -123,7 +123,7 @@
 .organizer-rail-link small { font-size: var(--font-size-caption); }
 .organizer-rail-link.is-unavailable small { color: var(--color-text-secondary); }
 .organizer-rail-share { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: auto; padding-top: var(--space-3); border-top: 1px solid var(--color-divider); }
-.organizer-rail-share a { display: inline-flex; align-items: center; min-height: 24px; color: var(--color-primary); }
+.organizer-rail-share a { display: inline-flex; align-items: center; gap: 4px; min-height: 24px; color: var(--color-primary); }
 .organizer-workspace-main { min-width: 0; padding: var(--space-5) var(--space-6) var(--space-10); }
 .organizer-workspace-main .admin-shell { min-height: 0; max-width: none; margin: 0; padding: 0; }
 .organizer-section h2 { margin: 0 0 var(--space-3); font-size: var(--font-size-title); font-weight: var(--font-weight-strong); }
@@ -208,7 +208,7 @@
 .organizer-item-tally .organizer-item-name { overflow-wrap: anywhere; }
 .organizer-item-tally strong { font-weight: var(--font-weight-strong); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
 .organizer-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
-.organizer-toolbar .ui-input { flex: 1 1 220px; max-width: 320px; }
+.organizer-order-search { flex: 1 1 220px; max-width: 320px; }
 .organizer-toolbar-count { margin: 0 0 0 auto; color: var(--color-text-secondary); font-size: var(--font-size-dense); }
 .organizer-toolbar-new { color: var(--color-primary); }
 .organizer-order-table th[scope="row"] { min-width: 140px; }

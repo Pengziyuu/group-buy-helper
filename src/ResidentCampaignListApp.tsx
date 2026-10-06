@@ -12,6 +12,8 @@ import { residentCampaignPath } from './routing'
 import { normalizeQuantityUnit, type QuantityUnit } from './domain/quantityUnit'
 import type { CampaignImage } from './services/demoCampaignStore'
 import './components/resident/resident.css'
+import { ChevronRight } from 'lucide-react'
+import { Icon } from './components/ui/Icon'
 
 export type ResidentLineIdentity = {
   displayName: string
@@ -104,6 +106,7 @@ function CampaignRow({ campaign, now }: { campaign: ResidentCampaignListItem; no
         <h3><a href={residentCampaignPath(campaign.slug)}>{campaign.title}</a></h3>
         {/* Closed cards sit under the 已結單 heading, so they carry no status badge of their own. */}
         {open && <p className="resident-campaign-price"><strong>{formatMoney(campaign.unitPrice)}</strong> 起</p>}
+        {/* No icons on these tags: they would push a second tag onto its own line on phones, making every card taller. */}
         <p className="resident-campaign-facts" role="group" aria-label={`${campaign.title}時程`}>
           {closing && <span className="resident-campaign-fact" data-tone={closing.soon ? 'warning' : undefined}>{closing.line}</span>}
           <span className="resident-campaign-fact">{arrival.line}</span>
@@ -114,7 +117,7 @@ function CampaignRow({ campaign, now }: { campaign: ResidentCampaignListItem; no
         </p>
         <ProgressBar label={`${campaign.title}成團進度`} value={progress.value} max={progress.target} formed={formed} />
       </div>
-      <span className="resident-campaign-chevron" aria-hidden="true">›</span>
+      <Icon icon={ChevronRight} size={20} className="resident-campaign-chevron" />
     </article>
   )
 }
