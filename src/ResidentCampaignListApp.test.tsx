@@ -220,15 +220,16 @@ describe('ResidentCampaignListApp', () => {
     expect(screen.getByText('已成團')).toBeInTheDocument()
   })
 
-  it('marks a closed campaign that missed its threshold as 未成團, with a grey bar', () => {
+  it('greys the bar of a campaign closed short of its threshold, without saying it did not form', () => {
     render(<ResidentCampaignListApp identity={{ displayName: '住戶', pictureUrl: null }} campaigns={[
-      campaign({ slug: 'missed', title: '沒成團的團', status: 'closed', totalQuantity: 7, threshold: 12 }),
+      campaign({ slug: 'missed', title: '沒到門檻的團', status: 'closed', totalQuantity: 7, threshold: 12 }),
       campaign({ slug: 'forming', title: '還在湊的團', totalQuantity: 4, threshold: 10 }),
     ]} />)
 
-    const missed = screen.getByRole('link', { name: '沒成團的團' }).closest('article') as HTMLElement
-    expect(within(missed).getByText('未成團')).toBeInTheDocument()
-    expect(screen.getByRole('progressbar', { name: '沒成團的團成團進度' })).toHaveAttribute('data-missed', 'true')
+    // Such a campaign often ships anyway, so residents see the count, not a verdict.
+    const missed = screen.getByRole('link', { name: '沒到門檻的團' }).closest('article') as HTMLElement
+    expect(within(missed).queryByText(/未成團|未達/)).not.toBeInTheDocument()
+    expect(screen.getByRole('progressbar', { name: '沒到門檻的團成團進度' })).toHaveAttribute('data-missed', 'true')
     // Still open, it can still form: no mark, the usual bar.
     expect(within(screen.getByRole('link', { name: '還在湊的團' }).closest('article') as HTMLElement).queryByText('未成團')).not.toBeInTheDocument()
     expect(screen.getByRole('progressbar', { name: '還在湊的團成團進度' })).not.toHaveAttribute('data-missed')

@@ -48,7 +48,7 @@ export function CampaignSummary({ title, status, priceText, schedule, progress, 
         <h2>成團進度</h2>
         <p className="resident-summary-progress-text">
           <strong>{progress.text}</strong>
-          <span className={progress.formed ? 'is-formed' : status !== 'open' ? 'is-missed' : undefined}>{progress.remainingText}</span>
+          {progress.remainingText && <span className={progress.formed ? 'is-formed' : undefined}>{progress.remainingText}</span>}
         </p>
         <ProgressBar label="成團進度" value={progress.value} max={progress.max} formed={progress.formed} missed={status !== 'open'} />
         <p className="resident-summary-meta">

@@ -7,7 +7,6 @@ import ResidentCampaignListApp, {
   type ResidentLineIdentity,
 } from './ResidentCampaignListApp'
 import ResidentMyOrdersApp, { type ResidentMyOrder } from './ResidentMyOrdersApp'
-import { withFormation } from './components/resident/campaignFormation'
 import { residentMyOrdersRepository, type ResidentMyOrdersRepository } from './services/residentMyOrders'
 import { ResidentCampaignSkeleton, ResidentListSkeleton } from './components/resident/ResidentSkeletons'
 import { clearResidentPageCache, readResidentPageCache, writeResidentPageCache } from './services/residentPageCache'
@@ -1321,14 +1320,7 @@ function LocalLiveResidentListApp({
     const initialize = async () => {
       const auth = { client, liffId, liffClient, lineResidentGateway }
       if (page === 'orders') {
-        const signedIn = await authenticateResident(auth, attempt > 0, async () => {
-          const [orders, campaigns] = await Promise.all([
-            (residentOrdersRepository ?? residentMyOrdersRepository(client)).list(),
-            // Only says which closed campaigns did not form; the orders still show without it.
-            (residentListRepository ?? residentCampaignListRepository(client)).list().catch(() => null),
-          ])
-          return withFormation(orders, campaigns)
-        })
+        const signedIn = await authenticateResident(auth, attempt > 0, () => (residentOrdersRepository ?? residentMyOrdersRepository(client)).list())
         if (!signedIn || !active) return
         setIdentity(signedIn.identity)
         setOrders(signedIn.data)

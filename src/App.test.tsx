@@ -720,10 +720,12 @@ describe('customer campaign app', () => {
     expect(closingBox()).toHaveTextContent('結單已結單')
   })
 
-  it('says a closed campaign that missed its threshold did not form, instead of how much is still needed', () => {
+  it('shows only the final count for a campaign closed short of its threshold, which may still ship', () => {
     render(<App campaignStatus="closed" />)
-    expect(screen.queryByText(/還差/)).not.toBeInTheDocument()
-    expect(screen.getByText('結單時未達成團門檻')).toHaveClass('is-missed')
+    // Neither how much is still needed (nothing more can be ordered) nor that it fell short:
+    // organizers often go ahead anyway, and residents would read it as cancelled.
+    expect(screen.queryByText(/還差|未達|未成團/)).not.toBeInTheDocument()
+    expect(screen.getByText('62 個 / 100 個')).toBeInTheDocument()
     expect(screen.getByRole('progressbar', { name: '成團進度' })).toHaveAttribute('data-missed', 'true')
   })
 
