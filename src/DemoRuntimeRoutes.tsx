@@ -15,7 +15,7 @@ import ResidentCampaignListApp from './ResidentCampaignListApp'
 import ResidentMyOrdersApp from './ResidentMyOrdersApp'
 import { DemoResidentScenarioApp } from './DemoResidentScenarioApp'
 import { demoResidentScenarios, demoScenarioListItem, demoScenarioMyOrder } from './data/demoResidentScenarios'
-import { demoDraftCampaign, demoOrganizerMembers, demoScenarioOrganizerId, demoScenarioOrganizerListItem } from './data/demoOrganizerScenarios'
+import { demoDraftCampaign, demoOrganizerMembers, demoRefreshGroupStatuses, demoScenarioOrganizerId, demoScenarioOrganizerListItem } from './data/demoOrganizerScenarios'
 import { DemoOrganizerDraftWorkspace, DemoOrganizerScenarioWorkspace } from './DemoOrganizerScenarioWorkspace'
 import { campaign, initialOrders, items } from './data/demo'
 import { buildOrganizerOrderSummary, type OrganizerVisibleOrder } from './domain/adminOrders'
@@ -174,6 +174,7 @@ export default function DemoRuntimeRoutes({ pathname, search }: { pathname: stri
           initialFilter={parseResidentFilter(search)}
           onSetBlocked={async () => undefined}
           onUpdateHousehold={async () => undefined}
+          onRefreshGroupStatuses={(memberCodes) => demoRefreshGroupStatuses(memberCodes)}
         />
       </OrganizerShell>
     )
