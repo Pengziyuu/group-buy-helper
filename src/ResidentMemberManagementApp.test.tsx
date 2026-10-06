@@ -62,6 +62,31 @@ describe('ResidentMemberManagementApp', () => {
     expect(screen.queryByRole('article', { name: '陌生住戶' })).not.toBeInTheDocument()
   })
 
+  it('pulls an identical check time into the group summary without repeating it on cards', () => {
+    const checkedAt = '2026-09-20T18:35:00Z'
+    render(<ResidentMemberManagementApp members={[
+      { ...members[0], groupStatus: 'in_group', groupCheckedAt: checkedAt },
+      { ...otherMember, groupStatus: 'not_in_group', groupCheckedAt: checkedAt },
+      { ...members[1], groupStatus: 'in_group', groupCheckedAt: '2026-09-19T18:35:00Z' },
+    ]} onSetBlocked={vi.fn()} onUpdateHousehold={vi.fn()} onRefreshGroupStatuses={vi.fn()} />)
+
+    const summary = screen.getByRole('region', { name: 'LINE 群組查驗' })
+    expect(within(summary).getByText('2026/09/21 02:35')).toHaveAttribute('datetime', checkedAt)
+    expect(within(summary).getByText(/未封鎖住戶最後查驗/)).toBeInTheDocument()
+    expect(within(screen.getByRole('article', { name: '住戶甲' })).queryByText(/最後查驗/)).not.toBeInTheDocument()
+    expect(within(screen.getByRole('article', { name: '住戶丙' })).queryByText(/最後查驗/)).not.toBeInTheDocument()
+  })
+
+  it('keeps individual times when active residents were checked at different instants', () => {
+    render(<ResidentMemberManagementApp members={[
+      { ...members[0], groupStatus: 'in_group', groupCheckedAt: '2026-09-20T18:35:00Z' },
+      { ...otherMember, groupStatus: 'not_in_group', groupCheckedAt: '2026-09-21T18:35:00Z' },
+    ]} onSetBlocked={vi.fn()} onUpdateHousehold={vi.fn()} onRefreshGroupStatuses={vi.fn()} />)
+    expect(screen.queryByText(/未封鎖住戶最後查驗/)).not.toBeInTheDocument()
+    expect(within(screen.getByRole('article', { name: '住戶甲' })).getByText('2026/09/21 02:35')).toBeInTheDocument()
+    expect(within(screen.getByRole('article', { name: '住戶丙' })).getByText('2026/09/22 02:35')).toBeInTheDocument()
+  })
+
   it('checks every active resident with one button and summarises the result with lights', async () => {
     const user = userEvent.setup()
     const active = [
@@ -86,8 +111,9 @@ describe('ResidentMemberManagementApp', () => {
     expect(onRefreshGroupStatuses).toHaveBeenCalledWith([members[0].memberCode, otherMember.memberCode])
     expect(await screen.findByText('已更新 2 位住戶的群組狀態')).toBeInTheDocument()
     expect(within(summary).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['在群組內 1', '不在群組 1', '尚未查驗 0'])
-    expect(within(screen.getByRole('article', { name: '住戶甲' })).getByText('2026/09/24 09:00')).toBeInTheDocument()
-    expect(within(screen.getByRole('article', { name: '住戶丙' })).getByText('2026/09/24 09:00')).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: 'LINE 群組查驗' })).getByText('2026/09/24 09:00')).toBeInTheDocument()
+    expect(within(screen.getByRole('article', { name: '住戶甲' })).queryByText(/最後查驗/)).not.toBeInTheDocument()
+    expect(within(screen.getByRole('article', { name: '住戶丙' })).queryByText(/最後查驗/)).not.toBeInTheDocument()
     expect(within(screen.getByRole('article', { name: '住戶丙' })).getByText('不在群組')).toBeInTheDocument()
     expect(screen.queryByRole('article', { name: '陌生住戶' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('radio', { name: '已封鎖 1' }))

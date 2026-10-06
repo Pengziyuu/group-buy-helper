@@ -74,6 +74,11 @@ export default function ResidentMemberManagementApp({ members, initialFilter = '
     in: activeMembers.filter((member) => member.groupStatus === 'in_group').length,
     out: activeMembers.filter((member) => member.groupStatus === 'not_in_group').length,
   }
+  // A shared timestamp is truthful only when every active account has the same stored check.
+  const sharedGroupCheckedAt = activeMembers.length > 0 && activeMembers[0].groupCheckedAt
+    && activeMembers.every((member) => member.groupCheckedAt === activeMembers[0].groupCheckedAt)
+    ? activeMembers[0].groupCheckedAt
+    : null
 
   const refreshAllGroupStatuses = async () => {
     if (busyCode || !onRefreshGroupStatuses) return
@@ -226,6 +231,9 @@ export default function ResidentMemberManagementApp({ members, initialFilter = '
             <span aria-hidden="true">↻</span>
             {groupCheckProgress ? `查驗中…${groupCheckProgress.done}/${groupCheckProgress.total}` : '更新全部群組狀態'}
           </Button>
+          {sharedGroupCheckedAt && (
+            <p className="resident-group-checked-at">未封鎖住戶最後查驗 <time dateTime={sharedGroupCheckedAt}>{formatZhTwTimestamp(sharedGroupCheckedAt)}</time></p>
+          )}
           <p>群組狀態僅供核對，不會自動停用既有住戶。</p>
         </section>
       )}
@@ -256,7 +264,7 @@ export default function ResidentMemberManagementApp({ members, initialFilter = '
                       <span className="resident-group-dot" data-status={member.groupStatus ?? 'unchecked'} aria-hidden="true" />
                       {groupStatusLabel(member.groupStatus)}
                     </p>
-                    {member.groupCheckedAt && <small>最後查驗 <time dateTime={member.groupCheckedAt}>{formatZhTwTimestamp(member.groupCheckedAt)}</time></small>}
+                    {member.groupCheckedAt && !sharedGroupCheckedAt && <small>最後查驗 <time dateTime={member.groupCheckedAt}>{formatZhTwTimestamp(member.groupCheckedAt)}</time></small>}
                   </>
                 )}
               </div>
