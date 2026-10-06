@@ -70,7 +70,7 @@ export function OrderSummaryCard({ campaignTitle, summary, status, ordersToday }
               <small>{status !== 'open' ? '結單時未達成團門檻' : usesAmount ? `還差 ${currency(summary.remaining)} 成團` : `還差 ${summary.remaining} ${unit}成團`}</small>
             </p>
           )}
-          <ProgressBar label="成團進度" value={progressValue} max={summary.threshold} formed={summary.formed} />
+          <ProgressBar label="成團進度" value={progressValue} max={summary.threshold} formed={summary.formed} missed={status !== 'open'} />
         </div>
         <dl className="organizer-order-totals" aria-label="訂單總覽">
           <div><dt>訂單</dt><dd>{summary.orderCount} 筆</dd></div>

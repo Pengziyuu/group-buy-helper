@@ -13,6 +13,7 @@ import { parseAppRoute, parseResidentFilter, residentCampaignPath, type Workspac
 import { EmptyState } from './components/ui/AsyncState'
 import ResidentCampaignListApp from './ResidentCampaignListApp'
 import ResidentMyOrdersApp from './ResidentMyOrdersApp'
+import { withFormation } from './components/resident/campaignFormation'
 import { DemoResidentScenarioApp } from './DemoResidentScenarioApp'
 import { demoResidentScenarios, demoScenarioListItem, demoScenarioMyOrder } from './data/demoResidentScenarios'
 import { demoDraftCampaign, demoOrganizerMembers, demoRefreshGroupStatuses, demoScenarioOrganizerId, demoScenarioOrganizerListItem } from './data/demoOrganizerScenarios'
@@ -239,7 +240,7 @@ export default function DemoRuntimeRoutes({ pathname, search }: { pathname: stri
     return (
       <ResidentMyOrdersApp
         identity={{ displayName: '測試住戶', pictureUrl: null }}
-        orders={demoScenarios.flatMap((scenario) => demoScenarioMyOrder(scenario) ?? [])}
+        orders={withFormation(demoScenarios.flatMap((scenario) => demoScenarioMyOrder(scenario) ?? []), demoScenarios.map(demoScenarioListItem))}
       />
     )
   }

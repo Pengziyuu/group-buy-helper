@@ -724,6 +724,7 @@ describe('customer campaign app', () => {
     render(<App campaignStatus="closed" />)
     expect(screen.queryByText(/還差/)).not.toBeInTheDocument()
     expect(screen.getByText('結單時未達成團門檻')).toHaveClass('is-missed')
+    expect(screen.getByRole('progressbar', { name: '成團進度' })).toHaveAttribute('data-missed', 'true')
   })
 
   it('tells a resident without an order that the campaign closed', () => {

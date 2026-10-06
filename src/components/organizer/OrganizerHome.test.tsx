@@ -42,6 +42,12 @@ function renderHome(props: Partial<Parameters<typeof OrganizerHome>[0]> = {}) {
 const rowOf = (title: string) => screen.getByRole('link', { name: title }).closest('tr') as HTMLElement
 
 describe('OrganizerHome', () => {
+  it('greys the bar of a closed campaign that missed its threshold', () => {
+    renderHome({ campaigns: [{ ...closed, totalQuantity: 2, threshold: 10 }, open] })
+    expect(screen.getByRole('progressbar', { name: '已結單水果團成團進度' })).toHaveAttribute('data-missed', 'true')
+    expect(screen.getByRole('progressbar', { name: '冰餅團成團進度' })).not.toHaveAttribute('data-missed')
+  })
+
   it('lists draft, open, then closed campaigns in one table, with the filters in the same order', () => {
     renderHome({ campaigns: [closed, draft, open, arrived] })
 

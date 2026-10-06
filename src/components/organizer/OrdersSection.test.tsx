@@ -82,6 +82,7 @@ describe('OrdersSection', () => {
     expect(progress).toHaveTextContent('62 / 100 個')
     expect(progress).toHaveTextContent('結單時未達成團門檻')
     expect(progress).not.toHaveTextContent('還差')
+    expect(within(progress).getByRole('progressbar', { name: '成團進度' })).toHaveAttribute('data-missed', 'true')
   })
 
   it('copies the item quantities as plain lines for the supplier, leaving out items nobody ordered', async () => {
@@ -186,6 +187,8 @@ describe('OrdersSection', () => {
 
     const pictured = rowOf(/2K13\s*斯祈/)
     expect(within(pictured).getByRole('img', { name: '斯祈的 LINE 頭貼' })).toHaveAttribute('src', 'https://profile.line-scdn.net/abc')
+    // Fetched only near the screen: a long order list would otherwise load every picture at once.
+    expect(within(pictured).getByRole('img', { name: '斯祈的 LINE 頭貼' })).toHaveAttribute('loading', 'lazy')
     const initial = rowOf(/H11\s*佩怡/).querySelector('.ui-avatar')
     expect(initial).toHaveTextContent('佩')
     expect(initial).toHaveAttribute('data-tone', expect.stringMatching(/^[1-6]$/))

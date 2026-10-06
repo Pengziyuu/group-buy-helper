@@ -181,7 +181,8 @@ describe('ResidentMemberManagementApp', () => {
     // Desktop cards cut a long name to one line, so the full name rides on the hover title.
     expect(screen.getByText('住戶甲')).toHaveAttribute('title', '住戶甲')
     expect(screen.getByText('二期 2K13')).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: '住戶甲的 LINE 頭貼' })).toBeInTheDocument()
+    // Fetched only near the screen: the page lists every resident, around 200 pictures.
+    expect(screen.getByRole('img', { name: '住戶甲的 LINE 頭貼' })).toHaveAttribute('loading', 'lazy')
     expect(document.body.textContent).not.toContain('abcdef0123456789abcdef0123456789abcd')
     expect(screen.getByRole('button', { name: '調整住戶資料 住戶甲' })).toHaveTextContent('調整戶號')
     await user.click(screen.getByRole('button', { name: '更多操作 住戶甲' }))

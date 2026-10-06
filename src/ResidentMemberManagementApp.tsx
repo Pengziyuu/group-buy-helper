@@ -63,7 +63,8 @@ function groupStatusLabel(status: ResidentMember['groupStatus']): string {
 
 function Avatar({ member }: { member: ResidentMember }) {
   if (member.pictureUrl) {
-    return <img src={member.pictureUrl} alt={`${member.displayName}的 LINE 頭貼`} referrerPolicy="no-referrer" />
+    // Loads as it nears the screen: the page lists every resident.
+    return <img src={member.pictureUrl} alt={`${member.displayName}的 LINE 頭貼`} referrerPolicy="no-referrer" loading="lazy" />
   }
   return <span aria-hidden="true">{nameInitial(member.displayName)}</span>
 }
