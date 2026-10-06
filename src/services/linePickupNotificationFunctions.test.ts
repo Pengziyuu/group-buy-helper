@@ -78,7 +78,8 @@ describe('LINE pickup notification edge functions', () => {
     expect(source).toContain('getLineGroupMemberIdsForCandidates')
     expect(source).toContain('https://api.line.me/v2/bot/message/reply')
     expect(source).not.toContain('/v2/bot/message/push')
-    expect(source).toContain("/^(發送領取通知 P-|測試領取通知 T-)([A-Za-z0-9_-]{22})$/")
+    // Commands are read by the shared parser, which also accepts the legacy long form.
+    expect(source).toContain('parsePickupReplyCommand(messageText)')
   })
 
   it('seals a batching version for new commands while the webhook can still rebuild old commands', () => {

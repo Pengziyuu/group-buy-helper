@@ -5,6 +5,7 @@ import {
   buildPickupDualModeMessages,
   getLineGroupMemberIdsForCandidates,
   openPickupReplyPayload,
+  parsePickupReplyCommand,
   parsePickupDualModePayload,
   pickupEligibleRecipientSnapshotHash,
   pickupRecipientSnapshotHash,
@@ -16,7 +17,6 @@ import {
 const COMMUNITY_ID = '00000000-0000-4000-8000-000000000001'
 const TEST_BIND_COMMAND = '綁定測試團購通知'
 const PRODUCTION_BIND_COMMAND = '綁定正式團購通知'
-const PICKUP_COMMAND = /^(發送領取通知 P-|測試領取通知 T-)([A-Za-z0-9_-]{22})$/
 
 type LineWebhookEvent = {
   type?: unknown
@@ -91,10 +91,9 @@ Deno.serve(async (request) => {
         || Math.abs(Date.now() - timestamp) > 5 * 60 * 1000 || !replyToken
         || !/^C[0-9a-f]{32}$/i.test(groupId) || !/^U[0-9a-f]{32}$/i.test(lineUserId)) continue
 
-      const commandMatch = messageText.match(PICKUP_COMMAND)
-      if (commandMatch) {
-        const code = `${commandMatch[1].endsWith('P-') ? 'P-' : 'T-'}${commandMatch[2]}`
-        const commandHash = await technicalSha256(`pickup-command:${code}`)
+      const pickupCommand = parsePickupReplyCommand(messageText)
+      if (pickupCommand) {
+        const commandHash = await technicalSha256(`pickup-command:${pickupCommand.hashKey}`)
         const { data: inspected, error: inspectError } = await service.rpc('inspect_pickup_notification_reply_command', {
           p_command_hash: commandHash,
           p_line_group_id: groupId,

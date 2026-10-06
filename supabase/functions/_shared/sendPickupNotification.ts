@@ -5,6 +5,8 @@ import {
   buildPickupMentionMessages,
   buildPickupDualModeMessages,
   generatePickupReplyCommandCode,
+  pickupReplyCommandHashKey,
+  pickupReplyCommandText,
   getLineGroupMemberIdsForCandidates,
   MAX_PICKUP_NOTIFICATION_RECIPIENTS,
   openPickupRecipientSnapshot,
@@ -230,21 +232,30 @@ export function createPickupNotificationHandler(destination: 'production' | 'tes
           return jsonResponse({ error: '通知期別已變更，請重新預覽' }, 409)
         }
 
-        const commandCode = generatePickupReplyCommandCode(destination)
-        const commandHash = await technicalSha256(`pickup-command:${commandCode}`)
         const payloadCiphertext = await sealPickupReplyPayload(intentSecret, sealedSnapshot.intentId, message)
         const messageHash = await technicalSha256(message)
-        const { data: issued, error: issueError } = await service.rpc('issue_pickup_notification_reply_command', {
-          p_token: sealedSnapshot.intentId,
-          p_campaign_id: campaignId,
-          p_audience: audience,
-          p_caller_user_id: userData.user.id,
-          p_caller_hash: callerHash,
-          p_binding_kind: destination,
-          p_command_hash: commandHash,
-          p_payload_ciphertext: payloadCiphertext,
-          p_message_hash: messageHash,
-        }).single()
+        // A 4-character code can, rarely, match one still held by another pending notice; draw again.
+        let commandCode = ''
+        let issued: unknown = null
+        let issueError: { code?: string; message: string } | null = null
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+          commandCode = generatePickupReplyCommandCode()
+          const commandHash = await technicalSha256(`pickup-command:${pickupReplyCommandHashKey(destination, commandCode)}`)
+          const result = await service.rpc('issue_pickup_notification_reply_command', {
+            p_token: sealedSnapshot.intentId,
+            p_campaign_id: campaignId,
+            p_audience: audience,
+            p_caller_user_id: userData.user.id,
+            p_caller_hash: callerHash,
+            p_binding_kind: destination,
+            p_command_hash: commandHash,
+            p_payload_ciphertext: payloadCiphertext,
+            p_message_hash: messageHash,
+          }).single()
+          issued = result.data
+          issueError = result.error
+          if (!(issueError?.code === '23505' && issueError.message.includes('command_hash'))) break
+        }
         if (issueError) {
           if (issueError.message.includes('preview')) return jsonResponse({ error: '預覽已失效，請重新預覽' }, 409)
           if (issueError.message.includes('environment')) return jsonResponse({ error: '通知名單或群組已變更，請重新預覽' }, 409)
@@ -255,7 +266,7 @@ export function createPickupNotificationHandler(destination: 'production' | 'tes
           || typeof issued.expires_at !== 'string' || typeof issued.recipient_count !== 'number' || typeof issued.message_count !== 'number') throw new Error('invalid command response')
         return jsonResponse({
           status: 'awaiting_group_command',
-          command: `${destination === 'test' ? '測試領取通知' : '發送領取通知'} ${commandCode}`,
+          command: pickupReplyCommandText(destination, commandCode),
           expiresAt: issued.expires_at,
           mentionableCount: issued.recipient_count,
           messageCount: issued.message_count,

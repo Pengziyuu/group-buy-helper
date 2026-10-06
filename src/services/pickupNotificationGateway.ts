@@ -102,7 +102,10 @@ function parseCommand(value: unknown, destination: PickupNotificationDestination
   const allowed = new Set(['status', 'command', 'expiresAt', 'mentionableCount', 'messageCount'])
   if (!data || Object.keys(data).some((key) => !allowed.has(key)) || data.status !== 'awaiting_group_command'
     || typeof data.command !== 'string'
-    || !(destination === 'test' ? /^測試領取通知 T-[A-Za-z0-9_-]{22}$/ : /^發送領取通知 P-[A-Za-z0-9_-]{22}$/).test(data.command)
+    // A 4-character code; the long legacy form stays accepted while the functions roll out.
+    || !(destination === 'test'
+      ? /^測試領取通知 ([2-9A-HJ-NP-Z]{4}|T-[A-Za-z0-9_-]{22})$/
+      : /^發送領取通知 ([2-9A-HJ-NP-Z]{4}|P-[A-Za-z0-9_-]{22})$/).test(data.command)
     || typeof data.expiresAt !== 'string' || !Number.isFinite(Date.parse(data.expiresAt))
     || !validCount(data.mentionableCount, 100) || data.mentionableCount < 1
     || !validCount(data.messageCount, 5) || data.messageCount < 1) throw new Error('LINE 通知回傳格式錯誤')

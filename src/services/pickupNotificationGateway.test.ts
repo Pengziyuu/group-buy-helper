@@ -13,7 +13,7 @@ const preview = {
 
 const command = {
   status: 'awaiting_group_command' as const,
-  command: '發送領取通知 P-AbCdEfGhIjKlMnOpQrStUv',
+  command: '發送領取通知 K7Q2',
   expiresAt: '2026-09-21T00:10:00.000Z',
   mentionableCount: 1,
   messageCount: 1,
@@ -86,9 +86,17 @@ describe('pickup notification gateway', () => {
     await expect(gateway.preview('00000000-0000-4000-8000-000000000123', 'phase13', '通知')).rejects.toThrow('LINE 通知回傳格式錯誤')
   })
 
+  it('still accepts the long command form while the functions roll out', async () => {
+    const invoke = vi.fn().mockResolvedValue({ data: { ...command, command: '發送領取通知 P-AbCdEfGhIjKlMnOpQrStUv' }, error: null })
+    const gateway = createPickupNotificationGateway({ functions: { invoke } } as never, 'production')
+    await expect(gateway.createCommand(
+      '00000000-0000-4000-8000-000000000123', 'phase13', '通知', preview.previewToken,
+    )).resolves.toEqual(expect.objectContaining({ command: '發送領取通知 P-AbCdEfGhIjKlMnOpQrStUv' }))
+  })
+
   it('rejects a command prefix for the opposite destination', async () => {
     const invoke = vi.fn().mockResolvedValue({
-      data: { ...command, command: '測試領取通知 T-AbCdEfGhIjKlMnOpQrStUv' },
+      data: { ...command, command: '測試領取通知 K7Q2' },
       error: null,
     })
     const gateway = createPickupNotificationGateway({ functions: { invoke } } as never, 'production')
