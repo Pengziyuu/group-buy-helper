@@ -1838,6 +1838,7 @@ export type Database = {
           images: Json
           items: Json
           opened_at: string
+          ordered_at: string
           quantity_unit: string
           arrival_label: string
           status: string
@@ -1862,7 +1863,7 @@ export type Database = {
           auto_close_at: string
           closed_at: string
           images: Json
-          my_has_order: boolean
+          my_custom_quantity: number
           my_quantity: number
           opened_at: string
           order_household_count: number

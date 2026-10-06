@@ -35,10 +35,10 @@ export type ResidentCampaignListItem = {
   arrivalLabel?: string
   autoCloseAt?: string | null
   closedAt?: string | null
-  /** The signed-in household's formal-item quantity; custom items do not count, as on the progress bar. */
+  /** The signed-in household's formal-item quantity, the figure the progress bar counts. */
   myQuantity?: number
-  /** Whether the household ordered anything, custom items included. */
-  myHasOrder?: boolean
+  /** The household's custom-item quantity, kept apart because it never counts toward the threshold. */
+  myCustomQuantity?: number
   /** Households that ordered anything; emptied orders do not count. */
   orderHouseholdCount?: number
 }
@@ -84,12 +84,18 @@ export function CampaignThumbnail({ campaign, ordered }: { campaign: Pick<Reside
   )
 }
 
+/** 已訂 4, 已訂 2+1 or 已訂 +1: custom items follow as +N, as they read on the my orders page. */
+function orderedMark(quantity: number, customQuantity: number): string | undefined {
+  if (quantity === 0 && customQuantity === 0) return undefined
+  return `已訂 ${quantity > 0 ? quantity : ''}${customQuantity > 0 ? `+${customQuantity}` : ''}`
+}
+
 function CampaignRow({ campaign, now }: { campaign: ResidentCampaignListItem; now: Date }) {
   const open = campaign.status === 'open'
   const progress = campaignProgress(campaign)
   const formed = progress.value >= progress.target
   const { closing, arrival } = describeResidentSchedule(campaign, now)
-  const ordered = campaign.myHasOrder ? (campaign.myQuantity ? `已訂 ${campaign.myQuantity}` : '已訂') : undefined
+  const ordered = orderedMark(campaign.myQuantity ?? 0, campaign.myCustomQuantity ?? 0)
   const households = campaign.orderHouseholdCount ? `・${campaign.orderHouseholdCount} 人` : ''
   return (
     <article className="resident-campaign-row" data-status={open ? 'open' : 'closed'}>

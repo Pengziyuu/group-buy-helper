@@ -1249,7 +1249,7 @@ function residentCampaignListRepository(client: SupabaseClient<Database>): LiveR
           autoCloseAt: row.auto_close_at ?? null,
           closedAt: row.closed_at ?? null,
           myQuantity: Number(row.my_quantity ?? 0),
-          myHasOrder: row.my_has_order === true,
+          myCustomQuantity: Number(row.my_custom_quantity ?? 0),
           orderHouseholdCount: Number(row.order_household_count ?? 0),
         }]
       })

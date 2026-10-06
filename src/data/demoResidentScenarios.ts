@@ -284,7 +284,7 @@ export function demoScenarioListItem(scenario: DemoResidentScenario): ResidentCa
     autoCloseAt: content.autoCloseAt ?? null,
     closedAt: scenario.closedAt ?? null,
     myQuantity: myQuantity(mine),
-    myHasOrder: hasContent(mine),
+    myCustomQuantity: (mine?.customItems ?? []).reduce((sum, item) => sum + item.quantity, 0),
     orderHouseholdCount: scenario.orders.filter(hasContent).length,
   }
 }
@@ -311,6 +311,7 @@ export function demoScenarioMyOrder(scenario: DemoResidentScenario): ResidentMyO
     title: content.title,
     status: scenario.status,
     openedAt: content.openedAt ?? new Date().toISOString(),
+    orderedAt: order.orderedAt,
     images: content.images,
     quantityUnit: content.quantityUnit ?? '個',
     arrivalLabel: content.arrivalLabel ?? '貨到通知',

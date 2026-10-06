@@ -161,15 +161,19 @@ describe('ResidentCampaignListApp', () => {
 
   it('marks campaigns the resident ordered on the picture and counts the households that ordered', () => {
     render(<ResidentCampaignListApp identity={identity} campaigns={[
-      campaign({ slug: 'ordered', title: '有訂的團', myHasOrder: true, myQuantity: 4, orderHouseholdCount: 18 }),
-      campaign({ slug: 'custom-only', title: '只訂額外品項的團', myHasOrder: true, myQuantity: 0, orderHouseholdCount: 1 }),
-      campaign({ slug: 'not-ordered', title: '沒訂的團', myHasOrder: false, myQuantity: 0, orderHouseholdCount: 0 }),
+      campaign({ slug: 'ordered', title: '有訂的團', myQuantity: 4, myCustomQuantity: 0, orderHouseholdCount: 18 }),
+      campaign({ slug: 'with-custom', title: '也訂額外品項的團', myQuantity: 2, myCustomQuantity: 1, orderHouseholdCount: 3 }),
+      campaign({ slug: 'custom-only', title: '只訂額外品項的團', myQuantity: 0, myCustomQuantity: 1, orderHouseholdCount: 1 }),
+      campaign({ slug: 'not-ordered', title: '沒訂的團', myQuantity: 0, myCustomQuantity: 0, orderHouseholdCount: 0 }),
     ]} />)
 
     const card = (title: string) => screen.getByRole('link', { name: title }).closest('article') as HTMLElement
+    const mark = (title: string) => card(title).querySelector('.resident-campaign-thumb .resident-campaign-ordered')
     // The mark sits on the picture, so a card is the same height whether or not the resident ordered.
-    expect(card('有訂的團').querySelector('.resident-campaign-thumb .resident-campaign-ordered')).toHaveTextContent(/^已訂 4$/)
-    expect(card('只訂額外品項的團').querySelector('.resident-campaign-thumb .resident-campaign-ordered')).toHaveTextContent(/^已訂$/)
+    // Custom items follow as +N, kept apart like the progress bar keeps them out of the threshold.
+    expect(mark('有訂的團')).toHaveTextContent(/^已訂 4$/)
+    expect(mark('也訂額外品項的團')).toHaveTextContent(/^已訂 2\+1$/)
+    expect(mark('只訂額外品項的團')).toHaveTextContent(/^已訂 \+1$/)
     expect(within(card('沒訂的團')).queryByText(/已訂/)).not.toBeInTheDocument()
 
     expect(within(card('有訂的團')).getByText('8 個 / 10 個・18 人')).toBeInTheDocument()

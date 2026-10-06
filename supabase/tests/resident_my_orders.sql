@@ -45,8 +45,8 @@ declare
 begin
   select * into v_row from public.list_resident_campaigns()
   where slug = '0123456789abcdef0123456789abcdef0123';
-  if v_row.my_quantity <> 6 or not v_row.my_has_order then
-    raise exception 'own quantity wrong: % %', v_row.my_quantity, v_row.my_has_order;
+  if v_row.my_quantity <> 6 or v_row.my_custom_quantity <> 0 then
+    raise exception 'own quantity wrong: % %', v_row.my_quantity, v_row.my_custom_quantity;
   end if;
   if v_row.order_household_count <> (select households from expected_count) then
     raise exception 'household count % should skip the emptied order', v_row.order_household_count;
@@ -59,7 +59,7 @@ begin
   if v_order.items <> '[{"name":"花生（招牌）","quantity":2,"unitPrice":45},{"name":"草莓","quantity":2,"unitPrice":45},{"name":"可可","quantity":2,"unitPrice":45}]'::jsonb then
     raise exception 'my order items wrong: %', v_order.items;
   end if;
-  if v_order.title <> '一涼製冰所 超厚三明治冰餅' or v_order.status <> 'open' then
+  if v_order.title <> '一涼製冰所 超厚三明治冰餅' or v_order.status <> 'open' or v_order.ordered_at is null then
     raise exception 'my order campaign wrong';
   end if;
   perform closed_at from public.campaign_public limit 1;
@@ -74,8 +74,8 @@ declare
 begin
   select * into v_row from public.list_resident_campaigns()
   where slug = '0123456789abcdef0123456789abcdef0123';
-  if v_row.my_quantity <> 0 or not v_row.my_has_order then
-    raise exception 'custom-only order should count as ordered with no quantity';
+  if v_row.my_quantity <> 0 or v_row.my_custom_quantity <> 2 then
+    raise exception 'custom-only order should keep its quantity apart: % %', v_row.my_quantity, v_row.my_custom_quantity;
   end if;
   select * into v_order from public.list_my_orders();
   if v_order.items <> '[]'::jsonb or jsonb_array_length(v_order.custom_items) <> 1 then
@@ -93,7 +93,7 @@ begin
   end if;
   select * into v_row from public.list_resident_campaigns()
   where slug = '0123456789abcdef0123456789abcdef0123';
-  if v_row.my_quantity <> 0 or v_row.my_has_order then raise exception 'unbound resident marked as ordered'; end if;
+  if v_row.my_quantity <> 0 or v_row.my_custom_quantity <> 0 then raise exception 'unbound resident marked as ordered'; end if;
 end;
 $$;
 reset role;
