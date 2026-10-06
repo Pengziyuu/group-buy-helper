@@ -27,12 +27,13 @@ function isCustomItem(value: unknown): value is { name: string; quantity: number
 /** One list_my_orders() row as the page reads it; null when the row lacks what the page needs. */
 export function residentMyOrderFromRow(row: MyOrderRow): ResidentMyOrder | null {
   if (typeof row.campaign_slug !== 'string' || typeof row.title !== 'string' || typeof row.opened_at !== 'string'
-    || typeof row.status !== 'string' || !STATUSES.includes(row.status)) return null
+    || typeof row.ordered_at !== 'string' || typeof row.status !== 'string' || !STATUSES.includes(row.status)) return null
   return {
     slug: row.campaign_slug,
     title: row.title,
     status: row.status as CampaignStatus,
     openedAt: row.opened_at,
+    orderedAt: row.ordered_at,
     images: Array.isArray(row.images) ? row.images.filter(isCampaignImage) : [],
     quantityUnit: normalizeQuantityUnit(row.quantity_unit),
     arrivalLabel: typeof row.arrival_label === 'string' ? row.arrival_label : '貨到通知',

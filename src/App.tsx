@@ -31,6 +31,7 @@ import {
   type VerifiedResidentIdentity,
 } from './components/resident/ResidentBindingForm'
 import './components/resident/resident.css'
+import { MY_ORDER_SECTION_ID } from './routing'
 
 const defaultContent: CampaignContent = {
   title: campaign.title,
@@ -128,6 +129,12 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', camp
       setActiveImageIndex(null)
     }
   }, [activeImageIndex, publishedCampaign.images])
+
+  // Opened from my orders: start at this household's order rather than the pictures and announcement.
+  useEffect(() => {
+    if (window.location.hash !== `#${MY_ORDER_SECTION_ID}`) return
+    document.getElementById(MY_ORDER_SECTION_ID)?.scrollIntoView?.({ block: 'start' })
+  }, [])
 
   useEffect(() => {
     if (visibleOrders && !draftDirty
@@ -389,7 +396,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', camp
           announcement={publishedCampaign.announcement}
           onOpenImage={setActiveImageIndex}
         />
-        <section className="resident-card resident-order" aria-labelledby="order-heading">
+        <section id={MY_ORDER_SECTION_ID} className="resident-card resident-order" aria-labelledby="order-heading">
           <div className="resident-section-heading">
             <h2 id="order-heading">我的訂單</h2>
             {currentResident && (

@@ -9,6 +9,7 @@ function order(overrides: Partial<ResidentMyOrder> & Pick<ResidentMyOrder, 'slug
   return {
     status: 'open',
     openedAt: '2026-10-01T00:00:00.000Z',
+    orderedAt: '2026-10-02T00:00:00.000Z',
     images: [],
     quantityUnit: '個',
     arrivalLabel: '貨到通知',
@@ -50,7 +51,8 @@ describe('ResidentMyOrdersApp', () => {
     expect(within(within(open).getByRole('list', { name: '訂購品項' })).getAllByRole('listitem').map((item) => item.textContent))
       .toEqual(['牛奶（招牌） × 2$90', 'OREO × 2$90'])
     expect(within(open).getByText('合計 4 個・$180')).toBeInTheDocument()
-    expect(within(open).getByRole('link', { name: '修改訂單' })).toHaveAttribute('href', '/c/efgh5678')
+    // Straight to the 我的訂單 section of the campaign page.
+    expect(within(open).getByRole('link', { name: '修改訂單' })).toHaveAttribute('href', '/c/efgh5678#my-order')
 
     const closed = card('手工蛋捲禮盒')
     expect(within(closed).getByText('已結單')).toBeInTheDocument()
@@ -58,7 +60,20 @@ describe('ResidentMyOrdersApp', () => {
     expect(within(within(closed).getByRole('list', { name: '訂購品項' })).getAllByRole('listitem').map((item) => item.textContent))
       .toEqual(['原味 × 1$280', '海苔肉鬆 +1・另計'])
     expect(within(closed).getByText('合計 1 盒・$280')).toBeInTheDocument()
-    expect(within(closed).getByRole('link', { name: '查看' })).toHaveAttribute('href', '/c/abcd1234')
+    expect(within(closed).getByRole('link', { name: '查看' })).toHaveAttribute('href', '/c/abcd1234#my-order')
+  })
+
+  it('puts open campaigns first, then the newest order first within each group', () => {
+    render(<ResidentMyOrdersApp identity={identity} now={now} orders={[
+      order({ slug: 'closed-new', title: '已結單・新訂', status: 'closed', orderedAt: '2026-10-05T00:00:00.000Z', items: [{ name: 'A', quantity: 1, unitPrice: 1 }] }),
+      order({ slug: 'open-old', title: '開團中・舊訂', openedAt: '2026-10-04T00:00:00.000Z', orderedAt: '2026-10-01T00:00:00.000Z', items: [{ name: 'A', quantity: 1, unitPrice: 1 }] }),
+      order({ slug: 'open-new', title: '開團中・新訂', openedAt: '2026-09-01T00:00:00.000Z', orderedAt: '2026-10-03T00:00:00.000Z', items: [{ name: 'A', quantity: 1, unitPrice: 1 }] }),
+      order({ slug: 'closed-old', title: '已結單・舊訂', status: 'closed', orderedAt: '2026-09-01T00:00:00.000Z', items: [{ name: 'A', quantity: 1, unitPrice: 1 }] }),
+    ]} />)
+
+    // Ordered by when the resident ordered, not when the campaign opened.
+    expect(screen.getAllByRole('article').map((article) => article.getAttribute('aria-label')))
+      .toEqual(['開團中・新訂', '開團中・舊訂', '已結單・新訂', '已結單・舊訂'])
   })
 
   it('leaves out the total when only custom items were ordered', () => {

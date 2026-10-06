@@ -55,9 +55,9 @@ from public.campaign;
 revoke all on table public.campaign_public from public, anon, authenticated;
 grant select on table public.campaign_public to authenticated;
 
--- 2. The resident list adds the signed-in household's own quantity, whether it ordered at all,
--- how many households ordered, and the closing time. An order counts once it holds a formal item
--- or a custom item; an order emptied back to nothing does not.
+-- 2. The resident list adds the signed-in household's own formal and custom quantities (kept apart,
+-- as custom items never count toward the threshold), how many households ordered, and the closing
+-- time. An order counts once it holds a formal item or a custom item; an emptied order does not.
 drop function public.list_resident_campaigns();
 create function public.list_resident_campaigns()
 returns table (
@@ -65,7 +65,7 @@ returns table (
   total_quantity bigint, threshold_kind text, amount_threshold numeric, quantity_unit text,
   total_amount numeric, allow_custom_items boolean, images jsonb,
   arrival_label text, auto_close_at timestamptz, threshold_auto_close boolean,
-  my_quantity bigint, my_has_order boolean, order_household_count bigint, closed_at timestamptz
+  my_quantity bigint, my_custom_quantity bigint, order_household_count bigint, closed_at timestamptz
 )
 language sql stable security definer set search_path = public, pg_temp
 as $$
@@ -76,6 +76,8 @@ as $$
     select orders.campaign_id, orders.customer_id,
       coalesce(sum(order_item.qty), 0)::bigint as quantity,
       coalesce(sum(order_item.qty * order_item.final_unit_price), 0)::numeric as amount,
+      (select coalesce(sum((entry ->> 'quantity')::integer), 0)
+       from jsonb_array_elements(orders.custom_items) entry)::bigint as custom_quantity,
       coalesce(sum(order_item.qty), 0) > 0 or jsonb_array_length(orders.custom_items) > 0 as has_content
     from public.orders orders
     left join public.order_item order_item on order_item.order_id = orders.id
@@ -88,7 +90,7 @@ as $$
     campaign.allow_custom_items, campaign.images, campaign.arrival_label, campaign.auto_close_at,
     campaign.threshold_auto_close,
     coalesce(sum(order_totals.quantity) filter (where order_totals.customer_id in (select id from me)), 0)::bigint,
-    coalesce(bool_or(order_totals.has_content) filter (where order_totals.customer_id in (select id from me)), false),
+    coalesce(sum(order_totals.custom_quantity) filter (where order_totals.customer_id in (select id from me)), 0)::bigint,
     count(*) filter (where order_totals.has_content)::bigint,
     campaign.closed_at
   from public.community_member member
@@ -101,19 +103,20 @@ $$;
 revoke all on function public.list_resident_campaigns() from public, anon;
 grant execute on function public.list_resident_campaigns() to authenticated, service_role;
 
--- 3. The signed-in household's own orders, one row per campaign, newest opening first. Only
--- campaigns the resident's community can see, and only orders with something in them.
+-- 3. The signed-in household's own orders, one row per campaign, open campaigns first and then the
+-- newest order first. Only campaigns the resident's community can see, and only orders with
+-- something in them.
 create function public.list_my_orders()
 returns table (
   campaign_slug text, title text, status text, opened_at timestamptz, images jsonb,
   quantity_unit text, arrival_label text, auto_close_at timestamptz, threshold_kind text,
-  threshold_auto_close boolean, closed_at timestamptz, items jsonb, custom_items jsonb
+  threshold_auto_close boolean, closed_at timestamptz, ordered_at timestamptz, items jsonb, custom_items jsonb
 )
 language sql stable security definer set search_path = public, pg_temp
 as $$
   select campaign.slug, campaign.title, campaign.status, campaign.opened_at, campaign.images,
     campaign.quantity_unit, campaign.arrival_label, campaign.auto_close_at, campaign.threshold_kind,
-    campaign.threshold_auto_close, campaign.closed_at,
+    campaign.threshold_auto_close, campaign.closed_at, orders.created_at,
     coalesce((
       select jsonb_agg(jsonb_build_object(
           'name', campaign_item.name,
@@ -134,7 +137,7 @@ as $$
     and campaign.opened_at is not null
     and (jsonb_array_length(orders.custom_items) > 0
       or exists (select 1 from public.order_item order_item where order_item.order_id = orders.id and order_item.qty > 0))
-  order by campaign.opened_at desc;
+  order by campaign.status = 'open' desc, orders.created_at desc;
 $$;
 revoke all on function public.list_my_orders() from public, anon;
 grant execute on function public.list_my_orders() to authenticated, service_role;

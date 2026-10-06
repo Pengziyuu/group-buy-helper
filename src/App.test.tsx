@@ -649,6 +649,21 @@ describe('customer campaign app', () => {
     expect(screen.getByText('本團已結單，無法修改訂單。')).toBeInTheDocument()
   })
 
+  it('scrolls to the 我的訂單 section when opened from my orders', () => {
+    const scrollIntoView = vi.fn()
+    Element.prototype.scrollIntoView = scrollIntoView
+    window.history.replaceState(null, '', '/#my-order')
+    try {
+      render(<App />)
+      expect(scrollIntoView).toHaveBeenCalledOnce()
+      expect(scrollIntoView.mock.contexts[0]).toBe(document.getElementById('my-order'))
+      expect(document.getElementById('my-order')).toHaveAccessibleName('我的訂單')
+    } finally {
+      window.history.replaceState(null, '', '/')
+      delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView
+    }
+  })
+
   it('fills the closing box of a closed campaign with the day it closed, or 已結單 when unknown', () => {
     const { unmount } = render(<App campaignStatus="closed" campaignClosedAt="2026-01-03T04:00:00.000Z" />)
     const closingBox = () => within(screen.getByRole('group', { name: '團購時程' })).getByText('結單', { selector: 'dt' }).parentElement

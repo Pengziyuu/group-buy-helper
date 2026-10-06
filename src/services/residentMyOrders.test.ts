@@ -13,6 +13,7 @@ const row = {
   threshold_kind: 'amount',
   threshold_auto_close: false,
   closed_at: '2026-10-04T04:00:00.000Z',
+  ordered_at: '2026-10-03T02:00:00.000Z',
   items: [{ name: '原味', quantity: 1, unitPrice: 280 }, { name: '壞資料', quantity: 'x', unitPrice: 1 }],
   custom_items: [{ id: 'a', name: '海苔肉鬆', quantity: 1 }],
 }
@@ -31,6 +32,7 @@ describe('residentMyOrderFromRow', () => {
       thresholdKind: 'amount',
       thresholdAutoClose: false,
       closedAt: '2026-10-04T04:00:00.000Z',
+      orderedAt: '2026-10-03T02:00:00.000Z',
       items: [{ name: '原味', quantity: 1, unitPrice: 280 }],
       customItems: [{ name: '海苔肉鬆', quantity: 1 }],
     })
@@ -39,5 +41,6 @@ describe('residentMyOrderFromRow', () => {
   it('skips a row without the fields the page needs', () => {
     expect(residentMyOrderFromRow({ ...row, campaign_slug: null })).toBeNull()
     expect(residentMyOrderFromRow({ ...row, status: 'draft' })).toBeNull()
+    expect(residentMyOrderFromRow({ ...row, ordered_at: null })).toBeNull()
   })
 })

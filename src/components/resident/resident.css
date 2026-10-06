@@ -274,3 +274,9 @@
   .resident-page.has-tabbar .resident-topbar { background: var(--color-sticky-bg); -webkit-backdrop-filter: var(--blur-sticky); backdrop-filter: var(--blur-sticky); }
   .resident-my-orders { margin-inline: auto; }
 }
+
+/* Jumped to from my orders: clear the sticky header. */
+#my-order { scroll-margin-top: calc(52px + var(--space-3)); }
+@media (max-width: 639px) {
+  #my-order { scroll-margin-top: var(--space-3); }
+}

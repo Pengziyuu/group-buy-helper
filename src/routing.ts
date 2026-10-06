@@ -1,4 +1,6 @@
 export type AppMode = 'resident' | 'admin'
+/** The campaign page's 我的訂單 section; my orders links straight to it. */
+export const MY_ORDER_SECTION_ID = 'my-order'
 export type WorkspaceSection = 'overview' | 'orders' | 'content' | 'pickup'
 export type ResidentFilter = 'all' | 'unbound' | 'other' | 'blocked'
 

@@ -5,7 +5,7 @@ import { describeResidentSchedule } from './components/resident/residentSchedule
 import { CampaignThumbnail, ResidentTopbar, type ResidentLineIdentity } from './ResidentCampaignListApp'
 import type { CampaignStatus } from './domain/orderWorkflow'
 import type { QuantityUnit } from './domain/quantityUnit'
-import { residentCampaignPath } from './routing'
+import { MY_ORDER_SECTION_ID, residentCampaignPath } from './routing'
 import type { CampaignImage } from './services/demoCampaignStore'
 import './components/resident/resident.css'
 
@@ -14,6 +14,7 @@ export type ResidentMyOrder = {
   title: string
   status: CampaignStatus
   openedAt: string
+  orderedAt: string
   images: CampaignImage[]
   quantityUnit: QuantityUnit
   arrivalLabel: string
@@ -34,9 +35,9 @@ type ResidentMyOrdersAppProps = {
   now?: Date
 }
 
-// Same order as the campaign list: open campaigns first, newest opening first within each.
+// Open campaigns first, as orders there can still change; then the newest order first within each.
 function byListOrder(left: ResidentMyOrder, right: ResidentMyOrder) {
-  return Number(right.status === 'open') - Number(left.status === 'open') || Date.parse(right.openedAt) - Date.parse(left.openedAt)
+  return Number(right.status === 'open') - Number(left.status === 'open') || Date.parse(right.orderedAt) - Date.parse(left.orderedAt)
 }
 
 function OrderCard({ order, now }: { order: ResidentMyOrder; now: Date }) {
@@ -69,7 +70,7 @@ function OrderCard({ order, now }: { order: ResidentMyOrder; now: Date }) {
       </ul>
       <div className="resident-my-order-foot">
         {quantity > 0 && <strong>{`合計 ${quantity} ${order.quantityUnit}・${formatMoney(amount)}`}</strong>}
-        <a href={residentCampaignPath(order.slug)}>{open ? '修改訂單' : '查看'}<span aria-hidden="true"> ›</span></a>
+        <a href={`${residentCampaignPath(order.slug)}#${MY_ORDER_SECTION_ID}`}>{open ? '修改訂單' : '查看'}<span aria-hidden="true"> ›</span></a>
       </div>
     </article>
   )

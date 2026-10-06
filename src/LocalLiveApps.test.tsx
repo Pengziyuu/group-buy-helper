@@ -183,7 +183,7 @@ describe('local Supabase visual demo apps', () => {
       identity: { displayName: '彭梓育', pictureUrl: null },
     })
     const orders = vi.fn().mockResolvedValue([{
-      slug: 'abcd1234', title: '早餐團購', status: 'open' as const, openedAt: '2026-08-14T08:00:00.000Z',
+      slug: 'abcd1234', title: '早餐團購', status: 'open' as const, openedAt: '2026-08-14T08:00:00.000Z', orderedAt: '2026-08-14T09:00:00.000Z',
       images: [], quantityUnit: '個' as const, arrivalLabel: '貨到通知', autoCloseAt: null, thresholdKind: 'quantity' as const,
       thresholdAutoClose: true, closedAt: null, items: [{ name: '蛋餅', quantity: 2, unitPrice: 40 }], customItems: [],
     }])
