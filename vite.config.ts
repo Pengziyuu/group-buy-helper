@@ -1,8 +1,10 @@
+import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { loadEnv, type Plugin } from 'vite'
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { SKELETON_BOOT_SCRIPT, bootSkeletonMarkup } from './src/components/resident/skeletonMarkup.ts'
 
 // Opens the connection to Supabase while the scripts still download, so the first query skips the
 // DNS and TLS handshake. Only builds that talk to Supabase get it; the demo build has no URL.
@@ -16,8 +18,27 @@ function preconnectSupabase(url: string | undefined): Plugin {
   }
 }
 
+// The resident entry opens on the outline of its page, before any script or stylesheet arrives. The
+// markup and styles are the ones React renders while loading, so taking over changes nothing on screen.
+function residentBootSkeleton(): Plugin {
+  return {
+    name: 'resident-boot-skeleton',
+    transformIndexHtml(html, context) {
+      if (!context.filename.endsWith('index.html')) return html
+      const css = readFileSync(resolve(import.meta.dirname, 'src/components/resident/skeleton.css'), 'utf8')
+      return {
+        html: html.replace('<div id="root"></div>', `<div id="root">${bootSkeletonMarkup()}</div>`),
+        tags: [
+          { tag: 'script', children: SKELETON_BOOT_SCRIPT, injectTo: 'head' },
+          { tag: 'style', children: css, injectTo: 'head' },
+        ],
+      }
+    },
+  }
+}
+
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), tailwindcss(), preconnectSupabase(loadEnv(mode, process.cwd(), 'VITE_').VITE_SUPABASE_URL)],
+  plugins: [react(), tailwindcss(), preconnectSupabase(loadEnv(mode, process.cwd(), 'VITE_').VITE_SUPABASE_URL), residentBootSkeleton()],
   build: {
     rollupOptions: {
       input: {

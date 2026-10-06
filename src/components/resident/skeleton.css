@@ -1,0 +1,56 @@
+/* Resident loading outlines (skeletonMarkup.ts). Self-contained: index.html inlines this file before
+   the design tokens or any script arrive, so values are literal copies of tokens.css. React renders
+   the same markup with the same rules, so the hand-over is invisible. */
+/* Same as foundations.css, which may not have arrived yet when the outline first paints. */
+body:has(.sk-variant) { margin: 0; background: #f5f5f7; }
+.sk-variant { display: none; }
+html[data-sk="campaigns"] .sk-variant[data-variant="campaigns"],
+html[data-sk="orders"] .sk-variant[data-variant="orders"],
+html[data-sk="campaign"] .sk-variant[data-variant="campaign"] { display: block; }
+
+.sk-page { min-height: 100vh; padding-bottom: calc(57px + env(safe-area-inset-bottom)); background: #f5f5f7; color: #1d1d1f; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif; }
+.sk-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 0 12px; box-sizing: border-box; border-bottom: 1px solid #e3e3e8; background: #f5f5f7; }
+.sk-brand { font-size: 14px; font-weight: 600; }
+.sk-header-end { display: flex; align-items: center; gap: 12px; }
+.sk-back { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; color: #0066cc; font-size: 14px; text-decoration: none; }
+.sk-back span { font-size: 22px; line-height: 1; }
+
+.sk-tabbar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 10; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid rgb(0 0 0 / 8%); background: rgb(245 245 247 / 72%); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); }
+.sk-tabbar a { display: grid; justify-items: center; gap: 2px; min-height: 56px; padding: 6px 0 4px; box-sizing: border-box; color: #5c5c61; font-size: 12px; text-decoration: none; }
+.sk-tabbar a[aria-current="page"] { color: #0066cc; font-weight: 600; }
+
+.sk-block { display: block; height: 12px; border-radius: 6px; background: linear-gradient(90deg, #ececef 25%, #fafafc 50%, #ececef 75%); background-size: 200% 100%; animation: sk-sheen 1.4s ease-in-out infinite; }
+@keyframes sk-sheen { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .sk-block { animation: none; }
+}
+.sk-avatar { width: 32px; height: 32px; border-radius: 50%; }
+.sk-heading { width: 72px; height: 16px; margin-bottom: 12px; }
+.sk-title { width: 80%; height: 16px; }
+.sk-short { width: 36%; }
+.sk-bar { width: 100%; height: 6px; border-radius: 3px; }
+.sk-badge { width: 56px; height: 22px; border-radius: 999px; }
+.sk-box { height: 52px; border-radius: 12px; }
+.sk-picture { width: 100%; height: auto; aspect-ratio: 4 / 3; border-radius: 12px; }
+.sk-thumb { width: 104px; height: 104px; flex: none; border-radius: 12px; }
+
+.sk-list { width: min(100%, 1200px); margin: 0 auto; padding: 16px 12px; box-sizing: border-box; }
+.sk-cards { display: grid; gap: 12px; }
+.sk-card { display: flex; align-items: center; gap: 12px; min-height: 126px; padding: 10px; box-sizing: border-box; border: 1px solid #d2d2d7; border-radius: 18px; background: #fff; }
+.sk-lines { flex: 1; display: grid; gap: 10px; }
+.sk-campaign { display: grid; gap: 12px; width: min(100%, 1200px); margin: 0 auto; padding: 12px 12px 32px; box-sizing: border-box; }
+.sk-section { display: grid; gap: 12px; padding: 20px 12px; border: 1px solid #d2d2d7; border-radius: 18px; background: #fff; }
+.sk-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+
+@media (min-width: 1024px) {
+  .sk-page { padding-bottom: 0; }
+  .sk-header { min-height: 52px; padding: 0 16px; }
+  .sk-tabbar { position: static; display: flex; gap: 4px; padding: 0; border: 0; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .sk-tabbar a { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border-radius: 12px; font-size: 14px; }
+  .sk-tabbar a[aria-current="page"] { background: #e8f1fb; }
+  .sk-tabbar svg { width: 18px; height: 18px; }
+  .sk-list { padding: 20px 16px; }
+  .sk-cards { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+  .sk-campaign { padding: 20px 24px 32px; }
+  .sk-section { padding: 20px; }
+}
