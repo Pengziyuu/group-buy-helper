@@ -89,6 +89,22 @@ describe('OrdersSection', () => {
     expect(await screen.findByText('已複製')).toBeInTheDocument()
   })
 
+  it('draws each item quantity as a bar against the most-ordered item, custom items included', () => {
+    const withCustom = buildOrganizerOrderSummary({
+      orders: initialOrders.map((order, index) => index === 0 ? { ...order, customItems: [{ id: 'bag', name: '提袋', quantity: 7 }] } : order),
+      items: [...items, { code: 'Z', name: '沒人訂', unitPrice: 45 }],
+      threshold: 100,
+    })
+    renderOrders({ summary: withCustom })
+
+    const lines = within(screen.getByRole('list', { name: '品項數量', hidden: true })).getAllByRole('listitem', { hidden: true })
+    const bar = (text: RegExp) => (lines.find((line) => text.test(line.textContent ?? ''))?.querySelector('.organizer-item-bar span') as HTMLElement | null)?.style.width
+    // B (14) is the most ordered, so it fills the track; the rest are in proportion.
+    expect(bar(/花生/)).toBe('100%')
+    expect(bar(/提袋/)).toBe('50%')
+    expect(bar(/沒人訂/)).toBe('0%')
+  })
+
   it('copies item names without the spaces typed around them', async () => {
     const user = userEvent.setup()
     const spaced = buildOrganizerOrderSummary({
@@ -116,7 +132,8 @@ describe('OrdersSection', () => {
     const folded = screen.getByText('品項數量', { selector: 'summary' }).closest('details') as HTMLElement
     expect(folded.querySelector('summary')).toHaveTextContent('品項數量 10 項・合計 66 個')
     const lines = within(within(folded).getByRole('list', { name: '品項數量', hidden: true })).getAllByRole('listitem', { hidden: true })
-    expect(lines.at(-1)).toHaveTextContent('額外提袋4 個')
+    expect(lines.at(-1)).toHaveTextContent('提袋4 個')
+    expect(within(lines.at(-1) as HTMLElement).getByRole('img', { name: '額外品項', hidden: true })).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '複製品項數量' }))
     const copied = (await navigator.clipboard.readText()).split('\n')

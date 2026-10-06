@@ -35,6 +35,12 @@ export function OrderSummaryCard({ campaignTitle, summary, status, ordersToday }
   const threshold = usesAmount ? currency(summary.threshold) : `${summary.threshold} ${unit}`
   const surplus = usesAmount ? currency(summary.amount - summary.threshold) : `${summary.quantity - summary.threshold} ${unit}`
 
+  // Bars measure each item against the most-ordered one, custom items included.
+  const largest = Math.max(1, ...summary.itemRows.map((item) => item.quantity), ...summary.customItemRows.map((item) => item.quantity))
+  const bar = (quantity: number) => (
+    <span className="organizer-item-bar" aria-hidden="true"><span style={{ width: `${Math.round((quantity / largest) * 100)}%` }} /></span>
+  )
+
   const copyItems = async () => {
     try {
       await copyText(itemQuantitiesText(campaignTitle, summary))
@@ -86,13 +92,20 @@ export function OrderSummaryCard({ campaignTitle, summary, status, ordersToday }
             <li key={item.code} data-empty={item.quantity === 0 || undefined}>
               <span className="organizer-item-code">{item.label}</span>
               <span className="organizer-item-name">{item.name}</span>
+              {bar(item.quantity)}
               <strong className="ui-num">{item.quantity} {unit}</strong>
             </li>
           ))}
+          {/* Custom items carry the pencil residents see beside them, and an amber bar. */}
           {summary.customItemRows.map((item) => (
             <li key={`custom-${item.name}`} className="is-custom">
-              <span className="organizer-item-code">額外</span>
+              <span className="organizer-item-code" role="img" aria-label="額外品項">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M4 20h4L19 9l-4-4L4 16v4Zm9-13 4 4" />
+                </svg>
+              </span>
               <span className="organizer-item-name">{item.name}</span>
+              {bar(item.quantity)}
               <strong className="ui-num">{item.quantity} {unit}</strong>
             </li>
           ))}
