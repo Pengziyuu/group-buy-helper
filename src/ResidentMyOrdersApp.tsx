@@ -28,8 +28,6 @@ export type ResidentMyOrder = {
   items: { name: string; quantity: number; unitPrice: number }[]
   /** Unpriced items the resident added; the organizer settles them separately. */
   customItems: { name: string; quantity: number }[]
-  /** Whether the campaign reached its threshold; unknown when the campaign list could not be read. */
-  formed?: boolean
 }
 
 type ResidentMyOrdersAppProps = {
@@ -46,7 +44,6 @@ function byListOrder(left: ResidentMyOrder, right: ResidentMyOrder) {
 
 function OrderCard({ order, now }: { order: ResidentMyOrder; now: Date }) {
   const open = order.status === 'open'
-  const missed = !open && order.formed === false
   const { closing, arrival } = describeResidentSchedule(order, now)
   const quantity = order.items.reduce((sum, item) => sum + item.quantity, 0)
   const amount = order.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
@@ -57,7 +54,7 @@ function OrderCard({ order, now }: { order: ResidentMyOrder; now: Date }) {
         <div className="resident-my-order-title">
           <div>
             <h2>{order.title}</h2>
-            <StatusBadge tone={open ? 'success' : 'neutral'}>{open ? '開團中' : missed ? '未成團' : '已結單'}</StatusBadge>
+            <StatusBadge tone={open ? 'success' : 'neutral'}>{open ? '開團中' : '已結單'}</StatusBadge>
           </div>
           <p>{[closing?.line, arrival.line].filter(Boolean).join('・')}</p>
         </div>

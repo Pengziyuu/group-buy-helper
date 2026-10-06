@@ -26,16 +26,6 @@ function order(overrides: Partial<ResidentMyOrder> & Pick<ResidentMyOrder, 'slug
 const card = (title: string) => screen.getByRole('article', { name: title })
 
 describe('ResidentMyOrdersApp', () => {
-  it('says 未成團 for a closed campaign known to have missed its threshold, and 已結單 otherwise', () => {
-    render(<ResidentMyOrdersApp identity={identity} now={now} orders={[
-      order({ slug: 'missed', title: '沒成團的團', status: 'closed', formed: false, items: [{ name: 'A', quantity: 1, unitPrice: 1 }] }),
-      order({ slug: 'formed', title: '成團的團', status: 'closed', formed: true, items: [{ name: 'A', quantity: 1, unitPrice: 1 }] }),
-      order({ slug: 'unknown', title: '不知道的團', status: 'closed', items: [{ name: 'A', quantity: 1, unitPrice: 1 }] }),
-    ]} />)
-    expect(within(card('沒成團的團')).getByText('未成團')).toBeInTheDocument()
-    expect(within(card('成團的團')).getByText('已結單')).toBeInTheDocument()
-    expect(within(card('不知道的團')).getByText('已結單')).toBeInTheDocument()
-  })
 
   it('lists each order with its items, subtotals and total, open campaigns first', () => {
     render(<ResidentMyOrdersApp identity={identity} now={now} orders={[

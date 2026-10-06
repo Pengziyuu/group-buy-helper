@@ -185,16 +185,12 @@ describe('local Supabase visual demo apps', () => {
       session: { access_token: 'resident-access', user: { id: 'resident-uid' } },
       identity: { displayName: '彭梓育', pictureUrl: null },
     })
-    const myOrder = {
+    const orders = vi.fn().mockResolvedValue([{
       slug: 'abcd1234', title: '早餐團購', status: 'open' as const, openedAt: '2026-08-14T08:00:00.000Z', orderedAt: '2026-08-14T09:00:00.000Z',
       images: [], quantityUnit: '個' as const, arrivalLabel: '貨到通知', autoCloseAt: null, thresholdKind: 'quantity' as const,
       thresholdAutoClose: true, closedAt: null, items: [{ name: '蛋餅', quantity: 2, unitPrice: 40 }], customItems: [],
-    }
-    const orders = vi.fn().mockResolvedValue([myOrder, { ...myOrder, slug: 'efgh5678', title: '午餐團購', status: 'closed' as const }])
-    // The campaign list says which closed campaigns missed their threshold.
-    const list = vi.fn().mockResolvedValue([
-      { slug: 'efgh5678', title: '午餐團購', status: 'closed' as const, unitPrice: 40, openedAt: '2026-08-14T08:00:00.000Z', totalQuantity: 3, threshold: 10 },
-    ])
+    }])
+    const list = vi.fn()
     const liffClient: LiffClient = {
       init: vi.fn().mockResolvedValue(undefined),
       isLoggedIn: vi.fn().mockReturnValue(true),
@@ -215,43 +211,8 @@ describe('local Supabase visual demo apps', () => {
 
     expect(await screen.findByRole('heading', { name: '我的訂單' })).toBeInTheDocument()
     expect(screen.getByRole('article', { name: '早餐團購' })).toHaveTextContent('合計 2 個・$80')
-    expect(within(screen.getByRole('article', { name: '午餐團購' })).getByText('未成團')).toBeInTheDocument()
     expect(signIn).toHaveBeenCalledWith('trusted-line-id-token')
-    expect(list).toHaveBeenCalledOnce()
-  })
-
-  it('still shows the resident their orders when the campaign list cannot be read, just without 未成團', async () => {
-    const { client } = authClient()
-    const signIn = vi.fn().mockResolvedValue({
-      session: { access_token: 'resident-access', user: { id: 'resident-uid' } },
-      identity: { displayName: '彭梓育', pictureUrl: null },
-    })
-    const orders = vi.fn().mockResolvedValue([{
-      slug: 'efgh5678', title: '午餐團購', status: 'closed' as const, openedAt: '2026-08-14T08:00:00.000Z', orderedAt: '2026-08-14T09:00:00.000Z',
-      images: [], quantityUnit: '個' as const, arrivalLabel: '貨到通知', autoCloseAt: null, thresholdKind: 'quantity' as const,
-      thresholdAutoClose: true, closedAt: null, items: [{ name: '便當', quantity: 1, unitPrice: 90 }], customItems: [],
-    }])
-    const liffClient: LiffClient = {
-      init: vi.fn().mockResolvedValue(undefined),
-      isLoggedIn: vi.fn().mockReturnValue(true),
-      login: vi.fn(),
-      getProfile: vi.fn().mockResolvedValue({ userId: 'not-trusted', displayName: '前端名稱' }),
-      getIDToken: vi.fn().mockReturnValue('trusted-line-id-token'),
-    }
-
-    render(<LocalLiveResidentApp
-      client={client}
-      liffId="2011099887-Resident"
-      liffClient={liffClient}
-      lineResidentGateway={{ signIn }}
-      residentListRepository={{ list: vi.fn().mockRejectedValue(new Error('network')) }}
-      residentOrdersRepository={{ list: orders }}
-      page="orders"
-    />)
-
-    const card = await screen.findByRole('article', { name: '午餐團購' })
-    expect(within(card).getByText('已結單')).toBeInTheDocument()
-    expect(screen.queryByText('無法載入住戶入口')).not.toBeInTheDocument()
+    expect(list).not.toHaveBeenCalled()
   })
 
   it('restores a verified resident session without reopening LINE OAuth', async () => {
