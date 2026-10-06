@@ -33,6 +33,7 @@ import {
 import './components/resident/resident.css'
 import { MY_ORDER_SECTION_ID } from './routing'
 import { useWideLayout } from './components/resident/useWideLayout'
+import { useHiddenWhileScrollingDown } from './components/resident/useHiddenWhileScrollingDown'
 
 const defaultContent: CampaignContent = {
   title: campaign.title,
@@ -239,6 +240,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', camp
   // Before a first order the bar offers a jump to the items; its label already says what to do. On wide
   // screens the bar closes the order card right under the items, so it keeps the plain 送出訂單 there.
   const wideLayout = useWideLayout()
+  const headerHidden = useHiddenWhileScrollingDown()
   const offerChooseItems = controlsEditable && !hasDraftItems && !hasSubmittedOrder && !wideLayout
   const chooseItems = () => {
     const container = orderItemsRef.current
@@ -372,7 +374,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', camp
   // is-ordering reserves room for the fixed order bar, which a closed campaign no longer shows.
   return (
     <div className={`resident-page${currentResident && editable ? ' is-ordering' : ''}`}>
-      <header className="resident-topbar">
+      <header className="resident-topbar" data-hidden={headerHidden || undefined}>
         <a className="resident-back-link" href="/"><span aria-hidden="true">‹</span>全部團購</a>
       </header>
       {syncError && (

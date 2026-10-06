@@ -108,7 +108,9 @@
 
 /* The order bar is fixed to the bottom on phones and sits inside the order rail on desktop (Task 7). */
 /* Solid rather than frosted: totals and the submit button sit on top of photos while scrolling. */
-.resident-order-bar { position: fixed; right: 0; bottom: 0; left: 0; background: var(--color-surface); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: 0 -4px 16px rgb(0 0 0 / 6%); }
+/* Doubled class: ui-sticky-action (sticky inside its section) has the same weight and, in the production
+   bundle, loads later; this bar is meant to stay along the bottom of the screen on phones. */
+.ui-sticky-action.resident-order-bar { position: fixed; right: 0; bottom: 0; left: 0; background: var(--color-surface); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: 0 -4px 16px rgb(0 0 0 / 6%); }
 .resident-order-bar-row { display: flex; align-items: center; gap: var(--space-2); width: min(100%, 1200px); margin: 0 auto; }
 .resident-order-bar-total { flex: 1; min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; column-gap: var(--space-2); }
 .resident-order-bar-label { grid-column: 1 / -1; color: var(--color-text-secondary); font-size: var(--font-size-caption); }
@@ -196,7 +198,7 @@
   .resident-info-body { gap: var(--space-4); margin-top: var(--space-4); }
   .resident-info .ui-gallery-main { border: 1px solid var(--color-border); }
   .resident-product-row { padding-block: var(--space-3); }
-  .resident-order-bar { padding: var(--space-2) var(--space-3); padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom)); }
+  .ui-sticky-action.resident-order-bar { padding: var(--space-2) var(--space-3); padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom)); }
   .resident-custom-item-row { grid-template-columns: minmax(0, 1fr) auto; }
   .resident-custom-item-row label { grid-column: 1 / -1; }
 }
@@ -214,7 +216,7 @@
   .resident-info-body[data-has-images="true"] { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
   .resident-order { position: sticky; top: 68px; display: flex; flex-direction: column; max-height: calc(100vh - 84px); }
   .resident-order-items { min-height: 0; overflow-y: auto; padding-inline: 4px; margin-inline: -4px; }
-  .resident-order-bar { position: static; margin: var(--space-3) calc(var(--space-5) * -1) calc(var(--space-5) * -1); border-radius: 0 0 var(--radius-surface) var(--radius-surface); box-shadow: none; }
+  .ui-sticky-action.resident-order-bar { position: static; margin: var(--space-3) calc(var(--space-5) * -1) calc(var(--space-5) * -1); border-radius: 0 0 var(--radius-surface) var(--radius-surface); box-shadow: none; }
   .resident-order-bar-row,
   .resident-order-bar-note,
   .resident-order-bar-hint { width: auto; }
@@ -281,6 +283,15 @@
   .resident-campaign-grid[data-group="closed"] .resident-campaign-ordered { bottom: -6px; left: 50%; max-width: none; padding: 0 5px; transform: translateX(-50%); }
   .resident-page.has-tabbar .resident-topbar { background: var(--color-sticky-bg); -webkit-backdrop-filter: var(--blur-sticky); backdrop-filter: var(--blur-sticky); }
   .resident-my-orders { margin-inline: auto; }
+}
+
+/* The campaign page header slides away while reading down and returns on scroll up, like the tab bar. */
+@media (max-width: 1023px) {
+  .resident-page:not(.has-tabbar) .resident-topbar { transition: transform 0.2s ease; }
+  .resident-page:not(.has-tabbar) .resident-topbar[data-hidden="true"]:not(:focus-within) { transform: translateY(-100%); }
+}
+@media (max-width: 1023px) and (prefers-reduced-motion: reduce) {
+  .resident-page:not(.has-tabbar) .resident-topbar { transition: none; }
 }
 
 /* Jumped to from my orders: clear the sticky header. */
