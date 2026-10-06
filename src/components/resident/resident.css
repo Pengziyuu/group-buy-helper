@@ -223,3 +223,54 @@
 }
 
 .resident-custom-item-row .ui-quantity-control { justify-self: start; }
+
+/* Page tabs: 團購 and 我的訂單. A fixed bar along the bottom on phones and tablets (thumb reach);
+   beside the account menu once the header has room. The campaign page has its own order bar there,
+   so only the list and my orders carry the tabs. */
+.resident-topbar-end { display: flex; align-items: center; gap: var(--space-3); }
+.resident-tabbar { position: fixed; right: 0; bottom: 0; left: 0; z-index: var(--z-sticky); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid var(--color-border); background: var(--color-sticky-bg); -webkit-backdrop-filter: var(--blur-sticky); backdrop-filter: var(--blur-sticky); }
+.resident-tabbar a { display: grid; justify-items: center; gap: 2px; min-height: 56px; padding: 6px 0 4px; color: var(--color-text-secondary); font-size: var(--font-size-caption); text-decoration: none; }
+.resident-tabbar a[aria-current="page"] { color: var(--color-primary); font-weight: var(--font-weight-strong); }
+.resident-tabbar a:focus-visible { outline: 2px solid var(--color-focus); outline-offset: -4px; }
+.resident-page.has-tabbar { padding-bottom: calc(57px + env(safe-area-inset-bottom)); }
+/* A backdrop filter makes the header the containing block of fixed children, which would pin the
+   tab bar under the header instead of the screen; these pages use a solid header until 1024px. */
+.resident-page.has-tabbar .resident-topbar { background: var(--color-bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
+
+/* The ordered mark sits on the picture, so ordered and unordered cards keep the same height. */
+.resident-campaign-thumb { position: relative; }
+.resident-campaign-ordered { position: absolute; bottom: 4px; left: 4px; max-width: calc(100% - 8px); overflow: hidden; padding: 1px 7px; border-radius: var(--radius-pill); background: var(--color-primary); color: var(--color-on-primary); font-size: 11px; font-weight: var(--font-weight-strong); line-height: 18px; white-space: nowrap; text-overflow: ellipsis; }
+.resident-campaign-row[data-status="closed"] .resident-campaign-ordered { background: var(--color-text-secondary); }
+
+/* My orders: one card per campaign the household ordered from. */
+.resident-my-orders { display: grid; gap: var(--space-3); max-width: 720px; }
+.resident-my-orders h1 { margin: 0; font-size: 18px; font-weight: var(--font-weight-strong); }
+.resident-my-order { display: grid; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-surface); background: var(--color-surface); }
+.resident-my-order-head { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: var(--space-3); align-items: start; }
+.resident-my-order .resident-campaign-thumb { width: 56px; height: 56px; }
+.resident-my-order-title { display: grid; gap: 2px; min-width: 0; }
+.resident-my-order-title > div { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-2); }
+.resident-my-order-title h2 { margin: 0; font-size: 15px; font-weight: var(--font-weight-strong); line-height: 1.4; overflow-wrap: anywhere; }
+.resident-my-order-title .ui-status-badge { flex: none; }
+.resident-my-order-title p { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-dense); }
+.resident-my-order-items { display: grid; gap: 2px; margin: 0; padding: var(--space-2) 0 0; border-top: 1px solid var(--color-border); list-style: none; font-size: var(--font-size-dense); }
+.resident-my-order-items li { display: flex; justify-content: space-between; gap: var(--space-3); }
+.resident-my-order-items li.is-custom { color: var(--color-text-secondary); }
+.resident-my-order-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.resident-my-order-foot strong { font-size: var(--font-size-dense); font-weight: var(--font-weight-strong); }
+.resident-my-order-foot a { display: inline-flex; align-items: center; min-height: var(--touch-target); margin-left: auto; color: var(--color-primary); font-size: var(--font-size-dense); text-decoration: none; }
+
+@media (min-width: 1024px) {
+  .resident-tabbar { position: static; display: flex; gap: var(--space-1); padding: 0; border: 0; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .resident-tabbar a { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 var(--space-3); border-radius: var(--radius-control); font-size: var(--font-size-dense); }
+  .resident-tabbar a[aria-current="page"] { background: var(--color-primary-subtle); }
+  .resident-tabbar svg { width: 18px; height: 18px; }
+  .resident-page.has-tabbar { padding-bottom: 0; }
+  /* Closed rows shrink the picture to 48px; keep the whole mark readable rather than cut to 已…. */
+  .resident-campaign-grid[data-group="closed"] .resident-campaign-thumb { overflow: visible; }
+  .resident-campaign-grid[data-group="closed"] .resident-campaign-thumb img,
+  .resident-campaign-grid[data-group="closed"] .resident-campaign-thumb-empty { border-radius: var(--radius-control); }
+  .resident-campaign-grid[data-group="closed"] .resident-campaign-ordered { bottom: -6px; left: 50%; max-width: none; padding: 0 5px; transform: translateX(-50%); }
+  .resident-page.has-tabbar .resident-topbar { background: var(--color-sticky-bg); -webkit-backdrop-filter: var(--blur-sticky); backdrop-filter: var(--blur-sticky); }
+  .resident-my-orders { margin-inline: auto; }
+}

@@ -75,6 +75,7 @@ export type Database = {
           announcement: string
           arrival_label: string
           auto_close_at: string | null
+          closed_at: string | null
           base_discount_rate: number
           community_id: string
           created_at: string
@@ -102,6 +103,7 @@ export type Database = {
           announcement?: string
           arrival_label?: string
           auto_close_at?: string | null
+          closed_at?: string | null
           base_discount_rate?: number
           community_id?: string
           created_at?: string
@@ -129,6 +131,7 @@ export type Database = {
           announcement?: string
           arrival_label?: string
           auto_close_at?: string | null
+          closed_at?: string | null
           base_discount_rate?: number
           community_id?: string
           created_at?: string
@@ -1263,6 +1266,7 @@ export type Database = {
           announcement: string | null
           arrival_label: string | null
           auto_close_at: string | null
+          closed_at: string | null
           base_discount_rate: number | null
           created_at: string | null
           deadline: string | null
@@ -1289,6 +1293,7 @@ export type Database = {
           announcement?: string | null
           arrival_label?: string | null
           auto_close_at?: string | null
+          closed_at?: string | null
           base_discount_rate?: number | null
           created_at?: string | null
           deadline?: string | null
@@ -1315,6 +1320,7 @@ export type Database = {
           announcement?: string | null
           arrival_label?: string | null
           auto_close_at?: string | null
+          closed_at?: string | null
           base_discount_rate?: number | null
           created_at?: string | null
           deadline?: string | null
@@ -1804,6 +1810,7 @@ export type Database = {
           threshold_auto_close: boolean
           arrival_label: string
           auto_close_at: string
+          closed_at: string
           created_at: string
           id: string
           images: Json
@@ -1821,6 +1828,24 @@ export type Database = {
           updated_at: string
         }[]
       }
+      list_my_orders: {
+        Args: never
+        Returns: {
+          auto_close_at: string
+          campaign_slug: string
+          closed_at: string
+          custom_items: Json
+          images: Json
+          items: Json
+          opened_at: string
+          quantity_unit: string
+          arrival_label: string
+          status: string
+          threshold_auto_close: boolean
+          threshold_kind: string
+          title: string
+        }[]
+      }
       list_pickup_notification_test_campaigns: {
         Args: never
         Returns: {
@@ -1835,8 +1860,12 @@ export type Database = {
           threshold_auto_close: boolean
           arrival_label: string
           auto_close_at: string
+          closed_at: string
           images: Json
+          my_has_order: boolean
+          my_quantity: number
           opened_at: string
+          order_household_count: number
           quantity_unit: string
           slug: string
           status: string

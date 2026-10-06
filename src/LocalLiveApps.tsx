@@ -6,6 +6,8 @@ import ResidentCampaignListApp, {
   type ResidentCampaignListItem,
   type ResidentLineIdentity,
 } from './ResidentCampaignListApp'
+import ResidentMyOrdersApp, { type ResidentMyOrder } from './ResidentMyOrdersApp'
+import { residentMyOrdersRepository, type ResidentMyOrdersRepository } from './services/residentMyOrders'
 import ResidentMemberManagementApp from './ResidentMemberManagementApp'
 import { CampaignWorkspace } from './components/organizer/CampaignWorkspace'
 import { OrdersSection } from './components/organizer/OrdersSection'
@@ -133,6 +135,9 @@ type LocalLiveResidentAppProps = {
   liffClient?: LiffClient
   lineResidentGateway?: { signIn(idToken: string): Promise<LineResidentSignInResult> }
   residentListRepository?: LiveResidentListRepository
+  residentOrdersRepository?: ResidentMyOrdersRepository
+  /** The resident's own orders instead of the campaign list. */
+  page?: 'orders'
 }
 
 export type LiveResidentListRepository = {
@@ -1242,6 +1247,10 @@ function residentCampaignListRepository(client: SupabaseClient<Database>): LiveR
           images: Array.isArray(row.images) ? row.images.filter(isCampaignImage) : [],
           arrivalLabel: row.arrival_label ?? '貨到通知',
           autoCloseAt: row.auto_close_at ?? null,
+          closedAt: row.closed_at ?? null,
+          myQuantity: Number(row.my_quantity ?? 0),
+          myHasOrder: row.my_has_order === true,
+          orderHouseholdCount: Number(row.order_household_count ?? 0),
         }]
       })
     },
@@ -1276,9 +1285,12 @@ function LocalLiveResidentListApp({
   liffClient,
   lineResidentGateway,
   residentListRepository,
+  residentOrdersRepository,
+  page,
 }: LocalLiveResidentAppProps) {
   const [identity, setIdentity] = useState<ResidentLineIdentity | null>(null)
   const [campaigns, setCampaigns] = useState<ResidentCampaignListItem[] | null>(null)
+  const [orders, setOrders] = useState<ResidentMyOrder[] | null>(null)
   const [error, setError] = useState('')
   const [admissionError, setAdmissionError] = useState<ResidentAdmissionError | null>(null)
   const [attempt, setAttempt] = useState(0)
@@ -1288,6 +1300,14 @@ function LocalLiveResidentListApp({
     const initialize = async () => {
       const trustedIdentity = await authenticateResident({ client, liffId, liffClient, lineResidentGateway }, attempt > 0)
       if (!trustedIdentity || !active) return
+      if (page === 'orders') {
+        const nextOrders = await (residentOrdersRepository ?? residentMyOrdersRepository(client)).list()
+        if (active) {
+          setIdentity(trustedIdentity)
+          setOrders(nextOrders)
+        }
+        return
+      }
       const nextCampaigns = await (residentListRepository ?? residentCampaignListRepository(client)).list()
       if (active) {
         setIdentity(trustedIdentity)
@@ -1300,33 +1320,34 @@ function LocalLiveResidentListApp({
       else setError(errorMessage(loadError))
     })
     return () => { active = false }
-  }, [client, liffClient, liffId, lineResidentGateway, residentListRepository, attempt])
+  }, [client, liffClient, liffId, lineResidentGateway, residentListRepository, residentOrdersRepository, page, attempt])
 
   if (admissionError) return <ResidentAdmissionPrompt error={admissionError} onRetry={() => {
     setAdmissionError(null)
     setAttempt((current) => current + 1)
   }} />
   if (error) return <LiveError message={error} title="無法載入住戶入口" />
+  const logout = async () => {
+    const { error: remoteError } = await client.auth.signOut()
+    if (remoteError) {
+      await client.auth.signOut({ scope: 'local' })
+      setIdentity(null)
+      setCampaigns([])
+      setOrders([])
+      setError('遠端登出失敗，但已清除此裝置的登入狀態')
+      return
+    }
+    setIdentity(null)
+    setCampaigns([])
+    setOrders([])
+    setError('已登出，請重新開啟住戶 LINE 入口')
+  }
+  if (page === 'orders') {
+    if (!identity || !orders) return <LiveLoading label="確認 LINE 住戶身分並載入我的訂單…" />
+    return <ResidentMyOrdersApp identity={identity} orders={orders} onLogout={logout} />
+  }
   if (!identity || !campaigns) return <LiveLoading label="確認 LINE 住戶身分並載入開團列表…" />
-  return (
-    <ResidentCampaignListApp
-      identity={identity}
-      campaigns={campaigns}
-      onLogout={async () => {
-        const { error: remoteError } = await client.auth.signOut()
-        if (remoteError) {
-          await client.auth.signOut({ scope: 'local' })
-          setIdentity(null)
-          setCampaigns([])
-          setError('遠端登出失敗，但已清除此裝置的登入狀態')
-          return
-        }
-        setIdentity(null)
-        setCampaigns([])
-        setError('已登出，請重新開啟住戶 LINE 入口')
-      }}
-    />
-  )
+  return <ResidentCampaignListApp identity={identity} campaigns={campaigns} onLogout={logout} />
 }
 
 async function loadRestoredResidentIdentity(client: SupabaseClient<Database>): Promise<ResidentLineIdentity | null> {
@@ -1377,6 +1398,7 @@ async function ensureResidentSession(client: SupabaseClient<Database>, allowAnon
 function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug, liffId, liffClient, lineResidentGateway }: LocalLiveResidentAppProps & { campaignSlug: string }) {
   const [content, setContent] = useState<CampaignContent | null>(null)
   const [campaignStatus, setCampaignStatus] = useState<CampaignStatus | null>(null)
+  const [campaignClosedAt, setCampaignClosedAt] = useState<string | null>(null)
   const [orders, setOrders] = useState<VisibleOrder[]>([])
   const [residentCustomer, setResidentCustomer] = useState<ResidentCustomer | null | undefined>(undefined)
   const [residentIdentity, setResidentIdentity] = useState<ResidentLineIdentity | null>(null)
@@ -1420,13 +1442,14 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug, liffId
       if (!resolvedCampaignId) throw new Error('找不到團購活動')
       const { data, error: queryError } = await client
         .from('campaign_public')
-        .select('title,unit_price,threshold,threshold_kind,amount_threshold,threshold_auto_close,quantity_unit,allow_custom_items,base_discount_rate,mix_match_name,mix_match_min_quantity,mix_match_discount_rate,arrival_label,auto_close_at,announcement,images,items,opened_at,status')
+        .select('title,unit_price,threshold,threshold_kind,amount_threshold,threshold_auto_close,quantity_unit,allow_custom_items,base_discount_rate,mix_match_name,mix_match_min_quantity,mix_match_discount_rate,arrival_label,auto_close_at,closed_at,announcement,images,items,opened_at,status')
         .eq('id', resolvedCampaignId)
         .single()
       if (queryError) throw queryError
       if (active && (generation === undefined || generation === publishedGeneration)) {
         setContent(campaignContentFromRow(data))
         setCampaignStatus(campaignStatusFromRow(data))
+        setCampaignClosedAt(typeof data.closed_at === 'string' ? data.closed_at : null)
       }
     }
 
@@ -1571,6 +1594,7 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug, liffId
     <App
       publishedContent={content}
       campaignStatus={campaignStatus}
+      campaignClosedAt={campaignClosedAt}
       liveDemo
       visibleOrders={orders}
       residentCustomer={residentCustomer}
@@ -1642,7 +1666,7 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug, liffId
 }
 
 export function LocalLiveResidentApp(props: LocalLiveResidentAppProps) {
-  if (!props.campaignSlug && !props.campaignId) return <LocalLiveResidentListApp {...props} />
+  if (props.page === 'orders' || (!props.campaignSlug && !props.campaignId)) return <LocalLiveResidentListApp {...props} />
   if (!props.campaignSlug) return <LiveError message="找不到團購分享連結" />
   return <LocalLiveResidentCampaignApp {...props} campaignSlug={props.campaignSlug} />
 }

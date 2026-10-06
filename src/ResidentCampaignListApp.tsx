@@ -6,6 +6,7 @@ import { Menu } from './components/ui/Menu'
 import { ProgressBar } from './components/ui/ProgressBar'
 import { formatMoney } from './components/resident/residentFormat'
 import { describeResidentSchedule } from './components/resident/residentSchedule'
+import { ResidentTabBar, type ResidentTab } from './components/resident/ResidentTabBar'
 import type { CampaignStatus } from './domain/orderWorkflow'
 import { residentCampaignPath } from './routing'
 import { normalizeQuantityUnit, type QuantityUnit } from './domain/quantityUnit'
@@ -33,6 +34,13 @@ export type ResidentCampaignListItem = {
   images?: CampaignImage[]
   arrivalLabel?: string
   autoCloseAt?: string | null
+  closedAt?: string | null
+  /** The signed-in household's formal-item quantity; custom items do not count, as on the progress bar. */
+  myQuantity?: number
+  /** Whether the household ordered anything, custom items included. */
+  myHasOrder?: boolean
+  /** Households that ordered anything; emptied orders do not count. */
+  orderHouseholdCount?: number
 }
 
 type ResidentCampaignListAppProps = {
@@ -62,7 +70,7 @@ function campaignProgress(campaign: ResidentCampaignListItem) {
   }
 }
 
-function CampaignThumbnail({ campaign }: { campaign: ResidentCampaignListItem }) {
+export function CampaignThumbnail({ campaign, ordered }: { campaign: Pick<ResidentCampaignListItem, 'title' | 'images'>; ordered?: string }) {
   const [failed, setFailed] = useState(false)
   const image = campaign.images?.[0]
   return (
@@ -70,6 +78,8 @@ function CampaignThumbnail({ campaign }: { campaign: ResidentCampaignListItem })
       {image?.src && !failed
         ? <img src={image.src} alt={image.alt || `${campaign.title}商品圖片`} loading="lazy" onError={() => setFailed(true)} />
         : <div className="resident-campaign-thumb-empty" role="img" aria-label={`${campaign.title}尚未設定商品圖片`}>無圖片</div>}
+      {/* On the picture rather than in its own line, so ordered and unordered cards keep one height. */}
+      {ordered && <span className="resident-campaign-ordered">{ordered}</span>}
     </div>
   )
 }
@@ -79,9 +89,11 @@ function CampaignRow({ campaign, now }: { campaign: ResidentCampaignListItem; no
   const progress = campaignProgress(campaign)
   const formed = progress.value >= progress.target
   const { closing, arrival } = describeResidentSchedule(campaign, now)
+  const ordered = campaign.myHasOrder ? (campaign.myQuantity ? `已訂 ${campaign.myQuantity}` : '已訂') : undefined
+  const households = campaign.orderHouseholdCount ? `・${campaign.orderHouseholdCount} 人` : ''
   return (
     <article className="resident-campaign-row" data-status={open ? 'open' : 'closed'}>
-      <CampaignThumbnail campaign={campaign} />
+      <CampaignThumbnail campaign={campaign} ordered={ordered} />
       <div className="resident-campaign-row-body">
         <h3><a href={residentCampaignPath(campaign.slug)}>{campaign.title}</a></h3>
         {/* Closed cards sit under the 已結單 heading, so they carry no status badge of their own. */}
@@ -91,7 +103,7 @@ function CampaignRow({ campaign, now }: { campaign: ResidentCampaignListItem; no
           <span className="resident-campaign-fact">{arrival.line}</span>
         </p>
         <p className="resident-campaign-progress-text">
-          {progress.text}
+          {progress.text}{households}
           {formed && <span className="resident-campaign-formed">{open ? '已成團，仍可下單' : '已成團'}</span>}
         </p>
         <ProgressBar label={`${campaign.title}成團進度`} value={progress.value} max={progress.target} formed={formed} />
@@ -117,6 +129,19 @@ function ResidentAccount({ identity, onLogout }: { identity: ResidentLineIdentit
   )
 }
 
+/** Shared by the campaign list and my orders: brand, the page tabs and the LINE account menu. */
+export function ResidentTopbar({ identity, onLogout, current }: { identity: ResidentLineIdentity; onLogout?: () => void | Promise<void>; current: ResidentTab }) {
+  return (
+    <header className="resident-topbar">
+      <span className="resident-topbar-brand">團購小幫手</span>
+      <div className="resident-topbar-end">
+        <ResidentTabBar current={current} />
+        <ResidentAccount identity={identity} onLogout={onLogout} />
+      </div>
+    </header>
+  )
+}
+
 export default function ResidentCampaignListApp({ identity, campaigns, onLogout, now = new Date() }: ResidentCampaignListAppProps) {
   const [showAllClosed, setShowAllClosed] = useState(false)
   const openCampaigns = campaigns.filter((campaign) => campaign.status === 'open').sort(byNewestOpening)
@@ -125,11 +150,8 @@ export default function ResidentCampaignListApp({ identity, campaigns, onLogout,
   const hiddenClosedCount = closedCampaigns.length - visibleClosed.length
 
   return (
-    <div className="resident-page">
-      <header className="resident-topbar">
-        <span className="resident-topbar-brand">團購小幫手</span>
-        <ResidentAccount identity={identity} onLogout={onLogout} />
-      </header>
+    <div className="resident-page has-tabbar">
+      <ResidentTopbar identity={identity} onLogout={onLogout} current="campaigns" />
       <main className="resident-list">
         <h1 className="ui-visually-hidden">團購</h1>
         {campaigns.length === 0 && <EmptyState title="目前還沒有團購" description="團主開團後會出現在這裡。" />}

@@ -43,6 +43,7 @@ export function demoScenarioOrganizerListItem(scenario: DemoResidentScenario): C
     amountThreshold: item.amountThreshold ?? null,
     arrivalLabel: item.arrivalLabel,
     autoCloseAt: item.autoCloseAt ?? null,
+    closedAt: item.closedAt ?? null,
   }
 }
 

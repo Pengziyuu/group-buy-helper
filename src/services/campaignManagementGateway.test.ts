@@ -32,6 +32,7 @@ describe('campaign management gateway', () => {
       thresholdKind: 'amount', threshold: 20, amountThreshold: 1500, thresholdAutoClose: false,
       arrivalLabel: '貨到通知',
       autoCloseAt: null,
+      closedAt: null,
     }])
     await expect(gateway.create('新的團購')).resolves.toEqual(expect.objectContaining({ id: 'campaign-1' }))
     expect(rpc).toHaveBeenNthCalledWith(1, 'list_admin_campaign_cards')

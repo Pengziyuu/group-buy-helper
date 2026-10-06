@@ -69,6 +69,9 @@ function RuntimeRoutes({ config, pathname, search, client, liffClient }: Runtime
     if (appRoute.kind === 'resident-invite' && config.mode === 'live' && config.residentLiffId) {
       return <LocalLiveResidentApp client={client} liffId={config.residentLiffId} liffClient={liffClient} />
     }
+    if (appRoute.kind === 'resident-orders' && config.mode === 'live' && config.residentLiffId) {
+      return <LocalLiveResidentApp client={client} liffId={config.residentLiffId} liffClient={liffClient} page="orders" />
+    }
     if (appRoute.kind === 'resident-default' && config.mode === 'live' && config.residentLiffId) {
       return <LocalLiveResidentApp client={client} liffId={config.residentLiffId} liffClient={liffClient} />
     }

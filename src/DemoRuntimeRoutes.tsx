@@ -12,8 +12,9 @@ import ResidentMemberManagementApp from './ResidentMemberManagementApp'
 import { parseAppRoute, parseResidentFilter, residentCampaignPath, type WorkspaceSection } from './routing'
 import { EmptyState } from './components/ui/AsyncState'
 import ResidentCampaignListApp from './ResidentCampaignListApp'
+import ResidentMyOrdersApp from './ResidentMyOrdersApp'
 import { DemoResidentScenarioApp } from './DemoResidentScenarioApp'
-import { demoResidentScenarios, demoScenarioListItem } from './data/demoResidentScenarios'
+import { demoResidentScenarios, demoScenarioListItem, demoScenarioMyOrder } from './data/demoResidentScenarios'
 import { demoDraftCampaign, demoOrganizerMembers, demoScenarioOrganizerId, demoScenarioOrganizerListItem } from './data/demoOrganizerScenarios'
 import { DemoOrganizerDraftWorkspace, DemoOrganizerScenarioWorkspace } from './DemoOrganizerScenarioWorkspace'
 import { campaign, initialOrders, items } from './data/demo'
@@ -225,6 +226,14 @@ export default function DemoRuntimeRoutes({ pathname, search }: { pathname: stri
           },
           ...demoScenarios.map(demoScenarioListItem),
         ]}
+      />
+    )
+  }
+  if (appRoute.kind === 'resident-orders') {
+    return (
+      <ResidentMyOrdersApp
+        identity={{ displayName: '測試住戶', pictureUrl: null }}
+        orders={demoScenarios.flatMap((scenario) => demoScenarioMyOrder(scenario) ?? [])}
       />
     )
   }

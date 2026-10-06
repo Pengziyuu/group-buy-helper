@@ -176,6 +176,42 @@ describe('local Supabase visual demo apps', () => {
     expect(await screen.findByText('已登出，請重新開啟住戶 LINE 入口')).toBeInTheDocument()
   })
 
+  it('shows the resident their own orders on the orders page after LINE sign-in', async () => {
+    const { client } = authClient()
+    const signIn = vi.fn().mockResolvedValue({
+      session: { access_token: 'resident-access', user: { id: 'resident-uid' } },
+      identity: { displayName: '彭梓育', pictureUrl: null },
+    })
+    const orders = vi.fn().mockResolvedValue([{
+      slug: 'abcd1234', title: '早餐團購', status: 'open' as const, openedAt: '2026-08-14T08:00:00.000Z',
+      images: [], quantityUnit: '個' as const, arrivalLabel: '貨到通知', autoCloseAt: null, thresholdKind: 'quantity' as const,
+      thresholdAutoClose: true, closedAt: null, items: [{ name: '蛋餅', quantity: 2, unitPrice: 40 }], customItems: [],
+    }])
+    const list = vi.fn()
+    const liffClient: LiffClient = {
+      init: vi.fn().mockResolvedValue(undefined),
+      isLoggedIn: vi.fn().mockReturnValue(true),
+      login: vi.fn(),
+      getProfile: vi.fn().mockResolvedValue({ userId: 'not-trusted', displayName: '前端名稱' }),
+      getIDToken: vi.fn().mockReturnValue('trusted-line-id-token'),
+    }
+
+    render(<LocalLiveResidentApp
+      client={client}
+      liffId="2011099887-Resident"
+      liffClient={liffClient}
+      lineResidentGateway={{ signIn }}
+      residentListRepository={{ list }}
+      residentOrdersRepository={{ list: orders }}
+      page="orders"
+    />)
+
+    expect(await screen.findByRole('heading', { name: '我的訂單' })).toBeInTheDocument()
+    expect(screen.getByRole('article', { name: '早餐團購' })).toHaveTextContent('合計 2 個・$80')
+    expect(signIn).toHaveBeenCalledWith('trusted-line-id-token')
+    expect(list).not.toHaveBeenCalled()
+  })
+
   it('restores a verified resident session without reopening LINE OAuth', async () => {
     const session = { access_token: 'resident-access', user: { id: 'resident-uid', is_anonymous: false } }
     const { client } = authClient(session)

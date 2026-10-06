@@ -31,6 +31,9 @@ describe('app routing', () => {
     expect(parseAppRoute(`/campaign/${campaignSlug}`)).toEqual({ kind: 'resident-campaign', campaignSlug })
     expect(parseAppRoute(`/join/${inviteSlug}`)).toEqual({ kind: 'resident-invite', inviteSlug })
     expect(parseAppRoute('/')).toEqual({ kind: 'resident-default' })
+    expect(parseAppRoute('/orders')).toEqual({ kind: 'resident-orders' })
+    expect(parseAppRoute('/orders/')).toEqual({ kind: 'resident-orders' })
+    expect(selectAppMode('/orders')).toBe('resident')
   })
 
   it('opens campaigns at the short /c/ address with either the new 8-character code or an existing 36-character one', () => {
