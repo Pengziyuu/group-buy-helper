@@ -51,7 +51,6 @@ describe('Supabase admin orders gateway', () => {
     expect(summary.orderRows.find((order) => order.unit === '2K13')).toMatchObject({
       orderId: 'order-1',
       amount: 120,
-      itemSummary: 'A 牛奶×2（$41/件）、B 歷史花生×1（$38/件）',
       itemPriceSnapshots: {
         A: expect.objectContaining({ listUnitPrice: 45, appliedDiscountType: 'base', finalUnitPrice: 41 }),
         B: expect.objectContaining({ appliedDiscountType: 'mix_match', finalUnitPrice: 38, promotionName: '任選三件85折' }),

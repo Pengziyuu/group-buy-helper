@@ -63,6 +63,23 @@ describe('ContentPreview', () => {
     expect(within(preview).queryByText('開團中')).not.toBeInTheDocument()
   })
 
+  it('shows hints instead of $0 and empty boxes for a draft with nothing filled in', () => {
+    render(<ContentPreview {...props} priceText="$0" images={[]} announcement="  " items={[]} />)
+    const preview = screen.getByRole('region', { name: '住戶端預覽' })
+
+    expect(within(preview).queryByText('$0')).not.toBeInTheDocument()
+    expect(within(preview).getByText('還沒填開團資訊')).toBeInTheDocument()
+    expect(within(preview).queryByRole('button', { name: '展開完整預覽' })).not.toBeInTheDocument()
+    expect(within(preview).getByText('新增品項後會顯示在這裡')).toBeInTheDocument()
+    expect(within(preview).queryByRole('list', { name: '品項預覽' })).not.toBeInTheDocument()
+  })
+
+  it('leaves out the price until an item has one', () => {
+    render(<ContentPreview {...props} priceText="$0" items={[{ code: 'ITEM1', name: '牛奶', active: true }]} />)
+    expect(screen.queryByText('$0')).not.toBeInTheDocument()
+    expect(within(screen.getByRole('list', { name: '品項預覽' })).getByText('未定價')).toBeInTheDocument()
+  })
+
   it('expands and collapses the announcement', async () => {
     const user = userEvent.setup()
     render(<ContentPreview {...props} />)
