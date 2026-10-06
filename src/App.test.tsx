@@ -217,6 +217,8 @@ describe('customer campaign app', () => {
     }} />)
 
     await user.click(screen.getByRole('button', { name: '新增額外品項' }))
+    // The new row's name field takes focus, which also scrolls it into view inside the order card.
+    expect(screen.getByRole('textbox', { name: '額外品項 1 名稱' })).toHaveFocus()
     expect(screen.getByRole('status', { name: '額外品項 1數量' })).toHaveTextContent('1')
     // No separate remove button: at 1 the minus becomes the remove control.
     expect(screen.queryByRole('button', { name: '減少 額外品項 1' })).not.toBeInTheDocument()
