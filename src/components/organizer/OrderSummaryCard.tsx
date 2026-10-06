@@ -4,7 +4,9 @@ import type { CampaignStatus } from '../../domain/orderWorkflow'
 import { Button } from '../ui/Button'
 import { FeedbackMessage } from '../ui/FeedbackMessage'
 import { ProgressBar } from '../ui/ProgressBar'
-import { copyText } from './copyResidentLink'
+import { copyText } from './copyResidentLink'
+import { Copy, Pencil } from 'lucide-react'
+import { Icon } from '../ui/Icon'
 
 const currency = (amount: number) => `$${amount.toLocaleString('en-US')}`
 
@@ -83,7 +85,7 @@ export function OrderSummaryCard({ campaignTitle, summary, status, ordersToday }
       <details className="organizer-item-tally-block">
         <summary>品項數量 <small>{`${summary.itemRows.length + summary.customItemRows.length} 項・合計 ${summary.quantity} ${unit}`}</small></summary>
         <div className="organizer-item-tally-actions">
-          <Button size="sm" variant="utility" onClick={() => { void copyItems() }}>複製品項數量</Button>
+          <Button size="sm" variant="utility" onClick={() => { void copyItems() }}><Icon icon={Copy} />複製品項數量</Button>
           {copyFeedback && <FeedbackMessage tone={copyFeedback.tone}>{copyFeedback.text}</FeedbackMessage>}
         </div>
         {/* One aligned column, so the list can be scanned, screenshotted or copied for the supplier. */}
@@ -100,9 +102,7 @@ export function OrderSummaryCard({ campaignTitle, summary, status, ordersToday }
           {summary.customItemRows.map((item) => (
             <li key={`custom-${item.name}`} className="is-custom">
               <span className="organizer-item-code" role="img" aria-label="額外品項">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M4 20h4L19 9l-4-4L4 16v4Zm9-13 4 4" />
-                </svg>
+                <Icon icon={Pencil} size={14} />
               </span>
               <span className="organizer-item-name">{item.name}</span>
               {bar(item.quantity)}

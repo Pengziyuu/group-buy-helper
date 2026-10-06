@@ -7,7 +7,9 @@ import type { CampaignStatus } from './domain/orderWorkflow'
 import type { QuantityUnit } from './domain/quantityUnit'
 import { MY_ORDER_SECTION_ID, residentCampaignPath } from './routing'
 import type { CampaignImage } from './services/demoCampaignStore'
-import './components/resident/resident.css'
+import './components/resident/resident.css'
+import { ChevronRight } from 'lucide-react'
+import { Icon } from './components/ui/Icon'
 
 export type ResidentMyOrder = {
   slug: string
@@ -70,7 +72,7 @@ function OrderCard({ order, now }: { order: ResidentMyOrder; now: Date }) {
       </ul>
       <div className="resident-my-order-foot">
         {quantity > 0 && <strong>{`合計 ${quantity} ${order.quantityUnit}・${formatMoney(amount)}`}</strong>}
-        <a href={`${residentCampaignPath(order.slug)}#${MY_ORDER_SECTION_ID}`}>{open ? '修改訂單' : '查看'}<span aria-hidden="true"> ›</span></a>
+        <a href={`${residentCampaignPath(order.slug)}#${MY_ORDER_SECTION_ID}`}>{open ? '修改訂單' : '查看'}<Icon icon={ChevronRight} /></a>
       </div>
     </article>
   )

@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import './CampaignImageViewer.css'
 import type { CampaignImage } from '../services/demoCampaignStore'
+import { ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { Icon } from './ui/Icon'
 
 type CampaignImageViewerProps = {
   images: CampaignImage[]
@@ -132,7 +134,7 @@ export function CampaignImageViewer({ images, index, onIndexChange, onClose }: C
       <section ref={dialogRef} className="campaign-image-viewer" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
         <header>
           <h2 id={titleId}>圖片檢視 {index + 1}／{images.length}</h2>
-          <button ref={closeRef} type="button" onClick={onClose} aria-label="關閉圖片檢視">×</button>
+          <button ref={closeRef} type="button" onClick={onClose} aria-label="關閉圖片檢視"><Icon icon={X} size={20} /></button>
         </header>
         <div
           className="campaign-image-viewer-stage"
@@ -147,8 +149,8 @@ export function CampaignImageViewer({ images, index, onIndexChange, onClose }: C
             <img src={image.src} alt={`${image.alt}（放大檢視）`} draggable={false} onError={() => setLoadFailed(true)} />
           )}
           {images.length > 1 && <>
-            <button className="campaign-image-viewer-arrow campaign-image-viewer-previous" type="button" onClick={() => onIndexChange(previousIndex)} aria-label="上一張圖片"><span aria-hidden="true">‹</span></button>
-            <button className="campaign-image-viewer-arrow campaign-image-viewer-next" type="button" onClick={() => onIndexChange(nextIndex)} aria-label="下一張圖片"><span aria-hidden="true">›</span></button>
+            <button className="campaign-image-viewer-arrow campaign-image-viewer-previous" type="button" onClick={() => onIndexChange(previousIndex)} aria-label="上一張圖片"><Icon icon={ChevronLeft} size={24} /></button>
+            <button className="campaign-image-viewer-arrow campaign-image-viewer-next" type="button" onClick={() => onIndexChange(nextIndex)} aria-label="下一張圖片"><Icon icon={ChevronRight} size={24} /></button>
           </>}
         </div>
       </section>

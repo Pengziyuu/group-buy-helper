@@ -1,6 +1,8 @@
 import { formatMoney } from './residentFormat'
 import type { CustomOrderItem } from '../../domain/customOrderItem'
-import type { PricedOrderLine } from '../../domain/discountPricing'
+import type { PricedOrderLine } from '../../domain/discountPricing'
+import { Pencil } from 'lucide-react'
+import { Icon } from '../ui/Icon'
 
 export type BreakdownLine = PricedOrderLine & {
   label: string
@@ -38,7 +40,7 @@ export function OrderBreakdown({ lines, customItems, total, savings, quantityUni
         ))}
         {filledCustomItems.map((item) => (
           <li key={item.id} className="is-custom">
-            <span className="resident-product-code">＋</span>
+            <span className="resident-product-code"><Icon icon={Pencil} size={14} /></span>
             <div><strong>{item.name || '未命名額外品項'}</strong><small>額外品項</small></div>
             <span>{item.quantity} {quantityUnit}</span>
             <strong>金額另計</strong>

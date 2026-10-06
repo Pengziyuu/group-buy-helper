@@ -1,6 +1,6 @@
 /* Organizer residents page: toolbar, group check, and resident cards. */
 .resident-member-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
-.resident-member-search { flex: 1 1 240px; max-width: 360px; }
+.resident-member-search-field { flex: 1 1 240px; max-width: 360px; }
 .resident-member-empty { color: var(--color-text-secondary); }
 .resident-member-list { display: grid; gap: var(--space-2); }
 .resident-member-card { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-surface); background: var(--color-surface); }
@@ -49,5 +49,5 @@
 @media (max-width: 639px) {
   .resident-member-card { grid-template-columns: 44px minmax(0, 1fr); }
   .resident-member-actions { grid-column: 1 / -1; justify-content: flex-start; }
-  .resident-member-search { max-width: none; }
+  .resident-member-search-field { max-width: none; }
 }

@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import type { CampaignImage } from '../../services/demoCampaignStore'
+import { ZoomIn } from 'lucide-react'
+import { Icon } from './Icon'
 
 type ImageGalleryProps = {
   images: CampaignImage[]
@@ -42,7 +44,7 @@ export function ImageGallery({ images, onOpen }: ImageGalleryProps) {
           onClick={() => onOpen(index)}
         >
           {mainImage}
-          <span className="ui-gallery-zoom" aria-hidden="true">放大</span>
+          <span className="ui-gallery-zoom" aria-hidden="true"><Icon icon={ZoomIn} size={14} />放大</span>
         </button>
       ) : (
         <div className="ui-gallery-main">{mainImage}</div>

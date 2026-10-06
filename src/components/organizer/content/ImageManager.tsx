@@ -2,6 +2,8 @@ import { useRef, useState } from 'react'
 import type { CampaignImage } from '../../../services/demoCampaignStore'
 import { Button } from '../../ui/Button'
 import { MAX_CAMPAIGN_IMAGES, splitImageUploads } from './contentChecks'
+import { ImagePlus } from 'lucide-react'
+import { Icon } from '../../ui/Icon'
 
 type ImageManagerProps = {
   images: CampaignImage[]
@@ -103,7 +105,7 @@ export function ImageManager({ images, disabled, onUploadImage, onAddImage, onRe
               onInput={(event) => { void uploadFiles(Array.from(event.currentTarget.files ?? [])) }}
               onChange={(event) => { void uploadFiles(Array.from(event.target.files ?? [])) }}
             />
-            <span aria-hidden="true">＋ 加入圖片</span>
+            <span aria-hidden="true"><Icon icon={ImagePlus} />加入圖片</span>
           </label>
         ) : (
           <>
