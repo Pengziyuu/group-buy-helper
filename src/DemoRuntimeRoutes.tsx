@@ -92,6 +92,7 @@ const demoCreateFromTemplate = {
 
 function DemoOrganizerWorkspace({ requestedSection }: { requestedSection: WorkspaceSection | null }) {
   const [campaignStatus, setCampaignStatus] = useState<CampaignStatus>('open')
+  const [closedAt, setClosedAt] = useState<string | null>(null)
   const [orders, setOrders] = useState<OrganizerVisibleOrder[]>(initialDemoOrganizerOrders)
   const orderSummary = buildOrganizerOrderSummary({ orders, items, threshold: campaign.threshold })
   const section = resolveWorkspaceSection(requestedSection, true, campaignStatus)
@@ -105,12 +106,16 @@ function DemoOrganizerWorkspace({ requestedSection }: { requestedSection: Worksp
         published: true,
         coverImage: campaign.images[0] ?? null,
         openedAt: campaign.openedAt,
+        closedAt,
         orderCount: orders.length,
         residentHref: residentCampaignPath(DEMO_CAMPAIGN_SLUG),
       }}
       requestedSection={requestedSection}
       section={section}
-      onSetCampaignStatus={async (status) => setCampaignStatus(status)}
+      onSetCampaignStatus={async (status) => {
+        setClosedAt(status === 'open' ? null : new Date().toISOString())
+        setCampaignStatus(status)
+      }}
       saveTemplate={{
         loadTemplates: () => demoTemplates.list(),
         saveNew: (name) => demoTemplates.create(name, loadDraftCampaign(demoFallbackContent)),

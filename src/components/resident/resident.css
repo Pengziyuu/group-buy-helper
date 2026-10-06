@@ -76,6 +76,8 @@
 .resident-summary-progress-text strong { font-size: 20px; font-weight: var(--font-weight-strong); font-variant-numeric: tabular-nums; }
 .resident-summary-progress-text span { color: var(--color-primary); font-size: var(--font-size-dense); font-weight: var(--font-weight-strong); }
 .resident-summary-progress-text .is-formed { color: var(--color-success); }
+/* Closed short of the threshold: a plain fact, not a call to order more. */
+.resident-summary-progress-text .is-missed { color: var(--color-text-secondary); }
 .resident-summary-meta { margin: var(--space-2) 0 0; color: var(--color-text-secondary); font-size: var(--font-size-caption); }
 
 .resident-info-body { display: grid; gap: var(--space-3); margin-top: var(--space-3); }

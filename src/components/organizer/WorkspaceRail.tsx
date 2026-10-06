@@ -24,6 +24,8 @@ export type WorkspaceCampaign = {
   coverImage: CampaignImage | null
   openedAt: string | null
   autoCloseAt?: string | null
+  /** When the campaign last closed; unknown for campaigns closed before it was recorded. */
+  closedAt?: string | null
   arrivalLabel?: string
   thresholdKind?: 'quantity' | 'amount'
   orderCount: number | null
@@ -72,7 +74,7 @@ export function WorkspaceRail({ campaign, section, now, onSetCampaignStatus, onC
   const action = campaignStatusAction(campaign.status)
   const confirmation = STATUS_CONFIRMATIONS[action.next === 'closed' ? 'closed' : 'open']
   const isOpen = campaign.status === 'open'
-  // Same words residents read: a time, 額滿自動結單, or 手動決定結單.
+  // Same words residents read: a time, 額滿自動結單, or 手動決定結單; once closed, the day it closed.
   const closing = describeResidentSchedule(campaign, now ?? new Date()).closing
   const badge = !campaign.published
     ? { tone: 'warning' as const, label: '草稿' }
@@ -120,7 +122,7 @@ export function WorkspaceRail({ campaign, section, now, onSetCampaignStatus, onC
         )}
       </div>
       <dl className="organizer-rail-facts">
-        {isOpen && <div><dt>結單</dt><dd>{closing?.value}</dd></div>}
+        {(isOpen || closing) && <div><dt>結單</dt><dd>{closing?.value}</dd></div>}
         <div><dt>到貨</dt><dd>{normalizeArrivalLabel(campaign.arrivalLabel)}</dd></div>
         <div><dt>開團</dt><dd>{campaign.openedAt ? <RelativeTime value={campaign.openedAt} now={now ?? new Date()} /> : '尚未發布'}</dd></div>
       </dl>

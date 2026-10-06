@@ -220,6 +220,39 @@ describe('resident campaign page parts', () => {
     expect(screen.queryByText(/下單/)).not.toBeInTheDocument()
   })
 
+  it('starts with nothing picked, so a resident cannot save a household they never chose', async () => {
+    const user = userEvent.setup()
+    const onBind = vi.fn().mockResolvedValue(undefined)
+    render(<ResidentBindingForm identity={{ displayName: '富美', pictureUrl: null }} disabled={false} onBind={onBind} />)
+
+    const save = screen.getByRole('button', { name: '儲存住戶資料' })
+    expect(screen.getByRole('combobox', { name: '期別' })).toHaveDisplayValue('請選擇')
+    expect(save).toBeDisabled()
+
+    await user.selectOptions(screen.getByRole('combobox', { name: '期別' }), '二期')
+    for (const name of ['戶號數字', '戶號英文字母', '樓層']) {
+      expect(screen.getByRole('combobox', { name })).toHaveDisplayValue('請選擇')
+    }
+    await user.selectOptions(screen.getByRole('combobox', { name: '戶號數字' }), '2')
+    await user.selectOptions(screen.getByRole('combobox', { name: '戶號英文字母' }), 'B')
+    expect(save).toBeDisabled()
+    await user.selectOptions(screen.getByRole('combobox', { name: '樓層' }), '7')
+    expect(save).toBeEnabled()
+
+    // Phase one has no prefix, so the letter and floor are enough.
+    await user.selectOptions(screen.getByRole('combobox', { name: '期別' }), '一期')
+    expect(save).toBeEnabled()
+    await user.click(save)
+    expect(onBind).toHaveBeenLastCalledWith({ kind: 'resident', period: 1, unit: 'B7' })
+  })
+
+  it('lets someone outside the community save without a household', async () => {
+    const user = userEvent.setup()
+    render(<ResidentBindingForm disabled={false} onBind={vi.fn()} />)
+    await user.selectOptions(screen.getByRole('combobox', { name: '期別' }), '其他')
+    expect(screen.getByRole('button', { name: '儲存住戶資料' })).toBeEnabled()
+  })
+
   it('binds someone outside the community and shows a safe binding error', async () => {
     const user = userEvent.setup()
     const onBind = vi.fn()
@@ -228,12 +261,12 @@ describe('resident campaign page parts', () => {
     render(<ResidentBindingForm identity={{ displayName: '富美', pictureUrl: null }} disabled={false} onBind={onBind} />)
 
     expect(screen.getByRole('heading', { name: '首次填寫住戶資料' })).toBeInTheDocument()
+    await user.selectOptions(screen.getByRole('combobox', { name: '期別' }), '其他')
+    expect(screen.queryByRole('combobox', { name: '樓層' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '儲存住戶資料' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('此期別與戶號已由其他住戶綁定')
     expect(screen.getByRole('alert')).not.toHaveTextContent('sensitive database detail')
 
-    await user.selectOptions(screen.getByRole('combobox', { name: '期別' }), '其他')
-    expect(screen.queryByRole('combobox', { name: '樓層' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '儲存住戶資料' }))
     expect(onBind).toHaveBeenLastCalledWith({ kind: 'other', period: null, unit: null })
   })

@@ -8,6 +8,9 @@ import type { HouseholdKind } from '../domain/household'
 
 export type AdminOrdersSupabaseClient = SupabaseClient<Database>
 
+/** Whether residents can still order, and when the campaign last closed (null while open or never recorded). */
+export type CampaignState = { status: CampaignStatus; closedAt: string | null }
+
 type ItemRow = { code: string; name: string; unit_price: number; active: boolean; sort_order: number }
 type WallRow = {
   order_id: string | null
@@ -62,17 +65,17 @@ function validateStatuses(data: unknown): StatusRow[] {
 
 export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
   return {
-    async loadCampaignStatus(campaignId: string): Promise<CampaignStatus> {
+    async loadCampaignState(campaignId: string): Promise<CampaignState> {
       const { data, error } = await client
         .from('campaign_public')
-        .select('status')
+        .select('status,closed_at')
         .eq('id', campaignId)
         .single()
       if (error) throw new Error(`讀取活動狀態失敗：${errorMessage(error)}`)
       if (!data || typeof data.status !== 'string' || !['open', 'closed', 'arrived'].includes(data.status)) {
         throw new Error('Supabase 回傳的活動狀態格式錯誤')
       }
-      return data.status as CampaignStatus
+      return { status: data.status as CampaignStatus, closedAt: typeof data.closed_at === 'string' ? data.closed_at : null }
     },
 
     async loadSummary(

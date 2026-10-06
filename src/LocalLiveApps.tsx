@@ -38,7 +38,7 @@ import type { OrganizerOrderSummary } from './domain/adminOrders'
 import type { CampaignStatus } from './domain/orderWorkflow'
 import type { HouseholdKind } from './domain/household'
 import type { VisibleOrder } from './data/demo'
-import { createAdminOrdersGateway } from './services/adminOrdersGateway'
+import { createAdminOrdersGateway, type CampaignState } from './services/adminOrdersGateway'
 import { createPickupNotificationGateway, type PickupNotificationCommand, type PickupNotificationPlanPreview, type PickupNotificationResponse } from './services/pickupNotificationGateway'
 import type { PickupNotificationPlan } from './domain/pickupNotification'
 import { createPickupNotificationTestCampaignGateway } from './services/pickupNotificationTestCampaignGateway'
@@ -86,7 +86,7 @@ export type LiveAdminRepository = {
 }
 
 export type LiveAdminOrdersRepository = {
-  loadCampaignStatus(campaignId: string): Promise<CampaignStatus>
+  loadCampaignState(campaignId: string): Promise<CampaignState>
   loadSummary(campaignId: string, threshold: number, thresholdKind?: 'quantity' | 'amount', amountThreshold?: number | null, quantityUnit?: QuantityUnit): Promise<OrganizerOrderSummary>
   setCampaignStatus(campaignId: string, status: CampaignStatus): Promise<void>
   setOrderPaid(orderId: string, paid: boolean): Promise<void>
@@ -504,6 +504,7 @@ export function LocalLiveAdminApp({
   const [publishedContent, setPublishedContent] = useState<CampaignContent | null>(null)
   const [orderSummary, setOrderSummary] = useState<OrganizerOrderSummary | null>(null)
   const [campaignStatus, setCampaignStatus] = useState<CampaignStatus | null>(null)
+  const [campaignClosedAt, setCampaignClosedAt] = useState<string | null>(null)
   const [campaigns, setCampaigns] = useState<CampaignListItem[] | null>(null)
   const [testCampaignIds, setTestCampaignIds] = useState<string[] | null>(null)
   const [residentMembers, setResidentMembers] = useState<ResidentMember[] | null>(null)
@@ -766,6 +767,7 @@ export function LocalLiveAdminApp({
     setPublishedContent(null)
     setOrderSummary(null)
     setCampaignStatus(null)
+    setCampaignClosedAt(null)
     setResidentSlug(null)
     setPublishSyncWarning(null)
     if (!organizerUserId || !campaignId) return
@@ -777,9 +779,9 @@ export function LocalLiveAdminApp({
     void Promise.all([
       publishedPromise,
       gateway.loadOptionalDraft(campaignId),
-      ordersGateway.loadCampaignStatus(campaignId),
+      ordersGateway.loadCampaignState(campaignId),
       gateway.loadResidentSlug?.(campaignId) ?? Promise.resolve(null),
-    ]).then(async ([published, draft, status, loadedResidentSlug]) => {
+    ]).then(async ([published, draft, state, loadedResidentSlug]) => {
       if (!active) return
       const baseContent = draft ?? published
       if (!baseContent) throw new Error('找不到團購草稿')
@@ -792,7 +794,8 @@ export function LocalLiveAdminApp({
       setContent(editableContent)
       setPublishedContent(published)
       setOrderSummary(summary)
-      setCampaignStatus(status)
+      setCampaignStatus(state.status)
+      setCampaignClosedAt(state.closedAt)
       setResidentSlug(loadedResidentSlug)
       setPublicationState(!published || (draft && !campaignContentEquals(editableContent, published)) ? 'draft' : 'published')
     }).catch((loadError: unknown) => {
@@ -1128,6 +1131,7 @@ export function LocalLiveAdminApp({
     autoCloseAt: content.autoCloseAt,
     arrivalLabel: content.arrivalLabel,
     thresholdKind: content.thresholdKind,
+    closedAt: campaignClosedAt,
     orderCount: orderSummary?.orderCount ?? null,
     residentHref: residentSlug ? residentCampaignPath(residentSlug) : null,
   }
@@ -1155,9 +1159,10 @@ export function LocalLiveAdminApp({
         onSetCampaignStatus={async (status) => {
           const requestedCampaignId = campaignId
           await ordersGateway.setCampaignStatus(campaignId, status)
-          const nextStatus = await ordersGateway.loadCampaignStatus(campaignId)
+          const next = await ordersGateway.loadCampaignState(campaignId)
           if (currentCampaignIdRef.current !== requestedCampaignId) return
-          setCampaignStatus(nextStatus)
+          setCampaignStatus(next.status)
+          setCampaignClosedAt(next.closedAt)
         }}
       >
         {shownSection === 'content' && publishSyncWarning?.campaignId === campaignId && (

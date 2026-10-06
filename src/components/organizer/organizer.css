@@ -220,8 +220,9 @@
   .organizer-order-overview { padding: var(--space-3); }
   .organizer-order-totals { gap: var(--space-2) var(--space-4); }
   .organizer-toolbar-count { flex-basis: 100%; margin: 0; }
-  /* No note yet: "＋ 新增備註" says it all, so skip the "團主備註" label line. */
-  .organizer-order-table td.organizer-cell-note:has(.organizer-note-button[data-empty])::before { content: none; }
+  /* No note yet: a ＋ 新增備註 line on every card made the list long, so the row is left out and the
+     card's ⋯ menu offers 新增備註 instead. Saved notes and an open note field still show. */
+  .organizer-order-table td.organizer-cell-note:has(.organizer-note-button[data-empty]) { display: none; }
 }
 .organizer-note-button { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 32px; max-width: 260px; padding: 0 var(--space-2); border: 1px dashed transparent; border-radius: var(--radius-control); background: transparent; color: var(--color-text); font: inherit; text-align: left; overflow-wrap: anywhere; cursor: text; }
 .organizer-note-button:disabled { cursor: not-allowed; }

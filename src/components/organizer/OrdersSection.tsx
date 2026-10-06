@@ -6,7 +6,7 @@ import { EmptyState } from '../ui/AsyncState'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { FeedbackMessage } from '../ui/FeedbackMessage'
 import { Avatar } from '../ui/Avatar'
-import { Menu } from '../ui/Menu'
+import { Menu, type MenuItem } from '../ui/Menu'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import { ExportOrdersButton } from './ExportOrdersButton'
 import { LiveStatus, type LiveState } from './LiveStatus'
@@ -14,6 +14,7 @@ import { readLastSeen, writeLastSeen } from './lastSeenStore'
 import { OrganizerLink } from './OrganizerLink'
 import { OrderNoteCell } from './OrderNoteCell'
 import { OrderSummaryCard } from './OrderSummaryCard'
+import { useCardLayout } from './useCardLayout'
 import {
   countOrdersOnTaipeiDay, isNewSince, matchesOrderSearch, orderControlLabel, orderHouseholdLabel, orderItemChips, orderItemChipText, sortOrders, wasEdited, type OrderSort,
 } from './orderView'
@@ -50,6 +51,9 @@ export function OrdersSection({
   const [cancelTarget, setCancelTarget] = useState<OrganizerOrderRow | null>(null)
   const [cancelling, setCancelling] = useState(false)
   const [cancelError, setCancelError] = useState('')
+  // Phone cards hide an empty note row (organizer.css); its ⋯ menu opens the note field instead.
+  const cardLayout = useCardLayout()
+  const [noteRequestId, setNoteRequestId] = useState<string | null>(null)
   const currentTime = useNow(now)
   const unit = summary.quantityUnit
   const rows = sortOrders(summary.orderRows.filter((order) => matchesOrderSearch(order, query)), sort)
@@ -144,6 +148,21 @@ export function OrdersSection({
                     const controlLabel = orderControlLabel(order)
                     const busy = busyIds.has(order.orderId)
                     const chips = orderItemChips(order, summary.itemRows)
+                    const menuItems: MenuItem[] = [
+                      ...(cardLayout && !order.organizerNote && onSetOrderOrganizerNote ? [{
+                        label: '新增備註',
+                        ariaLabel: `新增 ${controlLabel} 備註`,
+                        disabled: busy,
+                        onSelect: () => setNoteRequestId(order.orderId),
+                      }] : []),
+                      ...(status === 'open' && onCancelOrder ? [{
+                        label: '取消整筆訂單',
+                        ariaLabel: `取消 ${controlLabel} 訂單`,
+                        tone: 'danger' as const,
+                        disabled: busy,
+                        onSelect: () => { setCancelError(''); setCancelTarget(order) },
+                      }] : []),
+                    ]
                     return (
                       <tr key={order.orderId} aria-busy={busy || undefined}>
                         <th scope="row">
@@ -192,21 +211,13 @@ export function OrdersSection({
                             disabled={busy}
                             onSave={onSetOrderOrganizerNote ? (note) => onSetOrderOrganizerNote(order.orderId, note) : undefined}
                             onSavingChange={(saving) => setBusy(order.orderId, saving)}
+                            editRequested={noteRequestId === order.orderId}
+                            onEditRequestHandled={() => setNoteRequestId(null)}
                           />
                         </td>
                         <td className="organizer-cell-actions">
-                          {status === 'open' && onCancelOrder && (
-                            <Menu
-                              size="sm"
-                              label={`更多操作 ${controlLabel}・${order.name}`}
-                              items={[{
-                                label: '取消整筆訂單',
-                                ariaLabel: `取消 ${controlLabel} 訂單`,
-                                tone: 'danger',
-                                disabled: busy,
-                                onSelect: () => { setCancelError(''); setCancelTarget(order) },
-                              }]}
-                            />
+                          {menuItems.length > 0 && (
+                            <Menu size="sm" label={`更多操作 ${controlLabel}・${order.name}`} items={menuItems} />
                           )}
                         </td>
                       </tr>

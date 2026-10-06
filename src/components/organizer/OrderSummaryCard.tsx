@@ -67,7 +67,7 @@ export function OrderSummaryCard({ campaignTitle, summary, status, ordersToday }
             <p>
               <span>成團進度</span>
               <strong className="ui-num">{usesAmount ? `${currency(summary.amount)} / ${currency(summary.threshold)}` : `${summary.quantity} / ${summary.threshold} ${unit}`}</strong>
-              <small>{usesAmount ? `還差 ${currency(summary.remaining)} 成團` : `還差 ${summary.remaining} ${unit}成團`}</small>
+              <small>{status !== 'open' ? '結單時未達成團門檻' : usesAmount ? `還差 ${currency(summary.remaining)} 成團` : `還差 ${summary.remaining} ${unit}成團`}</small>
             </p>
           )}
           <ProgressBar label="成團進度" value={progressValue} max={summary.threshold} formed={summary.formed} />
