@@ -937,6 +937,23 @@ describe('customer campaign app', () => {
     expect(bar.queryByText('選擇品項後即可送出。')).not.toBeInTheDocument()
   })
 
+  it('slides the header with ‹ 全部團購 away while scrolling down and brings it back on scroll up', () => {
+    const scrollTo = (y: number) => act(() => {
+      Object.defineProperty(window, 'scrollY', { configurable: true, value: y })
+      window.dispatchEvent(new Event('scroll'))
+    })
+    try {
+      render(<App />)
+      const header = screen.getByRole('link', { name: /全部團購/ }).closest('header') as HTMLElement
+      scrollTo(400)
+      expect(header).toHaveAttribute('data-hidden', 'true')
+      scrollTo(350)
+      expect(header).not.toHaveAttribute('data-hidden')
+    } finally {
+      scrollTo(0)
+    }
+  })
+
   it('offers the disabled 送出訂單 instead of 選擇品項 on wide screens, where the items sit just above the bar', () => {
     const original = window.matchMedia
     window.matchMedia = ((query: string) => ({ matches: query === '(min-width: 1024px)', media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() })) as unknown as typeof window.matchMedia
