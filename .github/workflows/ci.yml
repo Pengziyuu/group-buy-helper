@@ -41,14 +41,43 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The whole history, so a pull request can be compared with the branch it targets.
+          fetch-depth: 0
+      # These checks take about five minutes and most pull requests only change the site, so a pull request
+      # runs them only when it touches the database (supabase/ apart from functions/), the verification
+      # scripts (scripts/*.py, *.sql) or the workflows. Every push to main still runs them in full.
+      # The job itself always runs and passes when skipped: main's branch protection waits for "database".
+      - name: Does this change touch the database?
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT_NAME" != "pull_request" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed=$(git diff --name-only "$BASE_SHA...$HEAD_SHA")
+          echo "$changed"
+          if printf '%s\n' "$changed" | grep -v '^supabase/functions/' | grep -qE '^(supabase/|scripts/.*\.(py|sql)$|\.github/workflows/)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Database checks skipped::This pull request changes no migration, database test, verification script or workflow."
+          fi
       - uses: supabase/setup-cli@v3
+        if: steps.scope.outputs.run == 'true'
         with:
           version: 2.119.0
       # Starting applies every migration and seed.sql. Keep the services migrations rely on
       # (database, auth, storage, API); skip the dashboard, mail, logging and edge functions.
       - name: Apply all migrations to an empty database
+        if: steps.scope.outputs.run == 'true'
         run: supabase start -x imgproxy,mailpit,studio,edge-runtime,logflare,vector,supavisor,postgres-meta
       - name: Every migration file was recorded as applied
+        if: steps.scope.outputs.run == 'true'
         run: |
           files=$(ls supabase/migrations/*.sql | wc -l)
           applied=$(psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -tAc "select count(*) from supabase_migrations.schema_migrations")
@@ -56,9 +85,11 @@ jobs:
           test "$files" -eq "$applied"
       # The verification scripts read API_URL, ANON_KEY and SECRET_KEY for this local stack.
       - name: Local API keys for the verification scripts
+        if: steps.scope.outputs.run == 'true'
         run: supabase status -o env | sed -E 's/^([A-Z_]+)="(.*)"$/\1=\2/' >> "$GITHUB_ENV"
       # Behaviour, not just schema: who can read or change which orders, campaigns, templates and images.
       - name: Behaviour checks, each on a freshly reset database
+        if: steps.scope.outputs.run == 'true'
         run: |
           for script in scripts/verify_*.py; do
             echo "::group::$script"
@@ -67,6 +98,7 @@ jobs:
             echo "::endgroup::"
           done
       - name: Rollback-only SQL checks
+        if: steps.scope.outputs.run == 'true'
         run: |
           supabase db reset
           for file in scripts/verify_*.sql supabase/tests/*.sql; do
@@ -74,6 +106,7 @@ jobs:
             psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -q -f "$file"
           done
       - name: Unit tests for the helper scripts
+        if: steps.scope.outputs.run == 'true'
         run: python3 -m unittest discover -s scripts -p 'test_*.py'
 
   # Login, ordering and LINE notifications run as Supabase Edge Functions on Deno; check their types.

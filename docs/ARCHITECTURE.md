@@ -39,7 +39,7 @@
 
 ## 發布與驗證邊界
 
-- `main` 受 PR 與 CI 保護；`.github/workflows/ci.yml` 跑 lint／測試／建置、從零套用所有 migration、SQL 與 Python 權限／行為驗證，以及 Edge Function 型別檢查。
+- `main` 受 PR 與 CI 保護；`.github/workflows/ci.yml` 跑 lint／測試／建置、從零套用所有 migration、SQL 與 Python 權限／行為驗證（沒動到資料庫相關檔案的 PR 會略過，推到 `main` 時一律執行），以及 Edge Function 型別檢查。
 - 資料庫先在本機從空資料重建並驗證，再對已連結正式專案 dry-run，確認僅有預期 migration 才手動套用；正式資料庫與前端／Edge 不會原子換版，破壞性變更應分階段發布。
 - Vercel 由 `vercel.json` 提供團主 HTML、住戶 SPA 路由與 `/c/<slug>` 預覽中介層；部署後 `.github/workflows/production-check.yml` 對固定正式網址作 smoke check。頁面／腳本載入成功不等於完成 LINE 登入、實際下單及群組通知驗收。
 - 本機截圖與 localStorage Demo 是**介面展示**；涉及私有資料、RLS 或 LINE 的主張應以實際角色、API 與有權限的使用者驗證。
