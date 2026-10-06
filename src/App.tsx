@@ -32,6 +32,7 @@ import {
 } from './components/resident/ResidentBindingForm'
 import './components/resident/resident.css'
 import { MY_ORDER_SECTION_ID } from './routing'
+import { useWideLayout } from './components/resident/useWideLayout'
 
 const defaultContent: CampaignContent = {
   title: campaign.title,
@@ -235,8 +236,10 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', camp
       ? hasSubmittedOrder ? '想整筆取消訂單，請聯繫團主協助取消。' : '選擇品項後即可送出。'
       : !customDraftValid ? '請填寫額外品項的名稱與數量。' : null
 
-  // Before a first order the bar offers a jump to the items; its label already says what to do.
-  const offerChooseItems = controlsEditable && !hasDraftItems && !hasSubmittedOrder
+  // Before a first order the bar offers a jump to the items; its label already says what to do. On wide
+  // screens the bar closes the order card right under the items, so it keeps the plain 送出訂單 there.
+  const wideLayout = useWideLayout()
+  const offerChooseItems = controlsEditable && !hasDraftItems && !hasSubmittedOrder && !wideLayout
   const chooseItems = () => {
     const container = orderItemsRef.current
     if (!container) return

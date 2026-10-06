@@ -937,6 +937,22 @@ describe('customer campaign app', () => {
     expect(bar.queryByText('選擇品項後即可送出。')).not.toBeInTheDocument()
   })
 
+  it('offers the disabled 送出訂單 instead of 選擇品項 on wide screens, where the items sit just above the bar', () => {
+    const original = window.matchMedia
+    window.matchMedia = ((query: string) => ({ matches: query === '(min-width: 1024px)', media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() })) as unknown as typeof window.matchMedia
+    try {
+      const resident = { ...initialOrders[0], items: {}, householdKind: 'resident' as const }
+      render(<App residentCustomer={resident} visibleOrders={[]} />)
+
+      const bar = within(screen.getByLabelText('訂單摘要與送出'))
+      expect(bar.queryByRole('button', { name: '選擇品項' })).not.toBeInTheDocument()
+      expect(bar.getByRole('button', { name: '送出訂單' })).toBeDisabled()
+      expect(bar.getByText('選擇品項後即可送出。')).toBeInTheDocument()
+    } finally {
+      window.matchMedia = original
+    }
+  })
+
   it('jumps from the order bar to the first item before a first order', async () => {
     const user = userEvent.setup()
     const scrollIntoView = vi.fn()
