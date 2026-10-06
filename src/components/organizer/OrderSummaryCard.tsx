@@ -20,7 +20,7 @@ export function itemQuantitiesText(campaignTitle: string, summary: OrganizerOrde
   const unit = summary.quantityUnit
   const lines = summary.itemRows
     .filter((item) => item.quantity > 0)
-    .map((item) => `${item.name} ${item.quantity} ${unit}`)
+    .map((item) => `${item.name.trim()} ${item.quantity} ${unit}`)
   const customLines = summary.customItemRows.map((item) => `${item.name}（額外品項） ${item.quantity} ${unit}`)
   return [campaignTitle, ...lines, ...customLines, `合計 ${summary.quantity} ${unit}`].join('\n')
 }

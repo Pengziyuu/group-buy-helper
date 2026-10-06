@@ -89,6 +89,19 @@ describe('OrdersSection', () => {
     expect(await screen.findByText('已複製')).toBeInTheDocument()
   })
 
+  it('copies item names without the spaces typed around them', async () => {
+    const user = userEvent.setup()
+    const spaced = buildOrganizerOrderSummary({
+      orders: initialOrders,
+      items: items.map((item) => item.code === 'B' ? { ...item, name: '  花生（招牌） ' } : item),
+      threshold: 100,
+    })
+    renderOrders({ summary: spaced })
+
+    await user.click(screen.getByRole('button', { name: '複製品項數量' }))
+    expect((await navigator.clipboard.readText()).split('\n')).toContain('花生（招牌） 14 個')
+  })
+
   it('tallies custom items with the formal ones and copies them for the supplier', async () => {
     const user = userEvent.setup()
     const withCustom = buildOrganizerOrderSummary({
