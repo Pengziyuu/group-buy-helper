@@ -74,11 +74,11 @@ export default function ResidentMemberManagementApp({ members, initialFilter = '
     in: activeMembers.filter((member) => member.groupStatus === 'in_group').length,
     out: activeMembers.filter((member) => member.groupStatus === 'not_in_group').length,
   }
-  // A shared timestamp is truthful only when every active account has the same stored check.
-  const sharedGroupCheckedAt = activeMembers.length > 0 && activeMembers[0].groupCheckedAt
-    && activeMembers.every((member) => member.groupCheckedAt === activeMembers[0].groupCheckedAt)
-    ? activeMembers[0].groupCheckedAt
-    : null
+  // The stored timestamps are per account (and per batch); no single button-run time is persisted.
+  const latestGroupCheckedAt = activeMembers.reduce<string | null>((latest, member) => {
+    const checkedAt = member.groupCheckedAt
+    return checkedAt && (!latest || Date.parse(checkedAt) > Date.parse(latest)) ? checkedAt : latest
+  }, null)
 
   const refreshAllGroupStatuses = async () => {
     if (busyCode || !onRefreshGroupStatuses) return
@@ -221,19 +221,21 @@ export default function ResidentMemberManagementApp({ members, initialFilter = '
             <li><span className="resident-group-dot" data-status="not_in_group" aria-hidden="true" />不在群組 <strong>{groupCounts.out}</strong></li>
             <li><span className="resident-group-dot" data-status="unchecked" aria-hidden="true" />尚未查驗 <strong>{activeMembers.length - groupCounts.in - groupCounts.out}</strong></li>
           </ul>
-          <Button
-            variant="secondary"
-            size="sm"
-            aria-label="更新全部群組狀態"
-            disabled={Boolean(busyCode) || activeMembers.length === 0}
-            onClick={() => { void refreshAllGroupStatuses() }}
-          >
-            <span aria-hidden="true">↻</span>
-            {groupCheckProgress ? `查驗中…${groupCheckProgress.done}/${groupCheckProgress.total}` : '更新全部群組狀態'}
-          </Button>
-          {sharedGroupCheckedAt && (
-            <p className="resident-group-checked-at">未封鎖住戶最後查驗 <time dateTime={sharedGroupCheckedAt}>{formatZhTwTimestamp(sharedGroupCheckedAt)}</time></p>
-          )}
+          <div className="resident-group-check-actions">
+            <Button
+              variant="secondary"
+              size="sm"
+              aria-label="更新全部群組狀態"
+              disabled={Boolean(busyCode) || activeMembers.length === 0}
+              onClick={() => { void refreshAllGroupStatuses() }}
+            >
+              <span aria-hidden="true">↻</span>
+              {groupCheckProgress ? `查驗中…${groupCheckProgress.done}/${groupCheckProgress.total}` : '更新全部群組狀態'}
+            </Button>
+            <p className="resident-group-checked-at">{latestGroupCheckedAt
+              ? <>最近一次查驗 <time dateTime={latestGroupCheckedAt}>{formatZhTwTimestamp(latestGroupCheckedAt)}</time></>
+              : '尚無查驗紀錄'}</p>
+          </div>
           <p>群組狀態僅供核對，不會自動停用既有住戶。</p>
         </section>
       )}
@@ -264,7 +266,6 @@ export default function ResidentMemberManagementApp({ members, initialFilter = '
                       <span className="resident-group-dot" data-status={member.groupStatus ?? 'unchecked'} aria-hidden="true" />
                       {groupStatusLabel(member.groupStatus)}
                     </p>
-                    {member.groupCheckedAt && !sharedGroupCheckedAt && <small>最後查驗 <time dateTime={member.groupCheckedAt}>{formatZhTwTimestamp(member.groupCheckedAt)}</time></small>}
                   </>
                 )}
               </div>
