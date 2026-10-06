@@ -80,7 +80,7 @@ npm run lint
 npm run build
 ```
 
-資料庫 migration、SQL 權限測試與 `scripts/verify_*` 行為驗證由 [CI](.github/workflows/ci.yml) 在可丟棄的本機 Supabase 上執行。已部署的 migration 是重建歷史，**不要刪改舊檔**；新的資料庫變更先本機重建，再對正式環境 dry-run、手動套用並讀回權限／結構，最後透過受保護的 `main` 分支 PR 合併。Vercel 部署完成後由 [Production check](.github/workflows/production-check.yml) 驗證固定網址；登入後的 LINE 真實操作仍需具備權限的帳號驗收。
+資料庫 migration、SQL 權限測試與 `scripts/verify_*` 行為驗證由 [CI](.github/workflows/ci.yml) 在可丟棄的本機 Supabase 上執行；沒有改到 `supabase/`（Edge Functions 除外）、`scripts/*.py`／`*.sql` 或 workflow 的 PR 會略過這段，推到 `main` 時一律完整執行。已部署的 migration 是重建歷史，**不要刪改舊檔**；新的資料庫變更先本機重建，再對正式環境 dry-run、手動套用並讀回權限／結構，最後透過受保護的 `main` 分支 PR 合併。Vercel 部署完成後由 [Production check](.github/workflows/production-check.yml) 驗證固定網址；登入後的 LINE 真實操作仍需具備權限的帳號驗收。
 
 ## 專案地圖
 
