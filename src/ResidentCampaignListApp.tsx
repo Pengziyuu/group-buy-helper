@@ -35,9 +35,9 @@ export type ResidentCampaignListItem = {
   arrivalLabel?: string
   autoCloseAt?: string | null
   closedAt?: string | null
-  /** The signed-in household's formal-item quantity, the figure the progress bar counts. */
+  /** The signed-in household's formal-item quantity. */
   myQuantity?: number
-  /** The household's custom-item quantity, kept apart because it never counts toward the threshold. */
+  /** The household's custom-item quantity; it counts toward the quantity too. */
   myCustomQuantity?: number
   /** Households that ordered anything; emptied orders do not count. */
   orderHouseholdCount?: number
@@ -84,10 +84,10 @@ export function CampaignThumbnail({ campaign, ordered }: { campaign: Pick<Reside
   )
 }
 
-/** 已訂 4, 已訂 2+1 or 已訂 +1: custom items follow as +N, as they read on the my orders page. */
+/** 已訂 N: everything this household ordered, custom items included, as the progress bar counts it. */
 function orderedMark(quantity: number, customQuantity: number): string | undefined {
-  if (quantity === 0 && customQuantity === 0) return undefined
-  return `已訂 ${quantity > 0 ? quantity : ''}${customQuantity > 0 ? `+${customQuantity}` : ''}`
+  const total = quantity + customQuantity
+  return total > 0 ? `已訂 ${total}` : undefined
 }
 
 function CampaignRow({ campaign, now }: { campaign: ResidentCampaignListItem; now: Date }) {

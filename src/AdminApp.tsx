@@ -879,7 +879,7 @@ function AdminApp({
                 label="允許住戶新增額外品項"
                 description={customItemsLocked
                   ? '正式開團後此設定不可變更。'
-                  : '住戶可填名稱與數量，不輸入金額；額外品項不納入成團門檻。'}
+                  : '住戶可填名稱與數量，不輸入金額；額外品項的數量算入成團門檻，金額另計。'}
                 checked={allowCustomItems}
                 disabled={editorBusy || customItemsLocked}
                 onChange={(checked) => { setAllowCustomItems(checked); markDraft() }}

@@ -9,7 +9,7 @@ export type CampaignItem = {
   active: boolean
 }
 
-export type VisibleOrder = Order & {
+export type VisibleOrder = Omit<Order, 'customItems'> & {
   customItems?: CustomOrderItem[]
   name: string
   pictureUrl?: string | null

@@ -2,6 +2,8 @@ export type Order = {
   customerId: string
   items: Record<string, number>
   itemUnitPrices?: Record<string, number>
+  /** Items the resident named; they count toward the quantity, never toward the amount. */
+  customItems?: { quantity: number }[]
 }
 
 export type PricedCampaignItem = {
@@ -11,7 +13,10 @@ export type PricedCampaignItem = {
 
 export type CampaignSummary = {
   itemTotals: Record<string, number>
+  /** Everything ordered, custom items included: what a quantity threshold counts. */
   quantity: number
+  /** The custom-item part of quantity, for places that pair a quantity with money. */
+  customQuantity: number
   amount: number
   threshold: number
   remaining: number
@@ -42,7 +47,9 @@ export function summarizeCampaign(
     Object.entries(itemTotals).sort(([a], [b]) => a.localeCompare(b)),
   )
   const priceByCode = new Map(items.map((item) => [item.code, item.unitPrice]))
-  const quantity = Object.values(sortedTotals).reduce((sum, value) => sum + value, 0)
+  const customQuantity = orders.reduce((orderSum, order) => orderSum
+    + (order.customItems ?? []).reduce((sum, item) => sum + Math.max(0, item.quantity), 0), 0)
+  const quantity = Object.values(sortedTotals).reduce((sum, value) => sum + value, 0) + customQuantity
   const amount = orders.reduce((orderSum, order) => orderSum + Object.entries(order.items).reduce((sum, [code, itemQuantity]) => {
     if (itemQuantity <= 0) return sum
     const unitPrice = order.itemUnitPrices?.[code] ?? priceByCode.get(code)
@@ -55,6 +62,7 @@ export function summarizeCampaign(
   return {
     itemTotals: sortedTotals,
     quantity,
+    customQuantity,
     amount,
     threshold,
     remaining: Math.max(0, threshold - current),

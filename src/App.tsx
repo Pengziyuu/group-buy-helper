@@ -251,20 +251,24 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', camp
     container.querySelector<HTMLButtonElement>('button[aria-label^="增加 "]:not(:disabled)')?.focus({ preventScroll: true })
   }
 
+  // A quantity threshold that closes the campaign caps this order at what is left; formal and custom
+  // items both count, as the server counts them. Shows why and returns false when the cap is passed.
+  const withinThreshold = (nextOrderQuantity: number) => {
+    if (thresholdKind !== 'quantity' || !(publishedCampaign.thresholdAutoClose ?? true)) return true
+    const otherQuantity = Math.max(0, summary.quantity - orderQuantity(savedDraft) - savedCustomQuantity)
+    const maxOrderQuantity = Math.max(0, publishedCampaign.threshold - otherQuantity)
+    if (nextOrderQuantity <= maxOrderQuantity) return true
+    showNotice('error', `目前其他住戶已訂 ${otherQuantity} ${quantityUnit}，成團上限為 ${thresholdTarget} ${quantityUnit}，本次最多可訂 ${maxOrderQuantity} ${quantityUnit}。`)
+    return false
+  }
+
   const adjust = (code: string, delta: number) => {
     if (!controlsEditable) return
     setNotice(null)
     const currentQuantity = draft[code] ?? 0
     const nextQuantity = Math.max(0, currentQuantity + delta)
     const nextDraftQuantity = draftQuantity - currentQuantity + nextQuantity
-    if (thresholdKind === 'quantity' && (publishedCampaign.thresholdAutoClose ?? true) && delta > 0) {
-      const otherQuantity = Math.max(0, summary.quantity - orderQuantity(savedDraft))
-      const maxOrderQuantity = Math.max(0, publishedCampaign.threshold - otherQuantity)
-      if (nextDraftQuantity > maxOrderQuantity) {
-        showNotice('error', `目前其他住戶已訂 ${otherQuantity} ${quantityUnit}，成團上限為 ${thresholdTarget} ${quantityUnit}，本次最多可訂 ${maxOrderQuantity} ${quantityUnit}。`)
-        return
-      }
-    }
+    if (delta > 0 && !withinThreshold(nextDraftQuantity + customDraftQuantity)) return
     setDraft((current) => {
       if (nextQuantity === 0) {
         const { [code]: _removed, ...remaining } = current
@@ -318,8 +322,11 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', camp
 
   const updateCustomItem = (id: string, update: Partial<Pick<CustomOrderItem, 'name' | 'quantity'>>) => {
     if (!controlsEditable) return
-    setCustomDraft((current) => current.map((item) => item.id === id ? { ...item, ...update } : item))
     setNotice(null)
+    const previous = customDraft.find((item) => item.id === id)?.quantity ?? 0
+    if (update.quantity !== undefined && update.quantity > previous
+      && !withinThreshold(draftQuantity + customDraftQuantity - previous + update.quantity)) return
+    setCustomDraft((current) => current.map((item) => item.id === id ? { ...item, ...update } : item))
   }
 
   const removeCustomItem = (id: string) => {
@@ -449,7 +456,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', camp
                         <div className="resident-custom-items-heading">
                           <div>
                             <h3 id="custom-order-items-heading">額外品項</h3>
-                            <p>名稱由你填寫，金額由團主另計；不納入成團門檻。</p>
+                            <p>名稱由你填寫，數量算入成團數量，金額由團主另計。</p>
                           </div>
                           <Button variant="secondary" onClick={addCustomItem} disabled={!controlsEditable || customDraft.length >= 10}>
                             <span aria-hidden="true">＋</span> 新增額外品項

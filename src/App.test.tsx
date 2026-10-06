@@ -266,8 +266,9 @@ describe('customer campaign app', () => {
     />)
 
     expect(screen.getByText(/隱藏版口味\+3・另計/)).toBeInTheDocument()
-    expect(screen.getByText(/另有 3 個額外品項/)).toBeInTheDocument()
-    expect(screen.getByText('62 個 / 100 個')).toBeInTheDocument()
+    // A household's count on the wall and the progress both include custom items; only money leaves them out.
+    expect(screen.getByText(/含 3 個額外品項/)).toBeInTheDocument()
+    expect(screen.getByText('65 個 / 100 個')).toBeInTheDocument()
   })
 
   it('hides every household from the live wall while keeping the current household in my order', () => {
@@ -485,6 +486,28 @@ describe('customer campaign app', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('目前其他住戶已訂 56 個，成團上限為 63 個，本次最多可訂 7 個。')
     expect(screen.getByRole('status', { name: 'C 抹茶數量' })).toHaveTextContent('1')
+  })
+
+  it('counts custom items, a neighbour’s and your own, against the formation threshold', async () => {
+    const user = userEvent.setup()
+    render(<App
+      publishedContent={{
+        title: '限量團購', unitPrice: 45, threshold: 63, thresholdKind: 'quantity', amountThreshold: null, allowCustomItems: true,
+        announcement: '公告', images: [], items, openedAt: '2026-08-14T00:05:09.000Z',
+      }}
+      visibleOrders={initialOrders.map((order, index) => index === 1
+        ? { ...order, customItems: [{ id: 'neighbour-bag', name: '提袋', quantity: 1 }] }
+        : order)}
+    />)
+
+    // 56 formal plus the neighbour's custom item leaves room for 6; this household already has 6.
+    await user.click(screen.getByRole('button', { name: '增加 C 抹茶' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('目前其他住戶已訂 57 個，成團上限為 63 個，本次最多可訂 6 個。')
+
+    await user.click(screen.getByRole('button', { name: /新增額外品項/ }))
+    await user.click(screen.getByRole('button', { name: '增加 額外品項 1' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('本次最多可訂 6 個。')
+    expect(screen.getByRole('status', { name: '額外品項 1數量' })).toHaveTextContent('0')
   })
 
   it('continues accepting quantity orders past the threshold when auto closing is disabled', async () => {

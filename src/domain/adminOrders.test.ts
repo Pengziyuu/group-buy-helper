@@ -51,11 +51,13 @@ describe('organizer order summary', () => {
     })
 
     expect(summary.orderCount).toBe(1)
-    expect(summary.quantity).toBe(0)
+    // Custom items count toward quantity, never toward the amount.
+    expect(summary.quantity).toBe(2)
     expect(summary.amount).toBe(0)
     expect(summary.itemRows.every((item) => item.quantity === 0)).toBe(true)
+    expect(summary.customItemRows).toEqual([{ name: '限定蛋糕', quantity: 2 }])
     expect(summary.orderRows[0]).toEqual(expect.objectContaining({
-      quantity: 0,
+      quantity: 2,
       amount: 0,
       customItemSummary: '限定蛋糕+2・另計',
     }))
