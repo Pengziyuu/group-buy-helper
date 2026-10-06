@@ -70,9 +70,9 @@ describe('LINE pickup notification payload', () => {
     await expect(openPickupRecipientSnapshot('test-secret-with-at-least-32-characters', tampered)).rejects.toThrow('預覽憑證無效')
   })
 
-  it('creates an opaque 128-bit command and encrypts the reply body without storing plaintext', async () => {
-    const commandCode = generatePickupReplyCommandCode('production')
-    expect(commandCode).toMatch(/^P-[A-Za-z0-9_-]{22}$/)
+  it('creates a short command code and encrypts the reply body without storing plaintext', async () => {
+    const commandCode = generatePickupReplyCommandCode()
+    expect(commandCode).toMatch(/^[2-9A-HJ-NP-Z]{4}$/)
     const intentId = '92000000-0000-4000-8000-000000000001'
     const encrypted = await sealPickupReplyPayload('test-secret-with-at-least-32-characters', intentId, '領取通知正文')
     expect(encrypted).toMatch(/^[A-Za-z0-9_-]+$/)

@@ -131,9 +131,44 @@ export function pickupPeriodSnapshotMatches(
       && recipient.period === snapshot.periods![index])
 }
 
-export function generatePickupReplyCommandCode(destination: 'test' | 'production'): string {
-  const random = crypto.getRandomValues(new Uint8Array(16))
-  return `${destination === 'test' ? 'T' : 'P'}-${encodeBase64Url(random)}`
+// The group command only has to tell this organizer's pending notices apart: only the organizer who
+// created it, in the bound group, within 10 minutes and once, can use it. So 4 characters will do,
+// drawn from 32 that cannot be misread (no 0, O, 1, I).
+const COMMAND_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'
+const COMMAND_WORDS = { production: '發送領取通知', test: '測試領取通知' } as const
+const SHORT_COMMAND = /^(發送領取通知|測試領取通知)[\s　]*([2-9A-HJ-NP-Za-hj-np-z]{4})$/u
+// Commands issued before the short form (still valid for up to 10 minutes after the switch).
+const LEGACY_COMMAND = /^(發送領取通知 P-|測試領取通知 T-)([A-Za-z0-9_-]{22})$/u
+
+export function generatePickupReplyCommandCode(): string {
+  const random = crypto.getRandomValues(new Uint8Array(4))
+  return Array.from(random, (byte) => COMMAND_ALPHABET[byte & 31]).join('')
+}
+
+/** What the organizer pastes into the group. */
+export function pickupReplyCommandText(destination: 'test' | 'production', code: string): string {
+  return `${COMMAND_WORDS[destination]} ${code}`
+}
+
+/** The key whose hash is stored: test and production codes never match each other. */
+export function pickupReplyCommandHashKey(destination: 'test' | 'production', code: string): string {
+  return `${destination === 'test' ? 'T' : 'P'}-${code}`
+}
+
+/** A group message read as a pickup command, tolerant of spacing and letter case; null for anything else. */
+export function parsePickupReplyCommand(text: string): { destination: 'test' | 'production'; hashKey: string } | null {
+  const trimmed = text.trim()
+  const short = trimmed.match(SHORT_COMMAND)
+  if (short) {
+    const destination = short[1] === COMMAND_WORDS.test ? 'test' : 'production'
+    return { destination, hashKey: pickupReplyCommandHashKey(destination, short[2].toUpperCase()) }
+  }
+  const legacy = trimmed.match(LEGACY_COMMAND)
+  if (legacy) {
+    const destination = legacy[1].endsWith('T-') ? 'test' : 'production'
+    return { destination, hashKey: pickupReplyCommandHashKey(destination, legacy[2]) }
+  }
+  return null
 }
 
 export async function sealPickupReplyPayload(secret: string, intentId: string, message: string): Promise<string> {

@@ -8,6 +8,9 @@ import {
   pickupEligibleRecipientSnapshotHash,
   assertPickupReplyPayloadSize,
   pickupPeriodSnapshotMatches,
+  generatePickupReplyCommandCode,
+  pickupReplyCommandText,
+  parsePickupReplyCommand,
 } from './pickupNotification'
 
 const secret = 'test-secret-with-at-least-32-characters'
@@ -62,5 +65,35 @@ const id = `U${'b'.repeat(32)}`
     expect(migration).toContain('internal_pickup_notification_eligible_hash')
     const claim = readFileSync('supabase/migrations/20260921003000_pickup_notification_reply_commands.sql', 'utf8')
     expect(claim).toContain('public.internal_pickup_notification_eligible_hash(v_intent.campaign_id, v_intent.audience) <> p_eligible_hash')
+  })
+})
+
+describe('領取通知短指令', () => {
+  it('短碼只有 4 碼，不含容易看錯的 0、O、1、I', () => {
+    for (let index = 0; index < 200; index += 1) {
+      expect(generatePickupReplyCommandCode()).toMatch(/^[2-9A-HJ-NP-Z]{4}$/)
+    }
+    expect(pickupReplyCommandText('production', 'K7Q2')).toBe('發送領取通知 K7Q2')
+    expect(pickupReplyCommandText('test', 'K7Q2')).toBe('測試領取通知 K7Q2')
+  })
+
+  it('群組裡貼回來的指令：正式與測試分開，空白和大小寫寬鬆', () => {
+    const production = parsePickupReplyCommand('發送領取通知 K7Q2')
+    expect(production).toEqual({ destination: 'production', hashKey: 'P-K7Q2' })
+    expect(parsePickupReplyCommand('  發送領取通知　k7q2 ')).toEqual(production)
+    expect(parsePickupReplyCommand('發送領取通知K7Q2')).toEqual(production)
+    expect(parsePickupReplyCommand('測試領取通知 K7Q2')).toEqual({ destination: 'test', hashKey: 'T-K7Q2' })
+    expect(parsePickupReplyCommand('發送領取通知 K7Q')).toBeNull()
+    expect(parsePickupReplyCommand('發送領取通知 K7Q20')).toBeNull()
+    expect(parsePickupReplyCommand('發送領取通知 K0Q2')).toBeNull()
+    expect(parsePickupReplyCommand('請發送領取通知 K7Q2')).toBeNull()
+  })
+
+  it('上線前發出、還在 10 分鐘內的舊長指令照樣認得', () => {
+    const legacy = 'x8Kq2Lm9Zr4Tb1Wn7Yc3Vd'
+    expect(parsePickupReplyCommand(`發送領取通知 P-${legacy}`)).toEqual({ destination: 'production', hashKey: `P-${legacy}` })
+    expect(parsePickupReplyCommand(`測試領取通知 T-${legacy}`)).toEqual({ destination: 'test', hashKey: `T-${legacy}` })
+    // The old code is case-sensitive base64url, so it is not folded to upper case.
+    expect(parsePickupReplyCommand(`發送領取通知 P-${legacy.toLowerCase()}`)).toEqual({ destination: 'production', hashKey: `P-${legacy.toLowerCase()}` })
   })
 })
