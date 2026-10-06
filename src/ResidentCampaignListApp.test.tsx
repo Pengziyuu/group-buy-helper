@@ -170,10 +170,10 @@ describe('ResidentCampaignListApp', () => {
     const card = (title: string) => screen.getByRole('link', { name: title }).closest('article') as HTMLElement
     const mark = (title: string) => card(title).querySelector('.resident-campaign-thumb .resident-campaign-ordered')
     // The mark sits on the picture, so a card is the same height whether or not the resident ordered.
-    // Custom items follow as +N, kept apart like the progress bar keeps them out of the threshold.
+    // One number: custom items count toward quantity, as on the progress bar.
     expect(mark('有訂的團')).toHaveTextContent(/^已訂 4$/)
-    expect(mark('也訂額外品項的團')).toHaveTextContent(/^已訂 2\+1$/)
-    expect(mark('只訂額外品項的團')).toHaveTextContent(/^已訂 \+1$/)
+    expect(mark('也訂額外品項的團')).toHaveTextContent(/^已訂 3$/)
+    expect(mark('只訂額外品項的團')).toHaveTextContent(/^已訂 1$/)
     expect(within(card('沒訂的團')).queryByText(/已訂/)).not.toBeInTheDocument()
 
     expect(within(card('有訂的團')).getByText('8 個 / 10 個・18 人')).toBeInTheDocument()

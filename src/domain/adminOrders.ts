@@ -62,6 +62,8 @@ export type OrganizerOrderSummary = {
   progressPercent: number
   formed: boolean
   itemRows: OrganizerItemRow[]
+  /** Custom items added up by name, in the order they first appear; they count toward quantity. */
+  customItemRows: { name: string; quantity: number }[]
   orderRows: OrganizerOrderRow[]
   fulfillment: ReturnType<typeof summarizePayment>
 }
@@ -114,7 +116,9 @@ export function buildOrganizerOrderSummary({
           const rightIndex = items.findIndex((item) => item.code === right)
           return leftIndex - rightIndex || left.localeCompare(right)
         })
+      // Custom items count toward a household's quantity; they have no price, so not its amount.
       const quantity = visibleItems.reduce((sum, [, itemQuantity]) => sum + itemQuantity, 0)
+        + (order.customItems ?? []).reduce((sum, item) => sum + Math.max(0, item.quantity), 0)
       const amount = visibleItems.reduce((sum, [code, itemQuantity]) => {
         const item = itemByCode.get(code)
         if (!item) throw new Error(`找不到品項 ${code}`)
@@ -137,6 +141,14 @@ export function buildOrganizerOrderSummary({
     })
     .sort((left, right) => compareHousehold(left, right))
 
+  const customTotals = new Map<string, number>()
+  for (const order of orders) {
+    for (const item of order.customItems ?? []) {
+      const name = item.name.trim()
+      if (name && item.quantity > 0) customTotals.set(name, (customTotals.get(name) ?? 0) + item.quantity)
+    }
+  }
+
   return {
     orderCount: orders.length,
     quantity: campaignSummary.quantity,
@@ -148,6 +160,7 @@ export function buildOrganizerOrderSummary({
     progressPercent: campaignSummary.progressPercent,
     formed: campaignSummary.formed,
     itemRows,
+    customItemRows: [...customTotals].map(([name, quantity]) => ({ name, quantity })),
     orderRows,
     fulfillment: summarizePayment(orderRows),
   }

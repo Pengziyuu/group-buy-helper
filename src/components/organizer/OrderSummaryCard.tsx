@@ -15,13 +15,14 @@ type OrderSummaryCardProps = {
   ordersToday: number
 }
 
-/** Plain lines for the supplier: the campaign, each ordered item, and the total. Unordered items are left out. */
+/** Plain lines for the supplier: the campaign, each ordered item, custom items, and the total. Unordered items are left out. */
 export function itemQuantitiesText(campaignTitle: string, summary: OrganizerOrderSummary): string {
   const unit = summary.quantityUnit
   const lines = summary.itemRows
     .filter((item) => item.quantity > 0)
     .map((item) => `${item.name} ${item.quantity} ${unit}`)
-  return [campaignTitle, ...lines, `合計 ${summary.quantity} ${unit}`].join('\n')
+  const customLines = summary.customItemRows.map((item) => `${item.name}（額外品項） ${item.quantity} ${unit}`)
+  return [campaignTitle, ...lines, ...customLines, `合計 ${summary.quantity} ${unit}`].join('\n')
 }
 
 /** One card: formation progress, the order totals, and an aligned per-item tally that can be copied. */
@@ -74,7 +75,7 @@ export function OrderSummaryCard({ campaignTitle, summary, status, ordersToday }
 
       {/* Folded by default so the order list stays close to the top; opened when tallying or ordering from the supplier. */}
       <details className="organizer-item-tally-block">
-        <summary>品項數量 <small>{`${summary.itemRows.length} 項・合計 ${summary.quantity} ${unit}`}</small></summary>
+        <summary>品項數量 <small>{`${summary.itemRows.length + summary.customItemRows.length} 項・合計 ${summary.quantity} ${unit}`}</small></summary>
         <div className="organizer-item-tally-actions">
           <Button size="sm" variant="utility" onClick={() => { void copyItems() }}>複製品項數量</Button>
           {copyFeedback && <FeedbackMessage tone={copyFeedback.tone}>{copyFeedback.text}</FeedbackMessage>}
@@ -84,6 +85,13 @@ export function OrderSummaryCard({ campaignTitle, summary, status, ordersToday }
           {summary.itemRows.map((item) => (
             <li key={item.code} data-empty={item.quantity === 0 || undefined}>
               <span className="organizer-item-code">{item.label}</span>
+              <span className="organizer-item-name">{item.name}</span>
+              <strong className="ui-num">{item.quantity} {unit}</strong>
+            </li>
+          ))}
+          {summary.customItemRows.map((item) => (
+            <li key={`custom-${item.name}`} className="is-custom">
+              <span className="organizer-item-code">額外</span>
               <span className="organizer-item-name">{item.name}</span>
               <strong className="ui-num">{item.quantity} {unit}</strong>
             </li>

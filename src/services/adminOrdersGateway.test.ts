@@ -42,7 +42,8 @@ describe('Supabase admin orders gateway', () => {
     expect(from).toHaveBeenCalledWith('organizer_order_wall')
     expect(from).toHaveBeenCalledWith('organizer_order_status')
     expect(summary.orderCount).toBe(2)
-    expect(summary.quantity).toBe(5)
+    // 3 formal items plus the 限定蛋糕 ×2 custom item; the amount leaves the custom item out.
+    expect(summary.quantity).toBe(7)
     expect(summary.amount).toBe(202)
     expect(summary.itemRows.map(({ code, quantity }) => ({ code, quantity }))).toEqual([
       { code: 'A', quantity: 2 },

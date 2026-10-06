@@ -89,6 +89,27 @@ describe('OrdersSection', () => {
     expect(await screen.findByText('已複製')).toBeInTheDocument()
   })
 
+  it('tallies custom items with the formal ones and copies them for the supplier', async () => {
+    const user = userEvent.setup()
+    const withCustom = buildOrganizerOrderSummary({
+      orders: initialOrders.map((order, index) => index < 2
+        ? { ...order, customItems: [{ id: `custom-${index}`, name: index === 0 ? '提袋' : ' 提袋 ', quantity: 2 }] }
+        : order),
+      items,
+      threshold: 100,
+    })
+    renderOrders({ summary: withCustom })
+
+    const folded = screen.getByText('品項數量', { selector: 'summary' }).closest('details') as HTMLElement
+    expect(folded.querySelector('summary')).toHaveTextContent('品項數量 10 項・合計 66 個')
+    const lines = within(within(folded).getByRole('list', { name: '品項數量', hidden: true })).getAllByRole('listitem', { hidden: true })
+    expect(lines.at(-1)).toHaveTextContent('額外提袋4 個')
+
+    await user.click(screen.getByRole('button', { name: '複製品項數量' }))
+    const copied = (await navigator.clipboard.readText()).split('\n')
+    expect(copied.slice(-2)).toEqual(['提袋（額外品項） 4 個', '合計 66 個'])
+  })
+
   it('shows discounted amount-threshold progress and retains the closed-campaign pickup shortcut', () => {
     const amountSummary = buildOrganizerOrderSummary({ orders: initialOrders, items, threshold: 100, thresholdKind: 'amount', amountThreshold: 5000 })
     renderOrders({ campaignId: 'campaign-1', summary: amountSummary, status: 'closed' })
@@ -143,7 +164,8 @@ describe('OrdersSection', () => {
     })
     renderOrders({ summary: boxSummary })
 
-    expect(screen.getByLabelText('成團進度摘要')).toHaveTextContent('62 / 100 盒')
+    // The custom item counts toward the progress.
+    expect(screen.getByLabelText('成團進度摘要')).toHaveTextContent('64 / 100 盒')
     // customItems was attached to initialOrders[0] (斯祈・2K13), not H11 — the household
     // sort puts H11 first on screen, but the custom item belongs to the 2K13 row.
     const row = rowOf(/2K13\s*斯祈/)

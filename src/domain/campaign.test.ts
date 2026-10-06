@@ -19,12 +19,25 @@ describe('summarizeCampaign', () => {
     expect(summarizeCampaign(orders, itemPrices, 100)).toEqual({
       itemTotals: { A: 2, B: 14, C: 8, D: 10, E: 8, F: 6, G: 4, H: 6, I: 4 },
       quantity: 62,
+      customQuantity: 0,
       amount: 2790,
       threshold: 100,
       remaining: 38,
       progressPercent: 62,
       formed: false,
     })
+  })
+
+  it('counts custom items toward the quantity and its threshold, but never toward the amount', () => {
+    const withCustom: Order[] = [
+      { customerId: 'a', items: { A: 2 }, customItems: [{ quantity: 3 }] },
+      { customerId: 'b', items: {}, customItems: [{ quantity: 1 }, { quantity: 4 }] },
+    ]
+    const quantity = summarizeCampaign(withCustom, itemPrices, 10)
+    expect(quantity).toMatchObject({ itemTotals: { A: 2 }, quantity: 10, customQuantity: 8, amount: 90, remaining: 0, formed: true })
+
+    const amount = summarizeCampaign(withCustom, itemPrices, { kind: 'amount', target: 100 })
+    expect(amount).toMatchObject({ quantity: 10, amount: 90, remaining: 10, formed: false })
   })
 
   it('ignores zero quantities and never reports a negative remaining count', () => {

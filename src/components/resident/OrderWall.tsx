@@ -61,8 +61,8 @@ export function OrderWall({ orders, currentCustomerId, quantityUnit, itemDisplay
                   </p>
                 </div>
                 <div className="resident-wall-total">
-                  <strong>{orderQuantity(order.items)} {quantityUnit}</strong>
-                  {customQuantity > 0 && <small>另有 {customQuantity} {quantityUnit}額外品項</small>}
+                  <strong>{orderQuantity(order.items) + customQuantity} {quantityUnit}</strong>
+                  {customQuantity > 0 && <small>含 {customQuantity} {quantityUnit}額外品項</small>}
                 </div>
               </li>
             )
