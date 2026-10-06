@@ -23,7 +23,8 @@
 /* One-button LINE group check: counts and one light per resident. */
 .resident-group-check { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-4); margin-bottom: var(--space-4); padding: var(--space-3) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-surface); background: var(--color-surface); }
 .resident-group-check p { flex-basis: 100%; margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-caption); }
-.resident-group-check .resident-group-checked-at { color: var(--color-text); font-variant-numeric: tabular-nums; }
+.resident-group-check-actions { display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-1); }
+.resident-group-check .resident-group-checked-at { flex-basis: auto; font-variant-numeric: tabular-nums; }
 .resident-group-summary { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); margin: 0; padding: 0; list-style: none; }
 .resident-group-summary li,
 .resident-member-copy .resident-member-group-status { display: inline-flex; align-items: center; gap: var(--space-2); }
