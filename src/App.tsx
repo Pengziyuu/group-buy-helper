@@ -67,6 +67,8 @@ type AppProps = {
   publishedContent?: CampaignContent
   liveDemo?: boolean
   campaignStatus?: CampaignStatus
+  /** When the campaign actually closed; unknown for campaigns closed before it was recorded. */
+  campaignClosedAt?: string | null
   visibleOrders?: VisibleOrder[]
   residentCustomer?: ResidentCustomer | null
   verifiedResidentIdentity?: VerifiedResidentIdentity
@@ -78,7 +80,7 @@ type AppProps = {
 
 type Notice = { id: number; tone: 'success' | 'error'; text: string }
 
-function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visibleOrders, residentCustomer, verifiedResidentIdentity, onBindResident, onSubmitOrder, syncError, onSyncRetry }: AppProps = {}) {
+function App({ publishedContent, liveDemo = false, campaignStatus = 'open', campaignClosedAt = null, visibleOrders, residentCustomer, verifiedResidentIdentity, onBindResident, onSubmitOrder, syncError, onSyncRetry }: AppProps = {}) {
   const [localPublishedCampaign] = useState(() => loadPublishedCampaign(defaultContent))
   const publishedCampaign = useMemo(
     () => normalizeCampaignContent(publishedContent ?? localPublishedCampaign),
@@ -205,7 +207,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', visi
     formed: summary.formed,
   }
   const priceText = minimumPrice === maximumPrice ? `${formatMoney(minimumPrice)}／${quantityUnit}` : `${formatMoney(minimumPrice)}～${formatMoney(maximumPrice)}`
-  const schedule = describeResidentSchedule({ status: campaignStatus, autoCloseAt: publishedCampaign.autoCloseAt, thresholdKind, thresholdAutoClose: publishedCampaign.thresholdAutoClose, arrivalLabel: publishedCampaign.arrivalLabel }, new Date())
+  const schedule = describeResidentSchedule({ status: campaignStatus, autoCloseAt: publishedCampaign.autoCloseAt, closedAt: campaignClosedAt, thresholdKind, thresholdAutoClose: publishedCampaign.thresholdAutoClose, arrivalLabel: publishedCampaign.arrivalLabel }, new Date())
   const breakdownLines: BreakdownLine[] = draftPricing.lines.map((line) => {
     const index = publishedCampaign.items.findIndex((item) => item.code === line.code)
     return {

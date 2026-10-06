@@ -649,6 +649,16 @@ describe('customer campaign app', () => {
     expect(screen.getByText('本團已結單，無法修改訂單。')).toBeInTheDocument()
   })
 
+  it('fills the closing box of a closed campaign with the day it closed, or 已結單 when unknown', () => {
+    const { unmount } = render(<App campaignStatus="closed" campaignClosedAt="2026-01-03T04:00:00.000Z" />)
+    const closingBox = () => within(screen.getByRole('group', { name: '團購時程' })).getByText('結單', { selector: 'dt' }).parentElement
+    expect(closingBox()).toHaveTextContent(/^結單1\/3$|^結單2026\/1\/3$/)
+    unmount()
+
+    render(<App campaignStatus="closed" />)
+    expect(closingBox()).toHaveTextContent('結單已結單')
+  })
+
   it('tells a resident without an order that the campaign closed', () => {
     render(<App campaignStatus="closed" visibleOrders={initialOrders.filter((order) => order.customerId !== currentCustomerId)} />)
     expect(screen.queryByRole('list', { name: '你訂的品項' })).not.toBeInTheDocument()

@@ -155,8 +155,9 @@ export function OrganizerHome({ campaigns, autoCloseNotificationState, unboundRe
                 const phase = campaignPhase(campaign)
                 const badge = PHASE_BADGES[phase]
                 const progress = formationProgress(campaign)
-                // Drafts and open campaigns alike: a time, 額滿自動結單 or 手動決定結單, as residents read it.
-                const closing = phase === 'closed' ? null : describeResidentSchedule({ ...campaign, status: 'open' }, today).closing
+                // Drafts and open campaigns alike: a time, 額滿自動結單 or 手動決定結單, as residents read it;
+                // closed ones show the day they actually closed, when that was recorded.
+                const closing = describeResidentSchedule(phase === 'closed' ? campaign : { ...campaign, status: 'open' }, today).closing
                 const href = `/admin/campaign/${campaign.id}`
                 const items = menuItems(campaign, phase)
                 return (

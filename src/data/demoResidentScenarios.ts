@@ -5,6 +5,7 @@
 import { summarizeCampaign } from '../domain/campaign'
 import type { CampaignStatus } from '../domain/orderWorkflow'
 import type { ResidentCampaignListItem } from '../ResidentCampaignListApp'
+import type { ResidentMyOrder } from '../ResidentMyOrdersApp'
 import type { HouseholdKind } from '../domain/household'
 import type { CampaignContent } from '../services/demoCampaignStore'
 import type { VisibleOrder } from './demo'
@@ -16,6 +17,8 @@ export type DemoResidentScenario = {
   orders: VisibleOrder[]
   /** The signed-in resident; null shows the first-time binding form. */
   customer: { customerId: string; name: string; period: number | null; unit: string | null; householdKind: HouseholdKind } | null
+  /** When a closed campaign actually closed. */
+  closedAt?: string | null
 }
 
 const HOUR = 60 * 60 * 1000
@@ -208,6 +211,7 @@ export function demoResidentScenarios(clock = Date.now()): DemoResidentScenario[
       // Closed without reaching the threshold.
       slug: 'f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6',
       status: 'closed',
+      closedAt: new Date(now - 20 * HOUR).toISOString(),
       customer: me,
       orders: [myOrder({ A: 1 }, 3000, now), ...fakeOrders(now, 3, () => ({ A: 1, B: 1 }), 4000)],
       content: {
@@ -230,6 +234,7 @@ export function demoResidentScenarios(clock = Date.now()): DemoResidentScenario[
       // Arrived and formed.
       slug: '9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a',
       status: 'arrived',
+      closedAt: new Date(now - 4 * 24 * HOUR).toISOString(),
       customer: me,
       orders: [myOrder({ A: 2 }, 9000, now), ...fakeOrders(now, 9, () => ({ A: 2 }), 10000)],
       content: {
@@ -260,6 +265,7 @@ export function demoScenarioListItem(scenario: DemoResidentScenario): ResidentCa
     target: kind === 'amount' ? content.amountThreshold ?? content.threshold : content.threshold,
   })
   const prices = content.items.filter((item) => item.active).map((item) => item.unitPrice ?? content.unitPrice)
+  const mine = myOrderIn(scenario)
   return {
     slug: scenario.slug,
     title: content.title,
@@ -276,5 +282,46 @@ export function demoScenarioListItem(scenario: DemoResidentScenario): ResidentCa
     images: content.images,
     arrivalLabel: content.arrivalLabel,
     autoCloseAt: content.autoCloseAt ?? null,
+    closedAt: scenario.closedAt ?? null,
+    myQuantity: myQuantity(mine),
+    myHasOrder: hasContent(mine),
+    orderHouseholdCount: scenario.orders.filter(hasContent).length,
+  }
+}
+
+function myOrderIn(scenario: DemoResidentScenario): VisibleOrder | undefined {
+  return scenario.customer ? scenario.orders.find((order) => order.customerId === scenario.customer?.customerId) : undefined
+}
+
+function myQuantity(order: VisibleOrder | undefined) {
+  return Object.values(order?.items ?? {}).reduce((sum, quantity) => sum + quantity, 0)
+}
+
+function hasContent(order: VisibleOrder | undefined) {
+  return myQuantity(order) > 0 || (order?.customItems?.length ?? 0) > 0
+}
+
+/** The signed-in resident's order in a scenario, shaped as list_my_orders() returns it. */
+export function demoScenarioMyOrder(scenario: DemoResidentScenario): ResidentMyOrder | null {
+  const order = myOrderIn(scenario)
+  if (!order || !hasContent(order)) return null
+  const { content } = scenario
+  return {
+    slug: scenario.slug,
+    title: content.title,
+    status: scenario.status,
+    openedAt: content.openedAt ?? new Date().toISOString(),
+    images: content.images,
+    quantityUnit: content.quantityUnit ?? '個',
+    arrivalLabel: content.arrivalLabel ?? '貨到通知',
+    autoCloseAt: content.autoCloseAt ?? null,
+    thresholdKind: content.thresholdKind ?? 'quantity',
+    thresholdAutoClose: content.thresholdAutoClose ?? (content.thresholdKind ?? 'quantity') === 'quantity',
+    closedAt: scenario.closedAt ?? null,
+    items: content.items.flatMap((item) => {
+      const quantity = order.items[item.code] ?? 0
+      return quantity > 0 ? [{ name: item.name, quantity, unitPrice: item.unitPrice ?? content.unitPrice }] : []
+    }),
+    customItems: (order.customItems ?? []).map(({ name, quantity }) => ({ name, quantity })),
   }
 }

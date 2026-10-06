@@ -66,7 +66,7 @@ describe('ResidentCampaignListApp', () => {
     expect(facts('水果團購時程')).toEqual(['貨到通知'])
     expect(within(closed).getByRole('img', { name: '水果團購尚未設定商品圖片' })).toBeInTheDocument()
 
-    const titles = screen.getAllByRole('link').map((link) => link.textContent)
+    const titles = within(screen.getByRole('main')).getAllByRole('link').map((link) => link.textContent)
     expect(titles).toEqual(['早餐團購', '水果團購'])
   })
 
@@ -149,6 +149,39 @@ describe('ResidentCampaignListApp', () => {
 
     expect(facts('有排定的已結單團時程')).toEqual(['10月初到貨'])
     expect(facts('未排定的已結單團時程')).toEqual(['貨到通知'])
+  })
+
+  it('adds the day a closed campaign actually closed, when it is known', () => {
+    render(<ResidentCampaignListApp identity={identity} campaigns={[
+      campaign({ slug: 'closed-dated', title: '有結單日的團', status: 'closed', closedAt: '2026-08-20T04:00:00.000Z' }),
+    ]} now={new Date('2026-09-01T00:00:00.000Z')} />)
+
+    expect(facts('有結單日的團時程')).toEqual(['8/20 結單', '貨到通知'])
+  })
+
+  it('marks campaigns the resident ordered on the picture and counts the households that ordered', () => {
+    render(<ResidentCampaignListApp identity={identity} campaigns={[
+      campaign({ slug: 'ordered', title: '有訂的團', myHasOrder: true, myQuantity: 4, orderHouseholdCount: 18 }),
+      campaign({ slug: 'custom-only', title: '只訂額外品項的團', myHasOrder: true, myQuantity: 0, orderHouseholdCount: 1 }),
+      campaign({ slug: 'not-ordered', title: '沒訂的團', myHasOrder: false, myQuantity: 0, orderHouseholdCount: 0 }),
+    ]} />)
+
+    const card = (title: string) => screen.getByRole('link', { name: title }).closest('article') as HTMLElement
+    // The mark sits on the picture, so a card is the same height whether or not the resident ordered.
+    expect(card('有訂的團').querySelector('.resident-campaign-thumb .resident-campaign-ordered')).toHaveTextContent(/^已訂 4$/)
+    expect(card('只訂額外品項的團').querySelector('.resident-campaign-thumb .resident-campaign-ordered')).toHaveTextContent(/^已訂$/)
+    expect(within(card('沒訂的團')).queryByText(/已訂/)).not.toBeInTheDocument()
+
+    expect(within(card('有訂的團')).getByText('8 個 / 10 個・18 人')).toBeInTheDocument()
+    expect(within(card('沒訂的團')).getByText('8 個 / 10 個')).toBeInTheDocument()
+  })
+
+  it('switches between campaigns and my orders from the tab bar', () => {
+    render(<ResidentCampaignListApp identity={identity} campaigns={[]} />)
+
+    const tabs = screen.getByRole('navigation', { name: '住戶頁面' })
+    expect(within(tabs).getByRole('link', { name: '團購' })).toHaveAttribute('aria-current', 'page')
+    expect(within(tabs).getByRole('link', { name: '我的訂單' })).toHaveAttribute('href', '/orders')
   })
 
   it('shows the five newest closed campaigns until asked for older ones', async () => {

@@ -11,6 +11,7 @@ export type AppRoute =
   | { kind: 'resident-campaign'; campaignSlug: string }
   | { kind: 'resident-invite'; inviteSlug: string }
   | { kind: 'resident-default' }
+  | { kind: 'resident-orders' }
   | { kind: 'not-found' }
 
 const UUID_SOURCE = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
@@ -41,6 +42,7 @@ export function resolveLiffPath(pathname: string, search: string): string {
 
 export function parseAppRoute(pathname: string): AppRoute {
   if (pathname === '/') return { kind: 'resident-default' }
+  if (pathname === '/orders' || pathname === '/orders/') return { kind: 'resident-orders' }
 
   const adminPath = pathname.endsWith('/') ? pathname.slice(0, -1) : pathname
   if (Object.hasOwn(ADMIN_PAGES, adminPath)) return { ...ADMIN_PAGES[adminPath] }

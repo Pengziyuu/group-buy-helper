@@ -23,8 +23,10 @@ const closed: CampaignListItem = {
   createdAt: '2026-08-09T00:00:00Z', updatedAt: '2026-08-11T00:00:00Z',
   images: [], quantityUnit: '箱', orderCount: 5, totalQuantity: 4, totalAmount: 600, paidOrderCount: 2,
   thresholdKind: 'quantity', threshold: 4, amountThreshold: null, autoCloseAt: '2026-08-12T04:00:00.000Z',
+  closedAt: '2026-08-11T06:30:00.000Z',
 }
-const arrived: CampaignListItem = { ...closed, id: 'arrived-id', slug: 'arrived-slug', title: '已到貨麵包團', status: 'arrived', openedAt: '2026-08-08T00:00:00Z' }
+// Closed before closing times were recorded: no date to show.
+const arrived: CampaignListItem = { ...closed, id: 'arrived-id', slug: 'arrived-slug', title: '已到貨麵包團', status: 'arrived', openedAt: '2026-08-08T00:00:00Z', closedAt: null }
 const now = new Date('2026-09-25T01:00:00.000Z')
 
 function renderHome(props: Partial<Parameters<typeof OrganizerHome>[0]> = {}) {
@@ -72,7 +74,7 @@ describe('OrganizerHome', () => {
   })
 
   it('shows status, progress, orders, closing time and time for each phase without payment columns', () => {
-    renderHome()
+    renderHome({ campaigns: [closed, draft, open, arrived] })
 
     const openRow = rowOf('冰餅團')
     expect(within(openRow).getByText('開團中')).toBeInTheDocument()
@@ -107,6 +109,9 @@ describe('OrganizerHome', () => {
     expect(screen.getByRole('columnheader', { name: '開團' })).toBeInTheDocument()
     expect(screen.queryByRole('columnheader', { name: '時間' })).not.toBeInTheDocument()
     expect(within(closedRow).queryByText(/12:00/)).not.toBeInTheDocument()
+    // A closed campaign's 結單 is the day it actually closed, not its scheduled time.
+    expect(closedRow.querySelector('td[data-label="結單"]')).toHaveTextContent(/^8\/11$/)
+    expect(rowOf('已到貨麵包團').querySelector('td[data-label="結單"]')).toHaveTextContent(/^—$/)
   })
 
   it('uses the total amount for amount-based formation progress', () => {

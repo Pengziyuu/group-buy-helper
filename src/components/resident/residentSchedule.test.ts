@@ -35,7 +35,15 @@ describe('describeResidentSchedule', () => {
     expect(describeResidentSchedule({ ...base, arrivalLabel: '10/07' }, now).arrival).toEqual({ value: '10/7', line: '10/7 到貨' })
   })
 
-  it('drops the closing schedule once a campaign is closed or arrived, keeping only arrival', () => {
+  it('gives a closed campaign the date it actually closed, without a time', () => {
+    for (const status of ['closed', 'arrived'] as const) {
+      const schedule = describeResidentSchedule({ ...base, status, closedAt: '2026-09-20T16:30:00.000Z', arrivalLabel: '10/07' }, now)
+      expect(schedule.closing).toEqual({ value: '9/21', line: '9/21 結單', soon: false })
+      expect(schedule.arrival).toEqual({ value: '10/7', line: '10/7 到貨' })
+    }
+  })
+
+  it('drops the closing schedule of a closed campaign whose closing time is unknown, keeping only arrival', () => {
     for (const status of ['closed', 'arrived'] as const) {
       const schedule = describeResidentSchedule({ ...base, status, autoCloseAt: '2026-09-20T04:00:00.000Z', arrivalLabel: '10/07' }, now)
       expect(schedule.closing).toBeNull()

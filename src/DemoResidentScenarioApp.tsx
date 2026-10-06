@@ -12,6 +12,7 @@ export function DemoResidentScenarioApp({ scenario }: { scenario: DemoResidentSc
     <App
       publishedContent={scenario.content}
       campaignStatus={scenario.status}
+      campaignClosedAt={scenario.closedAt ?? null}
       visibleOrders={orders}
       residentCustomer={customer}
       verifiedResidentIdentity={{ displayName: '測試住戶', pictureUrl: null }}

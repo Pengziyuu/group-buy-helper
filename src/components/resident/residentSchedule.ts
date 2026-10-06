@@ -1,11 +1,14 @@
 // How a resident reads a campaign's schedule. Closing and arrival always come as a pair while
-// a campaign is open, so every card carries the same line; once closed only arrival matters.
-import { describeAutoClose, normalizeArrivalLabel } from '../../domain/campaignSchedule'
+// a campaign is open, so every card carries the same line; once closed, the day it closed (when
+// known) and arrival.
+import { describeAutoClose, formatShortDate, normalizeArrivalLabel } from '../../domain/campaignSchedule'
 import type { CampaignStatus } from '../../domain/orderWorkflow'
 
 type ScheduleInput = {
   status: CampaignStatus
   autoCloseAt?: string | null
+  /** When the campaign actually closed; unknown for campaigns closed before it was recorded. */
+  closedAt?: string | null
   thresholdKind?: 'quantity' | 'amount'
   thresholdAutoClose?: boolean
   arrivalLabel?: string
@@ -16,7 +19,13 @@ export type ScheduleFact = { value: string; line: string }
 export type ClosingFact = ScheduleFact & { soon: boolean; note?: string }
 
 export function describeResidentSchedule(input: ScheduleInput, now: Date): { closing: ClosingFact | null; arrival: ScheduleFact } {
-  return { closing: input.status === 'open' ? describeClosing(input, now) : null, arrival: describeArrival(input) }
+  const closing = input.status === 'open' ? describeClosing(input, now) : describeClosed(input.closedAt, now)
+  return { closing, arrival: describeArrival(input) }
+}
+
+function describeClosed(closedAt: string | null | undefined, now: Date): ClosingFact | null {
+  const day = closedAt ? formatShortDate(closedAt, now) : ''
+  return day ? { value: day, line: `${day} 結單`, soon: false } : null
 }
 
 function describeClosing({ autoCloseAt, thresholdKind = 'quantity', thresholdAutoClose = thresholdKind === 'quantity' }: ScheduleInput, now: Date): ClosingFact {
