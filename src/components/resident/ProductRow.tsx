@@ -20,7 +20,8 @@ export function ProductRow({ code, name, priceText, listPrice, hint, quantity, d
       <div className="resident-product-name">
         <strong>{name}</strong>
         {listPrice !== undefined && <small className="resident-product-list-price">原價 {formatMoney(listPrice)}</small>}
-        <span className="resident-product-price">{priceText}</span>
+        {/* Empty when every item shares one price, named once above the list. */}
+        {priceText && <span className="resident-product-price">{priceText}</span>}
         {hint && <small>{hint}</small>}
       </div>
       <QuantityControl

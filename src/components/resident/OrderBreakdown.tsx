@@ -29,10 +29,12 @@ export function OrderBreakdown({ lines, customItems, total, savings, quantityUni
             <span className="resident-product-code">{line.label}</span>
             <div>
               <strong>{line.name}</strong>
-              <small>
-                <span className="resident-breakdown-discount">{line.discountText}</span>
-                {line.listUnitPrice !== line.finalUnitPrice ? `・原價 ${formatMoney(line.listUnitPrice)}` : ''}
-              </small>
+              {(line.discountText || line.listUnitPrice !== line.finalUnitPrice) && (
+                <small>
+                  <span className="resident-breakdown-discount">{line.discountText}</span>
+                  {line.listUnitPrice !== line.finalUnitPrice ? `・原價 ${formatMoney(line.listUnitPrice)}` : ''}
+                </small>
+              )}
             </div>
             <span>{line.quantity} × {formatMoney(line.finalUnitPrice)}</span>
             <strong>{formatMoney(line.lineTotal)}</strong>

@@ -168,6 +168,9 @@
 .resident-discount-status.is-applied { background: var(--color-success-subtle); color: var(--color-success); }
 .resident-product-section + .resident-product-section { margin-top: var(--space-4); }
 .resident-product-section h3 { margin: 0 0 var(--space-1); font-size: 15px; font-weight: var(--font-weight-strong); }
+/* A price every item shares sits beside the heading, so the rows carry only names. */
+.resident-product-section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
+.resident-product-shared-price { color: var(--color-text-secondary); font-size: var(--font-size-dense); font-variant-numeric: tabular-nums; }
 .resident-product-section-note { margin: 0 0 var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-caption); }
 .resident-custom-items { margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--color-divider); }
 .resident-custom-items-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
@@ -211,9 +214,12 @@
   .resident-card { padding: var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-surface); }
   .resident-summary { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); align-items: end; }
   .resident-info-body[data-has-images="true"] { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
-  .resident-order { position: sticky; top: 68px; display: flex; flex-direction: column; max-height: calc(100vh - 84px); }
-  .resident-order-items { min-height: 0; overflow-y: auto; padding-inline: 4px; margin-inline: -4px; }
-  .ui-sticky-action.resident-order-bar { position: static; margin: var(--space-3) calc(var(--space-5) * -1) calc(var(--space-5) * -1); border-radius: 0 0 var(--radius-surface) var(--radius-surface); box-shadow: none; }
+  /* A card that fits the window follows the page (data-follows, set from its measured height). A taller one
+     scrolls with the page, every item in the page's own scroll, while its 送出 bar stays at the bottom of the
+     window; a box scrolling inside the card hid most items behind a second scroll. */
+  .resident-order { display: flex; flex-direction: column; }
+  .resident-order[data-follows] { position: sticky; top: 68px; }
+  .ui-sticky-action.resident-order-bar { position: sticky; bottom: 0; margin: var(--space-3) calc(var(--space-5) * -1) calc(var(--space-5) * -1); border-radius: 0 0 var(--radius-surface) var(--radius-surface); box-shadow: none; }
   .resident-order-bar-row,
   .resident-order-bar-note,
   .resident-order-bar-hint { width: auto; }
