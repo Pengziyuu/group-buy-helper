@@ -32,6 +32,7 @@ import {
 } from './components/resident/ResidentBindingForm'
 import './components/resident/resident.css'
 import { MY_ORDER_SECTION_ID } from './routing'
+import { useFitsInViewport } from './components/resident/useFitsInViewport'
 import { useWideLayout } from './components/resident/useWideLayout'
 import { useHiddenWhileScrollingDown } from './components/resident/useHiddenWhileScrollingDown'
 import { ChevronLeft, Pencil, Plus } from 'lucide-react'
@@ -122,6 +123,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', camp
   const customItemSequence = useRef(0)
   const focusCustomItemId = useRef<string | null>(null)
   const orderItemsRef = useRef<HTMLDivElement>(null)
+  const orderSectionRef = useRef<HTMLElement>(null)
   const noticeSequence = useRef(0)
   const [notice, setNotice] = useState<Notice | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -224,6 +226,10 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', camp
   }
   const priceText = minimumPrice === maximumPrice ? `${formatMoney(minimumPrice)}／${quantityUnit}` : `${formatMoney(minimumPrice)}～${formatMoney(maximumPrice)}`
   const schedule = describeResidentSchedule({ status: campaignStatus, autoCloseAt: publishedCampaign.autoCloseAt, closedAt: campaignClosedAt, thresholdKind, thresholdAutoClose: publishedCampaign.thresholdAutoClose, arrivalLabel: publishedCampaign.arrivalLabel }, new Date())
+  // Without any discount there is nothing for 原價 to stand against, and one price can serve every row.
+  const campaignHasDiscount = (publishedCampaign.baseDiscountRate ?? 1) < 1 || Boolean(publishedCampaign.mixMatchDiscount)
+  const regularPrices = new Set(regularItems.map((item) => item.unitPrice ?? publishedCampaign.unitPrice))
+  const sharedRegularPrice = !campaignHasDiscount && regularPrices.size === 1 ? [...regularPrices][0] : null
   const breakdownLines: BreakdownLine[] = draftPricing.lines.map((line) => {
     const index = publishedCampaign.items.findIndex((item) => item.code === line.code)
     return {
@@ -232,7 +238,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', camp
       name: publishedCampaign.items[index]?.name ?? line.code,
       discountText: line.discountType === 'mix_match'
         ? line.promotionName ?? ''
-        : line.discountType === 'base' ? formatDiscountRate(line.discountRate) : '原價',
+        : line.discountType === 'base' ? formatDiscountRate(line.discountRate) : campaignHasDiscount ? '原價' : '',
     }
   })
   // Residents know they ordered; only an edit is worth a mark, with its time on hover.
@@ -247,6 +253,9 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', camp
   // Before a first order the bar offers a jump to the items; its label already says what to do. On wide
   // screens the bar closes the order card right under the items, so it keeps the plain 送出訂單 there.
   const wideLayout = useWideLayout()
+  // Wide screens: a card short enough to fit follows the page; a taller one scrolls with it, its own
+  // 送出 bar kept at the bottom of the window, instead of hiding items in a box of its own.
+  const orderCardFits = useFitsInViewport(orderSectionRef, 84, wideLayout)
   const headerHidden = useHiddenWhileScrollingDown()
   const offerChooseItems = controlsEditable && !hasDraftItems && !hasSubmittedOrder && !wideLayout
   const chooseItems = () => {
@@ -285,7 +294,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', camp
     })
   }
 
-  const renderProductRows = (itemsToRender: typeof activeItems) => itemsToRender.map((item) => {
+  const renderProductRows = (itemsToRender: typeof activeItems, priceInHeading = false) => itemsToRender.map((item) => {
     const itemIndex = publishedCampaign.items.findIndex((candidate) => candidate.code === item.code)
     const displayLabel = itemLabel(itemIndex)
     const itemPrice = item.unitPrice ?? publishedCampaign.unitPrice
@@ -305,7 +314,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', camp
         key={item.code}
         code={displayLabel}
         name={item.name}
-        priceText={priceLabel}
+        priceText={priceInHeading ? '' : priceLabel}
         listPrice={appliedRate < 1 ? itemPrice : undefined}
         hint={hint}
         quantity={draft[item.code] ?? 0}
@@ -416,7 +425,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', camp
           announcement={publishedCampaign.announcement}
           onOpenImage={setActiveImageIndex}
         />
-        <section id={MY_ORDER_SECTION_ID} className="resident-card resident-order" aria-labelledby="order-heading">
+        <section ref={orderSectionRef} id={MY_ORDER_SECTION_ID} className="resident-card resident-order" data-follows={wideLayout && orderCardFits ? 'true' : undefined} aria-labelledby="order-heading">
           <div className="resident-section-heading">
             <h2 id="order-heading">我的訂單</h2>
             {currentResident && (
@@ -455,8 +464,11 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', camp
                     )}
                     {regularItems.length > 0 && (
                       <section className="resident-product-section" aria-label={publishedCampaign.mixMatchDiscount ? '其他商品' : '商品選擇'}>
-                        <h3>{publishedCampaign.mixMatchDiscount ? '其他商品' : '選擇品項'}</h3>
-                        {renderProductRows(regularItems)}
+                        <div className="resident-product-section-heading">
+                          <h3>{publishedCampaign.mixMatchDiscount ? '其他商品' : '選擇品項'}</h3>
+                          {sharedRegularPrice !== null && <span className="resident-product-shared-price">{`每${quantityUnit} ${formatMoney(sharedRegularPrice)}`}</span>}
+                        </div>
+                        {renderProductRows(regularItems, sharedRegularPrice !== null)}
                       </section>
                     )}
                     {publishedCampaign.allowCustomItems && (

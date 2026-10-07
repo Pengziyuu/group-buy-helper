@@ -35,6 +35,25 @@ describe('customer campaign app', () => {
     expect(screen.getByText('目前其他住戶已訂 56 盒，成團上限為 63 盒，本次最多可訂 7 盒。')).toBeInTheDocument()
   })
 
+  it('names a price shared by every item once, beside 選擇品項, instead of on each row', () => {
+    render(<App />)
+    const selection = screen.getByRole('region', { name: '商品選擇' })
+    // All nine demo items cost $45 with no discount: one line for the price, rows for the names.
+    expect(within(selection).getByText('每個 $45')).toBeInTheDocument()
+    expect(within(selection).queryByText('$45')).not.toBeInTheDocument()
+    expect(within(selection).getByText('牛奶（招牌）')).toBeInTheDocument()
+  })
+
+  it('leaves 原價 out of the breakdown when the campaign has no discount to compare it with', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: '增加 A 牛奶（招牌）' }))
+    await user.click(screen.getByRole('button', { name: '查看訂單明細' }))
+    const review = screen.getByRole('dialog', { name: '訂單明細' })
+    expect(within(review).getByText('牛奶（招牌）')).toBeInTheDocument()
+    expect(within(review).queryByText(/原價/)).not.toBeInTheDocument()
+  })
+
   it('allows a formal item quantity to exceed twenty when campaign capacity remains', async () => {
     const user = userEvent.setup()
     const resident = { ...initialOrders[0], items: { A: 20 }, householdKind: 'resident' as const }
