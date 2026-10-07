@@ -62,6 +62,7 @@ import {
 import { loadLiffIdentity, type LiffClient } from './services/liffIdentity'
 import { Button } from './components/ui/Button'
 import { normalizeQuantityUnit, type QuantityUnit } from './domain/quantityUnit'
+import { trimItemNames } from './domain/itemName'
 import { customOrderItemsEqual, parseCustomOrderItems, type CustomOrderItem } from './domain/customOrderItem'
 import { ErrorState, LoadingState } from './components/ui/AsyncState'
 import { FeedbackMessage } from './components/ui/FeedbackMessage'
@@ -374,7 +375,7 @@ function campaignContentFromRow(row: CampaignRow | null): CampaignContent {
     autoCloseAt: typeof row.auto_close_at === 'string' ? row.auto_close_at : null,
     announcement: row.announcement,
     images: row.images,
-    items: row.items as CampaignContent['items'],
+    items: trimItemNames(row.items as CampaignContent['items']),
     openedAt: typeof row.opened_at === 'string' ? row.opened_at : null,
   })
 }
@@ -1256,6 +1257,7 @@ function residentCampaignListRepository(client: SupabaseClient<Database>): LiveR
           title: row.title,
           status: row.status as CampaignStatus,
           unitPrice: Number(row.unit_price),
+          maxUnitPrice: row.max_unit_price === null || row.max_unit_price === undefined ? undefined : Number(row.max_unit_price),
           openedAt: row.opened_at,
           totalQuantity: Number(row.total_quantity),
           totalAmount: Number(row.total_amount),

@@ -38,6 +38,16 @@ describe('residentMyOrderFromRow', () => {
     })
   })
 
+  it('shows item names without spaces left before or after them', () => {
+    const order = residentMyOrderFromRow({
+      campaign_slug: 'abcd1234', title: '包子', status: 'open', opened_at: '2026-10-01T00:00:00Z', ordered_at: '2026-10-02T00:00:00Z',
+      items: [{ name: ' 黑糖迷你小饅頭', quantity: 2, unitPrice: 95 }],
+      custom_items: [{ name: ' 自己填的 ', quantity: 1 }],
+    })
+    expect(order?.items[0].name).toBe('黑糖迷你小饅頭')
+    expect(order?.customItems[0].name).toBe('自己填的')
+  })
+
   it('skips a row without the fields the page needs', () => {
     expect(residentMyOrderFromRow({ ...row, campaign_slug: null })).toBeNull()
     expect(residentMyOrderFromRow({ ...row, status: 'draft' })).toBeNull()

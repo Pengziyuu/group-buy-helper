@@ -271,6 +271,7 @@ export function demoScenarioListItem(scenario: DemoResidentScenario): ResidentCa
     title: content.title,
     status: scenario.status,
     unitPrice: prices.length > 0 ? Math.min(...prices) : content.unitPrice,
+    maxUnitPrice: prices.length > 0 ? Math.max(...prices) : content.unitPrice,
     openedAt: content.openedAt ?? new Date().toISOString(),
     totalQuantity: summary.quantity,
     totalAmount: summary.amount,

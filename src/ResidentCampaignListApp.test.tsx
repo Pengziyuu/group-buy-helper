@@ -155,6 +155,17 @@ describe('ResidentCampaignListApp', () => {
     expect(meta('未排定的已結單團')).toBe('貨到通知')
   })
 
+  it('gives a closed campaign its arrival first when the organizer named one, the closing day otherwise', () => {
+    render(<ResidentCampaignListApp identity={identity} campaigns={[
+      campaign({ slug: 'both', title: '兩個都有的團', status: 'closed', closedAt: '2026-10-01T04:00:00.000Z', arrivalLabel: '10月中', orderHouseholdCount: 22 }),
+      campaign({ slug: 'dated-arrival', title: '有到貨日的團', status: 'closed', closedAt: '2026-10-01T04:00:00.000Z', arrivalLabel: '10/07' }),
+    ]} now={new Date('2026-10-08T00:00:00.000Z')} />)
+
+    // Waiting residents want to know when it comes, more than when ordering stopped.
+    expect(meta('兩個都有的團')).toBe('10月中到貨・22 人')
+    expect(meta('有到貨日的團')).toBe('10/7 到貨')
+  })
+
   it('gives a closed campaign the day it actually closed, and how many households ordered', () => {
     render(<ResidentCampaignListApp identity={identity} campaigns={[
       campaign({ slug: 'closed-dated', title: '有結單日的團', status: 'closed', closedAt: '2026-08-20T04:00:00.000Z', orderHouseholdCount: 21 }),
@@ -235,6 +246,19 @@ describe('ResidentCampaignListApp', () => {
     // Still open, it can still form: no mark, the usual bar.
     expect(within(screen.getByRole('link', { name: '還在湊的團' }).closest('article') as HTMLElement).queryByText('未成團')).not.toBeInTheDocument()
     expect(screen.getByRole('progressbar', { name: '還在湊的團成團進度' })).not.toHaveAttribute('data-missed')
+  })
+
+  it('says 起 only when the items are priced differently', () => {
+    render(<ResidentCampaignListApp identity={identity} campaigns={[
+      campaign({ slug: 'one-price', title: '同價的團', unitPrice: 95, maxUnitPrice: 95 }),
+      campaign({ slug: 'range', title: '價格不同的團', unitPrice: 450, maxUnitPrice: 620 }),
+      // A list read before the dearest price was sent keeps the cautious 起.
+      campaign({ slug: 'unknown', title: '不知道最高價的團', unitPrice: 100 }),
+    ]} />)
+    const price = (title: string) => (screen.getByRole('link', { name: title }).closest('article') as HTMLElement).querySelector('.resident-campaign-price')?.textContent
+    expect(price('同價的團')).toBe('$95')
+    expect(price('價格不同的團')).toBe('$450 起')
+    expect(price('不知道最高價的團')).toBe('$100 起')
   })
 
   it('signs out from the LINE account menu', async () => {

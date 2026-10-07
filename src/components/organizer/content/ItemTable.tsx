@@ -100,6 +100,8 @@ export function ItemTable({ items, locked, disabled, mixMatchEnabled, onChange }
                       value={item.name}
                       disabled={!editable}
                       onChange={(event) => update(item.code, { name: event.target.value })}
+                      // Spaces stay while typing, so a word can follow; leaving the field tidies the ends.
+                      onBlur={(event) => { if (event.target.value !== event.target.value.trim()) update(item.code, { name: event.target.value.trim() }) }}
                     />
                   </td>
                   <td data-label="單價">

@@ -41,8 +41,8 @@ export function residentMyOrderFromRow(row: MyOrderRow): ResidentMyOrder | null 
     thresholdKind: row.threshold_kind === 'amount' ? 'amount' : 'quantity',
     thresholdAutoClose: typeof row.threshold_auto_close === 'boolean' ? row.threshold_auto_close : row.threshold_kind !== 'amount',
     closedAt: typeof row.closed_at === 'string' ? row.closed_at : null,
-    items: Array.isArray(row.items) ? row.items.filter(isOrderedItem).map(({ name, quantity, unitPrice }) => ({ name, quantity, unitPrice })) : [],
-    customItems: Array.isArray(row.custom_items) ? row.custom_items.filter(isCustomItem).map(({ name, quantity }) => ({ name, quantity })) : [],
+    items: Array.isArray(row.items) ? row.items.filter(isOrderedItem).map(({ name, quantity, unitPrice }) => ({ name: name.trim(), quantity, unitPrice })) : [],
+    customItems: Array.isArray(row.custom_items) ? row.custom_items.filter(isCustomItem).map(({ name, quantity }) => ({ name: name.trim(), quantity })) : [],
   }
 }
 

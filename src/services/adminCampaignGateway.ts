@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database'
 import type { CampaignContent, CampaignImage, CampaignItem } from './demoCampaignStore'
 import { normalizeQuantityUnit } from '../domain/quantityUnit'
+import { trimItemNames } from '../domain/itemName'
 
 export type AdminCampaignSupabaseClient = SupabaseClient<Database>
 
@@ -79,11 +80,11 @@ function toContent(data: unknown): CampaignContent {
     autoCloseAt: row.auto_close_at ?? null,
     announcement: row.announcement,
     images: row.images,
-    items: row.items.map((item) => ({
+    items: trimItemNames(row.items.map((item) => ({
       ...item,
       unitPrice: item.unitPrice ?? row.unit_price,
       discountEligible: item.discountEligible ?? false,
-    })),
+    }))),
     openedAt: typeof row.opened_at === 'string' ? row.opened_at : null,
   }
 }
