@@ -215,6 +215,31 @@ describe('local Supabase visual demo apps', () => {
     expect(list).not.toHaveBeenCalled()
   })
 
+  it('reads the cheapest and dearest prices from the database list, saying 起 only for a range', async () => {
+    const session = { access_token: 'resident-access', user: { id: 'resident-uid', is_anonymous: false } }
+    const { client } = authClient(session)
+    const row = (slug: string, title: string, unitPrice: number, maxUnitPrice: number) => ({
+      slug, title, status: 'open', unit_price: unitPrice, max_unit_price: maxUnitPrice, opened_at: '2026-10-01T00:00:00.000Z',
+      threshold: 10, total_quantity: 1, total_amount: unitPrice, threshold_kind: 'quantity', amount_threshold: null,
+      quantity_unit: '包', images: [], arrival_label: '貨到通知', auto_close_at: null, threshold_auto_close: true, closed_at: null,
+      my_quantity: 0, my_custom_quantity: 0, order_household_count: 1,
+    })
+    client.rpc = vi.fn().mockImplementation((name: string) => Promise.resolve(name === 'get_line_resident_self'
+      ? { data: [{ display_name: '彭梓育', picture_url: null }], error: null }
+      : name === 'list_resident_campaigns'
+        ? { data: [row('a1b2c3d4', '同價包子', 95, 95), row('e5f6g7h8', '醬油組', 450, 620)], error: null }
+        : { data: null, error: null })) as never
+    const liffClient: LiffClient = {
+      init: vi.fn(), isLoggedIn: vi.fn().mockReturnValue(false), login: vi.fn(), getProfile: vi.fn(), getIDToken: vi.fn().mockReturnValue(null),
+    }
+
+    render(<LocalLiveResidentApp client={client} liffId="2011099887-Resident" liffClient={liffClient} lineResidentGateway={{ signIn: vi.fn() }} />)
+
+    const price = async (title: string) => ((await screen.findByRole('link', { name: title })).closest('article') as HTMLElement).querySelector('.resident-campaign-price')?.textContent
+    expect(await price('同價包子')).toBe('$95')
+    expect(await price('醬油組')).toBe('$450 起')
+  })
+
   it('restores a verified resident session without reopening LINE OAuth', async () => {
     const session = { access_token: 'resident-access', user: { id: 'resident-uid', is_anonymous: false } }
     const { client } = authClient(session)

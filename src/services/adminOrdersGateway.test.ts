@@ -9,6 +9,15 @@ function queryResult(data: unknown) {
 }
 
 describe('Supabase admin orders gateway', () => {
+  it('names items without spaces left before or after them, for the tally, copy and export', async () => {
+    const itemQuery = queryResult([{ code: 'A', name: ' 黑糖迷你小饅頭', unit_price: 95, active: true, sort_order: 1 }])
+    const wallQuery = queryResult([])
+    const statusQuery = queryResult([])
+    const from = vi.fn((table: string) => table === 'campaign_item' ? itemQuery : table === 'organizer_order_status' ? statusQuery : wallQuery)
+    const summary = await createAdminOrdersGateway({ from, rpc: vi.fn() } as unknown as AdminOrdersSupabaseClient).loadSummary('campaign-1', 10)
+    expect(summary.itemRows.map((item) => item.name)).toEqual(['黑糖迷你小饅頭'])
+  })
+
   it('rebuilds resident orders and merges organizer-only payment and note state', async () => {
     const itemQuery = queryResult([
       { code: 'A', name: '牛奶', unit_price: 45, active: true, sort_order: 1 },

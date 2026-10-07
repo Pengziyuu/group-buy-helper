@@ -24,7 +24,10 @@ export type ResidentCampaignListItem = {
   slug: string
   title: string
   status: CampaignStatus
+  /** The cheapest item, after any base discount. */
   unitPrice: number
+  /** The dearest item, discounted the same way; 起 follows the price only when it is higher. */
+  maxUnitPrice?: number
   openedAt: string
   totalQuantity: number
   totalAmount?: number
@@ -108,7 +111,8 @@ function CampaignRow({ campaign, now }: { campaign: ResidentCampaignListItem; no
         <CampaignThumbnail campaign={campaign} />
         <div className="resident-campaign-row-body">
           <h3><a href={residentCampaignPath(campaign.slug)}>{campaign.title}</a></h3>
-          <p className="resident-campaign-compact-meta">{`${closing?.line ?? arrival.line}${households}`}</p>
+          {/* Arrival first when the organizer named one: it is what residents wait for; else the closing day. */}
+          <p className="resident-campaign-compact-meta">{`${arrival.value !== '貨到通知' ? arrival.line : closing?.line ?? arrival.line}${households}`}</p>
         </div>
         <Icon icon={ChevronRight} size={20} className="resident-campaign-chevron" />
       </article>
@@ -120,7 +124,8 @@ function CampaignRow({ campaign, now }: { campaign: ResidentCampaignListItem; no
       <div className="resident-campaign-row-body">
         <h3><a href={residentCampaignPath(campaign.slug)}>{campaign.title}</a></h3>
         {/* Closed cards sit under the 已結單 heading, so they carry no status badge of their own. */}
-        {open && <p className="resident-campaign-price"><strong>{formatMoney(campaign.unitPrice)}</strong> 起</p>}
+        {/* Without the dearest price (an older cached list), 起 stays: it may be a range. */}
+        {open && <p className="resident-campaign-price"><strong>{formatMoney(campaign.unitPrice)}</strong>{campaign.maxUnitPrice === campaign.unitPrice ? '' : ' 起'}</p>}
         {/* No icons on these tags: they would push a second tag onto its own line on phones, making every card taller. */}
         <p className="resident-campaign-facts" role="group" aria-label={`${campaign.title}時程`}>
           {closing && <span className="resident-campaign-fact" data-tone={closing.soon ? 'warning' : undefined}>{closing.line}</span>}

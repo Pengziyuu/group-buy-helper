@@ -109,7 +109,7 @@ export function createAdminOrdersGateway(client: AdminOrdersSupabaseClient) {
 
       const items = validateItems(itemResult.data).map((item) => ({
         code: item.code,
-        name: item.name,
+        name: item.name.trim(),
         unitPrice: item.unit_price,
         active: item.active,
       }))

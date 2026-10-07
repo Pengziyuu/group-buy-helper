@@ -1863,6 +1863,7 @@ export type Database = {
           auto_close_at: string
           closed_at: string
           images: Json
+          max_unit_price: number
           my_custom_quantity: number
           my_quantity: number
           opened_at: string

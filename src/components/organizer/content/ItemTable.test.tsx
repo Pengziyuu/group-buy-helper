@@ -72,6 +72,20 @@ describe('ItemTable', () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 
+  it('drops spaces before or after an item name when the field is left', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    render(<Harness onChange={onChange} />)
+    const name = screen.getByRole('textbox', { name: '品項 A 商品名稱（口味）' })
+    await user.clear(name)
+    await user.type(name, ' 黑糖 饅頭 ')
+    // Typing keeps the spaces, so a word can follow one; leaving the field tidies the ends.
+    expect(name).toHaveValue(' 黑糖 饅頭 ')
+    await user.tab()
+    expect(name).toHaveValue('黑糖 饅頭')
+    expect(onChange).toHaveBeenLastCalledWith([{ ...baseItems[0], name: '黑糖 饅頭' }, baseItems[1]])
+  })
+
   it('adds a row from the button too', async () => {
     const user = userEvent.setup()
     render(<Harness />)

@@ -81,6 +81,16 @@ function mockClient() {
 }
 
 describe('Supabase admin campaign gateway', () => {
+  it('loads item names without spaces left before or after them', async () => {
+    const single = vi.fn().mockResolvedValue({ data: {
+      title: '包子', unit_price: 95, threshold: 80, announcement: '', images: [], opened_at: '2026-10-01T00:00:00Z',
+      items: [{ code: 'A', name: ' 黑糖迷你小饅頭', unitPrice: 95, active: true }, { code: 'B', name: '純橄欖油1L ', unitPrice: 220, active: true }],
+    }, error: null })
+    const client = { from: vi.fn(() => ({ select: vi.fn(() => ({ eq: vi.fn(() => ({ single })) })) })) } as unknown as AdminCampaignSupabaseClient
+    const loaded = await createAdminCampaignGateway(client).loadPublished('campaign-1')
+    expect(loaded.items.map((item) => item.name)).toEqual(['黑糖迷你小饅頭', '純橄欖油1L'])
+  })
+
   it('loads a database draft as editable campaign content', async () => {
     const { client, from, select, eq } = mockClient()
     const gateway = createAdminCampaignGateway(client)
