@@ -106,6 +106,9 @@
 .organizer-rail-cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .organizer-rail-cover-empty { display: grid; place-items: center; height: 100%; color: var(--color-text-secondary); font-size: var(--font-size-caption); }
 .organizer-rail-title { margin: 0; font-size: 17px; font-weight: var(--font-weight-strong); line-height: var(--line-height-heading); overflow-wrap: anywhere; }
+/* The ⋯ beside the title stands in for 存成範本 and the resident link rows on phones only. */
+.organizer-rail-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-2); }
+.organizer-rail-heading .organizer-rail-more { display: none; flex: none; }
 .organizer-rail-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .organizer-rail-facts { display: grid; gap: var(--space-1); margin: 0; }
 .organizer-rail-facts div { display: flex; gap: var(--space-2); }
@@ -136,6 +139,10 @@
   .organizer-workspace { grid-template-columns: minmax(0, 1fr); }
   .organizer-rail { position: static; gap: var(--space-2); min-height: 0; max-height: none; overflow: visible; padding: var(--space-3) var(--space-4); border-right: 0; border-bottom: 1px solid var(--color-divider); }
   .organizer-rail-cover, .organizer-rail-facts { display: none; }
+  /* 存成範本 and the resident link move into the ⋯ beside the title, so the section starts higher. */
+  /* Scoped to the rail so these win over the rows' own display rules, which come later in this file. */
+  .organizer-rail > .organizer-rail-template, .organizer-rail > .organizer-rail-share { display: none; }
+  .organizer-rail-heading .organizer-rail-more { display: inline-flex; }
   .organizer-rail-nav { display: flex; gap: var(--space-1); overflow-x: auto; }
   /* Tabs in one row: the groups sit side by side with a divider, captions left to screen readers. */
   .organizer-rail-group { display: flex; gap: var(--space-1); }
