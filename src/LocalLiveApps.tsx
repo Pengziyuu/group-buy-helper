@@ -1481,6 +1481,8 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug, liffId
     let channelSyncError = ''
     let channel: ReturnType<typeof client.channel> | null = null
     let resolvedCampaignId = campaignId
+    // Who the resident is does not change between reloads: kept from LINE sign-in, or the first load.
+    let knownIdentity: ResidentLineIdentity | null = null
     const reportSyncError = () => {
       if (active) setSyncError([channelSyncError, publishedSyncError, residentSyncError].filter(Boolean).join('；'))
     }
@@ -1507,16 +1509,19 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug, liffId
           .select('order_id,customer_id,customer_name,picture_url,period,unit,household_kind,item_code,qty,final_unit_price,custom_items,ordered_at,order_updated_at')
           .eq('campaign_id', resolvedCampaignId),
         client.rpc('get_customer_self'),
-        client.rpc('get_line_resident_self'),
+        knownIdentity ? null : client.rpc('get_line_resident_self'),
       ])
       if (wallResult.error) throw wallResult.error
       if (customerResult.error) throw customerResult.error
-      if (identityResult.error) throw identityResult.error
+      if (identityResult?.error) throw identityResult.error
       if (active && (generation === undefined || generation === residentGeneration.current)) {
         applyWall(wallResult.data ?? [], customerResult.data?.[0]?.id)
-        const identity = identityResult.data?.[0]
-        if (!identity?.display_name) throw new Error('請先從住戶 LINE 入口登入')
-        setResidentIdentity({ displayName: identity.display_name, pictureUrl: identity.picture_url })
+        if (identityResult) {
+          const identity = identityResult.data?.[0]
+          if (!identity?.display_name) throw new Error('請先從住戶 LINE 入口登入')
+          knownIdentity = { displayName: identity.display_name, pictureUrl: identity.picture_url }
+          setResidentIdentity(knownIdentity)
+        }
         const customer = customerResult.data?.[0]
         // get_customer_self() does not report household_kind directly, but it
         // is still derivable without a migration: the customer_household_format
@@ -1555,6 +1560,8 @@ function LocalLiveResidentCampaignApp({ client, campaignId, campaignSlug, liffId
         const signedIn = await authenticateResident({ client, liffId, liffClient, lineResidentGateway }, attempt > 0, joinCampaign)
         if (!signedIn || !active) return
         resolvedId = signedIn.data
+        knownIdentity = signedIn.identity
+        setResidentIdentity(signedIn.identity)
       } else {
         // Preserve the local-live fixture/session path when no LIFF is configured.
         sessionPromise.current ??= ensureResidentSession(client, false)

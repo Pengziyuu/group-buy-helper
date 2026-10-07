@@ -78,6 +78,9 @@ export default async function campaignPreview(req: Request, res: Response) {
       }
     } catch { /* Fail closed to generic metadata while preserving the resident page. */ }
   }
+  // Residents open campaign links from LINE, and each uncached open waits for this function. The CDN keeps
+  // a copy fresh for a minute, then answers from it at once while one request refreshes it in the
+  // background. Each deployment has its own CDN cache, so a copy never names another deployment's scripts.
   return res.status(200).setHeader('Content-Type', 'text/html; charset=utf-8')
-    .setHeader('Cache-Control', 'public, max-age=0, s-maxage=60').send(html)
+    .setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=86400').send(html)
 }

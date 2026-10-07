@@ -2435,13 +2435,52 @@ describe('local Supabase visual demo apps', () => {
     )
 
     expect(await screen.findByRole('heading', { name: 'Supabase 已發布冰餅團' })).toBeInTheDocument()
-    expect(screen.getByText(/Supabase Live Demo/)).toBeInTheDocument()
+    // The developer note about the live demo is not for residents.
+    expect(screen.queryByText(/Supabase Live Demo|示範模式/)).not.toBeInTheDocument()
     expect(screen.getByText('已結單', { selector: '.ui-status-badge' })).toBeInTheDocument()
     expect(screen.getAllByText('資料庫住戶').length).toBeGreaterThan(0)
     expect(screen.getByRole('img', { name: '資料庫住戶的 LINE 頭貼' })).toBeInTheDocument()
     expect(screen.getByTitle('2026/08/14 09:00')).toHaveTextContent(/^8\/14$/)
     for (const mark of screen.getAllByText('已修改')) expect(mark).toHaveAttribute('title', '最後修改 2026/08/14 09:05')
     expect(screen.queryByText('斯祈')).not.toBeInTheDocument()
+  })
+
+  it('uses the identity from LINE sign-in on the campaign page instead of asking for it again', async () => {
+    const session = { access_token: 'resident-token', user: { id: 'resident-user', is_anonymous: false } }
+    const { client } = authClient(session)
+    const row = { title: published.title, unit_price: published.unitPrice, threshold: published.threshold,
+      announcement: published.announcement, images: published.images, items: published.items,
+      opened_at: published.openedAt, status: 'open' }
+    const channel = { on: vi.fn().mockReturnThis(), subscribe: vi.fn((_callback?: (status: string) => void) => channel) }
+    Object.assign(client, {
+      rpc: vi.fn((name: string) => Promise.resolve(name === 'get_customer_self'
+        ? { data: [], error: null }
+        : name === 'get_line_resident_self'
+          ? { data: [{ display_name: '資料庫住戶', picture_url: null }], error: null }
+          : { data: [{ id: 'campaign-1' }], error: null })),
+      from: vi.fn((table: string) => table === 'campaign_public'
+        ? { select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: row, error: null }) }) }) }
+        : { select: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) }) }),
+      channel: vi.fn().mockReturnValue(channel),
+      removeChannel: vi.fn().mockResolvedValue(undefined),
+    })
+    const liffClient: LiffClient = {
+      init: vi.fn().mockResolvedValue(undefined),
+      isLoggedIn: vi.fn().mockReturnValue(false),
+      login: vi.fn(),
+      getProfile: vi.fn(),
+      getIDToken: vi.fn().mockReturnValue(null),
+    }
+
+    render(<LocalLiveResidentApp client={client} campaignSlug="campaign-slug" liffId="2011099887-Resident" liffClient={liffClient} />)
+    expect(await screen.findByRole('heading', { name: published.title })).toBeInTheDocument()
+    await waitFor(() => expect(channel.subscribe).toHaveBeenCalledWith(expect.any(Function)))
+    act(() => { (channel.subscribe.mock.calls[0][0] as (status: string) => void)('SUBSCRIBED') })
+    await waitFor(() => expect(vi.mocked(client.rpc).mock.calls.filter(([name]) => name === 'get_customer_self')).toHaveLength(2))
+
+    // The restored sign-in already read it; neither the first load nor the reload after subscribing asks again.
+    expect(vi.mocked(client.rpc).mock.calls.filter(([name]) => name === 'get_line_resident_self')).toHaveLength(1)
+    expect(screen.getByText(/資料庫住戶/)).toBeInTheDocument()
   })
 
   it('restores an already-bound resident outside the community without showing the binding form again', async () => {
@@ -2661,6 +2700,9 @@ describe('local Supabase visual demo apps', () => {
     act(() => { (channel.subscribe.mock.calls[0][0] as (status: string) => void)('SUBSCRIBED') })
     expect(await screen.findByRole('heading', { name: '訂閱前更新的標題' })).toBeInTheDocument()
     expect(single).toHaveBeenCalledTimes(2)
+    // Who the resident is does not change between reloads: asked once, not on every sync.
+    await waitFor(() => expect(wallEq).toHaveBeenCalledTimes(2))
+    expect(vi.mocked(client.rpc).mock.calls.filter(([name]) => name === 'get_line_resident_self')).toHaveLength(1)
     act(() => { (channel.subscribe.mock.calls[0][0] as (status: string) => void)('CHANNEL_ERROR') })
     expect(screen.getByRole('alert')).toHaveTextContent('即時連線')
     act(() => { (channel.on.mock.calls[1][2] as () => void)() })
