@@ -190,6 +190,27 @@ describe('WorkspaceRail', () => {
     expect(screen.queryByRole('button', { name: /複製住戶連結/ })).not.toBeInTheDocument()
   })
 
+  it('gathers the resident link and 存成範本 in one ⋯ menu beside the title, for phones', async () => {
+    const user = userEvent.setup()
+    const onCopyResidentLink = vi.fn().mockResolvedValue(undefined)
+    renderRail({ onCopyResidentLink, saveTemplate: { loadTemplates: vi.fn(async () => []), saveNew: vi.fn(), replace: vi.fn() } })
+    const rail = screen.getByRole('complementary', { name: '團購工作區' })
+    const more = within(rail).getByRole('button', { name: '更多操作 一涼製冰所 超厚三明治冰餅' })
+    // Phone CSS shows this menu and hides the template and link rows it stands for.
+    expect(more.closest('.organizer-rail-heading')).toContainElement(within(rail).getByRole('heading', { level: 1 }))
+
+    await user.click(more)
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['複製住戶連結', '開啟住戶頁', '存成範本'])
+    expect(screen.getByRole('menuitem', { name: '開啟住戶頁' })).toHaveAttribute('href', '/campaign/0123456789abcdef0123456789abcdef0123')
+    await user.click(screen.getByRole('menuitem', { name: '複製住戶連結' }))
+    expect(onCopyResidentLink).toHaveBeenCalledWith('/campaign/0123456789abcdef0123456789abcdef0123')
+    expect(await screen.findByRole('status')).toHaveTextContent('已複製住戶連結')
+
+    await user.click(more)
+    await user.click(screen.getByRole('menuitem', { name: '存成範本' }))
+    expect(screen.getByRole('dialog', { name: '存成範本' })).toBeInTheDocument()
+  })
+
   it('copies and opens the resident page link', async () => {
     const user = userEvent.setup()
     const onCopyResidentLink = vi.fn().mockResolvedValue(undefined)

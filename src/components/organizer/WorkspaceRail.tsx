@@ -8,6 +8,7 @@ import type { CampaignImage } from '../../services/demoCampaignStore'
 import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { FeedbackMessage } from '../ui/FeedbackMessage'
+import { Menu, type MenuItem } from '../ui/Menu'
 import { StatusBadge } from '../ui/StatusBadge'
 import { copyResidentLink } from './copyResidentLink'
 import { OrganizerLink } from './OrganizerLink'
@@ -80,6 +81,17 @@ export function WorkspaceRail({ campaign, section, now, onSetCampaignStatus, onC
     ? { tone: 'warning' as const, label: '草稿' }
     : { tone: isOpen ? 'success' as const : 'neutral' as const, label: campaignStatusLabel(campaign.status) }
 
+  const startSavingTemplate = () => { setTemplateFeedback(''); setSavingTemplate(true) }
+  // Phones show these in a ⋯ menu beside the title instead of their own rows (organizer.css),
+  // so the section below starts nearer the top.
+  const moreItems: MenuItem[] = [
+    ...(campaign.residentHref ? [
+      { label: '複製住戶連結', onSelect: () => { void copyLink() } },
+      { label: '開啟住戶頁', href: campaign.residentHref, target: '_blank' },
+    ] : []),
+    ...(saveTemplate ? [{ label: '存成範本', onSelect: startSavingTemplate }] : []),
+  ]
+
   const changeStatus = async () => {
     if (!onSetCampaignStatus || changing) return
     setChanging(true)
@@ -114,7 +126,10 @@ export function WorkspaceRail({ campaign, section, now, onSetCampaignStatus, onC
           ? <img src={campaign.coverImage.src} alt={campaign.coverImage.alt} />
           : <span className="organizer-rail-cover-empty" role="img" aria-label={`${campaign.title}尚未設定圖片`}>尚未設定圖片</span>}
       </div>
-      <h1 className="organizer-rail-title">{campaign.title}</h1>
+      <div className="organizer-rail-heading">
+        <h1 className="organizer-rail-title">{campaign.title}</h1>
+        {moreItems.length > 0 && <Menu size="sm" className="organizer-rail-more" label={`更多操作 ${campaign.title}`} items={moreItems} />}
+      </div>
       <div className="organizer-rail-status">
         <StatusBadge tone={badge.tone}>{badge.label}</StatusBadge>
         {campaign.published && onSetCampaignStatus && (
@@ -156,10 +171,11 @@ export function WorkspaceRail({ campaign, section, now, onSetCampaignStatus, onC
       </nav>
       {saveTemplate && (
         <div className="organizer-rail-template">
-          <Button variant="secondary" size="sm" onClick={() => { setTemplateFeedback(''); setSavingTemplate(true) }}><Icon icon={BookmarkPlus} />存成範本</Button>
-          {templateFeedback && <FeedbackMessage tone="success">{templateFeedback}</FeedbackMessage>}
+          <Button variant="secondary" size="sm" onClick={startSavingTemplate}><Icon icon={BookmarkPlus} />存成範本</Button>
         </div>
       )}
+      {/* Outside the template row, which phones hide in favour of the ⋯ menu. */}
+      {templateFeedback && <FeedbackMessage tone="success">{templateFeedback}</FeedbackMessage>}
       {savingTemplate && saveTemplate && (
         <SaveTemplateDialog
           {...saveTemplate}
