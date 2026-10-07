@@ -146,6 +146,15 @@ describe('template settings', () => {
     expect(await screen.findByText('還沒有範本。在團購工作區按「存成範本」就會出現在這裡。')).toBeInTheDocument()
   })
 
+  it('keeps the rename and delete buttons in an ordinary table cell, so row lines run straight across', async () => {
+    render(<OrganizerSettings templateActions={actions([template('t1', '冰餅')])} />)
+    const rename = await screen.findByRole('button', { name: '改名 冰餅' })
+    // A flex <td> leaves table layout and stops short of the row height, so its bottom line sat higher
+    // than the rest of the row. The buttons are laid out by a box inside the cell instead.
+    expect(rename.closest('td')).not.toHaveClass('organizer-template-actions')
+    expect(rename.closest('.organizer-template-actions')?.tagName).toBe('DIV')
+  })
+
   it('shows each template’s first image so templates can be told apart at a glance', async () => {
     render(<OrganizerSettings templateActions={actions([withCover(template('t1', '冰餅'))])} />)
     const row = (await screen.findByRole('rowheader', { name: '冰餅' })).closest('tr') as HTMLElement

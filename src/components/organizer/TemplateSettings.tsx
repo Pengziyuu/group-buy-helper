@@ -158,27 +158,30 @@ export function TemplateSettings({ actions }: { actions: TemplateSettingsActions
                     </th>
                     <td data-label="品項數">{template.content.items.length} 個</td>
                     <td data-label="最後更新"><RelativeTime value={template.updatedAt} now={now} /></td>
-                    <td className="organizer-template-actions">
-                      {editing ? (
-                        <>
-                          <Button size="sm" loading={renaming} loadingLabel="儲存中…" onClick={() => { void saveName(template) }}>儲存</Button>
-                          <Button size="sm" variant="utility" disabled={renaming} onClick={() => cancelRename(template.id)}>取消</Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button
-                            ref={(node) => {
-                              if (node) renameButtonRefs.current.set(template.id, node)
-                              else renameButtonRefs.current.delete(template.id)
-                            }}
-                            size="sm"
-                            variant="utility"
-                            aria-label={`改名 ${template.name}`}
-                            onClick={() => startRename(template)}
-                          >改名</Button>
-                          <Button size="sm" variant="danger" aria-label={`刪除 ${template.name}`} onClick={() => { setDeleteError(''); setNotice(null); setDeleting(template) }}>刪除</Button>
-                        </>
-                      )}
+                    <td>
+                      {/* Laid out by a box inside the cell: a flex <td> stops short of the row height and breaks the row line. */}
+                      <div className="organizer-template-actions">
+                        {editing ? (
+                          <>
+                            <Button size="sm" loading={renaming} loadingLabel="儲存中…" onClick={() => { void saveName(template) }}>儲存</Button>
+                            <Button size="sm" variant="utility" disabled={renaming} onClick={() => cancelRename(template.id)}>取消</Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              ref={(node) => {
+                                if (node) renameButtonRefs.current.set(template.id, node)
+                                else renameButtonRefs.current.delete(template.id)
+                              }}
+                              size="sm"
+                              variant="utility"
+                              aria-label={`改名 ${template.name}`}
+                              onClick={() => startRename(template)}
+                            >改名</Button>
+                            <Button size="sm" variant="danger" aria-label={`刪除 ${template.name}`} onClick={() => { setDeleteError(''); setNotice(null); setDeleting(template) }}>刪除</Button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )
