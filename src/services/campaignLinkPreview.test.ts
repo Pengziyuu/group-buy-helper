@@ -92,6 +92,16 @@ describe('LINE 團購連結預覽', () => {
     const config = JSON.parse(readFileSync(resolve(process.cwd(), 'vercel.json'), 'utf8')) as { functions?: Record<string, { includeFiles?: string }> }
     expect(config.functions?.['api/campaign-preview.ts']?.includeFiles).toBe('dist/index.html')
   })
+  it('runs next to the Tokyo database rather than in the default US East region', () => {
+    // Every campaign link waits for this function; from iad1 each open took 0.6 to 1 s before any HTML arrived.
+    const config = JSON.parse(readFileSync(resolve(process.cwd(), 'vercel.json'), 'utf8')) as { regions?: string[] }
+    expect(config.regions).toEqual(['hnd1'])
+  })
+  it('lets the CDN answer from its copy at once and refresh it in the background', async () => {
+    const { state } = await request('k7qp2xza', [{ title: '短網址團', image_url: image }])
+    // A minute fresh, then served stale while one request refreshes it, for up to a day without visits.
+    expect(state.headers['Cache-Control']).toBe('public, max-age=0, s-maxage=60, stale-while-revalidate=86400')
+  })
   it('previews campaigns with the new 8-character codes, and still rejects anything else', async () => {
     const short = await request('k7qp2xza', [{ title: '短網址團', image_url: image }])
     expect(short.state.body).toContain('短網址團｜團購小幫手')

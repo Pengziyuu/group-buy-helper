@@ -541,11 +541,8 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', camp
           itemCodes={publishedCampaign.items.map((item) => item.code)}
         />
       </main>
-      <footer className="resident-footer">
-        {liveDemo
-          ? 'Supabase Live Demo・發布內容由資料庫即時同步'
-          : '這是本機示範模式；接上 LIFF 與 Supabase 後會自動辨識身分並即時同步。'}
-      </footer>
+      {/* Only the local demo explains itself; residents on the live site get no developer note. */}
+      {!liveDemo && <footer className="resident-footer">這是本機示範模式；接上 LIFF 與 Supabase 後會自動辨識身分並即時同步。</footer>}
       {notice?.tone === 'success' && (
         <Toast
           key={notice.id}
