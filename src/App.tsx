@@ -551,6 +551,7 @@ function App({ publishedContent, liveDemo = false, campaignStatus = 'open', camp
           quantityUnit={quantityUnit}
           itemDisplayLabel={itemDisplayLabel}
           itemCodes={publishedCampaign.items.map((item) => item.code)}
+          itemName={(code) => publishedCampaign.items.find((item) => item.code === code)?.name ?? code}
         />
       </main>
       {/* Only the local demo explains itself; residents on the live site get no developer note. */}

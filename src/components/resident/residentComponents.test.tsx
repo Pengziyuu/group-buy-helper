@@ -194,11 +194,41 @@ describe('resident campaign page parts', () => {
 
     const wall = screen.getByRole('region', { name: '大家的訂單' })
     expect(within(wall).getByText('23 筆・即時更新')).toBeInTheDocument()
-    expect(within(wall).getAllByRole('listitem')).toHaveLength(20)
-    expect(within(wall).getByText('（你）')).toBeInTheDocument()
+    const names = () => within(wall.querySelector('.resident-wall-list') as HTMLElement).getAllByRole('listitem').map((item) => item.querySelector('strong')?.textContent)
+    // The resident's own order first, however early it was placed; then the newest, twenty in all.
+    expect(names()).toEqual(['住戶1', ...Array.from({ length: 19 }, (_, index) => `住戶${23 - index}`)])
+    expect(within(wall).getByText('（你）').closest('li')).toHaveClass('is-own')
     expect(within(wall).queryByText(/2A1/)).not.toBeInTheDocument()
     await user.click(within(wall).getByRole('button', { name: '顯示全部 23 筆' }))
-    expect(within(wall).getAllByRole('listitem')).toHaveLength(23)
+    expect(names()).toEqual(['住戶1', ...Array.from({ length: 22 }, (_, index) => `住戶${23 - index}`)])
+  })
+
+  it('names the three most ordered items above the wall, by quantity, formal items only', () => {
+    const order = (customerId: string, items: Record<string, number>, customQuantity = 0): VisibleOrder => ({
+      customerId, name: customerId, period: 2, unit: '2A1', householdKind: 'resident', items,
+      customItems: customQuantity ? [{ id: `${customerId}-c`, name: '自己填的', quantity: customQuantity }] : [],
+      orderedAt: '2026-08-14T00:00:00Z', updatedAt: '2026-08-14T00:00:00Z',
+    })
+    const names: Record<string, string> = { A: '牛奶', B: '花生', C: '抹茶', D: '草莓' }
+    render(<OrderWall
+      orders={[order('a', { A: 2, B: 1 }), order('b', { A: 1, C: 3 }, 9), order('c', { D: 1, B: 0 })]}
+      quantityUnit="個" itemCodes={['A', 'B', 'C', 'D']} itemDisplayLabel={(code) => code} itemName={(code) => names[code]}
+    />)
+
+    // A and C tie at 3 and keep the campaign's order; custom items, 9 of them, are not ranked.
+    const popular = screen.getByRole('list', { name: '熱門品項' })
+    expect(within(popular).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['A 牛奶 3 個', 'C 抹茶 3 個', 'B 花生 1 個'])
+  })
+
+  it('leaves out 熱門品項 for a single-item campaign or before anyone orders', () => {
+    const { unmount } = render(<OrderWall orders={[]} quantityUnit="個" itemCodes={['A', 'B']} itemDisplayLabel={(code) => code} itemName={(code) => code} />)
+    expect(screen.queryByRole('list', { name: '熱門品項' })).not.toBeInTheDocument()
+    unmount()
+    render(<OrderWall
+      orders={[{ customerId: 'a', name: 'a', period: 2, unit: '2A1', householdKind: 'resident', items: { A: 3 }, orderedAt: '2026-08-14T00:00:00Z', updatedAt: '2026-08-14T00:00:00Z' }]}
+      quantityUnit="個" itemCodes={['A']} itemDisplayLabel={(code) => code} itemName={(code) => code}
+    />)
+    expect(screen.queryByRole('list', { name: '熱門品項' })).not.toBeInTheDocument()
   })
 
   it('shows how long ago each order was placed and changed on the order wall', () => {

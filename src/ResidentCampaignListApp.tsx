@@ -101,6 +101,19 @@ function CampaignRow({ campaign, now }: { campaign: ResidentCampaignListItem; no
   const { closing, arrival } = describeResidentSchedule(campaign, now)
   const ordered = orderedMark(campaign.myQuantity ?? 0, campaign.myCustomQuantity ?? 0)
   const households = campaign.orderHouseholdCount ? `・${campaign.orderHouseholdCount} 人` : ''
+  // Closed campaigns are looked back on, not ordered from: one compact line each, so open ones stand out.
+  if (!open) {
+    return (
+      <article className="resident-campaign-row is-compact" data-status="closed">
+        <CampaignThumbnail campaign={campaign} />
+        <div className="resident-campaign-row-body">
+          <h3><a href={residentCampaignPath(campaign.slug)}>{campaign.title}</a></h3>
+          <p className="resident-campaign-compact-meta">{`${closing?.line ?? arrival.line}${households}`}</p>
+        </div>
+        <Icon icon={ChevronRight} size={20} className="resident-campaign-chevron" />
+      </article>
+    )
+  }
   return (
     <article className="resident-campaign-row" data-status={open ? 'open' : 'closed'}>
       <CampaignThumbnail campaign={campaign} ordered={ordered} />

@@ -18,6 +18,8 @@ function campaign(overrides: Partial<ResidentCampaignListItem> & Pick<ResidentCa
 
 // Each schedule fact is its own tag; read them in order.
 const facts = (name: string) => [...screen.getByRole('group', { name }).querySelectorAll('.resident-campaign-fact')].map((fact) => fact.textContent)
+// A closed campaign's one line under its name.
+const meta = (title: string) => (screen.getByRole('link', { name: title }).closest('article') as HTMLElement).querySelector('.resident-campaign-compact-meta')?.textContent
 
 describe('ResidentCampaignListApp', () => {
   it('lists open campaigns before closed ones with price, progress and schedule', () => {
@@ -61,9 +63,10 @@ describe('ResidentCampaignListApp', () => {
     expect(within(closed).getByRole('link', { name: '水果團購' })).toBeInTheDocument()
     // The section heading already says 已結單; the card does not repeat it.
     expect(within(closed).queryByText('已結單', { selector: '.ui-status-badge' })).not.toBeInTheDocument()
-    expect(within(closed).getByText('12 箱 / 12 箱')).toBeInTheDocument()
-    // Closed campaigns keep only the arrival fact.
-    expect(facts('水果團購時程')).toEqual(['貨到通知'])
+    // A closed campaign is one compact line: no price, no progress, one date.
+    expect(within(closed).queryByText('12 箱 / 12 箱')).not.toBeInTheDocument()
+    expect(within(closed).queryByRole('progressbar')).not.toBeInTheDocument()
+    expect(meta('水果團購')).toBe('貨到通知')
     expect(within(closed).getByRole('img', { name: '水果團購尚未設定商品圖片' })).toBeInTheDocument()
 
     const titles = within(screen.getByRole('main')).getAllByRole('link').map((link) => link.textContent)
@@ -103,7 +106,8 @@ describe('ResidentCampaignListApp', () => {
     )
 
     expect(facts('開團中的團時程')).toEqual(['10/15 12:00 結單', '貨到通知'])
-    expect(facts('提前結單的團時程')).toEqual(['貨到通知'])
+    // Its scheduled time no longer applies; the compact line gives the arrival instead.
+    expect(meta('提前結單的團')).toBe('貨到通知')
     expect(screen.queryByText(/原訂/)).not.toBeInTheDocument()
   })
 
@@ -141,22 +145,22 @@ describe('ResidentCampaignListApp', () => {
     expect(screen.queryByText(/未排定/)).not.toBeInTheDocument()
   })
 
-  it('gives every closed campaign the same arrival-only line, scheduled or not', () => {
+  it('gives a closed campaign without a known closing day its arrival, scheduled or not', () => {
     render(<ResidentCampaignListApp identity={identity} campaigns={[
       campaign({ slug: 'closed-scheduled', title: '有排定的已結單團', status: 'closed', arrivalLabel: '10月初', autoCloseAt: '2027-03-05T04:00:00.000Z' }),
       campaign({ slug: 'closed-unscheduled', title: '未排定的已結單團', status: 'closed', autoCloseAt: null }),
     ]} now={new Date('2026-09-01T00:00:00.000Z')} />)
 
-    expect(facts('有排定的已結單團時程')).toEqual(['10月初到貨'])
-    expect(facts('未排定的已結單團時程')).toEqual(['貨到通知'])
+    expect(meta('有排定的已結單團')).toBe('10月初到貨')
+    expect(meta('未排定的已結單團')).toBe('貨到通知')
   })
 
-  it('adds the day a closed campaign actually closed, when it is known', () => {
+  it('gives a closed campaign the day it actually closed, and how many households ordered', () => {
     render(<ResidentCampaignListApp identity={identity} campaigns={[
-      campaign({ slug: 'closed-dated', title: '有結單日的團', status: 'closed', closedAt: '2026-08-20T04:00:00.000Z' }),
+      campaign({ slug: 'closed-dated', title: '有結單日的團', status: 'closed', closedAt: '2026-08-20T04:00:00.000Z', orderHouseholdCount: 21 }),
     ]} now={new Date('2026-09-01T00:00:00.000Z')} />)
 
-    expect(facts('有結單日的團時程')).toEqual(['8/20 結單', '貨到通知'])
+    expect(meta('有結單日的團')).toBe('8/20 結單・21 人')
   })
 
   it('marks campaigns the resident ordered on the picture and counts the households that ordered', () => {
@@ -211,25 +215,23 @@ describe('ResidentCampaignListApp', () => {
     render(<ResidentCampaignListApp identity={{ displayName: '住戶', pictureUrl: null }} campaigns={[
       campaign({ slug: 'formed', title: '已成團的團', thresholdKind: 'amount', amountThreshold: 1000, totalAmount: 1200 }),
       campaign({ slug: 'forming', title: '未成團的團', totalQuantity: 4, threshold: 10 }),
-      campaign({ slug: 'closed-formed', title: '結單成團的團', status: 'closed', totalQuantity: 10, threshold: 10 }),
     ]} />)
 
     expect(screen.getByRole('progressbar', { name: '已成團的團成團進度' })).toHaveAttribute('data-formed', 'true')
     expect(screen.getByRole('progressbar', { name: '未成團的團成團進度' })).not.toHaveAttribute('data-formed')
     expect(screen.getByText('已成團，仍可下單')).toBeInTheDocument()
-    expect(screen.getByText('已成團')).toBeInTheDocument()
   })
 
-  it('greys the bar of a campaign closed short of its threshold, without saying it did not form', () => {
+  it('never says a campaign closed short of its threshold did not form', () => {
     render(<ResidentCampaignListApp identity={{ displayName: '住戶', pictureUrl: null }} campaigns={[
       campaign({ slug: 'missed', title: '沒到門檻的團', status: 'closed', totalQuantity: 7, threshold: 12 }),
       campaign({ slug: 'forming', title: '還在湊的團', totalQuantity: 4, threshold: 10 }),
     ]} />)
 
-    // Such a campaign often ships anyway, so residents see the count, not a verdict.
+    // Such a campaign often ships anyway; its compact line carries no progress and no verdict.
     const missed = screen.getByRole('link', { name: '沒到門檻的團' }).closest('article') as HTMLElement
     expect(within(missed).queryByText(/未成團|未達/)).not.toBeInTheDocument()
-    expect(screen.getByRole('progressbar', { name: '沒到門檻的團成團進度' })).toHaveAttribute('data-missed', 'true')
+    expect(within(missed).queryByRole('progressbar')).not.toBeInTheDocument()
     // Still open, it can still form: no mark, the usual bar.
     expect(within(screen.getByRole('link', { name: '還在湊的團' }).closest('article') as HTMLElement).queryByText('未成團')).not.toBeInTheDocument()
     expect(screen.getByRole('progressbar', { name: '還在湊的團成團進度' })).not.toHaveAttribute('data-missed')

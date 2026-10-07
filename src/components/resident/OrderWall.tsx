@@ -6,6 +6,7 @@ import { Avatar } from '../ui/Avatar'
 import { Button } from '../ui/Button'
 
 const WALL_PREVIEW_COUNT = 20
+const POPULAR_COUNT = 3
 
 type OrderWallProps = {
   orders: VisibleOrder[]
@@ -14,21 +15,35 @@ type OrderWallProps = {
   itemDisplayLabel: (code: string) => string
   /** The campaign's item codes in listing order; each order's items follow it rather than the order they were tapped. */
   itemCodes?: string[]
+  /** Each item's name, for 熱門品項; without it the wall shows no ranking. */
+  itemName?: (code: string) => string
   now?: Date
 }
 
 const orderQuantity = (items: Record<string, number>) => Object.values(items).reduce((sum, quantity) => sum + quantity, 0)
 
-export function OrderWall({ orders, currentCustomerId, quantityUnit, itemDisplayLabel, itemCodes = [], now }: OrderWallProps) {
+export function OrderWall({ orders, currentCustomerId, quantityUnit, itemDisplayLabel, itemCodes = [], itemName, now }: OrderWallProps) {
   const rank = (code: string) => {
     const index = itemCodes.indexOf(code)
     return index < 0 ? Number.MAX_SAFE_INTEGER : index
   }
   const [showAll, setShowAll] = useState(false)
   const currentTime = useNow(now)
-  const sorted = [...orders].sort((left, right) => Date.parse(left.orderedAt) - Date.parse(right.orderedAt)
+  // The resident's own order first, wherever it falls; then the newest, as the first view shows twenty.
+  const sorted = [...orders].sort((left, right) => Number(right.customerId === currentCustomerId) - Number(left.customerId === currentCustomerId)
+    || Date.parse(right.orderedAt) - Date.parse(left.orderedAt)
     || left.customerId.localeCompare(right.customerId))
   const visible = showAll ? sorted : sorted.slice(0, WALL_PREVIEW_COUNT)
+  // What everyone is buying, to help choose: formal items only, as custom items are each resident's own words.
+  const totals = new Map<string, number>()
+  for (const order of orders) {
+    for (const [code, quantity] of Object.entries(order.items)) {
+      if (quantity > 0) totals.set(code, (totals.get(code) ?? 0) + quantity)
+    }
+  }
+  const popular = itemName && itemCodes.length > 1
+    ? [...totals].sort(([leftCode, left], [rightCode, right]) => right - left || rank(leftCode) - rank(rightCode) || leftCode.localeCompare(rightCode)).slice(0, POPULAR_COUNT)
+    : []
 
   return (
     <section className="resident-card resident-wall" aria-labelledby="wall-heading">
@@ -36,6 +51,14 @@ export function OrderWall({ orders, currentCustomerId, quantityUnit, itemDisplay
         <h2 id="wall-heading">大家的訂單</h2>
         <span>{orders.length} 筆・即時更新</span>
       </div>
+      {itemName && popular.length > 0 && (
+        <div className="resident-wall-popular">
+          <p aria-hidden="true">熱門品項</p>
+          <ul aria-label="熱門品項">
+            {popular.map(([code, quantity]) => <li key={code}>{`${itemDisplayLabel(code)} ${itemName(code)} ${quantity} ${quantityUnit}`}</li>)}
+          </ul>
+        </div>
+      )}
       {orders.length === 0 ? <p className="resident-empty">還沒有人下單。</p> : (
         <ul className="resident-wall-list">
           {visible.map((order) => {
