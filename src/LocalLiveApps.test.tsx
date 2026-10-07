@@ -1100,6 +1100,44 @@ describe('local Supabase visual demo apps', () => {
     expect(screen.queryByRole('textbox', { name: '團購標題' })).not.toBeInTheDocument()
   })
 
+  it('verifies a session token once, however many auth events repeat it, and again when the token changes', async () => {
+    const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }
+    const { client } = authClient(session)
+    const isAdminCalls = () => vi.mocked(client.rpc).mock.calls.filter(([name]) => name === 'is_admin').length
+
+    render(
+      <LocalLiveAdminApp
+        client={client}
+        page="settings"
+        ordersRepository={ordersRepository()}
+        autoCloseNotificationSettingsRepository={settingsRepository()}
+      />,
+    )
+    expect(await screen.findByRole('heading', { level: 1, name: '設定' })).toBeInTheDocument()
+    expect(client.auth.getUser).toHaveBeenCalledTimes(1)
+    expect(isAdminCalls()).toBe(1)
+    const authStateCallback = vi.mocked(client.auth.onAuthStateChange).mock.calls[0][0] as (event: string, nextSession: unknown) => void
+
+    // Opening the page, supabase-js reports the stored session more than once (INITIAL_SESSION, SIGNED_IN).
+    await act(async () => {
+      authStateCallback('INITIAL_SESSION', session)
+      authStateCallback('SIGNED_IN', session)
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    expect(client.auth.getUser).toHaveBeenCalledTimes(1)
+    expect(isAdminCalls()).toBe(1)
+
+    // A refreshed token is a new credential: checked again.
+    const refreshed = { ...session, access_token: 'refreshed-token' }
+    await act(async () => {
+      authStateCallback('TOKEN_REFRESHED', refreshed)
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    expect(client.auth.getUser).toHaveBeenLastCalledWith('refreshed-token')
+    expect(isAdminCalls()).toBe(2)
+    expect(screen.getByRole('heading', { level: 1, name: '設定' })).toBeInTheDocument()
+  })
+
   it('clears the organizer UI before a direct sign-out request finishes', async () => {
     const user = userEvent.setup()
     const session = { access_token: 'valid-token', user: { id: 'admin-user', is_anonymous: false } }

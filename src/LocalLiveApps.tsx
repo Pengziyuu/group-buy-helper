@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
-import type { Session, SupabaseClient } from '@supabase/supabase-js'
+import type { AuthChangeEvent, Session, SupabaseClient } from '@supabase/supabase-js'
 import NotificationTestLab from './NotificationTestLab'
 import { LazySectionBoundary } from './components/ui/LazySectionBoundary'
 import ResidentCampaignListApp, {
@@ -499,6 +499,8 @@ export function LocalLiveAdminApp({
   const logoutBarrier = useRef(false)
   const activeSignOut = useRef(false)
   const validatedOrganizerId = useRef<string | null>(null)
+  // The access token behind validatedOrganizerId; a refreshed token is checked again.
+  const verifiedAccessToken = useRef<string | null>(null)
   const currentCampaignIdRef = useRef(campaignId)
   currentCampaignIdRef.current = campaignId
   const [session, setSession] = useState<Session | null | undefined>(undefined)
@@ -633,8 +635,15 @@ export function LocalLiveAdminApp({
       void signOutRemotely()
     }
 
-    const validateRestoredSession = async (nextSession: Session | null) => {
+    const validateRestoredSession = async (nextSession: Session | null, event?: AuthChangeEvent) => {
       if (!active) return
+      // Opening the page, supabase-js reports the stored session more than once (INITIAL_SESSION, then
+      // SIGNED_IN). When that same token for the same organizer was just checked, skip the second round
+      // trip, before the generation bump below would cancel a check of a newer token still under way.
+      // Any other event (TOKEN_REFRESHED, USER_UPDATED) is checked again.
+      if (nextSession && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN')
+        && validatedOrganizerId.current === nextSession.user.id
+        && verifiedAccessToken.current === nextSession.access_token) return
       const validationId = ++authValidationGeneration.current
       if (!nextSession) {
         authEventsBlocked.current = true
@@ -685,15 +694,16 @@ export function LocalLiveAdminApp({
       }
 
       validatedOrganizerId.current = authoritativeUser.id
+      verifiedAccessToken.current = nextSession.access_token
       authEventsBlocked.current = false
       setError('')
       setSession({ ...nextSession, user: authoritativeUser })
     }
 
-    const { data: authSubscription } = client.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: authSubscription } = client.auth.onAuthStateChange((event, nextSession) => {
       authEventSeen = true
       if (authEventsBlocked.current) return
-      void validateRestoredSession(nextSession)
+      void validateRestoredSession(nextSession, event)
     })
 
     if (!hasLogoutTombstone) {
