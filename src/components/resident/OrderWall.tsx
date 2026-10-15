@@ -48,7 +48,7 @@ export function OrderWall({ orders, currentCustomerId, quantityUnit, itemDisplay
   return (
     <section className="resident-card resident-wall" aria-labelledby="wall-heading">
       <div className="resident-section-heading">
-        <h2 id="wall-heading">大家的訂單</h2>
+        <h2 id="wall-heading">即時成團牆</h2>
         <span>{orders.length} 筆・即時更新</span>
       </div>
       {itemName && popular.length > 0 && (

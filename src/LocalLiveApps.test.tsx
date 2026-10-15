@@ -2250,7 +2250,7 @@ describe('local Supabase visual demo apps', () => {
 
     await user.click(screen.getByRole('button', { name: '重新同步' }))
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
-    expect(within(screen.getByRole('region', { name: '大家的訂單' })).getByText('A+1')).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: '即時成團牆' })).getByText('A+1')).toBeInTheDocument()
     act(() => { ordersChanged() })
     expect(await screen.findByText(/你已送出 2/)).toBeInTheDocument()
     act(() => { ordersChanged() })
@@ -2305,7 +2305,7 @@ describe('local Supabase visual demo apps', () => {
     await user.click(screen.getByRole('button', { name: '送出訂單' }))
     await waitFor(() => expect(wallEq).toHaveBeenCalledTimes(2))
     act(() => { ordersChanged() })
-    await waitFor(() => expect(within(screen.getByRole('region', { name: '大家的訂單' })).getByText('A+1')).toBeInTheDocument())
+    await waitFor(() => expect(within(screen.getByRole('region', { name: '即時成團牆' })).getByText('A+1')).toBeInTheDocument())
     await act(async () => { failOldRead({ data: null, error: new Error('延遲讀取失敗') }) })
     expect(await screen.findByText('訂單已更新')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
@@ -2597,7 +2597,7 @@ describe('local Supabase visual demo apps', () => {
     render(<LocalLiveResidentApp client={client} campaignSlug="campaign-slug" />)
 
     // The order wall keeps the order but does not expose its household kind.
-    const wall = await screen.findByRole('region', { name: '大家的訂單' })
+    const wall = await screen.findByRole('region', { name: '即時成團牆' })
     expect(within(wall).getByText('丙', { selector: 'strong' })).toBeInTheDocument()
     expect(within(wall).queryByText('其他')).not.toBeInTheDocument()
     expect(screen.getByText('其他・丙')).toBeInTheDocument()
@@ -2655,7 +2655,7 @@ describe('local Supabase visual demo apps', () => {
 
     render(<LocalLiveResidentApp client={client} campaignSlug="campaign-slug" />)
 
-    const wall = await screen.findByRole('region', { name: '大家的訂單' })
+    const wall = await screen.findByRole('region', { name: '即時成團牆' })
     expect(within(wall).getByText('丁', { selector: 'strong' })).toBeInTheDocument()
     expect(within(wall).queryByText('其他')).not.toBeInTheDocument()
     expect(screen.getByText('其他・丁')).toBeInTheDocument()
