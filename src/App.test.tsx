@@ -323,7 +323,7 @@ describe('customer campaign app', () => {
     }
     render(<App residentCustomer={resident} visibleOrders={[resident, neighbor]} />)
 
-    const wall = screen.getByRole('region', { name: '大家的訂單' })
+    const wall = screen.getByRole('region', { name: '即時成團牆' })
     expect(within(wall).queryByText('二期 2K13')).not.toBeInTheDocument()
     expect(within(wall).queryByText('二期 9Z9')).not.toBeInTheDocument()
     expect(within(wall).getByText('斯祈')).toBeInTheDocument()
@@ -792,7 +792,7 @@ describe('customer campaign app', () => {
     expect(within(screen.getByRole('dialog', { name: '訂單明細' })).getByText('$150')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '關閉訂單明細' }))
     expect(screen.getByText('A+2、B+1')).toBeInTheDocument()
-    expect(within(screen.getByRole('region', { name: '大家的訂單' })).queryByText('三期 3Z15')).not.toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: '即時成團牆' })).queryByText('三期 3Z15')).not.toBeInTheDocument()
     expect(screen.queryByText(/A號|B號/)).not.toBeInTheDocument()
   })
 
@@ -800,7 +800,7 @@ describe('customer campaign app', () => {
     render(<App />)
 
     expect(document.querySelector('.resident-summary-meta')).toHaveTextContent('6 筆訂單・8/14 開團')
-    const wall = screen.getByRole('region', { name: '大家的訂單' })
+    const wall = screen.getByRole('region', { name: '即時成團牆' })
     expect(within(wall).getByTitle('2026/08/14 08:10')).toHaveTextContent(/^8\/14$/)
     expect(within(wall).getByText('已修改')).toHaveAttribute('title', '最後修改 2026/08/14 08:12')
   })

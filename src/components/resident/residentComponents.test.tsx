@@ -192,7 +192,7 @@ describe('resident campaign page parts', () => {
     }))
     render(<OrderWall orders={orders} currentCustomerId="customer-0" quantityUnit="個" itemDisplayLabel={(code) => code} />)
 
-    const wall = screen.getByRole('region', { name: '大家的訂單' })
+    const wall = screen.getByRole('region', { name: '即時成團牆' })
     expect(within(wall).getByText('23 筆・即時更新')).toBeInTheDocument()
     const names = () => within(wall.querySelector('.resident-wall-list') as HTMLElement).getAllByRole('listitem').map((item) => item.querySelector('strong')?.textContent)
     // The resident's own order first, however early it was placed; then the newest, twenty in all.
