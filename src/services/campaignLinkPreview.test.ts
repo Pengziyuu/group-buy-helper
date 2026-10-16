@@ -5,7 +5,8 @@ import { join, resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import campaignPreview from '../../api/campaign-preview'
 
-const page = '<html lang="zh-Hant"><head><meta property="og:title" content="團購小幫手｜住戶入口" /><meta property="og:description" content="查看社區開團資訊並下單。" /></head><body><div id="root"></div><script src="/assets/app.js"></script></body></html>'
+const helperImage = 'https://tuan-go.vercel.app/brand/helper-preview-v1.jpg'
+const page = `<html lang="zh-Hant"><head><meta property="og:title" content="團購小幫手｜住戶入口" /><meta property="og:description" content="查看社區開團資訊並下單。" /><meta property="og:image" content="${helperImage}" /><meta property="og:image:alt" content="團購小幫手" /></head><body><div id="root"></div><script src="/assets/app.js"></script></body></html>`
 const image = 'https://example.supabase.co/storage/v1/object/public/campaign-images/11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-222222222222.jpg'
 const original = { url: process.env.VITE_SUPABASE_URL, key: process.env.VITE_SUPABASE_ANON_KEY, vercel: process.env.VERCEL_URL }
 
@@ -46,6 +47,9 @@ describe('LINE 團購連結預覽', () => {
     expect(state.body).toContain('og:title" content="神農包子 &lt;新品&gt;｜團購小幫手"')
     expect(state.body).toContain('og:description" content="查看「神農包子 &lt;新品&gt;」團購商品與下單資訊。"')
     expect(state.body).toContain(`og:image" content="${image}"`)
+    expect(state.body.match(/property="og:image"/g)).toHaveLength(1)
+    expect(state.body).not.toContain(helperImage)
+    expect(state.body).toContain('og:image:alt" content="神農包子 &lt;新品&gt;商品圖片"')
     expect(state.body).toContain('<div id="root"></div>')
     expect(calls[0]?.url).toBe('https://tuan-go.vercel.app/index.html')
     expect(calls[1]?.url).toContain('/rest/v1/rpc/campaign_link_preview')
@@ -54,11 +58,12 @@ describe('LINE 團購連結預覽', () => {
   })
   it('does not expose draft/unavailable campaigns or attacker-controlled image hosts', async () => {
     const noRow = await request('b'.repeat(36), [])
-    expect(noRow.state.body).not.toContain('og:image')
+    expect(noRow.state.body).toContain(`og:image" content="${helperImage}"`)
     expect(noRow.state.body).toContain('團購小幫手｜住戶入口')
     const attacker = await request('c'.repeat(36), [{ title: '測試團購', image_url: 'https://example.evil/campaign-images/a.jpg' }])
     expect(attacker.state.body).toContain('測試團購｜團購小幫手')
-    expect(attacker.state.body).not.toContain('og:image')
+    expect(attacker.state.body).toContain(`og:image" content="${helperImage}"`)
+    expect(attacker.state.body).not.toContain('https://example.evil/')
     const malformed = await request('not-a-slug', [{ title: '不應讀取' }])
     expect(malformed.calls).toHaveLength(1)
     expect(malformed.state.body).not.toContain('不應讀取')

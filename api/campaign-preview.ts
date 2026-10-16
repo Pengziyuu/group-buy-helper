@@ -73,7 +73,16 @@ export default async function campaignPreview(req: Request, res: Response) {
           html = html.replace(/<meta property="og:title" content="[^"]*"\s*\/>/, `<meta property="og:title" content="${title}｜團購小幫手" />`)
             .replace(/<meta property="og:description" content="[^"]*"\s*\/>/, `<meta property="og:description" content="${description}" />`)
             .replace(/<title>[^<]*<\/title>/, `<title>${title}｜團購小幫手</title>`)
-          if (cover) html = html.replace('</head>', `  <meta property="og:image" content="${escapeAttribute(cover)}" />\n</head>`)
+          if (cover) {
+            const imageTag = `<meta property="og:image" content="${escapeAttribute(cover)}" />`
+            const imageAltTag = `<meta property="og:image:alt" content="${title}商品圖片" />`
+            html = /<meta property="og:image" content="[^"]*"\s*\/>/.test(html)
+              ? html.replace(/<meta property="og:image" content="[^"]*"\s*\/>/, imageTag)
+              : html.replace('</head>', `  ${imageTag}\n</head>`)
+            html = /<meta property="og:image:alt" content="[^"]*"\s*\/>/.test(html)
+              ? html.replace(/<meta property="og:image:alt" content="[^"]*"\s*\/>/, imageAltTag)
+              : html.replace('</head>', `  ${imageAltTag}\n</head>`)
+          }
         }
       }
     } catch { /* Fail closed to generic metadata while preserving the resident page. */ }
