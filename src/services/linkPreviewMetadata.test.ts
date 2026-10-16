@@ -23,6 +23,17 @@ describe('LINE連結預覽中繼資料', () => {
     expect(html).toContain('<meta property="og:title" content="團購小幫手｜團主後台" />')
   })
 
+  it.each(['index.html', 'admin.html'])('%s 使用新版小幫手圖示與通用分享圖片', (entry) => {
+    const html = readProjectFile(entry)
+    expect(html).toContain('<link rel="icon" type="image/png" sizes="32x32" href="/brand/helper-icon-32-v1.png" />')
+    expect(html).toContain('<link rel="apple-touch-icon" sizes="180x180" href="/brand/helper-icon-180-v1.png" />')
+    expect(html).toContain('<meta property="og:image" content="https://tuan-go.vercel.app/brand/helper-preview-v1.jpg" />')
+    expect(html).not.toContain('type="image/svg+xml" href="/favicon.svg"')
+    for (const image of ['helper-icon-32-v1.png', 'helper-icon-180-v1.png', 'helper-preview-v1.jpg']) {
+      expect(readFileSync(resolve(process.cwd(), 'public/brand', image)).length).toBeGreaterThan(0)
+    }
+  })
+
   it('Vercel將團主網址送至團主專用HTML', () => {
     const config = JSON.parse(readProjectFile('vercel.json')) as {
       rewrites: Array<{ source: string; destination: string }>
