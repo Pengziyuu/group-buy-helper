@@ -2952,9 +2952,11 @@ describe('organizer realtime', () => {
 
   it('warns when the live connection drops and resubscribes on retry', async () => {
     const user = userEvent.setup()
-    const { client, channelFactory, removeChannel, report } = realtimeClient()
+    const { client, channel, channelFactory, removeChannel, report } = realtimeClient()
     render(<LocalLiveAdminApp client={client} campaignId="campaign-1" repository={publishedRepository()} ordersRepository={ordersRepository()} section="overview" />)
     expect(await screen.findByRole('heading', { level: 2, name: '訂單' })).toBeInTheDocument()
+    // The heading can render before the effect registers the Realtime status callback.
+    await waitFor(() => expect(channel.subscribe).toHaveBeenCalledWith(expect.any(Function)))
 
     report('CHANNEL_ERROR')
     expect(await screen.findByText('即時同步中斷，畫面可能不是最新')).toBeInTheDocument()
@@ -2966,7 +2968,7 @@ describe('organizer realtime', () => {
   })
 
   it('shows the warning when a live reload fails', async () => {
-    const { client, callbacks, report } = realtimeClient()
+    const { client, channel, callbacks, report } = realtimeClient()
     const workflow = ordersRepository()
     vi.mocked(workflow.loadSummary)
       .mockResolvedValueOnce(orderSummary)
@@ -2974,6 +2976,7 @@ describe('organizer realtime', () => {
       .mockRejectedValueOnce(new Error('network'))
     render(<LocalLiveAdminApp client={client} campaignId="campaign-1" repository={publishedRepository()} ordersRepository={workflow} section="overview" />)
     expect(await screen.findByRole('heading', { level: 2, name: '訂單' })).toBeInTheDocument()
+    await waitFor(() => expect(channel.subscribe).toHaveBeenCalledWith(expect.any(Function)))
 
     report('SUBSCRIBED')
     expect(await screen.findByText('即時更新')).toBeInTheDocument()
@@ -2996,6 +2999,7 @@ describe('organizer realtime', () => {
 
     const second = render(<LocalLiveAdminApp client={client} campaignId="campaign-1" repository={publishedRepository()} ordersRepository={ordersRepository()} section="overview" />)
     expect(await screen.findByRole('heading', { level: 2, name: '訂單' })).toBeInTheDocument()
+    await waitFor(() => expect(channelFactory).toHaveBeenCalledWith('organizer-campaign-campaign-1'))
     second.unmount()
     expect(removeChannel).toHaveBeenCalledOnce()
     expect(() => report('SUBSCRIBED')).not.toThrow()
