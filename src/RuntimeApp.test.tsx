@@ -94,6 +94,8 @@ describe('RuntimeApp localStorage resident demo routing', () => {
   it('loads demo-only routes on demand with a visible pending state', async () => {
     render(<RuntimeApp config={{ mode: 'demo' }} pathname="/" />)
     expect(screen.getByRole('status', { name: '載入示範畫面…' })).toBeInTheDocument()
+    // Wait for the real lazy import and React commit, not the DOM query's shorter default timeout.
+    await act(async () => { await vi.dynamicImportSettled() })
     expect(await screen.findByRole('heading', { name: '團購' })).toBeInTheDocument()
   })
 
