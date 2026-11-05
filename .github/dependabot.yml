@@ -9,6 +9,13 @@ updates:
       interval: weekly
       timezone: Asia/Taipei
     open-pull-requests-limit: 1
+    # 已知 TypeScript 7 不再提供目前測試需要的 compiler API；Node 型別維持既有主版本。
+    # 僅暫停這兩項大版本更新，同主版本安全修補與其他套件更新照常。
+    ignore:
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       npm:
         patterns: ["*"]
